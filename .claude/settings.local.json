@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \":*)",
+      "Bash(python -c \":*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(curl -s http://localhost:5173/)",
+      "Bash(npx vite:*)",
+      "Bash(netstat -ano)"
+    ]
+  }
+}
