@@ -129,10 +129,10 @@ function Stepper({ step }: { step: Step }) {
   const idx = steps.findIndex((s) => s.id === step)
 
   return (
-    <div className="flex items-center gap-0 mb-6">
+    <div className="flex items-center gap-0 mb-5">
       {steps.map((s, i) => (
         <div key={s.id} className="flex items-center">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <div className={clsx(
               'h-6 w-6 rounded-full text-xs font-semibold flex items-center justify-center shrink-0',
               i < idx   ? 'bg-brand-600 text-white' :
@@ -146,12 +146,16 @@ function Stepper({ step }: { step: Step }) {
               ) : i + 1}
             </div>
             <span className={clsx(
-              'text-sm',
+              'hidden sm:inline text-sm',
               i === idx ? 'font-medium text-steel-900' : 'text-steel-400',
             )}>{s.label}</span>
+            {/* Mobile: show label only for active step */}
+            {i === idx && (
+              <span className="sm:hidden text-sm font-medium text-steel-900">{s.label}</span>
+            )}
           </div>
           {i < steps.length - 1 && (
-            <div className={clsx('h-px w-8 mx-2', i < idx ? 'bg-brand-400' : 'bg-steel-200')} />
+            <div className={clsx('h-px w-4 sm:w-8 mx-1.5 sm:mx-2', i < idx ? 'bg-brand-400' : 'bg-steel-200')} />
           )}
         </div>
       ))}
@@ -334,7 +338,9 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
       )}
       {step === 'etiquetas' && (
         <>
-          <Button variant="secondary" onClick={handleClose}>Omitir e ir al inventario</Button>
+          <Button variant="secondary" onClick={handleClose} className="text-xs sm:text-sm">
+            <span className="hidden xs:inline">Omitir e ir al </span>inventario
+          </Button>
           <Button
             onClick={() => void handlePrintEtiquetas()}
             loading={printing}
@@ -365,7 +371,7 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
           onDrop={handleDrop}
           onClick={() => fileRef.current?.click()}
           className={clsx(
-            'flex flex-col items-center justify-center gap-4 border-2 border-dashed rounded-xl p-12 cursor-pointer transition-colors',
+            'flex flex-col items-center justify-center gap-4 border-2 border-dashed rounded-xl p-6 sm:p-12 cursor-pointer transition-colors',
             dragOver ? 'border-brand-400 bg-brand-50' : 'border-steel-200 bg-steel-50 hover:border-brand-300 hover:bg-brand-50/50',
           )}
         >
@@ -389,7 +395,7 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
       {/* ── STEP 2: MAPEAR ── */}
       {step === 'mapear' && (
         <div className="space-y-1">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-3">
             <p className="text-xs text-steel-500">
               <span className="font-medium text-steel-700">{fileName}</span>
               {' · '}{rawRows.length} filas · {excelCols.length} columnas detectadas
@@ -410,7 +416,7 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
 
               return (
                 <div key={field.key} className={clsx(
-                  'grid grid-cols-[200px_1fr] gap-3 items-start p-3 rounded-lg border',
+                  'grid grid-cols-1 sm:grid-cols-[200px_1fr] gap-2 sm:gap-3 items-start p-3 rounded-lg border',
                   mapping?.columns.length ? 'border-brand-200 bg-brand-50/40' : 'border-steel-100 bg-white',
                 )}>
                   <div className="pt-0.5">
@@ -446,7 +452,7 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
                       <select
                         value=""
                         onChange={(e) => { if (e.target.value) addColumn(field.key, e.target.value) }}
-                        className="h-7 w-full max-w-xs rounded border border-steel-200 bg-white px-2 text-xs text-steel-600 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                        className="h-7 w-full sm:max-w-xs rounded border border-steel-200 bg-white px-2 text-xs text-steel-600 focus:outline-none focus:ring-1 focus:ring-brand-400"
                       >
                         <option value="">
                           {(mapping?.columns.length ?? 0) > 0 ? '+ Combinar con otra columna…' : 'Seleccionar columna del Excel…'}
@@ -467,12 +473,9 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
       {/* ── STEP 4: ETIQUETAS ── */}
       {step === 'etiquetas' && (
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-steel-600">
-              Selecciona los productos y ajusta la cantidad de etiquetas por producto.
-              <br />
-              <span className="text-xs text-steel-400">Las cantidades se pre-llenaron con el stock importado.</span>
-            </p>
+          <div className="mb-3">
+            <p className="text-sm text-steel-600">Selecciona los productos y ajusta la cantidad de etiquetas.</p>
+            <p className="text-xs text-steel-400 mt-0.5">Las cantidades se pre-llenaron con el stock importado.</p>
           </div>
 
           {/* Cabecera con "seleccionar todo" */}
@@ -481,12 +484,12 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
               type="checkbox"
               checked={todosSeleccionados}
               onChange={toggleTodos}
-              className="h-4 w-4 rounded border-steel-300 text-brand-600 cursor-pointer"
+              className="h-4 w-4 rounded border-steel-300 text-brand-600 cursor-pointer shrink-0"
             />
-            <span className="text-xs font-medium text-steel-500 flex-1">
+            <span className="text-xs font-medium text-steel-500 flex-1 min-w-0 truncate">
               {todosSeleccionados ? 'Deseleccionar todos' : 'Seleccionar todos'}
             </span>
-            <span className="text-xs text-steel-400 w-20 text-right">Etiquetas</span>
+            <span className="text-xs text-steel-400 shrink-0">Cant.</span>
           </div>
 
           {/* Lista de productos */}

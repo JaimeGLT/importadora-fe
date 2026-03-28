@@ -67,9 +67,9 @@ export function LoginPage() {
             <span className="text-brand-500">AUTO</span>PARTES
           </p>
 
-          <div className="w-full max-w-sm bg-white/60 backdrop-blur-md rounded-2xl p-6 shadow-2xl">
-            <h2 className="text-xl font-bold text-steel-900 mb-1">Iniciar sesión</h2>
-            <p className="text-steel-400 text-sm mb-6">Ingresa tus credenciales para continuar.</p>
+          <div className="w-full max-w-sm bg-steel-900/60 backdrop-blur-xl rounded-2xl p-6 shadow-2xl border border-white/10">
+            <h2 className="text-xl font-bold text-white mb-1">Iniciar sesión</h2>
+            <p className="text-steel-300 text-sm mb-6">Ingresa tus credenciales para continuar.</p>
             <LoginForm
               email={email} password={password} loading={loading}
               onEmail={setEmail} onPassword={setPassword}
@@ -77,7 +77,7 @@ export function LoginPage() {
             />
           </div>
 
-          <p className="w-full max-w-sm mt-6 text-xs text-steel-500 text-center">
+          <p className="w-full max-w-sm mt-6 text-xs text-steel-400 text-center">
             © {new Date().getFullYear()} USA Autopartes
           </p>
         </div>

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/AuthContext'
@@ -18,20 +19,52 @@ const groups: NavGroup[] = [
       </svg>
     ),
     items: [
-      { label: 'Productos',  to: '/inventario' },
-      { label: 'Préstamos',  to: '/inventario/prestamos' },
+      { label: 'Productos', to: '/inventario' },
+      { label: 'Préstamos', to: '/inventario/prestamos' },
     ],
   },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  open: boolean
+  onClose: () => void
+}
+
+export function Sidebar({ open, onClose }: SidebarProps) {
   const { user, logout } = useAuth()
   const { pathname } = useLocation()
 
+  // Inicializar con los grupos que tienen una ruta activa abiertos
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
+    const initial = new Set<string>()
+    groups.forEach((g) => {
+      if (g.items.some((i) => pathname.startsWith(i.to === '/inventario' ? '/inventario' : i.to))) {
+        initial.add(g.label)
+      }
+    })
+    return initial
+  })
+
+  const toggleGroup = (label: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev)
+      next.has(label) ? next.delete(label) : next.add(label)
+      return next
+    })
+  }
+
   return (
-    <aside className="flex flex-col w-60 bg-steel-900 text-white h-screen sticky top-0 shrink-0">
+    <aside className={clsx(
+      'flex flex-col w-60 bg-steel-900 text-white shrink-0',
+      // Mobile: drawer fijo que desliza
+      'fixed inset-y-0 left-0 z-50 h-full transition-transform duration-300 ease-in-out',
+      // Desktop: posición normal en el flujo
+      'md:relative md:translate-x-0 md:h-screen md:sticky md:top-0',
+      open ? 'translate-x-0' : '-translate-x-full',
+    )}>
+
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-steel-700">
+      <div className="px-5 py-5 border-b border-steel-700 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-brand-600 flex items-center justify-center shrink-0">
             <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -44,43 +77,73 @@ export function Sidebar() {
             <p className="text-xs text-steel-400 leading-tight">Autopartes</p>
           </div>
         </div>
+
+        {/* Botón cerrar — solo mobile */}
+        <button
+          onClick={onClose}
+          className="md:hidden p-1.5 rounded-lg text-steel-400 hover:text-white hover:bg-steel-800 transition-colors"
+          aria-label="Cerrar menú"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {groups.map((group) => {
-          const groupActive = group.items.some((i) => pathname === i.to)
+          const groupActive = group.items.some((i) => pathname === i.to || pathname.startsWith(i.to + '/'))
+          const isExpanded = expandedGroups.has(group.label)
+
           return (
             <div key={group.label}>
-              {/* Cabecera del grupo */}
-              <div className={clsx(
-                'flex items-center gap-2 px-3 py-1 mb-1',
-                groupActive ? 'text-white' : 'text-steel-400',
-              )}>
+              {/* Header clickeable del grupo */}
+              <button
+                onClick={() => toggleGroup(group.label)}
+                className={clsx(
+                  'w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-left',
+                  groupActive
+                    ? 'text-white bg-steel-800'
+                    : 'text-steel-400 hover:text-white hover:bg-steel-800',
+                )}
+              >
                 {group.icon}
-                <span className="text-xs font-semibold uppercase tracking-wider">{group.label}</span>
-              </div>
+                <span className="text-xs font-semibold uppercase tracking-wider flex-1">{group.label}</span>
+                <svg
+                  className={clsx('h-3.5 w-3.5 shrink-0 transition-transform duration-200', isExpanded && 'rotate-180')}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
 
-              {/* Sub-items */}
-              <div className="space-y-0.5 pl-2">
-                {group.items.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end
-                    className={({ isActive }) =>
-                      clsx(
-                        'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
-                        isActive
-                          ? 'bg-brand-600 text-white font-medium'
-                          : 'text-steel-300 hover:bg-steel-800 hover:text-white',
-                      )
-                    }
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-current shrink-0 opacity-60" />
-                    {item.label}
-                  </NavLink>
-                ))}
+              {/* Subitems con animación */}
+              <div className={clsx(
+                'overflow-hidden transition-all duration-200 ease-in-out',
+                isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0',
+              )}>
+                <div className="space-y-0.5 pl-2 pt-0.5 pb-1">
+                  {group.items.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end
+                      onClick={onClose}
+                      className={({ isActive }) =>
+                        clsx(
+                          'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
+                          isActive
+                            ? 'bg-brand-600 text-white font-medium'
+                            : 'text-steel-300 hover:bg-steel-800 hover:text-white',
+                        )
+                      }
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-current shrink-0 opacity-60" />
+                      {item.label}
+                    </NavLink>
+                  ))}
+                </div>
               </div>
             </div>
           )
