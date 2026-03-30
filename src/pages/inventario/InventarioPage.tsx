@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
-import { Button, Input, Select, ConfirmModal } from '@/components/ui'
+import { Button, Input, ConfirmModal } from '@/components/ui'
 import { MOCK_PRODUCTOS, MOCK_PROVEEDORES } from '@/mock/inventario'
 import type { Producto, CategoriaProducto } from '@/types'
 import { ProductoModal } from './ProductoModal'
@@ -18,6 +18,8 @@ const CATEGORIAS: CategoriaProducto[] = [
   'Eléctrico', 'Carrocería', 'Enfriamiento', 'Escape', 'Otro',
 ]
 
+const PAGE_SIZE = 15
+
 function matchSearch(p: Producto, q: string): boolean {
   if (!q) return true
   const lower = q.toLowerCase()
@@ -25,6 +27,7 @@ function matchSearch(p: Producto, q: string): boolean {
     p.codigo_universal.toLowerCase().includes(lower) ||
     p.nombre.toLowerCase().includes(lower) ||
     p.marca.toLowerCase().includes(lower) ||
+    p.categoria.toLowerCase().includes(lower) ||
     p.codigos_alternativos.some((c) => c.toLowerCase().includes(lower))
   )
 }
@@ -42,6 +45,7 @@ export function InventarioPage() {
   const [confirmDelete, setConfirmDelete]       = useState<Producto | null>(null)
   const [deleting, setDeleting]                 = useState(false)
   const [expandedId, setExpandedId]             = useState<string | null>(null)
+  const [page, setPage]                         = useState(1)
 
   // 3. Stores
   const { productos, proveedores, filters, setProductos, setProveedores, setFilters } =
@@ -58,12 +62,15 @@ export function InventarioPage() {
   // 5. Datos derivados
   const filtered = useMemo(() => {
     const q = filters.search?.trim() ?? ''
-    return productos.filter((p) => {
-      const matchCat = !filters.categoria || p.categoria === filters.categoria
-      const matchEst = !filters.estado || p.estado === filters.estado
-      return matchSearch(p, q) && matchCat && matchEst
-    })
+    return productos.filter((p) => matchSearch(p, q))
   }, [productos, filters])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage   = Math.min(page, totalPages)
+  const paginated  = useMemo(
+    () => filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filtered, safePage],
+  )
 
   const stockBajo = useMemo(
     () => productos.filter((p) => p.stock <= p.stock_minimo && p.estado !== 'descontinuado').length,
@@ -192,13 +199,13 @@ export function InventarioPage() {
         </div>
 
         {/* Toolbar */}
-        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 mb-4">
-          {/* Buscador — ancho completo en mobile */}
-          <div className="w-full sm:w-64">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
+          {/* Buscador */}
+          <div className="w-full sm:w-72">
             <Input
               placeholder="Buscar por nombre, código o marca…"
               value={filters.search ?? ''}
-              onChange={(e) => setFilters({ search: e.target.value })}
+              onChange={(e) => { setFilters({ search: e.target.value }); setPage(1) }}
               leftIcon={
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -206,30 +213,6 @@ export function InventarioPage() {
                 </svg>
               }
             />
-          </div>
-
-          {/* Selects — mitad cada uno en mobile, ancho fijo en desktop */}
-          <div className="flex gap-2 w-full sm:w-auto">
-            <div className="flex-1 sm:w-40">
-              <Select
-                value={filters.categoria ?? ''}
-                onChange={(e) => setFilters({ categoria: e.target.value as CategoriaProducto | '' })}
-                options={CATEGORIAS.map((c) => ({ value: c, label: c }))}
-                placeholder="Categoría"
-              />
-            </div>
-            <div className="flex-1 sm:w-36">
-              <Select
-                value={filters.estado ?? ''}
-                onChange={(e) => setFilters({ estado: e.target.value as Producto['estado'] | '' })}
-                options={[
-                  { value: 'activo',        label: 'Activo' },
-                  { value: 'sin_stock',     label: 'Sin stock' },
-                  { value: 'descontinuado', label: 'Descontinuado' },
-                ]}
-                placeholder="Estado"
-              />
-            </div>
           </div>
 
           {/* Contador */}
@@ -260,7 +243,7 @@ export function InventarioPage() {
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-steel-400 text-right">Acciones</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {filtered.map((p) => {
+                {paginated.map((p) => {
                   const altCodes    = p.codigos_alternativos.filter(Boolean)
                   const esStockBajo = p.stock > 0 && p.stock <= p.stock_minimo
                   const sinStock    = p.stock === 0
@@ -311,7 +294,7 @@ export function InventarioPage() {
 
             {/* ── Mobile ──────────────────────────────────────────── */}
             <div className="md:hidden flex flex-col gap-1.5">
-              {filtered.map((p) => (
+              {paginated.map((p) => (
                 <MobileCard
                   key={p.id}
                   producto={p}
@@ -324,6 +307,17 @@ export function InventarioPage() {
                 />
               ))}
             </div>
+
+            {/* ── Paginación ───────────────────────────────────────── */}
+            {totalPages > 1 && (
+              <Pagination
+                page={safePage}
+                totalPages={totalPages}
+                total={filtered.length}
+                pageSize={PAGE_SIZE}
+                onChange={setPage}
+              />
+            )}
           </>
         )}
       </PageContainer>
@@ -596,6 +590,81 @@ function MetricCard({ label, value, sublabel, warn = false, bg, valueColor, subl
       <p className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: labelColor }}>{label}</p>
       <p className="font-bold leading-none" style={{ fontSize: 28, color: numColor }}>{value}</p>
       <p className="text-[11px] mt-1.5" style={{ color: subColor }}>{sublabel}</p>
+    </div>
+  )
+}
+
+interface PaginationProps {
+  page: number
+  totalPages: number
+  total: number
+  pageSize: number
+  onChange: (p: number) => void
+}
+
+function Pagination({ page, totalPages, total, pageSize, onChange }: PaginationProps) {
+  const from = (page - 1) * pageSize + 1
+  const to   = Math.min(page * pageSize, total)
+
+  // Genera ventana de páginas: siempre muestra hasta 5 botones
+  const pages: (number | '…')[] = []
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i)
+  } else {
+    pages.push(1)
+    if (page > 3) pages.push('…')
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i)
+    if (page < totalPages - 2) pages.push('…')
+    pages.push(totalPages)
+  }
+
+  const btn = (
+    label: React.ReactNode,
+    onClick: () => void,
+    disabled: boolean,
+    active = false,
+  ) => (
+    <button
+      key={String(label)}
+      onClick={onClick}
+      disabled={disabled}
+      className={clsx(
+        'h-8 min-w-[32px] px-2 rounded text-[13px] font-medium transition-colors',
+        active
+          ? 'bg-brand-600 text-white'
+          : 'text-steel-600 hover:bg-steel-100 disabled:opacity-30 disabled:cursor-not-allowed',
+      )}
+    >
+      {label}
+    </button>
+  )
+
+  return (
+    <div className="flex items-center justify-between mt-5 pt-4 border-t border-steel-100">
+      <span className="text-[12px] text-steel-400">
+        {from}–{to} de {total} producto{total !== 1 ? 's' : ''}
+      </span>
+      <div className="flex items-center gap-0.5">
+        {btn(
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>,
+          () => onChange(page - 1),
+          page === 1,
+        )}
+        {pages.map((p, i) =>
+          p === '…'
+            ? <span key={`ellipsis-${i}`} className="h-8 px-1 flex items-center text-steel-300 text-[13px]">…</span>
+            : btn(p, () => onChange(p as number), false, p === page),
+        )}
+        {btn(
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>,
+          () => onChange(page + 1),
+          page === totalPages,
+        )}
+      </div>
     </div>
   )
 }
