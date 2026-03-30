@@ -9,7 +9,8 @@
       "Bash(npx --yes create-vite@latest . --template react-ts)",
       "Bash(echo \"EXIT: $?\")",
       "Bash(npx vite:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(find C:UsersjaimeDesktopimportadora-fe/src/pages -type f -name *.tsx -o -name *.ts)"
     ]
   }
 }

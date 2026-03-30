@@ -41,18 +41,17 @@ const SYSTEM_FIELDS: SystemField[] = [
   { key: 'codigo_universal', label: 'Código universal',       required: true,  hint: 'Código principal del producto' },
   { key: 'codigo_alt1',      label: 'Código alternativo 1',   required: false, hint: 'Código secundario (caja / proveedor)' },
   { key: 'codigo_alt2',      label: 'Código alternativo 2',   required: false },
-  { key: 'nombre',           label: 'Nombre',                 required: true  },
+  { key: 'nombre',           label: 'Nombre',                 required: false },
   { key: 'descripcion',      label: 'Descripción',            required: false },
   { key: 'categoria',        label: 'Categoría',              required: false, hint: 'Motor, Frenos, Suspensión…' },
   { key: 'marca',            label: 'Marca',                  required: false },
   { key: 'vehiculo',         label: 'Vehículo / compatibilidad', required: false },
   { key: 'unidad',           label: 'Unidad',                 required: false, hint: 'pieza, juego, par, kit…' },
-  { key: 'stock',            label: 'Stock actual',           required: false },
+  { key: 'stock',            label: 'Stock actual',           required: true  },
   { key: 'stock_minimo',     label: 'Stock mínimo',           required: false },
-  { key: 'precio_costo',     label: 'Precio costo (Bs)',      required: false },
+  { key: 'precio_costo',     label: 'Precio costo (Bs)',      required: true  },
   { key: 'precio_venta',     label: 'Precio venta (Bs)',      required: false },
   { key: 'ubicacion',        label: 'Ubicación en almacén',   required: false },
-  { key: 'estado',           label: 'Estado',                 required: false, hint: 'activo, sin_stock, descontinuado' },
 ]
 
 const VALID_CATEGORIAS = new Set<string>([
@@ -61,6 +60,20 @@ const VALID_CATEGORIAS = new Set<string>([
 const VALID_UNIDADES = new Set<string>(['pieza','juego','par','kit','litro','metro','otro'])
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+// Acepta números JS directos (de XLSX) o strings con cualquier formato de moneda
+function parseNumeric(raw: unknown): number {
+  if (typeof raw === 'number') return isFinite(raw) ? raw : 0
+  if (typeof raw !== 'string' || !raw.trim()) return 0
+  // Elimina símbolos de moneda y espacios, manteniendo dígitos, coma y punto
+  const cleaned = raw.trim().replace(/[^0-9.,-]/g, '')
+  // Si hay coma como separador decimal (ej. "3,74") la convertimos a punto
+  const normalized = cleaned.includes(',') && !cleaned.includes('.')
+    ? cleaned.replace(',', '.')
+    : cleaned.replace(/,/g, '') // coma como separador de miles
+  const n = parseFloat(normalized)
+  return isFinite(n) ? n : 0
+}
 
 function resolveValue(row: Record<string, unknown>, mapping: ColumnMapping): string {
   return mapping.columns
@@ -78,9 +91,17 @@ function parseRow(
     return m ? resolveValue(row, m) : ''
   }
 
+  // Para campos numéricos, leer el valor raw de la primera columna mapeada
+  // para preservar el tipo number que entrega XLSX (evita pérdida de precisión)
+  const getRaw = (key: ImportableKey): unknown => {
+    const m = mappings[key]
+    if (!m || m.columns.length === 0) return ''
+    return row[m.columns[0]] ?? ''
+  }
+
   const codigo_universal = get('codigo_universal')
   const nombre = get('nombre')
-  if (!codigo_universal || !nombre) return null
+  if (!codigo_universal) return null
 
   const rawCat = get('categoria')
   const categoria = (VALID_CATEGORIAS.has(rawCat) ? rawCat : 'Otro') as CategoriaProducto
@@ -92,8 +113,8 @@ function parseRow(
   const estado: Producto['estado'] =
     rawEstado === 'sin_stock' || rawEstado === 'descontinuado' ? rawEstado : 'activo'
 
-  const precio_costo = parseFloat(get('precio_costo').replace(/[^0-9.]/g, '')) || 0
-  const precio_venta = parseFloat(get('precio_venta').replace(/[^0-9.]/g, '')) || 0
+  const precio_costo = parseNumeric(getRaw('precio_costo'))
+  const precio_venta = parseNumeric(getRaw('precio_venta'))
 
   return {
     codigo_universal,
@@ -104,8 +125,8 @@ function parseRow(
     marca:        get('marca') || '',
     vehiculo:     get('vehiculo') || '',
     unidad,
-    stock:        Number(get('stock')) || 0,
-    stock_minimo: Number(get('stock_minimo')) || 5,
+    stock:        Math.round(parseNumeric(getRaw('stock'))),
+    stock_minimo: Math.round(parseNumeric(getRaw('stock_minimo'))) || 5,
     precio_costo,
     precio_venta,
     historial_precios: precio_costo > 0 || precio_venta > 0
@@ -585,17 +606,21 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-steel-200 max-h-80 overflow-y-auto">
-            <table className="w-full text-xs">
+            <table className="text-xs" style={{ minWidth: 900 }}>
               <thead className="sticky top-0 bg-steel-50 border-b border-steel-200">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-steel-500 w-6">#</th>
-                  <th className="px-3 py-2 text-left font-medium text-steel-500">Código</th>
+                  <th className="px-3 py-2 text-left font-medium text-steel-500 whitespace-nowrap">Código *</th>
                   <th className="px-3 py-2 text-left font-medium text-steel-500">Nombre</th>
-                  <th className="px-3 py-2 text-left font-medium text-steel-500">Categoría</th>
                   <th className="px-3 py-2 text-left font-medium text-steel-500">Marca</th>
-                  <th className="px-3 py-2 text-right font-medium text-steel-500">Stock</th>
-                  <th className="px-3 py-2 text-right font-medium text-steel-500">P. Venta (Bs)</th>
-                  <th className="px-3 py-2 text-center font-medium text-steel-500 w-20">Estado</th>
+                  <th className="px-3 py-2 text-left font-medium text-steel-500">Vehículo</th>
+                  <th className="px-3 py-2 text-left font-medium text-steel-500">Categoría</th>
+                  <th className="px-3 py-2 text-left font-medium text-steel-500">Unidad</th>
+                  <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">Stock *</th>
+                  <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">Stk. mín.</th>
+                  <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">P. Costo *</th>
+                  <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">P. Venta</th>
+                  <th className="px-3 py-2 text-left font-medium text-steel-500">Ubicación</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-steel-100">
@@ -603,26 +628,28 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
                   row === null ? (
                     <tr key={i} className="bg-red-50/50">
                       <td className="px-3 py-2 text-steel-400">{i + 1}</td>
-                      <td colSpan={7} className="px-3 py-2 text-red-400 italic">
-                        Fila omitida — código o nombre vacíos
+                      <td colSpan={11} className="px-3 py-2 text-red-400 italic">
+                        Fila omitida — sin código universal
                       </td>
                     </tr>
                   ) : (
                     <tr key={i} className="hover:bg-steel-50">
                       <td className="px-3 py-2 text-steel-400">{i + 1}</td>
-                      <td className="px-3 py-2 font-mono text-brand-600">{row.codigo_universal}</td>
-                      <td className="px-3 py-2 text-steel-900 max-w-[160px] truncate">{row.nombre}</td>
-                      <td className="px-3 py-2 text-steel-600">{row.categoria}</td>
-                      <td className="px-3 py-2 text-steel-600">{row.marca || '—'}</td>
-                      <td className="px-3 py-2 text-right text-steel-900">{row.stock}</td>
-                      <td className="px-3 py-2 text-right text-steel-900">
+                      <td className="px-3 py-2 font-mono text-brand-600 whitespace-nowrap">{row.codigo_universal}</td>
+                      <td className="px-3 py-2 text-steel-900 max-w-[140px] truncate">{row.nombre || '—'}</td>
+                      <td className="px-3 py-2 text-steel-600 whitespace-nowrap">{row.marca || '—'}</td>
+                      <td className="px-3 py-2 text-steel-500 max-w-[120px] truncate">{row.vehiculo || '—'}</td>
+                      <td className="px-3 py-2 text-steel-600 whitespace-nowrap">{row.categoria}</td>
+                      <td className="px-3 py-2 text-steel-600 capitalize">{row.unidad}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-steel-900">{row.stock}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-steel-500">{row.stock_minimo}</td>
+                      <td className="px-3 py-2 text-right tabular-nums font-medium text-steel-900">
+                        {row.precio_costo > 0 ? row.precio_costo.toFixed(2) : <span className="text-red-400">—</span>}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-steel-600">
                         {row.precio_venta > 0 ? row.precio_venta.toFixed(2) : '—'}
                       </td>
-                      <td className="px-3 py-2 text-center">
-                        <Badge color={row.estado === 'activo' ? 'green' : row.estado === 'sin_stock' ? 'red' : 'gray'}>
-                          {row.estado === 'activo' ? 'Activo' : row.estado === 'sin_stock' ? 'Sin stock' : 'Desc.'}
-                        </Badge>
-                      </td>
+                      <td className="px-3 py-2 text-steel-500 whitespace-nowrap">{row.ubicacion || '—'}</td>
                     </tr>
                   )
                 )}

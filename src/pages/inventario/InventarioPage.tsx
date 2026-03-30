@@ -310,7 +310,7 @@ export function InventarioPage() {
             </div>
 
             {/* ── Mobile ──────────────────────────────────────────── */}
-            <div className="md:hidden" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="md:hidden flex flex-col gap-1.5">
               {filtered.map((p) => (
                 <MobileCard
                   key={p.id}
