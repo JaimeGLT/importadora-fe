@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 import type * as XLSXType from 'xlsx'
-import { Modal, Button, Badge } from '@/components/ui'
+import { Modal, Button } from '@/components/ui'
 import { imprimirLote } from '@/lib/printLabel'
 import type { Producto, CategoriaProducto, UnidadProducto } from '@/types'
 import { clsx } from 'clsx'
