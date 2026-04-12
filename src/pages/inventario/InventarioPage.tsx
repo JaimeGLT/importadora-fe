@@ -3,7 +3,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
 import { Button, Input, ConfirmModal } from '@/components/ui'
-import { Button, Input, ConfirmModal } from '@/components/ui'
 import { MOCK_PRODUCTOS, MOCK_PROVEEDORES } from '@/mock/inventario'
 import type { Producto } from '@/types'
 import { ProductoModal } from './ProductoModal'
@@ -13,6 +12,8 @@ import { NuevoPrestamoModal } from './NuevoPrestamoModal'
 import { usePrestamosStore } from '@/stores/prestamosStore'
 import toast from 'react-hot-toast'
 import { clsx } from 'clsx'
+
+const PAGE_SIZE = 20
 
 function matchSearch(p: Producto, q: string): boolean {
   if (!q) return true
@@ -56,7 +57,6 @@ export function InventarioPage() {
   // 5. Datos derivados
   const filtered = useMemo(() => {
     const q = filters.search?.trim() ?? ''
-    return productos.filter((p) => matchSearch(p, q))
     return productos.filter((p) => matchSearch(p, q))
   }, [productos, filters])
 
