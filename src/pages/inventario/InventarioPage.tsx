@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
-import { Button, Input, Select, ConfirmModal } from '@/components/ui'
+import { Button, Input, ConfirmModal } from '@/components/ui'
 import { MOCK_PRODUCTOS, MOCK_PROVEEDORES } from '@/mock/inventario'
-import type { Producto, CategoriaProducto } from '@/types'
+import type { Producto } from '@/types'
 import { ProductoModal } from './ProductoModal'
 import { ImportarExcelModal } from './ImportarExcelModal'
 import { EtiquetaModal } from './EtiquetaModal'
@@ -12,11 +12,6 @@ import { NuevoPrestamoModal } from './NuevoPrestamoModal'
 import { usePrestamosStore } from '@/stores/prestamosStore'
 import toast from 'react-hot-toast'
 import { clsx } from 'clsx'
-
-const CATEGORIAS: CategoriaProducto[] = [
-  'Motor', 'Transmisión', 'Suspensión', 'Frenos',
-  'Eléctrico', 'Carrocería', 'Enfriamiento', 'Escape', 'Otro',
-]
 
 function matchSearch(p: Producto, q: string): boolean {
   if (!q) return true
@@ -58,15 +53,11 @@ export function InventarioPage() {
   // 5. Datos derivados
   const filtered = useMemo(() => {
     const q = filters.search?.trim() ?? ''
-    return productos.filter((p) => {
-      const matchCat = !filters.categoria || p.categoria === filters.categoria
-      const matchEst = !filters.estado || p.estado === filters.estado
-      return matchSearch(p, q) && matchCat && matchEst
-    })
+    return productos.filter((p) => matchSearch(p, q))
   }, [productos, filters])
 
   const stockBajo = useMemo(
-    () => productos.filter((p) => p.stock <= p.stock_minimo && p.estado !== 'descontinuado').length,
+    () => productos.filter((p) => p.stock <= p.stock_minimo).length,
     [productos],
   )
 
@@ -134,10 +125,8 @@ export function InventarioPage() {
 
   // 7. Datos para métricas
   const totalUnidades = productos.reduce((s, p) => s + p.stock, 0)
-  const totalActivos  = productos.filter((p) => p.estado === 'activo').length
-
   // 8. Render
-  const COL = '2fr 110px 100px 130px 120px'
+  const COL = '1fr 130px 140px 108px'
 
   return (
     <MainLayout>
@@ -170,7 +159,7 @@ export function InventarioPage() {
           <MetricCard
             label="Productos"
             value={productos.length}
-            sublabel={`${totalActivos} activos`}
+            sublabel="en catálogo"
             bg="#DDE8FF"
             valueColor="#1A40C4"
             sublabelColor="#5270C8"
@@ -196,7 +185,7 @@ export function InventarioPage() {
           {/* Buscador — ancho completo en mobile */}
           <div className="w-full sm:w-64">
             <Input
-              placeholder="Buscar por nombre, código o marca…"
+              placeholder="Buscar por código, nombre o marca…"
               value={filters.search ?? ''}
               onChange={(e) => setFilters({ search: e.target.value })}
               leftIcon={
@@ -206,30 +195,6 @@ export function InventarioPage() {
                 </svg>
               }
             />
-          </div>
-
-          {/* Selects — mitad cada uno en mobile, ancho fijo en desktop */}
-          <div className="flex gap-2 w-full sm:w-auto">
-            <div className="flex-1 sm:w-40">
-              <Select
-                value={filters.categoria ?? ''}
-                onChange={(e) => setFilters({ categoria: e.target.value as CategoriaProducto | '' })}
-                options={CATEGORIAS.map((c) => ({ value: c, label: c }))}
-                placeholder="Categoría"
-              />
-            </div>
-            <div className="flex-1 sm:w-36">
-              <Select
-                value={filters.estado ?? ''}
-                onChange={(e) => setFilters({ estado: e.target.value as Producto['estado'] | '' })}
-                options={[
-                  { value: 'activo',        label: 'Activo' },
-                  { value: 'sin_stock',     label: 'Sin stock' },
-                  { value: 'descontinuado', label: 'Descontinuado' },
-                ]}
-                placeholder="Estado"
-              />
-            </div>
           </div>
 
           {/* Contador */}
@@ -249,53 +214,76 @@ export function InventarioPage() {
           <>
             {/* ── Desktop ─────────────────────────────────────────── */}
             <div className="hidden md:block">
+              {/* Cabecera */}
               <div
-                className="grid items-center px-4 pb-1.5 mb-0.5"
+                className="grid items-center px-5 pb-2 mb-1"
                 style={{ gridTemplateColumns: COL, gap: '0 16px' }}
               >
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-steel-400">Producto</span>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-steel-400">Categoría</span>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-steel-400 text-right">Stock</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-steel-400">Códigos / Producto</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-steel-400 text-center">Stock</span>
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-steel-400 text-right">Precio</span>
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-steel-400 text-right">Acciones</span>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+              {/* Filas */}
+              <div className="flex flex-col gap-2">
                 {filtered.map((p) => {
-                  const altCodes    = p.codigos_alternativos.filter(Boolean)
+                  const allCodes    = [p.codigo_universal, ...p.codigos_alternativos.filter(Boolean)]
                   const esStockBajo = p.stock > 0 && p.stock <= p.stock_minimo
                   const sinStock    = p.stock === 0
                   return (
                     <div
                       key={p.id}
-                      className="bg-white grid items-center px-4 py-3 rounded-lg transition-colors hover:bg-steel-50"
+                      className="grid items-center px-5 rounded-xl"
                       style={{
                         gridTemplateColumns: COL,
                         gap: '0 16px',
-                        border: '0.5px solid #D1D1D1',
-                        borderLeft: sinStock ? '3px solid #E24B4A' : '0.5px solid #D1D1D1',
+                        background: '#FFFFFF',
+                        border: '1px solid #E8EDF3',
+                        boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
+                        paddingTop: 12,
+                        paddingBottom: 12,
+                        transition: 'box-shadow 0.15s ease, border-color 0.15s ease',
+                        cursor: 'default',
+                      }}
+                      onMouseEnter={(e) => {
+                        const el = e.currentTarget as HTMLDivElement
+                        el.style.boxShadow = '0 4px 12px rgba(15,23,42,0.09)'
+                        el.style.borderColor = '#C7D3E0'
+                      }}
+                      onMouseLeave={(e) => {
+                        const el = e.currentTarget as HTMLDivElement
+                        el.style.boxShadow = '0 1px 3px rgba(15,23,42,0.04)'
+                        el.style.borderColor = '#E8EDF3'
                       }}
                     >
+                      {/* Columna 1: Códigos + nombre */}
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[14px] font-medium text-steel-900 leading-snug">{p.nombre}</span>
-                          <StateBadge estado={p.estado} />
+                        <div className="mb-1.5">
+                          <CodeLine codes={allCodes} />
                         </div>
+                        <p className="text-[13px] font-medium leading-snug truncate" style={{ color: '#374151' }}>{p.nombre}</p>
                         {(p.marca || p.vehiculo) && (
-                          <p className="text-[12px] text-steel-400 mt-0.5">
+                          <p className="text-[11px] mt-0.5" style={{ color: '#9CA3AF' }}>
                             {p.marca}{p.vehiculo ? ` · ${p.vehiculo}` : ''}
                           </p>
                         )}
-                        <div className="flex flex-wrap items-center gap-1 mt-1">
-                          <CodePill color="brand">{p.codigo_universal}</CodePill>
-                          {altCodes.map((c) => <CodePill key={c}>{c}</CodePill>)}
-                        </div>
                       </div>
-                      <span className="text-[12px] text-steel-500">{p.categoria}</span>
-                      <StockCell stock={p.stock} min={p.stock_minimo} unidad={p.unidad} sinStock={sinStock} bajo={esStockBajo} />
+
+                      {/* Columna 2: Stock */}
+                      <StockCell stock={p.stock} unidad={p.unidad} sinStock={sinStock} bajo={esStockBajo} />
+
+                      {/* Columna 4: Precio */}
                       <div className="text-right">
-                        <span className="text-[14px] font-semibold text-steel-900">Bs {p.precio_venta.toFixed(2)}</span>
-                        <p className="text-[11px] text-steel-400 mt-0.5">{p.ubicacion}</p>
+                        <span className="font-semibold tabular-nums" style={{ fontSize: 14, color: '#111827', letterSpacing: '-0.01em' }}>
+                          Bs {p.precio_venta.toFixed(2)}
+                        </span>
+                        {p.ubicacion && (
+                          <p className="text-[11px] mt-0.5 font-mono" style={{ color: '#9CA3AF' }}>{p.ubicacion}</p>
+                        )}
                       </div>
+
+                      {/* Columna 5: Acciones */}
                       <ActionButtons
                         sinStock={sinStock}
                         onPrestamo={() => setPrestamoProducto(p)}
@@ -351,7 +339,6 @@ export function InventarioPage() {
         onSave={handleSave}
         producto={editingProducto}
         proveedores={proveedores}
-        categorias={CATEGORIAS}
       />
       <ConfirmModal
         open={!!confirmDelete}
@@ -367,39 +354,64 @@ export function InventarioPage() {
 
 // ── Sub-componentes ───────────────────────────────────────────────────────────
 
-// ── Componentes atómicos reutilizables ───────────────────────────────────────
-
-function CodePill({ children, color }: { children: string; color?: 'brand' }) {
+/**
+ * Todos los códigos del producto al mismo nivel visual, en un único chip.
+ * Separados por · con color más suave para no competir con el texto.
+ */
+function CodeLine({ codes }: { codes: string[] }) {
   return (
     <span
-      className={clsx('font-mono text-[11px] px-1.5 py-px rounded', color === 'brand' ? 'text-brand-600' : 'text-steel-500')}
-      style={{ background: '#F5F5F5', border: '0.5px solid #D1D1D1' }}
+      className="font-mono font-semibold inline-flex items-center flex-wrap gap-x-0 shrink-0"
+      style={{
+        fontSize: 13,
+        background: '#EEF2FF',
+        color: '#3730A3',
+        border: '1px solid #C7D2FE',
+        borderRadius: 8,
+        padding: '5px 11px',
+        letterSpacing: '0.045em',
+        lineHeight: 1,
+        boxShadow: '0 1px 2px rgba(99,102,241,0.08)',
+      }}
     >
-      {children}
+      {codes.map((c, i) => (
+        <span key={c} className="inline-flex items-center">
+          {i > 0 && (
+            <span style={{ color: '#A5B4FC', margin: '0 7px', fontWeight: 400, letterSpacing: 0 }}>·</span>
+          )}
+          {c}
+        </span>
+      ))}
     </span>
   )
 }
 
-function StockCell({ stock, min, unidad, sinStock, bajo }: {
-  stock: number; min: number; unidad: string; sinStock: boolean; bajo: boolean
+function StockCell({ stock, unidad, sinStock, bajo }: {
+  stock: number; unidad: string; sinStock: boolean; bajo: boolean
 }) {
+  const bg    = sinStock ? '#FEF2F2' : bajo ? '#FFFBEB' : '#F0FDF4'
+  const bdr   = sinStock ? '#FECACA' : bajo ? '#FDE68A' : '#BBF7D0'
+  const color = sinStock ? '#DC2626' : bajo ? '#B45309' : '#15803D'
+  const label = sinStock ? 'Sin stock' : bajo ? 'Stock bajo' : 'Normal'
+
   return (
-    <div className="text-right">
-      <div className="flex items-center justify-end gap-1.5">
-        <div className="rounded-full shrink-0" style={{
-          width: 6, height: 6,
-          background: sinStock ? '#E24B4A' : bajo ? '#D97706' : '#639922',
-        }} />
-        <span className="font-medium leading-none" style={{
-          fontSize: 16,
-          color: sinStock ? '#E24B4A' : bajo ? '#D97706' : '#1A1A1A',
-        }}>
-          {stock}
-        </span>
-      </div>
-      <p className="text-[11px] text-steel-400 mt-0.5">
-        mín. {min} · <span className="capitalize">{unidad}</span>
-      </p>
+    <div className="flex flex-col items-center gap-1">
+      <span
+        className="inline-flex items-center gap-1.5 font-semibold tabular-nums"
+        style={{
+          fontSize: 13,
+          background: bg,
+          color,
+          border: `1px solid ${bdr}`,
+          borderRadius: 20,
+          padding: '4px 10px',
+          lineHeight: 1,
+        }}
+      >
+        <span style={{ fontSize: 16, fontWeight: 700 }}>{stock}</span>
+        <span className="text-[10px] capitalize font-normal" style={{ opacity: 0.8 }}>{unidad}</span>
+      </span>
+      <span className="text-[10px] font-medium" style={{ color, opacity: 0.75 }}>{label}</span>
     </div>
   )
 }
@@ -415,33 +427,45 @@ interface ActionButtonsProps {
 
 function ActionButtons({ sinStock, onPrestamo, onEtiqueta, onEdit, onDelete, className }: ActionButtonsProps) {
   return (
-    <div className={clsx('flex items-center gap-1', className)}>
+    <div className={clsx('flex items-center justify-end gap-0.5', className)}>
       <button onClick={onPrestamo} disabled={sinStock}
-        className="p-1.5 rounded text-steel-400 hover:text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+        className="p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        style={{ color: '#9CA3AF' }}
+        onMouseEnter={(e) => { if (!sinStock) { (e.currentTarget as HTMLButtonElement).style.color = '#D97706'; (e.currentTarget as HTMLButtonElement).style.background = '#FEF3C7' } }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
         title="Registrar préstamo">
-        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
         </svg>
       </button>
       <button onClick={onEtiqueta}
-        className="p-1.5 rounded text-steel-400 hover:text-steel-700 hover:bg-steel-100 transition-colors"
+        className="p-2 rounded-lg transition-colors"
+        style={{ color: '#9CA3AF' }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#374151'; (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6' }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
         title="Imprimir etiqueta">
-        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
         </svg>
       </button>
       <button onClick={onEdit}
-        className="p-1.5 rounded text-steel-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
+        className="p-2 rounded-lg transition-colors"
+        style={{ color: '#9CA3AF' }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#4F46E5'; (e.currentTarget as HTMLButtonElement).style.background = '#EEF2FF' }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
         title="Editar">
-        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
         </svg>
       </button>
       <button onClick={onDelete}
-        className="p-1.5 rounded text-steel-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+        className="p-2 rounded-lg transition-colors"
+        style={{ color: '#9CA3AF' }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#EF4444'; (e.currentTarget as HTMLButtonElement).style.background = '#FEF2F2' }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
         title="Eliminar">
-        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
         </svg>
       </button>
     </div>
@@ -461,119 +485,89 @@ interface MobileCardProps {
 }
 
 function MobileCard({ producto: p, expanded, onToggle, onPrestamo, onEtiqueta, onEdit, onDelete }: MobileCardProps) {
-  const sinStock    = p.stock === 0
-  const bajo        = p.stock > 0 && p.stock <= p.stock_minimo
-  const altCodes    = p.codigos_alternativos.filter(Boolean)
-  const stockColor  = sinStock ? '#E24B4A' : bajo ? '#D97706' : '#639922'
+  const sinStock  = p.stock === 0
+  const bajo      = p.stock > 0 && p.stock <= p.stock_minimo
+  const allCodes  = [p.codigo_universal, ...p.codigos_alternativos.filter(Boolean)]
+  const stockColor = sinStock ? '#DC2626' : bajo ? '#B45309' : '#15803D'
 
   return (
     <div
-      className="bg-white rounded-lg overflow-hidden"
-      style={{
-        border: '0.5px solid #D1D1D1',
-        borderLeft: sinStock ? '3px solid #E24B4A' : '0.5px solid #D1D1D1',
-      }}
+      className="bg-white rounded-xl overflow-hidden"
+      style={{ border: '1px solid #E8EDF3', boxShadow: '0 1px 4px rgba(15,23,42,0.05)' }}
     >
-      {/* Fila siempre visible — tap para expandir */}
-      <button
-        className="w-full flex items-center gap-3 px-4 py-3 text-left"
-        onClick={onToggle}
-      >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[14px] font-medium text-steel-900 leading-snug">{p.nombre}</span>
-            <StateBadge estado={p.estado} />
-          </div>
-          {(p.marca || p.vehiculo) && (
-            <p className="text-[12px] text-steel-400 mt-0.5 truncate">
-              {p.marca}{p.vehiculo ? ` · ${p.vehiculo}` : ''}
-            </p>
-          )}
+      {/* ── Header siempre visible ── */}
+      <button className="w-full px-4 pt-3.5 pb-3 text-left" onClick={onToggle}>
+
+        {/* Fila 1: todos los códigos */}
+        <div className="mb-2">
+          <CodeLine codes={allCodes} />
         </div>
 
-        {/* Stock + precio */}
-        <div className="shrink-0 text-right">
-          <div className="flex items-center justify-end gap-1.5">
-            <div className="rounded-full" style={{ width: 6, height: 6, background: stockColor }} />
-            <span className="text-[15px] font-medium" style={{ color: stockColor }}>{p.stock}</span>
+        {/* Fila 2: nombre + stock/precio + chevron */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-medium leading-snug truncate" style={{ color: '#374151' }}>{p.nombre}</p>
+            {(p.marca || p.vehiculo) && (
+              <p className="text-[11px] mt-0.5 truncate" style={{ color: '#9CA3AF' }}>
+                {p.marca}{p.vehiculo ? ` · ${p.vehiculo}` : ''}
+              </p>
+            )}
           </div>
-          <span className="text-[13px] font-semibold text-steel-900">Bs {p.precio_venta.toFixed(2)}</span>
-        </div>
 
-        {/* Chevron */}
-        <svg
-          className={clsx('h-4 w-4 text-steel-300 shrink-0 transition-transform duration-200', expanded && 'rotate-180')}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+          <div className="shrink-0 text-right">
+            <div className="flex items-center justify-end gap-1 mb-0.5">
+              <span className="font-bold tabular-nums leading-none" style={{ fontSize: 16, color: stockColor }}>{p.stock}</span>
+              <span className="text-[10px] capitalize" style={{ color: '#9CA3AF' }}>{p.unidad}</span>
+            </div>
+            <span className="font-semibold tabular-nums" style={{ fontSize: 13, color: '#111827' }}>Bs {p.precio_venta.toFixed(2)}</span>
+          </div>
+
+          <svg
+            className={clsx('h-4 w-4 shrink-0 transition-transform duration-200', expanded && 'rotate-180')}
+            style={{ color: '#D1D5DB' }}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
       </button>
 
-      {/* Detalle expandible */}
+      {/* ── Panel expandible ── */}
       <div className={clsx(
         'overflow-hidden transition-all duration-200 ease-in-out',
-        expanded ? 'max-h-80' : 'max-h-0',
+        expanded ? 'max-h-64' : 'max-h-0',
       )}>
-        <div className="px-4 pb-4 pt-2 border-t border-steel-100 space-y-3">
-
-          {/* Códigos */}
-          <div className="flex flex-wrap gap-1">
-            <CodePill color="brand">{p.codigo_universal}</CodePill>
-            {altCodes.map((c) => <CodePill key={c}>{c}</CodePill>)}
-          </div>
-
-          {/* Detalles en grid 2 col */}
-          <div className="grid grid-cols-2 gap-y-2">
+        <div className="mx-4 mb-3 rounded-xl px-3 py-3 space-y-3" style={{ background: '#F9FAFB', border: '1px solid #F0F0F5' }}>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-steel-400">Categoría</p>
-              <p className="text-[13px] text-steel-700 mt-0.5">{p.categoria}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: '#9CA3AF' }}>Ubicación</p>
+              <p className="text-[12px]" style={{ color: '#374151' }}>{p.ubicacion}</p>
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-steel-400">Stock mín.</p>
-              <p className="text-[13px] text-steel-700 mt-0.5 capitalize">{p.stock_minimo} · {p.unidad}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: '#9CA3AF' }}>Stock mín.</p>
+              <p className="text-[12px] capitalize" style={{ color: '#374151' }}>{p.stock_minimo} {p.unidad}</p>
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-steel-400">Ubicación</p>
-              <p className="text-[13px] text-steel-700 mt-0.5">{p.ubicacion}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-steel-400">Precio costo</p>
-              <p className="text-[13px] text-steel-700 mt-0.5">Bs {p.precio_costo.toFixed(2)}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: '#9CA3AF' }}>Precio costo</p>
+              <p className="text-[12px]" style={{ color: '#374151' }}>Bs {p.precio_costo.toFixed(2)}</p>
             </div>
           </div>
-
-          {/* Acciones */}
-          <ActionButtons
-            sinStock={sinStock}
-            onPrestamo={onPrestamo}
-            onEtiqueta={onEtiqueta}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            className="pt-1 justify-start"
-          />
+          <div className="pt-2" style={{ borderTop: '1px solid #E5E7EB' }}>
+            <ActionButtons
+              sinStock={sinStock}
+              onPrestamo={onPrestamo}
+              onEtiqueta={onEtiqueta}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              className="justify-start"
+            />
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-function StateBadge({ estado }: { estado: Producto['estado'] }) {
-  if (estado === 'activo') return (
-    <span style={{ background: '#EAF3DE', color: '#3B6D11', borderRadius: 99, fontSize: 11, padding: '2px 8px', fontWeight: 500, lineHeight: 1 }}>
-      Activo
-    </span>
-  )
-  if (estado === 'sin_stock') return (
-    <span style={{ background: '#FCEBEB', color: '#A32D2D', borderRadius: 99, fontSize: 11, padding: '2px 8px', fontWeight: 500, lineHeight: 1 }}>
-      Sin stock
-    </span>
-  )
-  return (
-    <span style={{ background: '#F5F5F5', color: '#6B7280', borderRadius: 99, fontSize: 11, padding: '2px 8px', fontWeight: 500, lineHeight: 1 }}>
-      Descontinuado
-    </span>
-  )
-}
 
 interface MetricCardProps {
   label: string
@@ -602,24 +596,24 @@ function MetricCard({ label, value, sublabel, warn = false, bg, valueColor, subl
 
 function ListSkeleton({ cols }: { cols: string }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div className="flex flex-col gap-2">
       {Array.from({ length: 5 }).map((_, i) => (
         <div
           key={i}
-          className="grid items-center px-4 py-3 rounded-lg animate-pulse"
-          style={{ gridTemplateColumns: cols, gap: '0 16px', background: '#F5F5F5', border: '0.5px solid #D1D1D1' }}
+          className="grid items-center px-5 py-3 rounded-xl animate-pulse"
+          style={{ gridTemplateColumns: cols, gap: '0 16px', background: '#FFFFFF', border: '1px solid #E8EDF3', boxShadow: '0 1px 3px rgba(15,23,42,0.04)' }}
         >
           <div className="space-y-2">
-            <div className="h-3.5 w-48 bg-steel-200 rounded" />
-            <div className="h-3 w-24 bg-steel-200 rounded" />
-            <div className="flex gap-1.5">
-              <div className="h-3 w-16 bg-steel-200 rounded" />
-              <div className="h-3 w-20 bg-steel-200 rounded" />
-            </div>
+            <div className="h-6 w-56 rounded-lg" style={{ background: '#EEF2FF' }} />
+            <div className="h-3 w-36 rounded" style={{ background: '#F1F5F9' }} />
+            <div className="h-2.5 w-24 rounded" style={{ background: '#F1F5F9' }} />
           </div>
-          <div className="h-3 w-16 bg-steel-200 rounded" />
-          <div className="h-4 w-10 bg-steel-200 rounded ml-auto" />
-          <div className="h-3.5 w-20 bg-steel-200 rounded ml-auto" />
+          <div className="h-3 w-14 rounded" style={{ background: '#F1F5F9' }} />
+          <div className="flex flex-col items-center gap-1">
+            <div className="h-7 w-20 rounded-full" style={{ background: '#F0FDF4' }} />
+            <div className="h-2 w-12 rounded" style={{ background: '#F1F5F9' }} />
+          </div>
+          <div className="h-4 w-20 rounded ml-auto" style={{ background: '#F1F5F9' }} />
           <div />
         </div>
       ))}

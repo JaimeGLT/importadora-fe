@@ -84,6 +84,52 @@ export interface Prestamo {
   creado_en: string
 }
 
+// ─── Importaciones ────────────────────────────────────────────────────────────
+
+export interface OrigenConfig {
+  id: string
+  nombre: string
+  tiempo_estimado_dias: number
+}
+
+export type EstadoImportacion = 'en_transito' | 'en_aduana' | 'recibida' | 'cancelada'
+
+export interface ItemImportacion {
+  id: string
+  codigo_proveedor: string
+  codigos_adicionales: string[]
+  nombre: string
+  precio_fob_usd: number
+  cantidad: number
+  // costo por unidad
+  costo_unitario_fob_bs: number
+  costo_unitario_adicional_bs: number
+  costo_unitario_total_bs: number
+  precio_venta_sugerido: number
+  precio_venta_final: number
+  // vínculo inventario
+  producto_id?: string
+  es_nuevo: boolean
+}
+
+export interface Importacion {
+  id: string
+  numero: string
+  origen: string
+  proveedor: string
+  fecha_creacion: string
+  fecha_estimada_llegada: string
+  estado: EstadoImportacion
+  fob_total_usd: number
+  flete_usd: number
+  aduana_bs: number
+  transporte_interno_bs: number
+  tipo_cambio: number
+  items: ItemImportacion[]
+  creado_en: string
+  actualizado_en: string
+}
+
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
 export interface ApiResponse<T> {

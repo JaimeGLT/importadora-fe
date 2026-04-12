@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Modal, Button, Input, Select } from '@/components/ui'
-import type { Producto, Proveedor, CategoriaProducto, UnidadProducto, HistorialPrecio } from '@/types'
+import { Modal, Button, Input } from '@/components/ui'
+import type { Producto, Proveedor, HistorialPrecio } from '@/types'
 import { clsx } from 'clsx'
 
 interface ProductoModalProps {
@@ -9,27 +9,16 @@ interface ProductoModalProps {
   onSave: (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>) => void
   producto: Producto | null
   proveedores: Proveedor[]
-  categorias: CategoriaProducto[]
 }
 
 type FormData = Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>
-
-const UNIDADES: { value: UnidadProducto; label: string }[] = [
-  { value: 'pieza',  label: 'Pieza' },
-  { value: 'juego',  label: 'Juego' },
-  { value: 'par',    label: 'Par' },
-  { value: 'kit',    label: 'Kit' },
-  { value: 'litro',  label: 'Litro' },
-  { value: 'metro',  label: 'Metro' },
-  { value: 'otro',   label: 'Otro' },
-]
 
 const EMPTY: FormData = {
   codigo_universal: '',
   codigos_alternativos: ['', ''],
   nombre: '',
   descripcion: '',
-  categoria: 'Motor',
+  categoria: 'Otro',
   marca: '',
   vehiculo: '',
   unidad: 'pieza',
@@ -44,7 +33,7 @@ const EMPTY: FormData = {
 }
 
 export function ProductoModal({
-  open, onClose, onSave, producto, proveedores, categorias,
+  open, onClose, onSave, producto, proveedores,
 }: ProductoModalProps) {
   const [form, setForm]       = useState<FormData>(EMPTY)
   const [tipoCambio, setTipoCambio] = useState('6.96')
@@ -134,8 +123,6 @@ export function ProductoModal({
       ? (form.precio_venta - form.precio_costo).toFixed(2)
       : null
 
-  const proveedor = proveedores.find((p) => p.id === form.proveedor_id)
-
   return (
     <Modal
       open={open}
@@ -198,29 +185,15 @@ export function ProductoModal({
         <FormSection
           icon={<IconClipboard />}
           title="Descripción"
-          description="Categoría, marca y compatibilidad del producto"
+          description="Marca y detalle del producto"
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Select
-              label="Categoría"
-              value={form.categoria}
-              onChange={(e) => set('categoria', e.target.value as CategoriaProducto)}
-              options={categorias.map((c) => ({ value: c, label: c }))}
-            />
             <Input
               label="Marca"
               value={form.marca}
               onChange={(e) => set('marca', e.target.value)}
               error={errors.marca}
               placeholder="Bosch / NGK / OEM…"
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-3 mt-3">
-            <Input
-              label="Vehículo / compatibilidad"
-              value={form.vehiculo}
-              onChange={(e) => set('vehiculo', e.target.value)}
-              placeholder="Ej. Toyota Corolla 2018-2024 (opcional)"
             />
             <Input
               label="Descripción adicional"
@@ -238,11 +211,11 @@ export function ProductoModal({
           description="Cantidades, unidad de medida y ubicación física"
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Select
+            <Input
               label="Unidad de medida"
-              value={form.unidad}
-              onChange={(e) => set('unidad', e.target.value as UnidadProducto)}
-              options={UNIDADES}
+              value="Pieza"
+              readOnly
+              hint="Unidad fija para todos los productos"
             />
             <Input
               label="Ubicación"
@@ -359,43 +332,6 @@ export function ProductoModal({
           </FormSection>
         )}
 
-        {/* ── ORIGEN Y ESTADO ── */}
-        <FormSection
-          icon={<IconSupplier />}
-          title="Origen y estado"
-          description="Proveedor del producto y estado de disponibilidad"
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <Select
-                label="Proveedor / origen"
-                value={form.proveedor_id}
-                onChange={(e) => set('proveedor_id', e.target.value)}
-                error={errors.proveedor_id}
-                options={proveedores.map((p) => ({ value: p.id, label: `${p.nombre} (${p.pais})` }))}
-                placeholder="Selecciona proveedor"
-              />
-              {proveedor?.tiempo_reposicion_dias && (
-                <p className="mt-1.5 flex items-center gap-1 text-xs text-steel-400">
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Reposición estimada: <strong className="text-steel-600 ml-0.5">{proveedor.tiempo_reposicion_dias} días</strong>
-                </p>
-              )}
-            </div>
-            <Select
-              label="Estado del producto"
-              value={form.estado}
-              onChange={(e) => set('estado', e.target.value as Producto['estado'])}
-              options={[
-                { value: 'activo',        label: 'Activo' },
-                { value: 'sin_stock',     label: 'Sin stock' },
-                { value: 'descontinuado', label: 'Descontinuado' },
-              ]}
-            />
-          </div>
-        </FormSection>
 
       </div>
     </Modal>
@@ -500,10 +436,3 @@ function IconHistory() {
   )
 }
 
-function IconSupplier() {
-  return (
-    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-    </svg>
-  )
-}

@@ -1,16 +1,16 @@
 import { useState, useRef, useCallback } from 'react'
 import type * as XLSXType from 'xlsx'
-import { Modal, Button, Badge } from '@/components/ui'
+import { Modal, Button, ExcelColumnMapper } from '@/components/ui'
 import { imprimirLote } from '@/lib/printLabel'
-import type { Producto, CategoriaProducto, UnidadProducto } from '@/types'
+import type { Producto } from '@/types'
 import { clsx } from 'clsx'
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
 type ImportableKey =
   | 'codigo_universal' | 'codigo_alt1' | 'codigo_alt2'
-  | 'nombre' | 'descripcion' | 'categoria' | 'marca' | 'vehiculo' | 'unidad'
-  | 'stock' | 'stock_minimo' | 'precio_costo' | 'precio_venta' | 'ubicacion' | 'estado'
+  | 'nombre' | 'descripcion' | 'marca'
+  | 'stock' | 'stock_minimo' | 'precio_costo' | 'precio_venta' | 'ubicacion'
 
 interface SystemField {
   key: ImportableKey
@@ -38,26 +38,19 @@ interface LabelConfig {
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
 const SYSTEM_FIELDS: SystemField[] = [
-  { key: 'codigo_universal', label: 'Código universal',       required: true,  hint: 'Código principal del producto' },
-  { key: 'codigo_alt1',      label: 'Código alternativo 1',   required: false, hint: 'Código secundario (caja / proveedor)' },
-  { key: 'codigo_alt2',      label: 'Código alternativo 2',   required: false },
-  { key: 'nombre',           label: 'Nombre',                 required: false },
-  { key: 'descripcion',      label: 'Descripción',            required: false },
-  { key: 'categoria',        label: 'Categoría',              required: false, hint: 'Motor, Frenos, Suspensión…' },
-  { key: 'marca',            label: 'Marca',                  required: false },
-  { key: 'vehiculo',         label: 'Vehículo / compatibilidad', required: false },
-  { key: 'unidad',           label: 'Unidad',                 required: false, hint: 'pieza, juego, par, kit…' },
-  { key: 'stock',            label: 'Stock actual',           required: true  },
-  { key: 'stock_minimo',     label: 'Stock mínimo',           required: false },
-  { key: 'precio_costo',     label: 'Precio costo (Bs)',      required: true  },
-  { key: 'precio_venta',     label: 'Precio venta (Bs)',      required: false },
-  { key: 'ubicacion',        label: 'Ubicación en almacén',   required: false },
+  { key: 'codigo_universal', label: 'Código universal',     required: true,  hint: 'Código principal del producto' },
+  { key: 'codigo_alt1',      label: 'Código alternativo 1', required: false, hint: 'Código secundario (caja / proveedor)' },
+  { key: 'codigo_alt2',      label: 'Código alternativo 2', required: false },
+  { key: 'nombre',           label: 'Nombre',               required: false },
+  { key: 'descripcion',      label: 'Descripción',          required: false },
+  { key: 'marca',            label: 'Marca',                required: false },
+  { key: 'stock',            label: 'Stock actual',         required: true  },
+  { key: 'stock_minimo',     label: 'Stock mínimo',         required: false },
+  { key: 'precio_costo',     label: 'Precio costo (Bs)',    required: true  },
+  { key: 'precio_venta',     label: 'Precio venta (Bs)',    required: false },
+  { key: 'ubicacion',        label: 'Ubicación en almacén', required: false },
 ]
 
-const VALID_CATEGORIAS = new Set<string>([
-  'Motor','Transmisión','Suspensión','Frenos','Eléctrico','Carrocería','Enfriamiento','Escape','Otro',
-])
-const VALID_UNIDADES = new Set<string>(['pieza','juego','par','kit','litro','metro','otro'])
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -103,16 +96,6 @@ function parseRow(
   const nombre = get('nombre')
   if (!codigo_universal) return null
 
-  const rawCat = get('categoria')
-  const categoria = (VALID_CATEGORIAS.has(rawCat) ? rawCat : 'Otro') as CategoriaProducto
-
-  const rawUnidad = get('unidad').toLowerCase()
-  const unidad = (VALID_UNIDADES.has(rawUnidad) ? rawUnidad : 'pieza') as UnidadProducto
-
-  const rawEstado = get('estado')
-  const estado: Producto['estado'] =
-    rawEstado === 'sin_stock' || rawEstado === 'descontinuado' ? rawEstado : 'activo'
-
   const precio_costo = parseNumeric(getRaw('precio_costo'))
   const precio_venta = parseNumeric(getRaw('precio_venta'))
 
@@ -121,10 +104,10 @@ function parseRow(
     codigos_alternativos: [get('codigo_alt1'), get('codigo_alt2')],
     nombre,
     descripcion:  get('descripcion'),
-    categoria,
+    categoria:    'Otro',
     marca:        get('marca') || '',
-    vehiculo:     get('vehiculo') || '',
-    unidad,
+    vehiculo:     '',
+    unidad:       'pieza',
     stock:        Math.round(parseNumeric(getRaw('stock'))),
     stock_minimo: Math.round(parseNumeric(getRaw('stock_minimo'))) || 5,
     precio_costo,
@@ -133,7 +116,7 @@ function parseRow(
       ? [{ fecha: new Date().toISOString(), precio_costo, precio_venta, tipo_cambio: 6.96, nota: 'Importado desde Excel' }]
       : [],
     ubicacion:    get('ubicacion') || 'Almacén Central',
-    estado,
+    estado:       'activo',
     proveedor_id: '',
   }
 }
@@ -240,27 +223,27 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
   }
 
   // ── Step 2: mapeos ──────────────────────────────────────────────────────────
-  const addColumn = (fieldKey: ImportableKey, col: string) => {
+  const addColumn = (fieldKey: string, col: string) => {
     setMappings((prev) => {
-      const existing = prev[fieldKey] ?? { columns: [], separator: '-' }
+      const existing = prev[fieldKey as ImportableKey] ?? { columns: [], separator: '-' }
       if (existing.columns.includes(col)) return prev
       return { ...prev, [fieldKey]: { ...existing, columns: [...existing.columns, col] } }
     })
   }
 
-  const removeColumn = (fieldKey: ImportableKey, col: string) => {
+  const removeColumn = (fieldKey: string, col: string) => {
     setMappings((prev) => {
-      const existing = prev[fieldKey]
+      const existing = prev[fieldKey as ImportableKey]
       if (!existing) return prev
       const columns = existing.columns.filter((c) => c !== col)
-      if (columns.length === 0) { const next = { ...prev }; delete next[fieldKey]; return next }
+      if (columns.length === 0) { const next = { ...prev }; delete next[fieldKey as ImportableKey]; return next }
       return { ...prev, [fieldKey]: { ...existing, columns } }
     })
   }
 
-  const setSeparator = (fieldKey: ImportableKey, sep: string) => {
+  const setSeparator = (fieldKey: string, sep: string) => {
     setMappings((prev) => {
-      const existing = prev[fieldKey]
+      const existing = prev[fieldKey as ImportableKey]
       if (!existing) return prev
       return { ...prev, [fieldKey]: { ...existing, separator: sep } }
     })
@@ -415,80 +398,16 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
 
       {/* ── STEP 2: MAPEAR ── */}
       {step === 'mapear' && (
-        <div className="space-y-1">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-3">
-            <p className="text-xs text-steel-500">
-              <span className="font-medium text-steel-700">{fileName}</span>
-              {' · '}{rawRows.length} filas · {excelCols.length} columnas detectadas
-            </p>
-            <p className="text-xs text-steel-400">Campos con <span className="text-red-500">*</span> son obligatorios</p>
-          </div>
-
-          <div className="flex flex-wrap gap-1.5 p-3 bg-steel-50 rounded-lg mb-4">
-            {excelCols.map((col) => (
-              <span key={col} className="px-2 py-0.5 bg-white border border-steel-200 rounded text-xs text-steel-600 font-mono">{col}</span>
-            ))}
-          </div>
-
-          <div className="space-y-2">
-            {SYSTEM_FIELDS.map((field) => {
-              const mapping = mappings[field.key]
-              const availableCols = excelCols.filter((c) => !mapping?.columns.includes(c))
-
-              return (
-                <div key={field.key} className={clsx(
-                  'grid grid-cols-1 sm:grid-cols-[200px_1fr] gap-2 sm:gap-3 items-start p-3 rounded-lg border',
-                  mapping?.columns.length ? 'border-brand-200 bg-brand-50/40' : 'border-steel-100 bg-white',
-                )}>
-                  <div className="pt-0.5">
-                    <p className="text-sm font-medium text-steel-800">
-                      {field.label}
-                      {field.required && <span className="text-red-500 ml-0.5">*</span>}
-                    </p>
-                    {field.hint && <p className="text-xs text-steel-400 mt-0.5">{field.hint}</p>}
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    {(mapping?.columns.length ?? 0) > 0 && (
-                      <div className="flex flex-wrap gap-1.5 items-center">
-                        {mapping!.columns.map((col, i) => (
-                          <span key={col} className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-100 text-brand-700 rounded-full text-xs font-mono">
-                            {i > 0 && <span className="text-brand-400 font-sans font-normal">{mapping!.separator || '–'}</span>}
-                            {col}
-                            <button onClick={() => removeColumn(field.key, col)} className="ml-0.5 text-brand-400 hover:text-brand-700">×</button>
-                          </span>
-                        ))}
-                        {mapping!.columns.length >= 2 && (
-                          <input
-                            value={mapping!.separator}
-                            onChange={(e) => setSeparator(field.key, e.target.value)}
-                            placeholder="sep"
-                            className="w-12 h-6 px-1.5 text-xs border border-steel-200 rounded text-center focus:outline-none focus:ring-1 focus:ring-brand-400"
-                            title="Separador entre columnas"
-                          />
-                        )}
-                      </div>
-                    )}
-                    {availableCols.length > 0 && (
-                      <select
-                        value=""
-                        onChange={(e) => { if (e.target.value) addColumn(field.key, e.target.value) }}
-                        className="h-7 w-full sm:max-w-xs rounded border border-steel-200 bg-white px-2 text-xs text-steel-600 focus:outline-none focus:ring-1 focus:ring-brand-400"
-                      >
-                        <option value="">
-                          {(mapping?.columns.length ?? 0) > 0 ? '+ Combinar con otra columna…' : 'Seleccionar columna del Excel…'}
-                        </option>
-                        {availableCols.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
+        <ExcelColumnMapper
+          fields={SYSTEM_FIELDS}
+          excelCols={excelCols}
+          mappings={mappings}
+          fileName={fileName}
+          rowCount={rawRows.length}
+          onAddColumn={addColumn}
+          onRemoveColumn={removeColumn}
+          onSetSeparator={setSeparator}
+        />
       )}
 
       {/* ── STEP 4: ETIQUETAS ── */}
@@ -606,16 +525,13 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-steel-200 max-h-80 overflow-y-auto">
-            <table className="text-xs" style={{ minWidth: 900 }}>
+            <table className="text-xs" style={{ minWidth: 700 }}>
               <thead className="sticky top-0 bg-steel-50 border-b border-steel-200">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-steel-500 w-6">#</th>
                   <th className="px-3 py-2 text-left font-medium text-steel-500 whitespace-nowrap">Código *</th>
                   <th className="px-3 py-2 text-left font-medium text-steel-500">Nombre</th>
                   <th className="px-3 py-2 text-left font-medium text-steel-500">Marca</th>
-                  <th className="px-3 py-2 text-left font-medium text-steel-500">Vehículo</th>
-                  <th className="px-3 py-2 text-left font-medium text-steel-500">Categoría</th>
-                  <th className="px-3 py-2 text-left font-medium text-steel-500">Unidad</th>
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">Stock *</th>
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">Stk. mín.</th>
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">P. Costo *</th>
@@ -628,7 +544,7 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
                   row === null ? (
                     <tr key={i} className="bg-red-50/50">
                       <td className="px-3 py-2 text-steel-400">{i + 1}</td>
-                      <td colSpan={11} className="px-3 py-2 text-red-400 italic">
+                      <td colSpan={8} className="px-3 py-2 text-red-400 italic">
                         Fila omitida — sin código universal
                       </td>
                     </tr>
@@ -638,9 +554,6 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
                       <td className="px-3 py-2 font-mono text-brand-600 whitespace-nowrap">{row.codigo_universal}</td>
                       <td className="px-3 py-2 text-steel-900 max-w-[140px] truncate">{row.nombre || '—'}</td>
                       <td className="px-3 py-2 text-steel-600 whitespace-nowrap">{row.marca || '—'}</td>
-                      <td className="px-3 py-2 text-steel-500 max-w-[120px] truncate">{row.vehiculo || '—'}</td>
-                      <td className="px-3 py-2 text-steel-600 whitespace-nowrap">{row.categoria}</td>
-                      <td className="px-3 py-2 text-steel-600 capitalize">{row.unidad}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-steel-900">{row.stock}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-steel-500">{row.stock_minimo}</td>
                       <td className="px-3 py-2 text-right tabular-nums font-medium text-steel-900">
