@@ -5,6 +5,7 @@ import { LoginPage } from '@/pages/auth/LoginPage'
 import { InventarioPage } from '@/pages/inventario/InventarioPage'
 import { PrestamosPage } from '@/pages/inventario/PrestamosPage'
 import { ImportacionesPage } from '@/pages/importaciones/ImportacionesPage'
+import { ProveedoresPage } from '@/pages/importaciones/proveedores/ProveedoresPage'
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
             <Route path="/inventario" element={<InventarioPage />} />
             <Route path="/inventario/prestamos" element={<PrestamosPage />} />
             <Route path="/importaciones" element={<ImportacionesPage />} />
+            <Route path="/importaciones/proveedores" element={<ProveedoresPage />} />
             <Route path="/" element={<Navigate to="/inventario" replace />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

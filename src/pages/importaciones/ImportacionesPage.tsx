@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useImportacionesStore } from '@/stores/importacionesStore'
 import { useInventarioStore } from '@/stores/inventarioStore'
+import { useProveedoresStore } from '@/stores/proveedoresStore'
 import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
 import { Button } from '@/components/ui'
 import { MOCK_IMPORTACIONES, MOCK_ORIGENES } from '@/mock/importaciones'
 import { MOCK_PRODUCTOS } from '@/mock/inventario'
+import { MOCK_PROVEEDORES } from '@/mock/proveedores'
 import type { Importacion, EstadoImportacion } from '@/types'
 import { NuevaImportacionModal } from './NuevaImportacionModal'
 import { ConfigOrigenModal } from './ConfigOrigenModal'
@@ -37,9 +39,10 @@ export function ImportacionesPage() {
   const [filterEstado, setFilterEstado] = useState<EstadoImportacion | ''>('')
 
   // 3. Stores
-  const { importaciones, origenes, setImportaciones, setOrigenes, addImportacion } =
+  const { importaciones, setImportaciones, setOrigenes, addImportacion } =
     useImportacionesStore()
   const { productos, setProductos } = useInventarioStore()
+  const { setProveedores } = useProveedoresStore()
 
   // 4. Fetch con isTokenReady (mock)
   useEffect(() => {
@@ -47,7 +50,8 @@ export function ImportacionesPage() {
     setImportaciones(MOCK_IMPORTACIONES)
     setOrigenes(MOCK_ORIGENES)
     setProductos(MOCK_PRODUCTOS, MOCK_PRODUCTOS.length)
-  }, [isTokenReady, setImportaciones, setOrigenes, setProductos])
+    setProveedores(MOCK_PROVEEDORES)
+  }, [isTokenReady, setImportaciones, setOrigenes, setProductos, setProveedores])
 
   // 5. Datos derivados
   const filtered = useMemo(() => {
@@ -78,13 +82,13 @@ export function ImportacionesPage() {
           codigo_universal: item.codigo_proveedor,
           codigos_alternativos: item.codigos_adicionales,
           nombre: item.nombre,
-          descripcion: '',
+          descripcion: item.descripcion ?? '',
           categoria: 'Otro',
-          marca: '',
+          marca: item.marca ?? '',
           vehiculo: '',
-          unidad: 'pieza',
+          unidad: item.unidad ?? 'pieza',
           stock: item.cantidad,
-          stock_minimo: 5,
+          stock_minimo: (item as typeof item & { stock_minimo?: number }).stock_minimo ?? 5,
           precio_costo: item.costo_unitario_total_bs,
           precio_venta: item.precio_venta_final,
           historial_precios: [{
@@ -93,9 +97,9 @@ export function ImportacionesPage() {
             precio_venta: item.precio_venta_final,
             tipo_cambio: nueva.tipo_cambio,
           }],
-          ubicacion: 'Almacén Central',
+          ubicacion: item.ubicacion ?? 'Almacén Central',
           estado: 'activo',
-          proveedor_id: '',
+          proveedor_id: nueva.proveedor,
           creado_en: ahora,
           actualizado_en: ahora,
         })
@@ -219,7 +223,6 @@ export function ImportacionesPage() {
         open={nuevaOpen}
         onClose={() => setNuevaOpen(false)}
         onSave={handleSave}
-        origenes={origenes}
         productos={productos}
         totalImportaciones={importaciones.length}
       />

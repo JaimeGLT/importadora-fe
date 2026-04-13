@@ -1,9 +1,9 @@
 import type { Producto, Proveedor } from '@/types'
 
 export const MOCK_PROVEEDORES: Proveedor[] = [
-  { id: 'p1', nombre: 'AutoParts China Co.', pais: 'China',          contacto: 'Li Wei',       email: 'lwei@autoparts.cn',   tiempo_reposicion_dias: 45 },
-  { id: 'p2', nombre: 'Repuestos USA Inc.',  pais: 'Estados Unidos',  contacto: 'John Smith',   email: 'jsmith@repuestos.us', tiempo_reposicion_dias: 21 },
-  { id: 'p3', nombre: 'Distribuidora MX',   pais: 'México',          contacto: 'Carlos López', email: 'clopez@distmx.mx',   tiempo_reposicion_dias: 14 },
+  { id: 'p1', nombre: 'AutoParts China Co.', pais: 'China',          moneda: 'USD', terminos_pago: 'T/T 30 días', contacto: 'Li Wei',       email: 'lwei@autoparts.cn',   tiempo_reposicion_dias: 45, estado: 'activo', creado_en: '2023-01-01T00:00:00.000Z', actualizado_en: '2023-01-01T00:00:00.000Z' },
+  { id: 'p2', nombre: 'Repuestos USA Inc.',  pais: 'Estados Unidos',  moneda: 'USD', terminos_pago: 'NET 30',      contacto: 'John Smith',   email: 'jsmith@repuestos.us', tiempo_reposicion_dias: 21, estado: 'activo', creado_en: '2023-01-01T00:00:00.000Z', actualizado_en: '2023-01-01T00:00:00.000Z' },
+  { id: 'p3', nombre: 'Distribuidora MX',   pais: 'México',          moneda: 'USD', terminos_pago: 'Contra entrega', contacto: 'Carlos López', email: 'clopez@distmx.mx', tiempo_reposicion_dias: 14, estado: 'activo', creado_en: '2023-01-01T00:00:00.000Z', actualizado_en: '2023-01-01T00:00:00.000Z' },
 ]
 
 export const MOCK_PRODUCTOS: Producto[] = [

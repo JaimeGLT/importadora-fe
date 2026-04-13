@@ -59,13 +59,59 @@ export interface Producto {
   actualizado_en: string
 }
 
+export type MonedaProveedor = 'USD' | 'EUR' | 'CNY' | 'GBP' | 'JPY' | 'KRW' | 'BRL' | 'ARS' | 'CLP' | 'PEN'
+
+export type TerminosPago =
+  | 'T/T anticipado'
+  | 'T/T 30 días'
+  | 'T/T 60 días'
+  | 'L/C a la vista'
+  | 'L/C 30 días'
+  | 'NET 30'
+  | 'NET 60'
+  | 'Contra entrega'
+
 export interface Proveedor {
   id: string
   nombre: string
   pais: string
+  moneda: MonedaProveedor
+  terminos_pago: TerminosPago
   contacto: string
   email: string
+  telefono?: string
+  sitio_web?: string
+  notas?: string
   tiempo_reposicion_dias?: number
+  estado: 'activo' | 'inactivo'
+  creado_en: string
+  actualizado_en: string
+}
+
+export interface ProductoProveedor {
+  id: string
+  proveedor_id: string
+  codigo_oem: string
+  codigo_aftermarket?: string
+  nombre: string
+  descripcion?: string
+  precio_usd: number
+  minimo_pedido: number
+  producto_id?: string   // vínculo con inventario
+  activo: boolean
+}
+
+export interface EvaluacionProveedor {
+  id: string
+  proveedor_id: string
+  importacion_id?: string
+  importacion_numero?: string
+  fecha: string
+  calidad: number        // 1–5
+  precio: number         // 1–5
+  entrega: number        // 1–5
+  comunicacion: number   // 1–5
+  notas?: string
 }
 
 // ─── Préstamos ────────────────────────────────────────────────────────────────
@@ -96,17 +142,21 @@ export type EstadoImportacion = 'en_transito' | 'en_aduana' | 'recibida' | 'canc
 
 export interface ItemImportacion {
   id: string
-  codigo_proveedor: string
-  codigos_adicionales: string[]
+  codigo_proveedor: string          // Código Universal
+  codigos_adicionales: string[]     // [0] = Alt 1, [1] = Alt 2
   nombre: string
+  marca?: string
+  descripcion?: string
+  unidad?: UnidadProducto           // pieza, juego, par…
+  ubicacion?: string                // Almacén Central
   precio_fob_usd: number
-  cantidad: number
+  cantidad: number                  // stock entrada
   // costo por unidad
   costo_unitario_fob_bs: number
   costo_unitario_adicional_bs: number
-  costo_unitario_total_bs: number
+  costo_unitario_total_bs: number   // precio costo
   precio_venta_sugerido: number
-  precio_venta_final: number
+  precio_venta_final: number        // precio venta
   // vínculo inventario
   producto_id?: string
   es_nuevo: boolean

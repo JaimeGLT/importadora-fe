@@ -33,6 +33,7 @@ const groups: NavGroup[] = [
     ),
     items: [
       { label: 'Importaciones', to: '/importaciones' },
+      { label: 'Proveedores',   to: '/importaciones/proveedores' },
     ],
   },
 ]

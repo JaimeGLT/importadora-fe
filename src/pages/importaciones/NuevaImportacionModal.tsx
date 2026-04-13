@@ -1,15 +1,19 @@
 import { useState, useRef, useCallback } from 'react'
 import type * as XLSXType from 'xlsx'
 import { Modal, Button, Input, Select, ExcelColumnMapper } from '@/components/ui'
-import type { Importacion, ItemImportacion, OrigenConfig, Producto } from '@/types'
+import type { Importacion, ItemImportacion, Producto } from '@/types'
+import { useProveedoresStore } from '@/stores/proveedoresStore'
 import { clsx } from 'clsx'
 import toast from 'react-hot-toast'
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
-type ImportStep = 'datos' | 'excel' | 'preview' | 'confirmar'
+type ImportStep = 'upload' | 'mapear' | 'datos' | 'preview' | 'confirmar'
 
-type ImportField = 'codigo_proveedor' | 'codigo_alt1' | 'codigo_alt2' | 'nombre' | 'precio_fob_usd' | 'cantidad'
+type ImportField =
+  | 'codigo_universal' | 'codigo_alt1' | 'codigo_alt2'
+  | 'nombre' | 'descripcion' | 'marca'
+  | 'stock' | 'stock_minimo' | 'precio_costo' | 'precio_venta' | 'ubicacion'
 
 interface SystemField {
   key: ImportField
@@ -22,11 +26,24 @@ type FieldMappings = Partial<Record<ImportField, { columns: string[]; separator:
 
 interface DraftItem extends Omit<ItemImportacion, 'id'> {
   _index: number
+  stock_minimo: number
+}
+
+interface RawItem {
+  codigo_universal: string
+  codigos_adicionales: string[]
+  nombre: string
+  descripcion: string
+  marca: string
+  precio_fob_usd: number   // = precio_costo del Excel (en USD)
+  cantidad: number          // = stock del Excel
+  stock_minimo: number
+  precio_venta_manual: number  // 0 = no especificado
+  ubicacion: string
 }
 
 interface DatosForm {
-  origen: string
-  proveedor: string
+  proveedor_id: string
   fecha_estimada_llegada: string
   tipo_cambio: string
   flete_usd: string
@@ -39,13 +56,26 @@ interface DatosForm {
 const MARGEN_DEFECTO = 1.30
 
 const SYSTEM_FIELDS: SystemField[] = [
-  { key: 'codigo_proveedor', label: 'Código del proveedor', required: true,  hint: 'Código principal de identificación' },
-  { key: 'codigo_alt1',      label: 'Código adicional 1',   required: false },
-  { key: 'codigo_alt2',      label: 'Código adicional 2',   required: false },
-  { key: 'nombre',           label: 'Nombre del producto',  required: false },
-  { key: 'precio_fob_usd',   label: 'Precio FOB (USD)',     required: true,  hint: 'Precio unitario en dólares' },
-  { key: 'cantidad',         label: 'Cantidad',             required: true  },
+  { key: 'codigo_universal', label: 'Código universal',     required: true,  hint: 'Código principal del producto' },
+  { key: 'codigo_alt1',      label: 'Código alternativo 1', required: false, hint: 'Código secundario (caja / proveedor)' },
+  { key: 'codigo_alt2',      label: 'Código alternativo 2', required: false },
+  { key: 'nombre',           label: 'Nombre',               required: false },
+  { key: 'descripcion',      label: 'Descripción',          required: false },
+  { key: 'marca',            label: 'Marca',                required: false },
+  { key: 'stock',            label: 'Cantidad',             required: true,  hint: 'Unidades que ingresan al lote' },
+  { key: 'stock_minimo',     label: 'Stock mínimo',         required: false },
+  { key: 'precio_costo',     label: 'Precio FOB (USD)',     required: true,  hint: 'Precio unitario al proveedor en dólares' },
+  { key: 'precio_venta',     label: 'Precio venta (Bs)',    required: false, hint: 'Opcional — sobreescribe el calculado' },
+  { key: 'ubicacion',        label: 'Ubicación en almacén', required: false },
 ]
+
+const STEP_LABELS: Record<ImportStep, string> = {
+  upload:    'Subir archivo',
+  mapear:    'Mapear columnas',
+  datos:     'Datos generales',
+  preview:   'Revisar precios',
+  confirmar: 'Confirmar',
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -67,27 +97,71 @@ function resolveValue(row: Record<string, unknown>, mapping: { columns: string[]
     .join(mapping.separator || ' ')
 }
 
+function buildRawItems(rows: Record<string, unknown>[], mappings: FieldMappings): RawItem[] {
+  return rows.map((row) => {
+    const get = (key: ImportField) => {
+      const m = mappings[key]
+      return m ? resolveValue(row, m) : ''
+    }
+    const getRaw = (key: ImportField): unknown => {
+      const m = mappings[key]
+      return m?.columns.length ? row[m.columns[0]] ?? '' : ''
+    }
+    const codigo = get('codigo_universal')
+    return {
+      codigo_universal: codigo,
+      codigos_adicionales: [get('codigo_alt1'), get('codigo_alt2')].filter(Boolean),
+      nombre:        get('nombre') || codigo,
+      descripcion:   get('descripcion'),
+      marca:         get('marca'),
+      precio_fob_usd: parseNumeric(getRaw('precio_costo')),   // precio_costo del Excel = FOB en USD
+      cantidad:       Math.round(parseNumeric(getRaw('stock'))),  // stock del Excel = cantidad del lote
+      stock_minimo:   Math.round(parseNumeric(getRaw('stock_minimo'))) || 5,
+      precio_venta_manual: parseNumeric(getRaw('precio_venta')),
+      ubicacion:     get('ubicacion') || 'Almacén Central',
+    }
+  }).filter((r) => r.codigo_universal && r.precio_fob_usd > 0 && r.cantidad > 0)
+}
+
 function calcItems(
-  rawItems: { codigo_proveedor: string; codigos_adicionales: string[]; nombre: string; precio_fob_usd: number; cantidad: number }[],
+  rawItems: RawItem[],
   datos: { tipo_cambio: number; flete_usd: number; aduana_bs: number; transporte_interno_bs: number },
   productos: Producto[],
 ): DraftItem[] {
-  const fob_lote = rawItems.reduce((s, i) => s + i.precio_fob_usd * i.cantidad, 0)
-  const costos_total_bs =
+  // Paso 2: Costo FOB en Bs por unidad = Precio FOB × Tipo de cambio
+  // Paso 3: Total FOB del lote en Bs = Σ (FOB_unit_bs × cantidad)
+  const total_fob_bs = rawItems.reduce(
+    (s, i) => s + i.precio_fob_usd * datos.tipo_cambio * i.cantidad, 0,
+  )
+
+  // Costos adicionales del lote convertidos todos a Bs
+  const costos_lote_bs =
     datos.flete_usd * datos.tipo_cambio + datos.aduana_bs + datos.transporte_interno_bs
 
   return rawItems.map((raw, idx) => {
-    const valor_item = raw.precio_fob_usd * raw.cantidad
-    const proporcion = fob_lote > 0 ? valor_item / fob_lote : 0
-
+    // Paso 2: Costo FOB unitario en Bs
     const costo_unitario_fob_bs = raw.precio_fob_usd * datos.tipo_cambio
+
+    // Paso 4: Proporción = FOB del producto en Bs / Total FOB lote en Bs
+    const fob_item_bs  = costo_unitario_fob_bs * raw.cantidad
+    const proporcion   = total_fob_bs > 0 ? fob_item_bs / total_fob_bs : 0
+
+    // Paso 5: Costos distribuidos por unidad
     const costo_unitario_adicional_bs =
-      raw.cantidad > 0 ? (proporcion * costos_total_bs) / raw.cantidad : 0
+      raw.cantidad > 0 ? (proporcion * costos_lote_bs) / raw.cantidad : 0
+
+    // Paso 6: COSTO REAL = FOB en Bs + Costos distribuidos
     const costo_unitario_total_bs = costo_unitario_fob_bs + costo_unitario_adicional_bs
+
+    // Paso 7: PRECIO VENTA = Costo Real × Margen
     const precio_venta_sugerido = Math.ceil(costo_unitario_total_bs * MARGEN_DEFECTO * 100) / 100
 
-    // Buscar si ya existe en inventario
-    const allCodes = [raw.codigo_proveedor, ...raw.codigos_adicionales].map((c) => c.toLowerCase())
+    // Si el Excel trae un precio venta manual, usarlo como valor inicial editable
+    const precio_venta_final =
+      raw.precio_venta_manual > 0 ? raw.precio_venta_manual : precio_venta_sugerido
+
+    // Buscar si ya existe en inventario por cualquier código
+    const allCodes = [raw.codigo_universal, ...raw.codigos_adicionales].map((c) => c.toLowerCase())
     const match = productos.find(
       (p) =>
         allCodes.includes(p.codigo_universal.toLowerCase()) ||
@@ -95,19 +169,23 @@ function calcItems(
     )
 
     return {
-      _index: idx,
-      codigo_proveedor: raw.codigo_proveedor,
-      codigos_adicionales: raw.codigos_adicionales,
-      nombre: raw.nombre,
-      precio_fob_usd: raw.precio_fob_usd,
-      cantidad: raw.cantidad,
+      _index:               idx,
+      codigo_proveedor:     raw.codigo_universal,
+      codigos_adicionales:  raw.codigos_adicionales,
+      nombre:               raw.nombre,
+      marca:                raw.marca,
+      descripcion:          raw.descripcion,
+      ubicacion:            raw.ubicacion,
+      precio_fob_usd:       raw.precio_fob_usd,
+      cantidad:             raw.cantidad,
+      stock_minimo:         raw.stock_minimo,
       costo_unitario_fob_bs,
       costo_unitario_adicional_bs,
       costo_unitario_total_bs,
       precio_venta_sugerido,
-      precio_venta_final: precio_venta_sugerido,
-      producto_id: match?.id,
-      es_nuevo: !match,
+      precio_venta_final,
+      producto_id:          match?.id,
+      es_nuevo:             !match,
     }
   })
 }
@@ -124,26 +202,78 @@ function nextNumero(existingCount: number): string {
   return `IMP-${year}-${n}`
 }
 
+// ─── Stepper ─────────────────────────────────────────────────────────────────
+
+const STEPS: ImportStep[] = ['upload', 'mapear', 'datos', 'preview', 'confirmar']
+
+function Stepper({ step }: { step: ImportStep }) {
+  const idx = STEPS.indexOf(step)
+
+  return (
+    <div className="flex items-center gap-0 mb-6">
+      {STEPS.map((s, i) => (
+        <div key={s} className="flex items-center">
+          <div className="flex items-center gap-1.5">
+            <div className={clsx(
+              'h-6 w-6 rounded-full text-xs font-semibold flex items-center justify-center shrink-0',
+              i < idx   ? 'bg-brand-600 text-white' :
+              i === idx ? 'bg-brand-600 text-white ring-4 ring-brand-100' :
+                          'bg-steel-200 text-steel-500',
+            )}>
+              {i < idx ? (
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : i + 1}
+            </div>
+            <span className={clsx(
+              'hidden sm:inline text-sm',
+              i === idx ? 'font-medium text-steel-900' : 'text-steel-400',
+            )}>{STEP_LABELS[s]}</span>
+            {i === idx && (
+              <span className="sm:hidden text-sm font-medium text-steel-900">{STEP_LABELS[s]}</span>
+            )}
+          </div>
+          {i < STEPS.length - 1 && (
+            <div className={clsx('h-px w-3 sm:w-6 mx-1.5 sm:mx-2', i < idx ? 'bg-brand-400' : 'bg-steel-200')} />
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 interface Props {
   open: boolean
   onClose: () => void
   onSave: (importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>) => void
-  origenes: OrigenConfig[]
   productos: Producto[]
   totalImportaciones: number
 }
 
 export function NuevaImportacionModal({
-  open, onClose, onSave, origenes, productos, totalImportaciones,
+  open, onClose, onSave, productos, totalImportaciones,
 }: Props) {
+  const { proveedores } = useProveedoresStore()
   // ── Estado ────────────────────────────────────────────────────────────────
-  const [step, setStep] = useState<ImportStep>('datos')
+  const [step, setStep] = useState<ImportStep>('upload')
 
+  // Excel
+  const [columns, setColumns]   = useState<string[]>([])
+  const [rows, setRows]         = useState<Record<string, unknown>[]>([])
+  const [mappings, setMappings] = useState<FieldMappings>({})
+  const [dragging, setDragging] = useState(false)
+  const [fileName, setFileName] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null) as React.RefObject<HTMLInputElement>
+
+  // Raw items (calculados tras mapear, antes de datos)
+  const [rawItems, setRawItems] = useState<RawItem[]>([])
+
+  // Datos generales
   const [datos, setDatos] = useState<DatosForm>({
-    origen: '',
-    proveedor: '',
+    proveedor_id: '',
     fecha_estimada_llegada: '',
     tipo_cambio: '6.96',
     flete_usd: '',
@@ -151,15 +281,7 @@ export function NuevaImportacionModal({
     transporte_interno_bs: '',
   })
 
-  // Excel
-  const [columns, setColumns]         = useState<string[]>([])
-  const [rows, setRows]               = useState<Record<string, unknown>[]>([])
-  const [mappings, setMappings]       = useState<FieldMappings>({})
-  const [dragging, setDragging]       = useState(false)
-  const [fileName, setFileName]       = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null) as React.RefObject<HTMLInputElement>
-
-  // Preview
+  // Items calculados
   const [items, setItems] = useState<DraftItem[]>([])
 
   // Guardando
@@ -167,37 +289,17 @@ export function NuevaImportacionModal({
 
   // ── Reset ────────────────────────────────────────────────────────────────
   const reset = useCallback(() => {
-    setStep('datos')
-    setDatos({ origen: '', proveedor: '', fecha_estimada_llegada: '', tipo_cambio: '6.96', flete_usd: '', aduana_bs: '', transporte_interno_bs: '' })
-    setColumns([])
-    setRows([])
-    setMappings({})
-    setFileName('')
+    setStep('upload')
+    setColumns([]); setRows([]); setMappings({}); setFileName('')
+    setRawItems([])
+    setDatos({ proveedor_id: '', fecha_estimada_llegada: '', tipo_cambio: '6.96', flete_usd: '', aduana_bs: '', transporte_interno_bs: '' })
     setItems([])
     setSaving(false)
   }, [])
 
   const handleClose = () => { reset(); onClose() }
 
-  // ── Step: datos ──────────────────────────────────────────────────────────
-  const handleOrigenChange = (nombre: string) => {
-    const cfg = origenes.find((o) => o.nombre === nombre)
-    setDatos((d) => ({
-      ...d,
-      origen: nombre,
-      fecha_estimada_llegada: cfg ? addDays(cfg.tiempo_estimado_dias) : d.fecha_estimada_llegada,
-    }))
-  }
-
-  const validarDatos = (): boolean => {
-    if (!datos.origen.trim())                   { toast.error('Selecciona un origen'); return false }
-    if (!datos.proveedor.trim())                { toast.error('Ingresa el proveedor'); return false }
-    if (!datos.fecha_estimada_llegada)          { toast.error('Ingresa la fecha estimada'); return false }
-    if (!parseNumeric(datos.tipo_cambio))       { toast.error('Ingresa el tipo de cambio'); return false }
-    return true
-  }
-
-  // ── Step: excel ──────────────────────────────────────────────────────────
+  // ── Step 1: upload ────────────────────────────────────────────────────────
   const handleFile = useCallback(async (file: File) => {
     if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
       toast.error('Formato no soportado. Usa .xlsx, .xls o .csv')
@@ -214,17 +316,13 @@ export function NuevaImportacionModal({
       setRows(data)
       setFileName(file.name)
       setMappings({})
+      setStep('mapear')
     } catch {
       toast.error('Error al leer el archivo')
     }
   }, [])
 
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault(); setDragging(false)
-    const file = e.dataTransfer.files[0]
-    if (file) void handleFile(file)
-  }, [handleFile])
-
+  // ── Step 2: mapear ────────────────────────────────────────────────────────
   const addColumn = (field: string, col: string) => {
     setMappings((prev) => {
       const existing = prev[field as ImportField] ?? { columns: [], separator: '-' }
@@ -255,48 +353,49 @@ export function NuevaImportacionModal({
     })
   }
 
-  const validarMapeo = (): boolean => {
-    for (const f of SYSTEM_FIELDS.filter((f) => f.required)) {
-      if (!mappings[f.key]?.columns.length) {
-        toast.error(`Mapea el campo "${f.label}"`)
-        return false
-      }
-    }
+  const requiredMapped = SYSTEM_FIELDS
+    .filter((f) => f.required)
+    .every((f) => (mappings[f.key]?.columns.length ?? 0) > 0)
+
+  const handleGoToDatos = () => {
+    const raw = buildRawItems(rows, mappings)
+    if (!raw.length) { toast.error('No se encontraron filas válidas con los mapeos actuales'); return }
+    setRawItems(raw)
+    setStep('datos')
+  }
+
+  // ── Step 3: datos ─────────────────────────────────────────────────────────
+  const handleProveedorChange = (id: string) => {
+    const prov = proveedores.find((p) => p.id === id)
+    setDatos((d) => ({
+      ...d,
+      proveedor_id: id,
+      fecha_estimada_llegada: prov?.tiempo_reposicion_dias
+        ? addDays(prov.tiempo_reposicion_dias)
+        : d.fecha_estimada_llegada,
+    }))
+  }
+
+  const validarDatos = (): boolean => {
+    if (!datos.proveedor_id)              { toast.error('Selecciona un proveedor'); return false }
+    if (!datos.fecha_estimada_llegada)    { toast.error('Ingresa la fecha estimada'); return false }
+    if (!parseNumeric(datos.tipo_cambio)) { toast.error('Ingresa el tipo de cambio'); return false }
     return true
   }
 
-  const buildItems = () => {
-    const raw = rows.map((row) => {
-      const get = (key: ImportField) => {
-        const m = mappings[key]
-        return m ? resolveValue(row, m) : ''
-      }
-      const getRaw = (key: ImportField): unknown => {
-        const m = mappings[key]
-        return m?.columns.length ? row[m.columns[0]] ?? '' : ''
-      }
-      return {
-        codigo_proveedor: get('codigo_proveedor'),
-        codigos_adicionales: [get('codigo_alt1'), get('codigo_alt2')].filter(Boolean),
-        nombre: get('nombre') || get('codigo_proveedor'),
-        precio_fob_usd: parseNumeric(getRaw('precio_fob_usd')),
-        cantidad: parseNumeric(getRaw('cantidad')),
-      }
-    }).filter((r) => r.codigo_proveedor && r.precio_fob_usd > 0 && r.cantidad > 0)
-
-    if (!raw.length) { toast.error('No se encontraron filas válidas'); return }
-
+  const handleGoToPreview = () => {
+    if (!validarDatos()) return
     const d = {
       tipo_cambio: parseNumeric(datos.tipo_cambio),
       flete_usd: parseNumeric(datos.flete_usd),
       aduana_bs: parseNumeric(datos.aduana_bs),
       transporte_interno_bs: parseNumeric(datos.transporte_interno_bs),
     }
-    setItems(calcItems(raw, d, productos))
+    setItems(calcItems(rawItems, d, productos))
     setStep('preview')
   }
 
-  // ── Step: preview ────────────────────────────────────────────────────────
+  // ── Step 4: preview ───────────────────────────────────────────────────────
   const updatePrecioFinal = (index: number, val: string) => {
     setItems((prev) =>
       prev.map((it) =>
@@ -305,7 +404,7 @@ export function NuevaImportacionModal({
     )
   }
 
-  // ── Step: confirmar ──────────────────────────────────────────────────────
+  // ── Step 5: confirmar ─────────────────────────────────────────────────────
   const handleConfirmar = async () => {
     setSaving(true)
     await new Promise((r) => setTimeout(r, 400))
@@ -318,10 +417,12 @@ export function NuevaImportacionModal({
     }
     const fob_total_usd = items.reduce((s, i) => s + i.precio_fob_usd * i.cantidad, 0)
 
+    const provSeleccionado = proveedores.find((p) => p.id === datos.proveedor_id)
+
     const importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'> = {
       numero: nextNumero(totalImportaciones),
-      origen: datos.origen,
-      proveedor: datos.proveedor,
+      origen: provSeleccionado?.pais ?? '',
+      proveedor: provSeleccionado?.nombre ?? '',
       fecha_creacion: new Date().toISOString(),
       fecha_estimada_llegada: new Date(datos.fecha_estimada_llegada).toISOString(),
       estado: 'en_transito',
@@ -336,121 +437,205 @@ export function NuevaImportacionModal({
     onClose()
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
-  const nuevos    = items.filter((i) => i.es_nuevo).length
-  const existentes = items.filter((i) => !i.es_nuevo).length
-  const fobTotal  = items.reduce((s, i) => s + i.precio_fob_usd * i.cantidad, 0)
-  const tc        = parseNumeric(datos.tipo_cambio)
-
-  const STEP_LABELS: Record<ImportStep, string> = {
-    datos: '1. Datos generales',
-    excel: '2. Cargar Excel',
-    preview: '3. Revisar precios',
-    confirmar: '4. Confirmar',
+  // ── Navegación atrás ──────────────────────────────────────────────────────
+  const handleBack = () => {
+    if (step === 'mapear')    setStep('upload')
+    if (step === 'datos')     setStep('mapear')
+    if (step === 'preview')   setStep('datos')
+    if (step === 'confirmar') setStep('preview')
   }
 
-  const modalTitle = `Nueva Importación — ${STEP_LABELS[step]}`
+  // ── Render ────────────────────────────────────────────────────────────────
+  const fobPreliminar = rawItems.reduce((s, i) => s + i.precio_fob_usd * i.cantidad, 0)
+  const nuevos     = items.filter((i) => i.es_nuevo).length
+  const existentes = items.filter((i) => !i.es_nuevo).length
+  const fobTotal   = items.reduce((s, i) => s + i.precio_fob_usd * i.cantidad, 0)
+  const tc         = parseNumeric(datos.tipo_cambio)
+
   const modalSize = step === 'preview' ? '2xl' : 'xl'
 
   return (
     <Modal
       open={open}
       onClose={handleClose}
-      title={modalTitle}
+      title="Nueva importación"
       size={modalSize}
       footer={
         <ModalFooter
           step={step}
           saving={saving}
-          hasRows={rows.length > 0}
+          hasFile={columns.length > 0}
+          requiredMapped={requiredMapped}
           hasItems={items.length > 0}
-          onBack={() => {
-            if (step === 'excel')    setStep('datos')
-            if (step === 'preview') setStep('excel')
-            if (step === 'confirmar') setStep('preview')
-          }}
+          onBack={handleBack}
           onNext={() => {
-            if (step === 'datos') { if (validarDatos()) setStep('excel') }
-            if (step === 'excel') { if (validarMapeo()) buildItems() }
-            if (step === 'preview') setStep('confirmar')
+            if (step === 'mapear')    handleGoToDatos()
+            if (step === 'datos')     handleGoToPreview()
+            if (step === 'preview')   setStep('confirmar')
             if (step === 'confirmar') void handleConfirmar()
           }}
+          onClose={handleClose}
         />
       }
     >
-      {step === 'datos' && (
-        <StepDatos datos={datos} setDatos={setDatos} origenes={origenes} onOrigenChange={handleOrigenChange} />
-      )}
-      {step === 'excel' && (
-        <StepExcel
-          columns={columns}
-          rows={rows}
-          mappings={mappings}
+      <Stepper step={step} />
+
+      {/* ── STEP 1: UPLOAD ── */}
+      {step === 'upload' && (
+        <StepUpload
           dragging={dragging}
-          fileName={fileName}
           fileInputRef={fileInputRef}
-          onDrop={onDrop}
+          onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) void handleFile(f) }}
           onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
           onDragLeave={() => setDragging(false)}
           onFileChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f) }}
+        />
+      )}
+
+      {/* ── STEP 2: MAPEAR ── */}
+      {step === 'mapear' && (
+        <ExcelColumnMapper
+          fields={SYSTEM_FIELDS}
+          excelCols={columns}
+          mappings={mappings as Record<string, { columns: string[]; separator: string }>}
+          fileName={fileName}
+          rowCount={rows.length}
           onAddColumn={addColumn}
           onRemoveColumn={removeColumn}
           onSetSeparator={setSeparator}
         />
       )}
+
+      {/* ── STEP 3: DATOS ── */}
+      {step === 'datos' && (
+        <StepDatos
+          datos={datos}
+          setDatos={setDatos}
+          proveedores={proveedores.filter((p) => p.estado === 'activo')}
+          fobPreliminar={fobPreliminar}
+          totalProductos={rawItems.length}
+          onProveedorChange={handleProveedorChange}
+        />
+      )}
+
+      {/* ── STEP 4: PREVIEW ── */}
       {step === 'preview' && (
         <StepPreview items={items} tc={tc} onPrecioChange={updatePrecioFinal} />
       )}
-      {step === 'confirmar' && (
-        <StepConfirmar
-          nuevos={nuevos}
-          existentes={existentes}
-          fobTotal={fobTotal}
-          tc={tc}
-          flete={parseNumeric(datos.flete_usd)}
-          aduana={parseNumeric(datos.aduana_bs)}
-          transporte={parseNumeric(datos.transporte_interno_bs)}
-          origen={datos.origen}
-          proveedor={datos.proveedor}
-          fechaLlegada={datos.fecha_estimada_llegada}
-        />
-      )}
+
+      {/* ── STEP 5: CONFIRMAR ── */}
+      {step === 'confirmar' && (() => {
+        const prov = proveedores.find((p) => p.id === datos.proveedor_id)
+        return (
+          <StepConfirmar
+            nuevos={nuevos}
+            existentes={existentes}
+            fobTotal={fobTotal}
+            tc={tc}
+            flete={parseNumeric(datos.flete_usd)}
+            aduana={parseNumeric(datos.aduana_bs)}
+            transporte={parseNumeric(datos.transporte_interno_bs)}
+            proveedor={prov?.nombre ?? ''}
+            pais={prov?.pais ?? ''}
+            fechaLlegada={datos.fecha_estimada_llegada}
+          />
+        )
+      })()}
     </Modal>
   )
 }
 
 // ─── Sub-componentes de pasos ────────────────────────────────────────────────
 
+function StepUpload({
+  dragging, fileInputRef, onDrop, onDragOver, onDragLeave, onFileChange,
+}: {
+  dragging: boolean
+  fileInputRef: React.RefObject<HTMLInputElement>
+  onDrop: (e: React.DragEvent) => void
+  onDragOver: (e: React.DragEvent) => void
+  onDragLeave: () => void
+  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+}) {
+  return (
+    <div
+      className={clsx(
+        'flex flex-col items-center justify-center gap-4 border-2 border-dashed rounded-xl p-6 sm:p-12 cursor-pointer transition-colors',
+        dragging ? 'border-brand-400 bg-brand-50' : 'border-steel-200 bg-steel-50 hover:border-brand-300 hover:bg-brand-50/50',
+      )}
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onClick={() => fileInputRef.current?.click()}
+    >
+      <div className="h-12 w-12 rounded-full bg-brand-100 flex items-center justify-center">
+        <svg className="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+      </div>
+      <div className="text-center">
+        <p className="text-sm font-medium text-steel-800">Arrastra tu archivo aquí o haz clic para seleccionar</p>
+        <p className="text-xs text-steel-400 mt-1">Formatos soportados: .xlsx, .xls, .csv</p>
+      </div>
+      <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={onFileChange} />
+    </div>
+  )
+}
+
 function StepDatos({
-  datos, setDatos, origenes, onOrigenChange,
+  datos, setDatos, proveedores, fobPreliminar, totalProductos, onProveedorChange,
 }: {
   datos: DatosForm
   setDatos: React.Dispatch<React.SetStateAction<DatosForm>>
-  origenes: OrigenConfig[]
-  onOrigenChange: (nombre: string) => void
+  proveedores: import('@/types').Proveedor[]
+  fobPreliminar: number
+  totalProductos: number
+  onProveedorChange: (id: string) => void
 }) {
   const set = (k: keyof DatosForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDatos((d) => ({ ...d, [k]: e.target.value }))
 
+  const provSeleccionado = proveedores.find((p) => p.id === datos.proveedor_id)
+
   return (
     <div className="space-y-5">
-      {/* Origen y proveedor */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Select
-          label="Origen / País"
-          value={datos.origen}
-          onChange={(e) => onOrigenChange(e.target.value)}
-          options={origenes.map((o) => ({ value: o.nombre, label: `${o.nombre} (${o.tiempo_estimado_dias}d)` }))}
-          placeholder="Seleccionar origen…"
-        />
-        <Input
-          label="Proveedor"
-          value={datos.proveedor}
-          onChange={set('proveedor')}
-          placeholder="Nombre del proveedor"
-        />
-      </div>
+      {/* Proveedor */}
+      <Select
+        label="Proveedor"
+        value={datos.proveedor_id}
+        onChange={(e) => onProveedorChange(e.target.value)}
+        options={proveedores.map((p) => ({ value: p.id, label: `${p.nombre} — ${p.pais}` }))}
+        placeholder="Seleccionar proveedor…"
+      />
+
+      {/* Info del proveedor seleccionado */}
+      {provSeleccionado && (
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-steel-50 border border-steel-200">
+          <div className="flex items-center gap-1.5">
+            <svg className="h-3.5 w-3.5 text-steel-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="text-[12px] text-steel-600 font-medium">{provSeleccionado.pais}</span>
+          </div>
+          <span className="text-steel-200">·</span>
+          <div className="flex items-center gap-1.5">
+            <svg className="h-3.5 w-3.5 text-steel-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-[12px] text-steel-600">
+              {provSeleccionado.tiempo_reposicion_dias
+                ? `~${provSeleccionado.tiempo_reposicion_dias} días de tránsito`
+                : 'Tiempo no definido'}
+            </span>
+          </div>
+          <span className="text-steel-200">·</span>
+          <span className="text-[12px] text-steel-500">{provSeleccionado.moneda} · {provSeleccionado.terminos_pago}</span>
+        </div>
+      )}
 
       {/* Fecha y tipo de cambio */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -459,6 +644,7 @@ function StepDatos({
           type="date"
           value={datos.fecha_estimada_llegada}
           onChange={set('fecha_estimada_llegada')}
+          hint={provSeleccionado?.tiempo_reposicion_dias ? 'Auto-calculada según tiempo del proveedor' : undefined}
         />
         <Input
           label="Tipo de cambio (Bs/USD)"
@@ -476,6 +662,26 @@ function StepDatos({
         <p className="text-[11px] font-semibold uppercase tracking-wider text-steel-400 mb-3">
           Costos adicionales del lote
         </p>
+
+        {/* FOB del lote (calculado del Excel) */}
+        <div className="flex items-center justify-between px-4 py-3 rounded-xl mb-3 bg-steel-50 border border-steel-200">
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-brand-100 flex items-center justify-center shrink-0">
+              <svg className="h-3.5 w-3.5 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-[12px] font-semibold text-steel-700">FOB del lote (USD)</p>
+              <p className="text-[11px] text-steel-400">{totalProductos} producto{totalProductos !== 1 ? 's' : ''} · calculado del Excel</p>
+            </div>
+          </div>
+          <span className="text-sm font-bold tabular-nums text-steel-800">
+            ${fobPreliminar.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Input
             label="Flete internacional (USD)"
@@ -484,6 +690,7 @@ function StepDatos({
             min="0"
             value={datos.flete_usd}
             onChange={set('flete_usd')}
+            placeholder="0.00"
           />
           <Input
             label="Aduana / aranceles (Bs)"
@@ -492,6 +699,7 @@ function StepDatos({
             min="0"
             value={datos.aduana_bs}
             onChange={set('aduana_bs')}
+            placeholder="0.00"
           />
           <Input
             label="Transporte interno (Bs)"
@@ -500,6 +708,7 @@ function StepDatos({
             min="0"
             value={datos.transporte_interno_bs}
             onChange={set('transporte_interno_bs')}
+            placeholder="0.00"
           />
         </div>
         <p className="text-[11px] text-steel-400 mt-2">
@@ -507,65 +716,6 @@ function StepDatos({
         </p>
       </div>
     </div>
-  )
-}
-
-function StepExcel({
-  columns, rows, mappings, dragging, fileName, fileInputRef,
-  onDrop, onDragOver, onDragLeave, onFileChange, onAddColumn, onRemoveColumn, onSetSeparator,
-}: {
-  columns: string[]
-  rows: Record<string, unknown>[]
-  mappings: FieldMappings
-  dragging: boolean
-  fileName: string
-  fileInputRef: React.RefObject<HTMLInputElement>
-  onDrop: (e: React.DragEvent) => void
-  onDragOver: (e: React.DragEvent) => void
-  onDragLeave: () => void
-  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void
-  onAddColumn: (field: string, col: string) => void
-  onRemoveColumn: (field: string, col: string) => void
-  onSetSeparator: (field: string, sep: string) => void
-}) {
-  if (!columns.length) {
-    return (
-      <div
-        className={clsx(
-          'flex flex-col items-center justify-center gap-4 border-2 border-dashed rounded-xl p-6 sm:p-12 cursor-pointer transition-colors',
-          dragging ? 'border-brand-400 bg-brand-50' : 'border-steel-200 bg-steel-50 hover:border-brand-300 hover:bg-brand-50/50',
-        )}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        onDragLeave={onDragLeave}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <div className="h-12 w-12 rounded-full bg-brand-100 flex items-center justify-center">
-          <svg className="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-          </svg>
-        </div>
-        <div className="text-center">
-          <p className="text-sm font-medium text-steel-800">Arrastra tu archivo aquí o haz clic para seleccionar</p>
-          <p className="text-xs text-steel-400 mt-1">Formatos soportados: .xlsx, .xls, .csv</p>
-        </div>
-        <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={onFileChange} />
-      </div>
-    )
-  }
-
-  return (
-    <ExcelColumnMapper
-      fields={SYSTEM_FIELDS}
-      excelCols={columns}
-      mappings={mappings as Record<string, { columns: string[]; separator: string }>}
-      fileName={fileName}
-      rowCount={rows.length}
-      onAddColumn={onAddColumn}
-      onRemoveColumn={onRemoveColumn}
-      onSetSeparator={onSetSeparator}
-    />
   )
 }
 
@@ -663,7 +813,7 @@ function StepPreview({
 }
 
 function StepConfirmar({
-  nuevos, existentes, fobTotal, tc, flete, aduana, transporte, origen, proveedor, fechaLlegada,
+  nuevos, existentes, fobTotal, tc, flete, aduana, transporte, proveedor, pais, fechaLlegada,
 }: {
   nuevos: number
   existentes: number
@@ -672,8 +822,8 @@ function StepConfirmar({
   flete: number
   aduana: number
   transporte: number
-  origen: string
   proveedor: string
+  pais: string
   fechaLlegada: string
 }) {
   const fleteBs = flete * tc
@@ -681,19 +831,17 @@ function StepConfirmar({
 
   return (
     <div className="space-y-5">
-      {/* Resumen de la importación */}
       <div className="rounded-xl p-4 space-y-2" style={{ background: '#F9FAFB', border: '1px solid #E8EDF3' }}>
         <p className="text-[11px] font-semibold uppercase tracking-wider text-steel-400 mb-3">Resumen</p>
-        <Row label="Origen" value={origen} />
         <Row label="Proveedor" value={proveedor} />
+        <Row label="País de origen" value={pais} />
         <Row label="Llegada estimada" value={fechaLlegada ? new Date(fechaLlegada).toLocaleDateString('es-BO', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'} />
         <Row label="Tipo de cambio" value={`Bs ${tc}`} />
       </div>
 
-      {/* Costos */}
       <div className="rounded-xl p-4 space-y-2" style={{ background: '#F9FAFB', border: '1px solid #E8EDF3' }}>
         <p className="text-[11px] font-semibold uppercase tracking-wider text-steel-400 mb-3">Costos del lote</p>
-        <Row label="FOB total" value={`$${fobTotal.toFixed(2)}  (Bs ${(fobTotal * tc).toFixed(2)})`} />
+        <Row label="FOB del lote" value={`$${fobTotal.toFixed(2)}  (Bs ${(fobTotal * tc).toFixed(2)})`} />
         <Row label="Flete internacional" value={`$${flete.toFixed(2)}  (Bs ${fleteBs.toFixed(2)})`} />
         <Row label="Aduana / aranceles" value={`Bs ${aduana.toFixed(2)}`} />
         <Row label="Transporte interno" value={`Bs ${transporte.toFixed(2)}`} />
@@ -702,7 +850,6 @@ function StepConfirmar({
         </div>
       </div>
 
-      {/* Productos */}
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl p-4 text-center" style={{ background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
           <p className="text-3xl font-bold" style={{ color: '#4F46E5' }}>{nuevos}</p>
@@ -735,44 +882,52 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
 }
 
 function ModalFooter({
-  step, saving, hasRows, hasItems, onBack, onNext,
+  step, saving, hasFile, requiredMapped, hasItems, onBack, onNext, onClose,
 }: {
   step: ImportStep
   saving: boolean
-  hasRows: boolean
+  hasFile: boolean
+  requiredMapped: boolean
   hasItems: boolean
   onBack: () => void
   onNext: () => void
+  onClose: () => void
 }) {
-  const isFirst = step === 'datos'
+  const isFirst = step === 'upload'
   const isLast  = step === 'confirmar'
 
   const nextLabel: Record<ImportStep, string> = {
-    datos: 'Continuar',
-    excel: 'Calcular costos',
-    preview: 'Revisar resumen',
+    upload:    'Continuar',
+    mapear:    'Continuar',
+    datos:     'Calcular costos',
+    preview:   'Revisar resumen',
     confirmar: 'Confirmar importación',
   }
 
   const nextDisabled =
-    (step === 'excel' && !hasRows) ||
+    (step === 'upload'  && !hasFile) ||
+    (step === 'mapear'  && !requiredMapped) ||
     (step === 'preview' && !hasItems)
 
   return (
     <>
       {!isFirst && (
-        <Button variant="secondary" onClick={onBack} disabled={saving}>
+        <Button variant="ghost" onClick={onBack} disabled={saving}>
           Atrás
         </Button>
       )}
-      <Button
-        onClick={onNext}
-        loading={saving && isLast}
-        disabled={nextDisabled}
-        variant={isLast ? 'primary' : 'primary'}
-      >
-        {nextLabel[step]}
+      <Button variant="secondary" onClick={onClose} disabled={saving}>
+        Cancelar
       </Button>
+      {step !== 'upload' && (
+        <Button
+          onClick={onNext}
+          loading={saving && isLast}
+          disabled={nextDisabled}
+        >
+          {nextLabel[step]}
+        </Button>
+      )}
     </>
   )
 }
