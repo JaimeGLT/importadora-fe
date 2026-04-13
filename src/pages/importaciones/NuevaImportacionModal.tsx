@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import type * as XLSXType from 'xlsx'
 import { Modal, Button, Input, Select, ExcelColumnMapper } from '@/components/ui'
 import type { Importacion, ItemImportacion, Producto } from '@/types'
@@ -520,7 +520,7 @@ export function NuevaImportacionModal({
 
       {/* ── STEP 4: PREVIEW ── */}
       {step === 'preview' && (
-        <StepPreview items={items} tc={tc} onPrecioChange={updatePrecioFinal} />
+        <StepPreview items={items} tc={tc} onPrecioChange={updatePrecioFinal} productos={productos} />
       )}
 
       {/* ── STEP 5: CONFIRMAR ── */}
@@ -720,91 +720,288 @@ function StepDatos({
 }
 
 function StepPreview({
-  items, tc, onPrecioChange,
+  items, tc, onPrecioChange, productos,
 }: {
   items: DraftItem[]
   tc: number
   onPrecioChange: (index: number, val: string) => void
+  productos: Producto[]
 }) {
-  const fobTotal = items.reduce((s, i) => s + i.precio_fob_usd * i.cantidad, 0)
+  const fobTotal   = items.reduce((s, i) => s + i.precio_fob_usd * i.cantidad, 0)
+  const nuevos     = items.filter((i) => i.es_nuevo).length
+  const existentes = items.filter((i) => !i.es_nuevo).length
+  const [openHistorial, setOpenHistorial] = useState<number | null>(null)
+
+  const toggleHistorial = (index: number) =>
+    setOpenHistorial((prev) => (prev === index ? null : index))
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+
+      {/* ── Resumen rápido ── */}
       <div className="flex items-center gap-4 flex-wrap text-[12px] text-steel-500">
         <span><strong className="text-steel-700">{items.length}</strong> productos</span>
         <span>·</span>
         <span>FOB total: <strong className="text-steel-700">${fobTotal.toFixed(2)}</strong></span>
         <span>·</span>
         <span>TC: <strong className="text-steel-700">Bs {tc}</strong></span>
-        <span className="ml-auto text-[11px] text-steel-400">Edita el precio final antes de confirmar</span>
+        <div className="ml-auto flex gap-1.5">
+          {nuevos > 0 && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+              style={{ background: '#EEF2FF', color: '#4338CA' }}>
+              <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 inline-block" />
+              {nuevos} nuevo{nuevos !== 1 ? 's' : ''}
+            </span>
+          )}
+          {existentes > 0 && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+              style={{ background: '#F0FDF4', color: '#15803D' }}>
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block" />
+              {existentes} existente{existentes !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
       </div>
 
+      {/* ── Tabla ── */}
       <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid #E8EDF3' }}>
         <table className="w-full text-[12px]">
           <thead>
             <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E8EDF3' }}>
-              <th className="px-3 py-2.5 text-left font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Código</th>
-              <th className="px-3 py-2.5 text-left font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Nombre</th>
-              <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Cant.</th>
-              <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">FOB Unit. $</th>
-              <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Costo Unit. Bs</th>
-              <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Precio Venta Bs</th>
+              <th className="px-3 py-2.5 text-left font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Producto</th>
+              <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Unidades</th>
+              <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Costo unit. Bs</th>
+              {existentes > 0 && (
+                <th className="px-3 py-2.5 text-right font-semibold uppercase tracking-wider text-[10px]"
+                  style={{ background: '#F0F4FF', color: '#818CF8', borderLeft: '1px solid #E0E7FF', borderRight: '1px solid #E0E7FF' }}>
+                  Precio anterior
+                </th>
+              )}
+              <th className="px-4 py-2.5 text-right font-semibold uppercase tracking-wider text-[10px]"
+                style={{ background: '#F0FDF9', color: '#059669', borderRight: '1px solid #D1FAE5' }}>
+                <span className="flex items-center justify-end gap-1">
+                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Precio de venta
+                </span>
+              </th>
               <th className="px-3 py-2.5 text-center font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Estado</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((item, rowIdx) => (
-              <tr
-                key={item._index}
-                style={{ borderBottom: rowIdx < items.length - 1 ? '1px solid #F0F0F5' : undefined }}
-              >
-                <td className="px-3 py-2">
-                  <span className="font-mono text-[11px] font-semibold" style={{ color: '#3730A3' }}>
-                    {item.codigo_proveedor}
-                  </span>
-                  {item.codigos_adicionales.length > 0 && (
-                    <p className="text-[10px] text-steel-400">{item.codigos_adicionales.join(' · ')}</p>
-                  )}
-                </td>
-                <td className="px-3 py-2 max-w-[160px]">
-                  <p className="truncate text-steel-700">{item.nombre}</p>
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-steel-700">{item.cantidad}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-steel-700">${item.precio_fob_usd.toFixed(2)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  <span className="text-steel-700">Bs {item.costo_unitario_total_bs.toFixed(2)}</span>
-                  <p className="text-[10px] text-steel-400">FOB: {item.costo_unitario_fob_bs.toFixed(2)} + Ad: {item.costo_unitario_adicional_bs.toFixed(2)}</p>
-                </td>
-                <td className="px-3 py-2">
-                  <div className="flex flex-col items-end gap-0.5">
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      defaultValue={item.precio_venta_final.toFixed(2)}
-                      onBlur={(e) => onPrecioChange(item._index, e.target.value)}
-                      className="w-24 text-right px-2 py-1 rounded-lg border text-[12px] font-semibold tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-500"
-                      style={{ borderColor: '#E8EDF3', color: '#111827' }}
-                    />
-                    {item.precio_venta_final !== item.precio_venta_sugerido && (
-                      <p className="text-[10px] text-steel-400">Sug: {item.precio_venta_sugerido.toFixed(2)}</p>
+            {items.map((item, rowIdx) => {
+              const producto = !item.es_nuevo && item.producto_id
+                ? productos.find((p) => p.id === item.producto_id)
+                : undefined
+              const historialAbierto = openHistorial === item._index
+              const variacionPct = producto && producto.precio_venta > 0
+                ? ((item.precio_venta_final / producto.precio_venta) - 1) * 100
+                : null
+
+              return (
+                <React.Fragment key={item._index}>
+                  <tr className="group transition-colors hover:bg-steel-50/60"
+                    style={{ borderBottom: (!historialAbierto && rowIdx < items.length - 1) ? '1px solid #F0F0F5' : undefined }}>
+
+                    {/* Producto */}
+                    <td className="px-3 py-2.5">
+                      <p className="font-mono text-[11px] font-bold" style={{ color: '#3730A3' }}>
+                        {item.codigo_proveedor}
+                      </p>
+                      <p className="text-[12px] text-steel-700 mt-0.5 leading-tight">{item.nombre}</p>
+                      {item.marca && <p className="text-[10px] text-steel-400">{item.marca}</p>}
+                    </td>
+
+                    {/* Unidades */}
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      <span className="text-[13px] font-semibold text-steel-700">{item.cantidad}</span>
+                      <p className="text-[10px] text-steel-400">uds.</p>
+                    </td>
+
+                    {/* Costo unit. */}
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      <span className="text-[12px] font-medium text-steel-700">Bs {item.costo_unitario_total_bs.toFixed(2)}</span>
+                      <p className="text-[10px] text-steel-400">${item.precio_fob_usd.toFixed(2)} FOB</p>
+                    </td>
+
+                    {/* Precio anterior — solo si hay existentes en el lote */}
+                    {existentes > 0 && (
+                      <td className="px-3 py-2.5 text-right"
+                        style={{ background: '#F8F9FF', borderLeft: '1px solid #E0E7FF', borderRight: '1px solid #E0E7FF' }}>
+                        {producto && variacionPct !== null ? (
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="text-[13px] font-semibold tabular-nums text-steel-700">
+                              Bs {producto.precio_venta.toFixed(2)}
+                            </span>
+                            <span className={clsx(
+                              'inline-flex items-center gap-0.5 text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md',
+                              variacionPct > 0  ? 'bg-amber-50 text-amber-700'
+                              : variacionPct < 0 ? 'bg-emerald-50 text-emerald-700'
+                              :                   'bg-steel-100 text-steel-500',
+                            )}>
+                              {variacionPct > 0 ? '↑' : variacionPct < 0 ? '↓' : '='}{' '}
+                              {variacionPct > 0 ? '+' : ''}{variacionPct.toFixed(1)}%
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => toggleHistorial(item._index)}
+                              className={clsx(
+                                'flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md transition-colors',
+                                historialAbierto
+                                  ? 'text-indigo-600 bg-indigo-50'
+                                  : 'text-steel-400 hover:text-indigo-500 hover:bg-indigo-50',
+                              )}
+                            >
+                              <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              {historialAbierto ? 'cerrar' : 'historial'}
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-steel-300">—</span>
+                        )}
+                      </td>
                     )}
-                  </div>
-                </td>
-                <td className="px-3 py-2 text-center">
-                  <span
-                    className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                    style={
-                      item.es_nuevo
-                        ? { background: '#EEF2FF', color: '#4F46E5' }
-                        : { background: '#F0FDF4', color: '#16A34A' }
-                    }
-                  >
-                    {item.es_nuevo ? 'Nuevo' : 'Existente'}
-                  </span>
-                </td>
-              </tr>
-            ))}
+
+                    {/* Precio de venta editable */}
+                    <td className="px-4 py-2.5 text-right"
+                      style={{ background: '#F0FDF9', borderRight: '1px solid #D1FAE5' }}>
+                      <div className="flex flex-col items-end gap-0.5">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          defaultValue={item.precio_venta_final.toFixed(2)}
+                          onBlur={(e) => onPrecioChange(item._index, e.target.value)}
+                          className="w-28 text-right px-2.5 py-1.5 rounded-lg border text-[13px] font-bold tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-shadow"
+                          style={{ borderColor: '#6EE7B7', color: '#065F46', background: '#fff' }}
+                        />
+                        {item.precio_venta_final !== item.precio_venta_sugerido && (
+                          <p className="text-[10px] tabular-nums" style={{ color: '#6EE7B7' }}>
+                            Sug. Bs {item.precio_venta_sugerido.toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Estado */}
+                    <td className="px-3 py-2.5 text-center">
+                      <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                        style={item.es_nuevo
+                          ? { background: '#EEF2FF', color: '#4F46E5' }
+                          : { background: '#F0FDF4', color: '#16A34A' }}>
+                        {item.es_nuevo ? 'Nuevo' : 'Existente'}
+                      </span>
+                    </td>
+                  </tr>
+
+                  {/* ── Panel historial ── */}
+                  {historialAbierto && producto && (
+                    <tr style={{ borderBottom: rowIdx < items.length - 1 ? '1px solid #E8EDF3' : undefined }}>
+                      <td colSpan={existentes > 0 ? 6 : 5} className="px-3 pb-3 pt-0">
+                        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #E0E7FF', background: '#F8F9FF' }}>
+
+                          {/* Precio actual → nuevo */}
+                          <div className="flex items-stretch">
+                            <div className="flex-1 px-5 py-4" style={{ background: '#EEF2FF', borderRight: '1px solid #C7D2FE' }}>
+                              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#6366F1' }}>
+                                Precio actual en inventario
+                              </p>
+                              <p className="text-[22px] font-extrabold tabular-nums leading-none" style={{ color: '#3730A3' }}>
+                                Bs {producto.precio_venta.toFixed(2)}
+                              </p>
+                              <p className="text-[11px] mt-1.5" style={{ color: '#818CF8' }}>
+                                Costo: <span className="font-semibold">Bs {producto.precio_costo.toFixed(2)}</span>
+                              </p>
+                              <p className="text-[10px] mt-1" style={{ color: '#A5B4FC' }}>
+                                Desde {new Date(producto.actualizado_en).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </p>
+                            </div>
+
+                            <div className="flex flex-col items-center justify-center px-5 gap-1.5" style={{ background: '#F8F9FF' }}>
+                              {variacionPct !== null && variacionPct !== 0 ? (
+                                <span className={clsx(
+                                  'flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold',
+                                  variacionPct > 0 ? 'text-amber-700' : 'text-emerald-700',
+                                )}
+                                  style={{ background: variacionPct > 0 ? '#FEF3C7' : '#D1FAE5', border: `1px solid ${variacionPct > 0 ? '#FCD34D' : '#6EE7B7'}` }}>
+                                  {variacionPct > 0 ? '▲' : '▼'} {Math.abs(variacionPct).toFixed(1)}%
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-steel-400 font-medium">sin cambio</span>
+                              )}
+                              <svg className="h-4 w-4 text-steel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                              </svg>
+                            </div>
+
+                            <div className="flex-1 px-5 py-4" style={{ background: '#ECFDF5', borderLeft: '1px solid #A7F3D0' }}>
+                              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#059669' }}>
+                                Nuevo precio propuesto
+                              </p>
+                              <p className="text-[22px] font-extrabold tabular-nums leading-none" style={{ color: '#065F46' }}>
+                                Bs {item.precio_venta_final.toFixed(2)}
+                              </p>
+                              <p className="text-[11px] mt-1.5" style={{ color: '#047857' }}>
+                                Costo: <span className="font-semibold">Bs {item.costo_unitario_total_bs.toFixed(2)}</span>
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Historial */}
+                          {producto.historial_precios.length > 0 && (
+                            <div className="px-5 py-3" style={{ borderTop: '1px solid #E0E7FF' }}>
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-steel-400 mb-2.5">
+                                Historial de precios anteriores
+                              </p>
+                              <div className="flex items-center flex-wrap gap-2">
+                                {[...producto.historial_precios].reverse().slice(0, 5).map((h, i, arr) => {
+                                  const opacity = 1 - (i / arr.length) * 0.55
+                                  return (
+                                    <React.Fragment key={i}>
+                                      <div className="flex flex-col gap-0.5 px-3 py-2 rounded-lg"
+                                        style={{
+                                          background: `rgba(238,242,255,${opacity})`,
+                                          border: `1px solid rgba(199,210,254,${opacity})`,
+                                        }}>
+                                        <span className="text-[10px] font-medium" style={{ color: '#818CF8' }}>
+                                          {new Date(h.fecha).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: '2-digit' })}
+                                        </span>
+                                        <span className="text-[13px] font-bold tabular-nums leading-tight" style={{ color: '#3730A3', opacity }}>
+                                          Bs {h.precio_venta.toFixed(2)}
+                                        </span>
+                                        <span className="text-[10px]" style={{ color: '#A5B4FC' }}>
+                                          TC {h.tipo_cambio.toFixed(2)}
+                                        </span>
+                                      </div>
+                                      {i < arr.length - 1 && (
+                                        <svg className="h-3 w-3 shrink-0 text-steel-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                      )}
+                                    </React.Fragment>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {producto.historial_precios.length === 0 && (
+                            <div className="px-5 py-2.5" style={{ borderTop: '1px solid #E0E7FF' }}>
+                              <p className="text-[11px] text-steel-400">Sin historial previo de precios registrado.</p>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              )
+            })}
           </tbody>
         </table>
       </div>
