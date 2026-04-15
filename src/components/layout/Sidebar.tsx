@@ -3,13 +3,34 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/AuthContext'
 
+interface NavItem {
+  label: string
+  to: string
+  roles?: string[]
+}
+
 interface NavGroup {
   label: string
   icon: React.ReactNode
-  items: { label: string; to: string }[]
+  items: NavItem[]
+  roles?: string[]
 }
 
 const groups: NavGroup[] = [
+  {
+    label: 'Ventas',
+    icon: (
+      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+          d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    ),
+    items: [
+      { label: 'Caja',     to: '/ventas/caja',    roles: ['admin', 'vendedor'] },
+      { label: 'Almacén',  to: '/ventas/almacen', roles: ['admin', 'almacenero'] },
+      { label: 'Reservas', to: '/ventas/reservas', roles: ['admin', 'vendedor'] },
+    ],
+  },
   {
     label: 'Inventario',
     icon: (
@@ -106,7 +127,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {groups.map((group) => {
-          const groupActive = group.items.some((i) => pathname === i.to || pathname.startsWith(i.to + '/'))
+          const visibleItems = group.items.filter(i => !i.roles || !user || i.roles.includes(user.rol))
+          if (visibleItems.length === 0) return null
+          const groupActive = visibleItems.some((i) => pathname === i.to || pathname.startsWith(i.to + '/'))
           const isExpanded = expandedGroups.has(group.label)
 
           return (
@@ -137,7 +160,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0',
               )}>
                 <div className="space-y-0.5 pl-2 pt-0.5 pb-1">
-                  {group.items.map((item) => (
+                  {visibleItems.map((item) => (
                     <NavLink
                       key={item.to}
                       to={item.to}

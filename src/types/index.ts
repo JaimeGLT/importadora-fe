@@ -180,6 +180,66 @@ export interface Importacion {
   actualizado_en: string
 }
 
+// ─── Ventas ───────────────────────────────────────────────────────────────────
+
+export type EstadoOrden = 'pendiente' | 'en_preparacion' | 'listo' | 'pagado' | 'cancelado'
+export type EstadoItemOrden = 'ok' | 'faltante'
+export type MetodoPago = 'efectivo' | 'tarjeta' | 'transferencia' | 'qr'
+export type CanalReserva = 'presencial' | 'whatsapp'
+export type EstadoReserva = 'activa' | 'convertida' | 'cancelada'
+
+export interface ItemOrden {
+  id: string
+  producto_id: string
+  producto_codigo: string
+  producto_nombre: string
+  producto_ubicacion: string
+  cantidad: number
+  precio_unitario: number
+  subtotal: number
+  estado: EstadoItemOrden
+  nota_faltante?: string
+}
+
+export interface OrdenVenta {
+  id: string
+  numero: string
+  cajero_id: string
+  cajero_nombre: string
+  items: ItemOrden[]
+  total: number
+  estado: EstadoOrden
+  metodo_pago?: MetodoPago
+  monto_recibido?: number
+  nota?: string
+  creado_en: string
+  actualizado_en: string
+  aceptado_en?: string
+  listo_en?: string
+  pagado_en?: string
+}
+
+export interface Reserva {
+  id: string
+  numero: string
+  cajero_id: string
+  cajero_nombre: string
+  cliente_nombre?: string
+  cliente_telefono?: string
+  canal: CanalReserva
+  items: ItemOrden[]
+  total: number
+  estado: EstadoReserva
+  expira_en: string
+  nota?: string
+  creado_en: string
+  actualizado_en: string
+}
+
+export interface ConfigVentas {
+  tiempo_alerta_minutos: number
+}
+
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
 export interface ApiResponse<T> {
