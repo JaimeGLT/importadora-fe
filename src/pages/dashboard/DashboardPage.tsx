@@ -1,6 +1,5 @@
 import { useMemo, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
 import { MOCK_PRODUCTOS } from '@/mock/inventario'
 import { MOCK_RESUMEN_VENTAS } from '@/mock/alertas'
@@ -234,8 +233,6 @@ function StatPill({ label, value, up }: { label: string; value: string; up: bool
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function DashboardPage() {
-  const { user } = useAuth()
-
   const {
     ventasHoy, ventasMes, ventasHoyPrev, ventasMesPrev,
     ordenesActivas, importacionesTransito,
