@@ -212,8 +212,10 @@ export function NuevoPrestamoModal({
             noOptionsMessage={() => 'No hay productos con stock'}
             styles={selectStyles}
             components={{
-              Option: ProductOption as React.ComponentType<unknown>,
-              SingleValue: SingleValue as React.ComponentType<unknown>,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              Option: ProductOption as any,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              SingleValue: SingleValue as any,
             }}
             filterOption={(option, inputValue) => {
               const p = option.data.producto

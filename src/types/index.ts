@@ -162,6 +162,7 @@ export interface ItemImportacion {
   // vínculo inventario
   producto_id?: string
   es_nuevo: boolean
+  usar_precio_nuevo?: boolean
 }
 
 export interface Importacion {

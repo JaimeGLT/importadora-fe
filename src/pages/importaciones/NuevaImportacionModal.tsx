@@ -27,6 +27,7 @@ type FieldMappings = Partial<Record<ImportField, { columns: string[]; separator:
 interface DraftItem extends Omit<ItemImportacion, 'id'> {
   _index: number
   stock_minimo: number
+  usar_precio_nuevo: boolean
 }
 
 interface RawItem {
@@ -186,6 +187,7 @@ function calcItems(
       precio_venta_final,
       producto_id:          match?.id,
       es_nuevo:             !match,
+      usar_precio_nuevo:    true,
     }
   })
 }
@@ -404,6 +406,24 @@ export function NuevaImportacionModal({
     )
   }
 
+  const updatePrecioEleccion = (index: number, usarNuevo: boolean) => {
+    setItems((prev) =>
+      prev.map((it) => {
+        if (it._index !== index) return it
+        if (usarNuevo) {
+          return { ...it, usar_precio_nuevo: true, precio_venta_final: it.precio_venta_sugerido }
+        }
+        // Mantener precio actual del producto
+        const prod = productos.find((p) => p.id === it.producto_id)
+        return {
+          ...it,
+          usar_precio_nuevo: false,
+          precio_venta_final: prod?.precio_venta ?? it.precio_venta_final,
+        }
+      }),
+    )
+  }
+
   // ── Step 5: confirmar ─────────────────────────────────────────────────────
   const handleConfirmar = async () => {
     setSaving(true)
@@ -520,7 +540,13 @@ export function NuevaImportacionModal({
 
       {/* ── STEP 4: PREVIEW ── */}
       {step === 'preview' && (
-        <StepPreview items={items} tc={tc} onPrecioChange={updatePrecioFinal} productos={productos} />
+        <StepPreview
+          items={items}
+          tc={tc}
+          onPrecioChange={updatePrecioFinal}
+          onPrecioEleccion={updatePrecioEleccion}
+          productos={productos}
+        />
       )}
 
       {/* ── STEP 5: CONFIRMAR ── */}
@@ -720,11 +746,12 @@ function StepDatos({
 }
 
 function StepPreview({
-  items, tc, onPrecioChange, productos,
+  items, tc, onPrecioChange, onPrecioEleccion, productos,
 }: {
   items: DraftItem[]
   tc: number
   onPrecioChange: (index: number, val: string) => void
+  onPrecioEleccion: (index: number, usarNuevo: boolean) => void
   productos: Producto[]
 }) {
   const fobTotal   = items.reduce((s, i) => s + i.precio_fob_usd * i.cantidad, 0)
@@ -737,6 +764,25 @@ function StepPreview({
 
   return (
     <div className="space-y-3">
+
+      {/* ── Aviso tipo de cambio — solo si hay existentes ── */}
+      {existentes > 0 && (
+        <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl text-[12px]"
+          style={{ background: '#FFFBEB', border: '1px solid #FCD34D' }}>
+          <svg className="h-4 w-4 shrink-0 mt-0.5" style={{ color: '#D97706' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div>
+            <p className="font-semibold" style={{ color: '#92400E' }}>Productos existentes — elige qué precio aplicar</p>
+            <p className="mt-0.5" style={{ color: '#B45309' }}>
+              Para cada producto existente puedes elegir <strong>Nuevo</strong> (precio calculado con costos de esta importación, actualiza también el tipo de cambio en el historial)
+              o <strong>Mantener</strong> (conserva el precio de venta actual sin cambios).
+              Si no cambias nada, se aplicará el precio nuevo automáticamente.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Resumen rápido ── */}
       <div className="flex items-center gap-4 flex-wrap text-[12px] text-steel-500">
@@ -869,21 +915,60 @@ function StepPreview({
 
                     {/* Precio de venta editable */}
                     <td className="px-4 py-2.5 text-right"
-                      style={{ background: '#F0FDF9', borderRight: '1px solid #D1FAE5' }}>
-                      <div className="flex flex-col items-end gap-0.5">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          defaultValue={item.precio_venta_final.toFixed(2)}
-                          onBlur={(e) => onPrecioChange(item._index, e.target.value)}
-                          className="w-28 text-right px-2.5 py-1.5 rounded-lg border text-[13px] font-bold tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-shadow"
-                          style={{ borderColor: '#6EE7B7', color: '#065F46', background: '#fff' }}
-                        />
-                        {item.precio_venta_final !== item.precio_venta_sugerido && (
-                          <p className="text-[10px] tabular-nums" style={{ color: '#6EE7B7' }}>
-                            Sug. Bs {item.precio_venta_sugerido.toFixed(2)}
-                          </p>
+                      style={{ background: item.usar_precio_nuevo ? '#F0FDF9' : '#F9FAFB', borderRight: '1px solid #D1FAE5' }}>
+                      <div className="flex flex-col items-end gap-1">
+                        {/* Selector nuevo / mantener — solo para existentes */}
+                        {!item.es_nuevo && (
+                          <div className="flex items-center rounded-lg overflow-hidden text-[10px] font-semibold"
+                            style={{ border: '1px solid #E2E8F0' }}>
+                            <button
+                              type="button"
+                              onClick={() => onPrecioEleccion(item._index, true)}
+                              className="px-2 py-1 transition-colors"
+                              style={item.usar_precio_nuevo
+                                ? { background: '#059669', color: '#fff' }
+                                : { background: '#fff', color: '#6B7280' }}
+                            >
+                              Nuevo
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onPrecioEleccion(item._index, false)}
+                              className="px-2 py-1 transition-colors"
+                              style={!item.usar_precio_nuevo
+                                ? { background: '#6366F1', color: '#fff' }
+                                : { background: '#fff', color: '#6B7280' }}
+                            >
+                              Mantener
+                            </button>
+                          </div>
+                        )}
+                        {item.usar_precio_nuevo ? (
+                          <>
+                            <input
+                              key={`price-${item._index}-nuevo`}
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              defaultValue={item.precio_venta_final.toFixed(2)}
+                              onBlur={(e) => onPrecioChange(item._index, e.target.value)}
+                              className="w-28 text-right px-2.5 py-1.5 rounded-lg border text-[13px] font-bold tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-shadow"
+                              style={{ borderColor: '#6EE7B7', color: '#065F46', background: '#fff' }}
+                            />
+                            {item.precio_venta_final !== item.precio_venta_sugerido && (
+                              <p className="text-[10px] tabular-nums" style={{ color: '#6EE7B7' }}>
+                                Sug. Bs {item.precio_venta_sugerido.toFixed(2)}
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className="text-[13px] font-bold tabular-nums px-2.5 py-1.5 rounded-lg"
+                              style={{ color: '#4338CA', background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
+                              Bs {item.precio_venta_final.toFixed(2)}
+                            </span>
+                            <p className="text-[10px]" style={{ color: '#818CF8' }}>sin cambios</p>
+                          </div>
                         )}
                       </div>
                     </td>

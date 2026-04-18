@@ -1086,7 +1086,6 @@ function Estacionalidad() {
     >
       <div className="grid gap-5 sm:grid-cols-2">
         {MOCK_ESTACIONALIDAD.map(ref => {
-          const _max    = Math.max(...ref.ventas.map(v => v.unidades), 1)
           const total   = ref.ventas.reduce((s, v) => s + v.unidades, 0)
           const peak    = ref.ventas.reduce((best, v) => v.unidades > best.unidades ? v : best, ref.ventas[0])
           const valley  = ref.ventas.reduce((worst, v) => v.unidades < worst.unidades ? v : worst, ref.ventas[0])

@@ -201,6 +201,7 @@ export function ImportacionesPage() {
           stock_minimo: 5,
           precio_costo: item.costo_unitario_total_bs,
           precio_venta: item.precio_venta_final,
+          conversionABs: nueva.tipo_cambio,
           historial_precios: [{ fecha: ahora, precio_costo: item.costo_unitario_total_bs, precio_venta: item.precio_venta_final, tipo_cambio: nueva.tipo_cambio }],
           ubicacion: item.ubicacion ?? 'Almacén Central',
           estado: 'activo',
@@ -211,12 +212,25 @@ export function ImportacionesPage() {
       } else {
         const idx = updatedProductos.findIndex((p) => p.id === item.producto_id)
         if (idx >= 0) {
+          const prev = updatedProductos[idx]
+          const actualizarPrecio = item.usar_precio_nuevo !== false
           updatedProductos[idx] = {
-            ...updatedProductos[idx],
-            stock: updatedProductos[idx].stock + item.cantidad,
-            precio_costo: item.costo_unitario_total_bs,
-            precio_venta: item.precio_venta_final,
-            historial_precios: [...updatedProductos[idx].historial_precios, { fecha: ahora, precio_costo: item.costo_unitario_total_bs, precio_venta: item.precio_venta_final, tipo_cambio: nueva.tipo_cambio }],
+            ...prev,
+            stock: prev.stock + item.cantidad,
+            ...(actualizarPrecio && {
+              precio_costo: item.costo_unitario_total_bs,
+              precio_venta: item.precio_venta_final,
+              conversionABs: nueva.tipo_cambio,
+              historial_precios: [
+                ...prev.historial_precios,
+                {
+                  fecha: ahora,
+                  precio_costo: prev.precio_costo,
+                  precio_venta: prev.precio_venta,
+                  tipo_cambio: prev.historial_precios[prev.historial_precios.length - 1]?.tipo_cambio ?? nueva.tipo_cambio,
+                },
+              ],
+            }),
             actualizado_en: ahora,
           }
         }
@@ -508,7 +522,7 @@ export function ImportacionesPage() {
                     <tr key={hg.id} className="border-b border-steel-100">
                       {hg.headers.map((header) => {
                         const canSort = header.column.getCanSort()
-                        const _sorted = header.column.getIsSorted()
+                        void header.column.getIsSorted()
                         const align = (header.column.columnDef.meta as ColumnMeta<Importacion, unknown> | undefined)?.align ?? 'left'
                         return (
                           <th

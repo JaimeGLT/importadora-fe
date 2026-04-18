@@ -305,8 +305,7 @@ export function DashboardPage() {
 
   const [chartHover, setChartHover] = useState<number | null>(null)
 
-  const hora   = new Date().getHours()
-  const saludo = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches'
+  const saludo = "Reportes de Acceso Rápido"
   const maxTop = top5productos[0]?.unidades ?? 1
 
   const estadoBadge: Record<string, { label: string; variant: BadgeVariant }> = {
@@ -336,7 +335,7 @@ export function DashboardPage() {
               {new Date().toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
             <h1 className="text-3xl font-black text-steel-900 tracking-tight">
-              {saludo}, {user?.nombre?.split(' ')[0] ?? 'Usuario'}
+              {saludo}
             </h1>
           </div>
           {stockCritico.length > 0 && (

@@ -385,7 +385,7 @@ export function PrestamosPage() {
                     <tr key={hg.id} className="border-b border-steel-100">
                       {hg.headers.map((header) => {
                         const canSort = header.column.getCanSort()
-                        const _sorted  = header.column.getIsSorted()
+                        void header.column.getIsSorted()
                         const align   = (header.column.columnDef.meta as ColumnMeta<Prestamo, unknown> | undefined)?.align ?? 'left'
                         return (
                           <th
