@@ -4,7 +4,7 @@ import { Modal, Button, Input, Select, ExcelColumnMapper } from '@/components/ui
 import type { Importacion, ItemImportacion, Producto } from '@/types'
 import { useProveedoresStore } from '@/stores/proveedoresStore'
 import { clsx } from 'clsx'
-import toast from 'react-hot-toast'
+import { notify } from '@/lib/notify'
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
@@ -302,7 +302,7 @@ export function NuevaImportacionModal({
   // ── Step 1: upload ────────────────────────────────────────────────────────
   const handleFile = useCallback(async (file: File) => {
     if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
-      toast.error('Formato no soportado. Usa .xlsx, .xls o .csv')
+      notify.error('Formato no soportado. Usa .xlsx, .xls o .csv')
       return
     }
     try {
@@ -311,14 +311,14 @@ export function NuevaImportacionModal({
       const wb = XLSX.read(buffer, { type: 'array' })
       const ws = wb.Sheets[wb.SheetNames[0]]
       const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' })
-      if (!data.length) { toast.error('El archivo está vacío'); return }
+      if (!data.length) { notify.error('El archivo está vacío'); return }
       setColumns(Object.keys(data[0]))
       setRows(data)
       setFileName(file.name)
       setMappings({})
       setStep('mapear')
     } catch {
-      toast.error('Error al leer el archivo')
+      notify.error('Error al leer el archivo')
     }
   }, [])
 
@@ -359,7 +359,7 @@ export function NuevaImportacionModal({
 
   const handleGoToDatos = () => {
     const raw = buildRawItems(rows, mappings)
-    if (!raw.length) { toast.error('No se encontraron filas válidas con los mapeos actuales'); return }
+    if (!raw.length) { notify.error('No se encontraron filas válidas'); return }
     setRawItems(raw)
     setStep('datos')
   }
@@ -377,9 +377,9 @@ export function NuevaImportacionModal({
   }
 
   const validarDatos = (): boolean => {
-    if (!datos.proveedor_id)              { toast.error('Selecciona un proveedor'); return false }
-    if (!datos.fecha_estimada_llegada)    { toast.error('Ingresa la fecha estimada'); return false }
-    if (!parseNumeric(datos.tipo_cambio)) { toast.error('Ingresa el tipo de cambio'); return false }
+    if (!datos.proveedor_id)              { notify.error('Selecciona un proveedor'); return false }
+    if (!datos.fecha_estimada_llegada)    { notify.error('Ingresa la fecha estimada'); return false }
+    if (!parseNumeric(datos.tipo_cambio)) { notify.error('Ingresa el tipo de cambio'); return false }
     return true
   }
 

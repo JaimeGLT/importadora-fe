@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type { OrdenVenta, Reserva, ConfigVentas } from '@/types'
 
 interface VentasState {
@@ -14,28 +15,35 @@ interface VentasState {
   setConfig: (config: ConfigVentas) => void
 }
 
-export const useVentasStore = create<VentasState>((set) => ({
-  ordenes: [],
-  reservas: [],
-  config: { tiempo_alerta_minutos: 10 },
+export const useVentasStore = create<VentasState>()(
+  persist(
+    (set) => ({
+      ordenes: [],
+      reservas: [],
+      config: { tiempo_alerta_minutos: 10 },
 
-  setOrdenes: (ordenes) => set({ ordenes }),
-  addOrden: (orden) => set((s) => ({ ordenes: [orden, ...s.ordenes] })),
-  updateOrden: (id, data) =>
-    set((s) => ({
-      ordenes: s.ordenes.map((o) =>
-        o.id === id ? { ...o, ...data, actualizado_en: new Date().toISOString() } : o,
-      ),
-    })),
+      setOrdenes: (ordenes) => set({ ordenes }),
+      addOrden: (orden) => set((s) => ({ ordenes: [orden, ...s.ordenes] })),
+      updateOrden: (id, data) =>
+        set((s) => ({
+          ordenes: s.ordenes.map((o) =>
+            o.id === id ? { ...o, ...data, actualizado_en: new Date().toISOString() } : o,
+          ),
+        })),
 
-  setReservas: (reservas) => set({ reservas }),
-  addReserva: (reserva) => set((s) => ({ reservas: [reserva, ...s.reservas] })),
-  updateReserva: (id, data) =>
-    set((s) => ({
-      reservas: s.reservas.map((r) =>
-        r.id === id ? { ...r, ...data, actualizado_en: new Date().toISOString() } : r,
-      ),
-    })),
+      setReservas: (reservas) => set({ reservas }),
+      addReserva: (reserva) => set((s) => ({ reservas: [reserva, ...s.reservas] })),
+      updateReserva: (id, data) =>
+        set((s) => ({
+          reservas: s.reservas.map((r) =>
+            r.id === id ? { ...r, ...data, actualizado_en: new Date().toISOString() } : r,
+          ),
+        })),
 
-  setConfig: (config) => set({ config }),
-}))
+      setConfig: (config) => set({ config }),
+    }),
+    {
+      name: 'ventas-storage',
+    }
+  )
+)

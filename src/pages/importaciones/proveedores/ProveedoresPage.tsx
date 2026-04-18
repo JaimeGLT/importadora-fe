@@ -9,7 +9,7 @@ import { MOCK_IMPORTACIONES } from '@/mock/importaciones'
 import type { Proveedor } from '@/types'
 import { ProveedorFormModal } from './ProveedorFormModal'
 import { CatalogoProveedorModal } from './CatalogoProveedorModal'
-import toast from 'react-hot-toast'
+import { notify } from '@/lib/notify'
 import { clsx } from 'clsx'
 
 export function ProveedoresPage() {
@@ -75,10 +75,10 @@ export function ProveedoresPage() {
     const ahora = new Date().toISOString()
     if (editingProv) {
       updateProveedor(editingProv.id, { ...data, actualizado_en: ahora })
-      toast.success('Proveedor actualizado')
+      notify.success('Proveedor actualizado')
     } else {
       addProveedor({ ...data, id: crypto.randomUUID(), creado_en: ahora, actualizado_en: ahora })
-      toast.success('Proveedor registrado')
+      notify.success('Proveedor registrado')
     }
     setFormOpen(false)
     setEditingProv(null)

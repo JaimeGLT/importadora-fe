@@ -5,6 +5,13 @@
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api'
 
+// .NET decimal fields require "18.0" not "18" — JSON.stringify strips trailing zeros
+function serializeBody(body: unknown): string {
+  const json = JSON.stringify(body)
+  // Add ".0" to bare integers in JSON: "costo":18 → "costo":18.0
+  return json.replace(/"(costo|precio|conversionABs)":(-?\d+)(?![.\d])/g, '"$1":$2.0')
+}
+
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown
 }
@@ -18,16 +25,23 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       'Content-Type': 'application/json',
       ...headers,
     },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body !== undefined ? serializeBody(body) : undefined,
     ...rest,
   })
 
   if (!response.ok) {
-    const message = await response.text().catch(() => response.statusText)
-    throw new Error(message || `HTTP ${response.status}`)
+    const text = await response.text().catch(() => response.statusText)
+    try {
+      const json = JSON.parse(text) as { error?: string; title?: string }
+      throw new Error(json.error ?? json.title ?? text)
+    } catch {
+      throw new Error(text || `HTTP ${response.status}`)
+    }
   }
 
-  return response.json() as Promise<T>
+  const text = await response.text()
+  if (!text) return undefined as T
+  return JSON.parse(text) as T
 }
 
 export const api = {

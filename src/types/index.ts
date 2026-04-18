@@ -51,8 +51,10 @@ export interface Producto {
   stock_minimo: number
   precio_costo: number
   precio_venta: number            // en bolivianos (Bs)
+  conversionABs?: number
   historial_precios: HistorialPrecio[]
   ubicacion: string               // default "Almacén Central"
+  imagen?: string                 // URL de imagen del producto
   estado: EstadoProducto
   proveedor_id: string
   creado_en: string
@@ -183,8 +185,8 @@ export interface Importacion {
 // ─── Ventas ───────────────────────────────────────────────────────────────────
 
 export type EstadoOrden = 'pendiente' | 'en_preparacion' | 'listo' | 'pagado' | 'cancelado'
-export type EstadoItemOrden = 'ok' | 'faltante'
-export type MetodoPago = 'efectivo' | 'tarjeta' | 'transferencia' | 'qr'
+export type EstadoItemOrden = 'ok' | 'discrepancia' | 'faltante'
+export type MetodoPago = 'efectivo' | 'tarjeta' | 'qr'
 export type CanalReserva = 'presencial' | 'whatsapp'
 export type EstadoReserva = 'activa' | 'convertida' | 'cancelada'
 
@@ -238,6 +240,20 @@ export interface Reserva {
 
 export interface ConfigVentas {
   tiempo_alerta_minutos: number
+}
+
+export interface Factura {
+  id: string
+  numero: string
+  orden_id: string
+  orden_numero: string
+  cajero_nombre: string
+  items: ItemOrden[]
+  total: number
+  metodo_pago: MetodoPago
+  monto_recibido?: number
+  cambio?: number
+  emitida_en: string
 }
 
 // ─── API helpers ──────────────────────────────────────────────────────────────

@@ -1,37 +1,239 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  flexRender,
+  createColumnHelper,
+  type SortingState,
+  type ColumnMeta,
+} from '@tanstack/react-table'
 import { useInventarioStore } from '@/stores/inventarioStore'
-import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
-import { Button, Input, ConfirmModal } from '@/components/ui'
-import { MOCK_PRODUCTOS, MOCK_PROVEEDORES } from '@/mock/inventario'
+import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
+import { Button, Input, ConfirmModal, TablePagination } from '@/components/ui'
 import type { Producto } from '@/types'
+import { notify } from '@/lib/notify'
+import { MOCK_PRODUCTOS } from '@/mock/inventario'
 import { ProductoModal } from './ProductoModal'
-import { ImportarExcelModal } from './ImportarExcelModal'
+import { ImportarExcelModal, type ImportResult } from './ImportarExcelModal'
 import { EtiquetaModal } from './EtiquetaModal'
 import { NuevoPrestamoModal } from './NuevoPrestamoModal'
 import { usePrestamosStore } from '@/stores/prestamosStore'
-import toast from 'react-hot-toast'
 import { clsx } from 'clsx'
 
-const PAGE_SIZE = 20
+declare module '@tanstack/react-table' {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface ColumnMeta<TData, TValue> {
+    align?: 'left' | 'center' | 'right'
+  }
+}
 
-function matchSearch(p: Producto, q: string): boolean {
-  if (!q) return true
-  const lower = q.toLowerCase()
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const fmtBs = (n: number) =>
+  `Bs ${n.toLocaleString('es-BO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+
+// ─── UI primitives ────────────────────────────────────────────────────────────
+
+function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    p.codigo_universal.toLowerCase().includes(lower) ||
-    p.nombre.toLowerCase().includes(lower) ||
-    p.marca.toLowerCase().includes(lower) ||
-    p.categoria.toLowerCase().includes(lower) ||
-    p.codigos_alternativos.some((c) => c.toLowerCase().includes(lower))
+    <div className={`bg-white rounded-2xl shadow-sm border border-steel-100 ${className}`}>
+      {children}
+    </div>
   )
 }
 
-export function InventarioPage() {
-  // 1. Auth
-  const { isTokenReady } = useAuth()
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-1 h-4 rounded-full bg-brand-600" />
+      <h2 className="text-[11px] font-bold text-steel-500 uppercase tracking-widest">{children}</h2>
+    </div>
+  )
+}
 
-  // 2. Estado local
+type BadgeVariant = 'red' | 'amber' | 'green'
+const BADGE_STYLES: Record<BadgeVariant, string> = {
+  red:   'bg-brand-600 text-white',
+  amber: 'bg-amber-500 text-white',
+  green: 'bg-emerald-500 text-white',
+}
+function StockBadge({ label, variant }: { label: string; variant: BadgeVariant }) {
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${BADGE_STYLES[variant]}`}>
+      {label}
+    </span>
+  )
+}
+
+// ─── KPI card ─────────────────────────────────────────────────────────────────
+
+function KpiCard({ icon, label, value, sub, dark = false }: {
+  icon: React.ReactNode; label: string; value: string | number; sub: string; dark?: boolean
+}) {
+  if (dark) {
+    return (
+      <div className="relative overflow-hidden rounded-2xl bg-steel-900 p-5 text-white shadow-md">
+        <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-steel-800" />
+        <div className="absolute right-2 -bottom-8 h-24 w-24 rounded-full bg-brand-900 opacity-40" />
+        <div className="relative">
+          <div className="h-9 w-9 rounded-xl bg-white/10 flex items-center justify-center mb-3">
+            <div className="text-white">{icon}</div>
+          </div>
+          <p className="text-2xl font-black tabular-nums leading-tight">{value}</p>
+          <p className="text-xs text-steel-400 font-semibold mt-0.5">{label}</p>
+          <p className="text-[10px] text-steel-500 mt-2">{sub}</p>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <Card className="p-5">
+      <div className="h-9 w-9 rounded-xl bg-steel-50 flex items-center justify-center mb-3">
+        <div className="text-steel-500">{icon}</div>
+      </div>
+      <p className="text-2xl font-black tabular-nums text-steel-900 leading-tight">{value}</p>
+      <p className="text-xs text-steel-500 font-semibold mt-0.5">{label}</p>
+      <p className="text-[10px] text-steel-400 mt-2">{sub}</p>
+    </Card>
+  )
+}
+
+// ─── Product image ────────────────────────────────────────────────────────────
+
+function ProductThumb({ src, nombre }: { src?: string; nombre: string }) {
+  const [err, setErr] = useState(false)
+  if (src && !err) {
+    return (
+      <img
+        src={src}
+        alt={nombre}
+        onError={() => setErr(true)}
+        className="h-10 w-10 rounded-xl object-cover border border-steel-100 shrink-0"
+      />
+    )
+  }
+  return (
+    <div className="h-10 w-10 rounded-xl bg-steel-50 border border-steel-100 flex items-center justify-center shrink-0">
+      <svg className="h-5 w-5 text-steel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      </svg>
+    </div>
+  )
+}
+
+// ─── Action button ────────────────────────────────────────────────────────────
+
+type ActionIcon = 'prestamo' | 'etiqueta' | 'editar' | 'eliminar'
+const ACTION_ICONS: Record<ActionIcon, React.ReactNode> = {
+  prestamo: <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>,
+  etiqueta: <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>,
+  editar:   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
+  eliminar: <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+}
+
+function ActionBtn({ icon, onClick, disabled, danger, title }: {
+  icon: ActionIcon; onClick: () => void; disabled?: boolean; danger?: boolean; title: string
+}) {
+  return (
+    <button onClick={onClick} disabled={disabled} title={title}
+      className={clsx('p-1.5 rounded-lg transition-all duration-150',
+        disabled ? 'text-steel-200 cursor-not-allowed'
+        : danger  ? 'text-steel-400 hover:text-brand-600 hover:bg-brand-50'
+        :           'text-steel-400 hover:text-steel-700 hover:bg-steel-100',
+      )}>
+      {ACTION_ICONS[icon]}
+    </button>
+  )
+}
+
+// ─── Sort icon ────────────────────────────────────────────────────────────────
+
+function SortIcon({ direction }: { direction: false | 'asc' | 'desc' }) {
+  if (!direction) return (
+    <svg className="h-3 w-3 text-steel-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
+    </svg>
+  )
+  return direction === 'asc' ? (
+    <svg className="h-3 w-3 text-brand-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+    </svg>
+  ) : (
+    <svg className="h-3 w-3 text-brand-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  )
+}
+
+// ─── Table skeleton ───────────────────────────────────────────────────────────
+
+function TableSkeleton() {
+  return (
+    <div className="divide-y divide-steel-50">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 px-5 py-3.5 animate-pulse">
+          <div className="h-10 w-10 rounded-xl bg-steel-100 shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <div className="flex gap-1.5">
+              <div className="h-5 w-20 rounded bg-steel-100" />
+              <div className="h-5 w-16 rounded bg-steel-50" />
+            </div>
+            <div className="h-4 w-40 rounded bg-steel-100" />
+          </div>
+          <div className="h-4 w-20 rounded bg-steel-100" />
+          <div className="h-6 w-16 rounded-full bg-steel-100" />
+          <div className="h-4 w-20 rounded bg-steel-100" />
+          <div className="h-4 w-20 rounded bg-steel-50" />
+          <div className="flex gap-1">
+            {[0,1,2,3].map(j => <div key={j} className="h-7 w-7 rounded-lg bg-steel-50" />)}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── Empty state ──────────────────────────────────────────────────────────────
+
+function EmptyState({ onNew, searching }: { onNew: () => void; searching: boolean }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 px-4">
+      <div className="h-14 w-14 rounded-2xl bg-steel-50 border border-steel-100 flex items-center justify-center mb-4">
+        <svg className="w-7 h-7 text-steel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      </div>
+      <h3 className="text-sm font-bold text-steel-700 mb-1">
+        {searching ? 'Sin resultados' : 'Sin productos'}
+      </h3>
+      <p className="text-xs text-steel-400 text-center max-w-xs mb-5">
+        {searching
+          ? 'No hay productos que coincidan con la búsqueda.'
+          : 'Agrega tu primer producto o importa desde Excel.'}
+      </p>
+      {!searching && (
+        <Button onClick={onNew} icon={
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+        }>
+          Nuevo producto
+        </Button>
+      )}
+    </div>
+  )
+}
+
+// ─── Column helper ────────────────────────────────────────────────────────────
+
+const colHelper = createColumnHelper<Producto>()
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
+export function InventarioPage() {
   const [modalOpen, setModalOpen]               = useState(false)
   const [importOpen, setImportOpen]             = useState(false)
   const [etiquetaProducto, setEtiquetaProducto] = useState<Producto | null>(null)
@@ -39,52 +241,53 @@ export function InventarioPage() {
   const [editingProducto, setEditingProducto]   = useState<Producto | null>(null)
   const [confirmDelete, setConfirmDelete]       = useState<Producto | null>(null)
   const [deleting, setDeleting]                 = useState(false)
-  const [expandedId, setExpandedId]             = useState<string | null>(null)
-  const [page, setPage]                         = useState(1)
+  const [loading, setLoading]                   = useState(true)
+  const [allProducts, setAllProducts]           = useState<Producto[]>([])
 
-  // 3. Stores
-  const { productos, proveedores, filters, setProductos, setProveedores, setFilters } =
-    useInventarioStore()
-  const { addPrestamo } = usePrestamosStore()
+  // TanStack Table state
+  const [sorting, setSorting]     = useState<SortingState>([])
+  const [globalFilter, setGlobalFilter] = useState('')
 
-  // 4. Fetch con isTokenReady (mock por ahora)
+  const { proveedores, productos: storedProductos, setProductos, addProducto, updateProducto, removeProducto } = useInventarioStore()
+  const { addPrestamo }               = usePrestamosStore()
+
+  // ── Load products from store or mock ────────────────────────────────────────────
   useEffect(() => {
-    if (!isTokenReady) return
-    setProductos(MOCK_PRODUCTOS, MOCK_PRODUCTOS.length)
-    setProveedores(MOCK_PROVEEDORES)
-  }, [isTokenReady, setProductos, setProveedores])
+    let cancelled = false
+    setLoading(true)
+    // Simular delay de red
+    const timer = setTimeout(() => {
+      if (!cancelled) {
+        // Si ya hay productos en el store, usarlos; si no, cargar mocks
+        if (storedProductos.length > 0) {
+          setAllProducts(storedProductos)
+        } else {
+          setAllProducts(MOCK_PRODUCTOS)
+          setProductos(MOCK_PRODUCTOS, MOCK_PRODUCTOS.length)
+        }
+        setLoading(false)
+      }
+    }, 300)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [storedProductos, setProductos])
 
-  // 5. Datos derivados
-  const filtered = useMemo(() => {
-    const q = filters.search?.trim() ?? ''
-    return productos.filter((p) => matchSearch(p, q))
-  }, [productos, filters])
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const safePage   = Math.min(page, totalPages)
-  const paginated  = useMemo(
-    () => filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
-    [filtered, safePage],
-  )
-
-  const stockBajo = useMemo(
-    () => productos.filter((p) => p.stock <= p.stock_minimo).length,
-    [productos],
-  )
-
-  // 6. Handlers
+  // ── Mutations ──────────────────────────────────────────────────────────────
   const handleEdit = (p: Producto) => { setEditingProducto(p); setModalOpen(true) }
   const handleNew  = () => { setEditingProducto(null); setModalOpen(true) }
 
-  const handleSave = (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>) => {
+  const handleSave = async (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>) => {
+    // Simular delay de red
+    await new Promise(r => setTimeout(r, 200))
+
     if (editingProducto) {
-      const updated = productos.map((p) =>
-        p.id === editingProducto.id
-          ? { ...p, ...data, actualizado_en: new Date().toISOString() }
-          : p,
-      )
-      setProductos(updated, updated.length)
-      toast.success('Producto actualizado')
+      const updated: Producto = {
+        ...editingProducto,
+        ...data,
+        actualizado_en: new Date().toISOString(),
+      }
+      updateProducto(updated)
+      setAllProducts((prev) => prev.map((p) => p.id === editingProducto.id ? updated : p))
+      notify.success('Producto actualizado', { description: data.nombre })
     } else {
       const nuevo: Producto = {
         ...data,
@@ -92,257 +295,435 @@ export function InventarioPage() {
         creado_en: new Date().toISOString(),
         actualizado_en: new Date().toISOString(),
       }
-      setProductos([nuevo, ...productos], productos.length + 1)
-      toast.success('Producto creado')
+      addProducto(nuevo)
+      setAllProducts((prev) => [nuevo, ...prev])
+      notify.success('Producto creado', { description: data.nombre })
     }
     setModalOpen(false)
   }
 
   const handleNuevoPrestamo = (data: Omit<import('@/types').Prestamo, 'id' | 'creado_en'>) => {
-    const nuevo: import('@/types').Prestamo = { ...data, id: crypto.randomUUID(), creado_en: new Date().toISOString() }
+    const nuevo: import('@/types').Prestamo = {
+      ...data, id: crypto.randomUUID(), creado_en: new Date().toISOString(),
+    }
     addPrestamo(nuevo)
-    const updated = productos.map((p) =>
-      p.id === nuevo.producto_id
-        ? { ...p, stock: p.stock - nuevo.cantidad, actualizado_en: new Date().toISOString() }
-        : p,
-    )
-    setProductos(updated, updated.length)
-    toast.success('Préstamo registrado')
+    setAllProducts((prev) => {
+      const updated = prev.map((p) =>
+        p.id === nuevo.producto_id
+          ? { ...p, stock: p.stock - nuevo.cantidad, actualizado_en: new Date().toISOString() }
+          : p
+      )
+      setProductos(updated, updated.length)
+      return updated
+    })
+    notify.success('Préstamo registrado')
     setPrestamoProducto(null)
   }
 
-  const handleImport = (nuevos: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>[]) => {
-    const ahora = new Date().toISOString()
-    const conId: Producto[] = nuevos.map((p) => ({
-      ...p,
-      id: crypto.randomUUID(),
-      creado_en: ahora,
-      actualizado_en: ahora,
-    }))
-    setProductos([...conId, ...productos], productos.length + conId.length)
-    toast.success(`${conId.length} producto${conId.length !== 1 ? 's' : ''} importados`)
+  const handleImport = async (results: ImportResult[]) => {
+    // Simular delay de red
+    await new Promise(r => setTimeout(r, 500))
+
+    let creados = 0
+    let actualizados = 0
+
+    results.forEach((result) => {
+      if (result.action === 'create') {
+        const nuevo: Producto = {
+          ...result.data,
+          id: crypto.randomUUID(),
+          creado_en: new Date().toISOString(),
+          actualizado_en: new Date().toISOString(),
+        }
+        addProducto(nuevo)
+        setAllProducts((prev) => [nuevo, ...prev])
+        creados++
+      } else if (result.action === 'update' && result.existingId) {
+        const existing = allProducts.find((p) => p.id === result.existingId)
+        if (existing) {
+          const actualizado: Producto = {
+            ...existing,
+            stock: result.data.stock,
+            stock_minimo: result.data.stock_minimo,
+            precio_costo: result.data.precio_costo,
+            precio_venta: result.data.precio_venta,
+            historial_precios: result.data.historial_precios,
+            actualizado_en: new Date().toISOString(),
+          }
+          updateProducto(actualizado)
+          setAllProducts((prev) => prev.map((p) => (p.id === existing.id ? actualizado : p)))
+          actualizados++
+        }
+      }
+    })
+
+    const msg = creados > 0 && actualizados > 0
+      ? `${creados} creados, ${actualizados} actualizados`
+      : creados > 0
+        ? `${creados} productos creados`
+        : `${actualizados} productos actualizados`
+    notify.success(msg)
   }
 
   const handleDelete = async () => {
     if (!confirmDelete) return
     setDeleting(true)
-    await new Promise((r) => setTimeout(r, 500))
-    const updated = productos.filter((p) => p.id !== confirmDelete.id)
-    setProductos(updated, updated.length)
-    toast.success('Producto eliminado')
+    // Simular delay de red
+    await new Promise(r => setTimeout(r, 200))
+    removeProducto(confirmDelete.id)
+    setAllProducts((prev) => prev.filter((p) => p.id !== confirmDelete.id))
+    notify.success('Producto eliminado', { description: confirmDelete.nombre })
     setDeleting(false)
     setConfirmDelete(null)
   }
 
-  // 7. Datos para métricas
-  const totalUnidades = productos.reduce((s, p) => s + p.stock, 0)
-  // 8. Render
-  const COL = '1fr 130px 140px 108px'
+  // ── KPIs ───────────────────────────────────────────────────────────────────
+  const kpi = useMemo(() => ({
+    total:         allProducts.length,
+    totalUnidades: allProducts.reduce((s, p) => s + p.stock, 0),
+    totalValor:    allProducts.reduce((s, p) => s + p.precio_venta * p.stock, 0),
+    stockBajo:     allProducts.filter((p) => p.stock <= p.stock_minimo).length,
+  }), [allProducts])
+
+  // ── Columns ────────────────────────────────────────────────────────────────
+  const columns = useMemo(() => [
+    colHelper.display({
+      id: 'imagen',
+      header: 'Foto',
+      size: 64,
+      meta: { align: 'center' },
+      enableSorting: false,
+      cell: (info) => (
+        <ProductThumb src={info.row.original.imagen} nombre={info.row.original.nombre} />
+      ),
+    }),
+    colHelper.accessor('nombre', {
+      header: 'Producto',
+      size: 280,
+      meta: { align: 'left' },
+      cell: (info) => {
+        const p = info.row.original
+        const allCodes = [p.codigo_universal, ...p.codigos_alternativos.filter(Boolean)]
+        return (
+          <div>
+            <div className="flex flex-wrap gap-1.5 mb-1.5">
+              {allCodes.slice(0, 3).map((code, i) => (
+                <span key={`${code}-${i}`} className={clsx(
+                  'inline-flex items-center px-2.5 py-1 rounded-lg font-mono font-black tracking-wider',
+                  i === 0
+                    ? 'text-sm bg-brand-600 text-white shadow-sm'
+                    : 'text-xs bg-steel-800 text-steel-100',
+                )}>
+                  {code}
+                </span>
+              ))}
+              {allCodes.length > 3 && (
+                <span className="text-[10px] text-steel-400 self-center">+{allCodes.length - 3}</span>
+              )}
+            </div>
+            <p className="text-[11px] text-steel-400 truncate">{p.nombre}</p>
+          </div>
+        )
+      },
+    }),
+    colHelper.accessor('marca', {
+      header: 'Marca / Ubic.',
+      size: 150,
+      meta: { align: 'left' },
+      cell: (info) => {
+        const p = info.row.original
+        return (
+          <div>
+            <p className="text-xs font-medium text-steel-700">{p.marca || '—'}</p>
+            {p.ubicacion && (
+              <p className="text-[10px] text-steel-400 font-mono mt-0.5">{p.ubicacion}</p>
+            )}
+          </div>
+        )
+      },
+    }),
+    colHelper.accessor('stock', {
+      header: 'Stock',
+      size: 100,
+      meta: { align: 'center' },
+      cell: (info) => {
+        const p = info.row.original
+        const sinStock = p.stock === 0
+        const bajo = p.stock > 0 && p.stock <= p.stock_minimo
+        if (sinStock) return <StockBadge label="Sin stock" variant="red" />
+        return (
+          <div className="flex flex-col items-center gap-0.5">
+            <span className={clsx('text-sm font-black tabular-nums', bajo ? 'text-amber-600' : 'text-emerald-600')}>
+              {p.stock}
+            </span>
+            <StockBadge label={bajo ? 'Bajo' : 'OK'} variant={bajo ? 'amber' : 'green'} />
+          </div>
+        )
+      },
+    }),
+    colHelper.accessor('precio_venta', {
+      header: 'P. Venta',
+      size: 110,
+      meta: { align: 'right' },
+      cell: (info) => (
+        <span className="text-sm font-bold text-steel-900 tabular-nums">
+          Bs {info.getValue().toFixed(2)}
+        </span>
+      ),
+    }),
+    colHelper.accessor('precio_costo', {
+      header: 'P. Costo',
+      size: 110,
+      meta: { align: 'right' },
+      cell: (info) => (
+        <span className="text-xs font-semibold text-steel-400 tabular-nums">
+          Bs {info.getValue().toFixed(2)}
+        </span>
+      ),
+    }),
+    colHelper.display({
+      id: 'acciones',
+      header: 'Acciones',
+      size: 120,
+      meta: { align: 'right' },
+      enableSorting: false,
+      cell: (info) => {
+        const p = info.row.original
+        const sinStock = p.stock === 0
+        return (
+          <div className="flex justify-end gap-0.5">
+            <ActionBtn icon="prestamo" onClick={() => setPrestamoProducto(p)} disabled={sinStock} title="Préstamo" />
+            <ActionBtn icon="etiqueta" onClick={() => setEtiquetaProducto(p)} title="Etiqueta" />
+            <ActionBtn icon="editar"   onClick={() => handleEdit(p)} title="Editar" />
+            <ActionBtn icon="eliminar" onClick={() => setConfirmDelete(p)} danger title="Eliminar" />
+          </div>
+        )
+      },
+    }),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [])
+
+  // ── Custom global filter function ──────────────────────────────────────────
+  const globalFilterFn = (row: { original: Producto }, _columnId: string, filterValue: string): boolean => {
+    const p = row.original
+    const search = filterValue.toLowerCase().trim()
+    if (!search) return true
+
+    // Buscar en todos los campos relevantes
+    const fields = [
+      p.codigo_universal,
+      p.codigos_alternativos[0] ?? '',
+      p.codigos_alternativos[1] ?? '',
+      p.nombre,
+      p.marca,
+      p.descripcion,
+    ]
+
+    return fields.some(field => field.toLowerCase().includes(search))
+  }
+
+  // ── TanStack Table ─────────────────────────────────────────────────────────
+  const table = useReactTable({
+    data: allProducts,
+    columns,
+    state: { sorting, globalFilter },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    globalFilterFn,
+    initialState: { pagination: { pageSize: 25, pageIndex: 0 } },
+  })
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    table.setPageIndex(0)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [globalFilter])
+
+  const filteredCount = table.getFilteredRowModel().rows.length
 
   return (
     <MainLayout>
       <PageContainer>
-        <PageHeader
-          title="Inventario"
-          actions={
-            <>
-              <Button variant="secondary" onClick={() => setImportOpen(true)} icon={
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-              } title="Importar Excel">
-                <span className="hidden sm:inline">Importar Excel</span>
-              </Button>
-              <Button onClick={handleNew} icon={
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              } title="Nuevo producto">
-                <span className="hidden sm:inline">Nuevo producto</span>
-              </Button>
-            </>
-          }
-        />
 
-        {/* Métricas */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-          <MetricCard
-            label="Productos"
-            value={productos.length}
-            sublabel="en catálogo"
-            bg="#DDE8FF"
-            valueColor="#1A40C4"
-            sublabelColor="#5270C8"
+        {/* ── Header ─────────────────────────────────────────────────── */}
+        <div className="mb-8 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-bold text-steel-400 uppercase tracking-widest mb-1">
+              Gestión de stock
+            </p>
+            <h1 className="text-3xl font-black text-steel-900 tracking-tight">Inventario</h1>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Button variant="secondary" onClick={() => setImportOpen(true)} icon={
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+            }>
+              <span className="hidden sm:inline">Importar</span>
+            </Button>
+            <Button onClick={handleNew} icon={
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            }>
+              <span className="hidden sm:inline">Nuevo producto</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* ── KPIs ───────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <KpiCard dark
+            icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>}
+            label="Total productos"
+            value={kpi.total.toLocaleString()}
+            sub="en catálogo"
           />
-          <MetricCard
-            label="Unidades en stock"
-            value={totalUnidades.toLocaleString()}
-            sublabel="total disponible"
-            bg="#C9F5E5"
-            valueColor="#0A6645"
-            sublabelColor="#2A8A60"
+          <KpiCard
+            icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>}
+            label="Unidades totales"
+            value={kpi.totalUnidades.toLocaleString()}
+            sub="en stock"
           />
-          <MetricCard
+          <KpiCard
+            icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+            label="Valor total"
+            value={fmtBs(kpi.totalValor)}
+            sub="en inventario"
+          />
+          <KpiCard
+            icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>}
             label="Stock bajo"
-            value={stockBajo}
-            sublabel="requieren reposición"
-            warn={stockBajo > 0}
+            value={kpi.stockBajo}
+            sub="bajo mínimo"
           />
         </div>
 
-        {/* Toolbar */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
-          {/* Buscador */}
-          <div className="w-full sm:w-72">
-            <Input
-              placeholder="Buscar por código, nombre o marca…"
-              value={filters.search ?? ''}
-              onChange={(e) => { setFilters({ search: e.target.value }); setPage(1) }}
-              leftIcon={
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
-                </svg>
-              }
-            />
-          </div>
-
-          {/* Contador */}
-          <span className="text-[12px] text-steel-400 sm:ml-auto">
-            {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
-          </span>
-        </div>
-
-        {/* Lista */}
-        {!isTokenReady ? (
-          <ListSkeleton cols={COL} />
-        ) : filtered.length === 0 ? (
-          <div className="py-20 text-center">
-            <p className="text-[13px] text-steel-300">No se encontraron productos</p>
-          </div>
-        ) : (
-          <>
-            {/* ── Desktop ─────────────────────────────────────────── */}
-            <div className="hidden md:block">
-              {/* Cabecera */}
-              <div
-                className="grid items-center px-5 pb-2 mb-1"
-                style={{ gridTemplateColumns: COL, gap: '0 16px' }}
-              >
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-steel-400">Códigos / Producto</span>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-steel-400 text-center">Stock</span>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-steel-400 text-right">Precio</span>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-steel-400 text-right">Acciones</span>
-              </div>
-
-              {/* Filas */}
-              <div className="flex flex-col gap-2">
-                {filtered.map((p) => {
-                  const allCodes    = [p.codigo_universal, ...p.codigos_alternativos.filter(Boolean)]
-                  const esStockBajo = p.stock > 0 && p.stock <= p.stock_minimo
-                  const sinStock    = p.stock === 0
-                  return (
-                    <div
-                      key={p.id}
-                      className="grid items-center px-5 rounded-xl"
-                      style={{
-                        gridTemplateColumns: COL,
-                        gap: '0 16px',
-                        background: '#FFFFFF',
-                        border: '1px solid #E8EDF3',
-                        boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
-                        paddingTop: 12,
-                        paddingBottom: 12,
-                        transition: 'box-shadow 0.15s ease, border-color 0.15s ease',
-                        cursor: 'default',
-                      }}
-                      onMouseEnter={(e) => {
-                        const el = e.currentTarget as HTMLDivElement
-                        el.style.boxShadow = '0 4px 12px rgba(15,23,42,0.09)'
-                        el.style.borderColor = '#C7D3E0'
-                      }}
-                      onMouseLeave={(e) => {
-                        const el = e.currentTarget as HTMLDivElement
-                        el.style.boxShadow = '0 1px 3px rgba(15,23,42,0.04)'
-                        el.style.borderColor = '#E8EDF3'
-                      }}
-                    >
-                      {/* Columna 1: Códigos + nombre */}
-                      <div className="min-w-0">
-                        <div className="mb-1.5">
-                          <CodeLine codes={allCodes} />
-                        </div>
-                        <p className="text-[13px] font-medium leading-snug truncate" style={{ color: '#374151' }}>{p.nombre}</p>
-                        {(p.marca || p.vehiculo) && (
-                          <p className="text-[11px] mt-0.5" style={{ color: '#9CA3AF' }}>
-                            {p.marca}{p.vehiculo ? ` · ${p.vehiculo}` : ''}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Columna 2: Stock */}
-                      <StockCell stock={p.stock} unidad={p.unidad} sinStock={sinStock} bajo={esStockBajo} />
-
-                      {/* Columna 4: Precio */}
-                      <div className="text-right">
-                        <span className="font-semibold tabular-nums" style={{ fontSize: 14, color: '#111827', letterSpacing: '-0.01em' }}>
-                          Bs {p.precio_venta.toFixed(2)}
-                        </span>
-                        {p.ubicacion && (
-                          <p className="text-[11px] mt-0.5 font-mono" style={{ color: '#9CA3AF' }}>{p.ubicacion}</p>
-                        )}
-                      </div>
-
-                      {/* Columna 5: Acciones */}
-                      <ActionButtons
-                        sinStock={sinStock}
-                        onPrestamo={() => setPrestamoProducto(p)}
-                        onEtiqueta={() => setEtiquetaProducto(p)}
-                        onEdit={() => handleEdit(p)}
-                        onDelete={() => setConfirmDelete(p)}
-                      />
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* ── Mobile ──────────────────────────────────────────── */}
-            <div className="md:hidden flex flex-col gap-1.5">
-              {paginated.map((p) => (
-                <MobileCard
-                  key={p.id}
-                  producto={p}
-                  expanded={expandedId === p.id}
-                  onToggle={() => setExpandedId((id) => (id === p.id ? null : p.id))}
-                  onPrestamo={() => setPrestamoProducto(p)}
-                  onEtiqueta={() => setEtiquetaProducto(p)}
-                  onEdit={() => handleEdit(p)}
-                  onDelete={() => setConfirmDelete(p)}
+        {/* ── Tabla ──────────────────────────────────────────────────── */}
+        <Card>
+          {/* Toolbar */}
+          <div className="px-5 pt-5 pb-4 border-b border-steel-100 flex flex-col sm:flex-row sm:items-center gap-3">
+            <SectionTitle>Productos</SectionTitle>
+            <div className="flex-1" />
+            <div className="flex items-center gap-3">
+              <div className="w-72">
+                <Input
+                  placeholder="Buscar código, nombre, marca..."
+                  value={globalFilter}
+                  onChange={(e) => setGlobalFilter(e.target.value)}
+                  leftIcon={
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+                    </svg>
+                  }
                 />
-              ))}
+              </div>
+              {globalFilter && (
+                <span className="text-xs font-semibold text-steel-500 bg-steel-100 px-2.5 py-1 rounded-full whitespace-nowrap">
+                  {filteredCount} resultado{filteredCount !== 1 ? 's' : ''}
+                </span>
+              )}
             </div>
+          </div>
 
-            {/* ── Paginación ───────────────────────────────────────── */}
-            {totalPages > 1 && (
-              <Pagination
-                page={safePage}
-                totalPages={totalPages}
-                total={filtered.length}
-                pageSize={PAGE_SIZE}
-                onChange={setPage}
-              />
-            )}
-          </>
-        )}
+          {/* Table content */}
+          {loading ? (
+            <TableSkeleton />
+          ) : allProducts.length === 0 ? (
+            <EmptyState onNew={handleNew} searching={false} />
+          ) : filteredCount === 0 ? (
+            <EmptyState onNew={handleNew} searching={!!globalFilter} />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm table-fixed">
+                <colgroup>
+                  {table.getFlatHeaders().map((h) => (
+                    <col key={h.id} style={{ width: h.column.getSize() }} />
+                  ))}
+                </colgroup>
+                <thead>
+                  {table.getHeaderGroups().map((hg) => (
+                    <tr key={hg.id} className="border-b border-steel-100">
+                      {hg.headers.map((header) => {
+                        const canSort = header.column.getCanSort()
+                        const sorted  = header.column.getIsSorted()
+                        const align   = (header.column.columnDef.meta as ColumnMeta<Producto, unknown> | undefined)?.align ?? 'left'
+                        return (
+                          <th
+                            key={header.id}
+                            className={clsx(
+                              'px-3 py-3 text-[10px] font-bold text-steel-400 uppercase tracking-widest select-none whitespace-nowrap',
+                              align === 'center' && 'text-center',
+                              align === 'right'  && 'text-right',
+                              align === 'left'   && 'text-left',
+                              canSort && 'cursor-pointer hover:text-steel-600 transition-colors',
+                              header.id === 'imagen'   && 'pl-5',
+                              header.id === 'acciones' && 'pr-5',
+                            )}
+                            onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                          >
+                            <span className={clsx(
+                              'inline-flex items-center gap-1',
+                              align === 'center' && 'justify-center w-full',
+                              align === 'right'  && 'justify-end w-full',
+                            )}>
+                              {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                              {canSort && <SortIcon direction={sorted} />}
+                            </span>
+                          </th>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody className="divide-y divide-steel-50">
+                  {table.getRowModel().rows.map((row) => (
+                    <tr key={row.id} className="group hover:bg-[#FAFAF9] transition-colors">
+                      {row.getVisibleCells().map((cell) => {
+                        const align = (cell.column.columnDef.meta as ColumnMeta<Producto, unknown> | undefined)?.align ?? 'left'
+                        return (
+                          <td
+                            key={cell.id}
+                            className={clsx(
+                              'px-3 py-3',
+                              align === 'center' && 'text-center',
+                              align === 'right'  && 'text-right',
+                              cell.column.id === 'imagen'   && 'pl-5',
+                              cell.column.id === 'acciones' && 'pr-5',
+                            )}
+                          >
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Footer */}
+          {!loading && allProducts.length > 0 && (
+            <div className="px-5 py-4 border-t border-steel-100">
+              <TablePagination table={table} totalRows={filteredCount} />
+            </div>
+          )}
+        </Card>
+
       </PageContainer>
 
       <NuevoPrestamoModal
         open={!!prestamoProducto}
         onClose={() => setPrestamoProducto(null)}
         onSave={handleNuevoPrestamo}
-        productos={productos}
+        productos={allProducts}
         productoInicial={prestamoProducto}
       />
       <EtiquetaModal
@@ -354,6 +735,7 @@ export function InventarioPage() {
         open={importOpen}
         onClose={() => setImportOpen(false)}
         onImport={handleImport}
+        productosExistentes={allProducts}
       />
       <ProductoModal
         open={modalOpen}
@@ -367,353 +749,9 @@ export function InventarioPage() {
         onClose={() => setConfirmDelete(null)}
         onConfirm={() => void handleDelete()}
         title="Eliminar producto"
-        message={`¿Estás seguro de eliminar "${confirmDelete?.nombre}"? Esta acción no se puede deshacer.`}
+        message={`¿Eliminar "${confirmDelete?.nombre}"? Esta acción no se puede deshacer.`}
         loading={deleting}
       />
     </MainLayout>
-  )
-}
-
-// ── Sub-componentes ───────────────────────────────────────────────────────────
-
-/**
- * Todos los códigos del producto al mismo nivel visual, en un único chip.
- * Separados por · con color más suave para no competir con el texto.
- */
-function CodeLine({ codes }: { codes: string[] }) {
-  return (
-    <span
-      className="font-mono font-semibold inline-flex items-center flex-wrap gap-x-0 shrink-0"
-      style={{
-        fontSize: 13,
-        background: '#EEF2FF',
-        color: '#3730A3',
-        border: '1px solid #C7D2FE',
-        borderRadius: 8,
-        padding: '5px 11px',
-        letterSpacing: '0.045em',
-        lineHeight: 1,
-        boxShadow: '0 1px 2px rgba(99,102,241,0.08)',
-      }}
-    >
-      {codes.map((c, i) => (
-        <span key={c} className="inline-flex items-center">
-          {i > 0 && (
-            <span style={{ color: '#A5B4FC', margin: '0 7px', fontWeight: 400, letterSpacing: 0 }}>·</span>
-          )}
-          {c}
-        </span>
-      ))}
-    </span>
-  )
-}
-
-function StockCell({ stock, unidad, sinStock, bajo }: {
-  stock: number; unidad: string; sinStock: boolean; bajo: boolean
-}) {
-  const bg    = sinStock ? '#FEF2F2' : bajo ? '#FFFBEB' : '#F0FDF4'
-  const bdr   = sinStock ? '#FECACA' : bajo ? '#FDE68A' : '#BBF7D0'
-  const color = sinStock ? '#DC2626' : bajo ? '#B45309' : '#15803D'
-  const label = sinStock ? 'Sin stock' : bajo ? 'Stock bajo' : 'Normal'
-
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <span
-        className="inline-flex items-center gap-1.5 font-semibold tabular-nums"
-        style={{
-          fontSize: 13,
-          background: bg,
-          color,
-          border: `1px solid ${bdr}`,
-          borderRadius: 20,
-          padding: '4px 10px',
-          lineHeight: 1,
-        }}
-      >
-        <span style={{ fontSize: 16, fontWeight: 700 }}>{stock}</span>
-        <span className="text-[10px] capitalize font-normal" style={{ opacity: 0.8 }}>{unidad}</span>
-      </span>
-      <span className="text-[10px] font-medium" style={{ color, opacity: 0.75 }}>{label}</span>
-    </div>
-  )
-}
-
-interface ActionButtonsProps {
-  sinStock: boolean
-  onPrestamo: () => void
-  onEtiqueta: () => void
-  onEdit: () => void
-  onDelete: () => void
-  className?: string
-}
-
-function ActionButtons({ sinStock, onPrestamo, onEtiqueta, onEdit, onDelete, className }: ActionButtonsProps) {
-  return (
-    <div className={clsx('flex items-center justify-end gap-0.5', className)}>
-      <button onClick={onPrestamo} disabled={sinStock}
-        className="p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-        style={{ color: '#9CA3AF' }}
-        onMouseEnter={(e) => { if (!sinStock) { (e.currentTarget as HTMLButtonElement).style.color = '#D97706'; (e.currentTarget as HTMLButtonElement).style.background = '#FEF3C7' } }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
-        title="Registrar préstamo">
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-        </svg>
-      </button>
-      <button onClick={onEtiqueta}
-        className="p-2 rounded-lg transition-colors"
-        style={{ color: '#9CA3AF' }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#374151'; (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6' }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
-        title="Imprimir etiqueta">
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-        </svg>
-      </button>
-      <button onClick={onEdit}
-        className="p-2 rounded-lg transition-colors"
-        style={{ color: '#9CA3AF' }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#4F46E5'; (e.currentTarget as HTMLButtonElement).style.background = '#EEF2FF' }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
-        title="Editar">
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-        </svg>
-      </button>
-      <button onClick={onDelete}
-        className="p-2 rounded-lg transition-colors"
-        style={{ color: '#9CA3AF' }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#EF4444'; (e.currentTarget as HTMLButtonElement).style.background = '#FEF2F2' }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
-        title="Eliminar">
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-        </svg>
-      </button>
-    </div>
-  )
-}
-
-// ── Tarjeta mobile expandible ─────────────────────────────────────────────────
-
-interface MobileCardProps {
-  producto: Producto
-  expanded: boolean
-  onToggle: () => void
-  onPrestamo: () => void
-  onEtiqueta: () => void
-  onEdit: () => void
-  onDelete: () => void
-}
-
-function MobileCard({ producto: p, expanded, onToggle, onPrestamo, onEtiqueta, onEdit, onDelete }: MobileCardProps) {
-  const sinStock  = p.stock === 0
-  const bajo      = p.stock > 0 && p.stock <= p.stock_minimo
-  const allCodes  = [p.codigo_universal, ...p.codigos_alternativos.filter(Boolean)]
-  const stockColor = sinStock ? '#DC2626' : bajo ? '#B45309' : '#15803D'
-
-  return (
-    <div
-      className="bg-white rounded-xl overflow-hidden"
-      style={{ border: '1px solid #E8EDF3', boxShadow: '0 1px 4px rgba(15,23,42,0.05)' }}
-    >
-      {/* ── Header siempre visible ── */}
-      <button className="w-full px-4 pt-3.5 pb-3 text-left" onClick={onToggle}>
-
-        {/* Fila 1: todos los códigos */}
-        <div className="mb-2">
-          <CodeLine codes={allCodes} />
-        </div>
-
-        {/* Fila 2: nombre + stock/precio + chevron */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-medium leading-snug truncate" style={{ color: '#374151' }}>{p.nombre}</p>
-            {(p.marca || p.vehiculo) && (
-              <p className="text-[11px] mt-0.5 truncate" style={{ color: '#9CA3AF' }}>
-                {p.marca}{p.vehiculo ? ` · ${p.vehiculo}` : ''}
-              </p>
-            )}
-          </div>
-
-          <div className="shrink-0 text-right">
-            <div className="flex items-center justify-end gap-1 mb-0.5">
-              <span className="font-bold tabular-nums leading-none" style={{ fontSize: 16, color: stockColor }}>{p.stock}</span>
-              <span className="text-[10px] capitalize" style={{ color: '#9CA3AF' }}>{p.unidad}</span>
-            </div>
-            <span className="font-semibold tabular-nums" style={{ fontSize: 13, color: '#111827' }}>Bs {p.precio_venta.toFixed(2)}</span>
-          </div>
-
-          <svg
-            className={clsx('h-4 w-4 shrink-0 transition-transform duration-200', expanded && 'rotate-180')}
-            style={{ color: '#D1D5DB' }}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
-      </button>
-
-      {/* ── Panel expandible ── */}
-      <div className={clsx(
-        'overflow-hidden transition-all duration-200 ease-in-out',
-        expanded ? 'max-h-64' : 'max-h-0',
-      )}>
-        <div className="mx-4 mb-3 rounded-xl px-3 py-3 space-y-3" style={{ background: '#F9FAFB', border: '1px solid #F0F0F5' }}>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: '#9CA3AF' }}>Ubicación</p>
-              <p className="text-[12px]" style={{ color: '#374151' }}>{p.ubicacion}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: '#9CA3AF' }}>Stock mín.</p>
-              <p className="text-[12px] capitalize" style={{ color: '#374151' }}>{p.stock_minimo} {p.unidad}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: '#9CA3AF' }}>Precio costo</p>
-              <p className="text-[12px]" style={{ color: '#374151' }}>Bs {p.precio_costo.toFixed(2)}</p>
-            </div>
-          </div>
-          <div className="pt-2" style={{ borderTop: '1px solid #E5E7EB' }}>
-            <ActionButtons
-              sinStock={sinStock}
-              onPrestamo={onPrestamo}
-              onEtiqueta={onEtiqueta}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              className="justify-start"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-
-interface MetricCardProps {
-  label: string
-  value: number | string
-  sublabel: string
-  warn?: boolean
-  bg?: string
-  valueColor?: string
-  sublabelColor?: string
-}
-
-function MetricCard({ label, value, sublabel, warn = false, bg, valueColor, sublabelColor }: MetricCardProps) {
-  const isWarn = warn && Number(value) > 0
-  const bgColor      = isWarn ? '#FAEEDA' : (bg ?? '#F5F5F5')
-  const numColor     = isWarn ? '#7C4214' : (valueColor ?? '#1A1A1A')
-  const subColor     = isWarn ? '#A06030' : (sublabelColor ?? '#8C8C8C')
-  const labelColor   = isWarn ? '#A06030' : (sublabelColor ?? '#8C8C8C')
-  return (
-    <div className="rounded-xl px-5 py-4" style={{ background: bgColor }}>
-      <p className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: labelColor }}>{label}</p>
-      <p className="font-bold leading-none" style={{ fontSize: 28, color: numColor }}>{value}</p>
-      <p className="text-[11px] mt-1.5" style={{ color: subColor }}>{sublabel}</p>
-    </div>
-  )
-}
-
-interface PaginationProps {
-  page: number
-  totalPages: number
-  total: number
-  pageSize: number
-  onChange: (p: number) => void
-}
-
-function Pagination({ page, totalPages, total, pageSize, onChange }: PaginationProps) {
-  const from = (page - 1) * pageSize + 1
-  const to   = Math.min(page * pageSize, total)
-
-  // Genera ventana de páginas: siempre muestra hasta 5 botones
-  const pages: (number | '…')[] = []
-  if (totalPages <= 7) {
-    for (let i = 1; i <= totalPages; i++) pages.push(i)
-  } else {
-    pages.push(1)
-    if (page > 3) pages.push('…')
-    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i)
-    if (page < totalPages - 2) pages.push('…')
-    pages.push(totalPages)
-  }
-
-  const btn = (
-    label: React.ReactNode,
-    onClick: () => void,
-    disabled: boolean,
-    active = false,
-  ) => (
-    <button
-      key={String(label)}
-      onClick={onClick}
-      disabled={disabled}
-      className={clsx(
-        'h-8 min-w-[32px] px-2 rounded text-[13px] font-medium transition-colors',
-        active
-          ? 'bg-brand-600 text-white'
-          : 'text-steel-600 hover:bg-steel-100 disabled:opacity-30 disabled:cursor-not-allowed',
-      )}
-    >
-      {label}
-    </button>
-  )
-
-  return (
-    <div className="flex items-center justify-between mt-5 pt-4 border-t border-steel-100">
-      <span className="text-[12px] text-steel-400">
-        {from}–{to} de {total} producto{total !== 1 ? 's' : ''}
-      </span>
-      <div className="flex items-center gap-0.5">
-        {btn(
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>,
-          () => onChange(page - 1),
-          page === 1,
-        )}
-        {pages.map((p, i) =>
-          p === '…'
-            ? <span key={`ellipsis-${i}`} className="h-8 px-1 flex items-center text-steel-300 text-[13px]">…</span>
-            : btn(p, () => onChange(p as number), false, p === page),
-        )}
-        {btn(
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>,
-          () => onChange(page + 1),
-          page === totalPages,
-        )}
-      </div>
-    </div>
-  )
-}
-
-function ListSkeleton({ cols }: { cols: string }) {
-  return (
-    <div className="flex flex-col gap-2">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div
-          key={i}
-          className="grid items-center px-5 py-3 rounded-xl animate-pulse"
-          style={{ gridTemplateColumns: cols, gap: '0 16px', background: '#FFFFFF', border: '1px solid #E8EDF3', boxShadow: '0 1px 3px rgba(15,23,42,0.04)' }}
-        >
-          <div className="space-y-2">
-            <div className="h-6 w-56 rounded-lg" style={{ background: '#EEF2FF' }} />
-            <div className="h-3 w-36 rounded" style={{ background: '#F1F5F9' }} />
-            <div className="h-2.5 w-24 rounded" style={{ background: '#F1F5F9' }} />
-          </div>
-          <div className="h-3 w-14 rounded" style={{ background: '#F1F5F9' }} />
-          <div className="flex flex-col items-center gap-1">
-            <div className="h-7 w-20 rounded-full" style={{ background: '#F0FDF4' }} />
-            <div className="h-2 w-12 rounded" style={{ background: '#F1F5F9' }} />
-          </div>
-          <div className="h-4 w-20 rounded ml-auto" style={{ background: '#F1F5F9' }} />
-          <div />
-        </div>
-      ))}
-    </div>
   )
 }

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Modal, Button, Input } from '@/components/ui'
 import type { Producto, Proveedor, HistorialPrecio } from '@/types'
+import { useConfigStore, calcularPrecioConDescuento } from '@/stores/configStore'
 import { clsx } from 'clsx'
 
 interface ProductoModalProps {
   open: boolean
   onClose: () => void
-  onSave: (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>) => void
+  onSave: (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>) => Promise<void>
   producto: Producto | null
   proveedores: Proveedor[]
 }
@@ -41,6 +42,12 @@ export function ProductoModal({
   const [saving, setSaving]   = useState(false)
   const [historialOpen, setHistorialOpen] = useState(false)
 
+  // Estado para actualización de precios
+  const [actualizarPrecio, setActualizarPrecio] = useState(false)
+  const [nuevoCosto, setNuevoCosto] = useState('')
+  const [nuevoVenta, setNuevoVenta] = useState('')
+  const [nuevoTipoCambio, setNuevoTipoCambio] = useState('')
+
   useEffect(() => {
     if (!open) return
     if (producto) {
@@ -62,11 +69,18 @@ export function ProductoModal({
         estado:               producto.estado,
         proveedor_id:         producto.proveedor_id,
       })
+      // Cargar tipo de cambio del producto
+      setTipoCambio(String(producto.conversionABs ?? 6.96))
     } else {
       setForm({ ...EMPTY, proveedor_id: proveedores[0]?.id ?? '' })
+      setTipoCambio('6.96')
     }
     setErrors({})
     setHistorialOpen(false)
+    setActualizarPrecio(false)
+    setNuevoCosto('')
+    setNuevoVenta('')
+    setNuevoTipoCambio('')
   }, [open, producto, proveedores])
 
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) => {
@@ -83,6 +97,7 @@ export function ProductoModal({
   const validate = (): boolean => {
     const e: typeof errors = {}
     if (!form.codigo_universal.trim()) e.codigo_universal = 'Requerido'
+    if (!form.nombre.trim()) e.nombre = 'Requerido'
     if (form.precio_costo <= 0) e.precio_costo = 'Debe ser mayor a 0'
     setErrors(e)
     return Object.keys(e).length === 0
@@ -91,6 +106,22 @@ export function ProductoModal({
   const buildHistorial = (): HistorialPrecio[] => {
     const tc = parseFloat(tipoCambio) || 6.96
     const prev = producto
+
+    // Si estamos actualizando precios con valores nuevos
+    if (actualizarPrecio && nuevoCosto && nuevoVenta) {
+      const nuevoTc = parseFloat(nuevoTipoCambio) || tc
+      return [
+        ...form.historial_precios,
+        {
+          fecha: new Date().toISOString(),
+          precio_costo: form.precio_costo,
+          precio_venta: form.precio_venta,
+          tipo_cambio: nuevoTc,
+        },
+      ]
+    }
+
+    // Lógica anterior: detectar cambios directos
     const costoChanged = !prev || prev.precio_costo !== form.precio_costo
     const ventaChanged = !prev || prev.precio_venta !== form.precio_venta
     if (!costoChanged && !ventaChanged) return form.historial_precios
@@ -108,9 +139,21 @@ export function ProductoModal({
   const handleSave = async () => {
     if (!validate()) return
     setSaving(true)
-    await new Promise((r) => setTimeout(r, 300))
-    onSave({ ...form, historial_precios: buildHistorial() })
-    setSaving(false)
+    try {
+      // Si hay actualización de precios, usar los nuevos valores
+      const dataToSave = actualizarPrecio && nuevoCosto && nuevoVenta
+        ? {
+            ...form,
+            precio_costo: parseFloat(nuevoCosto) || form.precio_costo,
+            precio_venta: parseFloat(nuevoVenta) || form.precio_venta,
+            conversionABs: parseFloat(nuevoTipoCambio) || parseFloat(tipoCambio) || 6.96,
+            historial_precios: buildHistorial(),
+          }
+        : { ...form, historial_precios: buildHistorial() }
+      await onSave(dataToSave)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const margen =
@@ -293,6 +336,78 @@ export function ProductoModal({
 
         </FormSection>
 
+        {/* ── ACTUALIZAR PRECIOS ── */}
+        {producto && (
+          <div className="rounded-xl border-2 border-dashed border-amber-300 bg-amber-50/50 overflow-hidden">
+            <div className="px-4 py-3 flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={actualizarPrecio}
+                  onChange={(e) => setActualizarPrecio(e.target.checked)}
+                  className="h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                />
+                <span className="text-xs font-bold text-amber-800">Actualizar precios</span>
+              </label>
+              <span className="text-[10px] text-amber-600">
+                Los precios actuales pasarán al historial
+              </span>
+            </div>
+
+            {actualizarPrecio && (
+              <div className="px-4 pb-4 bg-white border-t border-amber-200">
+                <div className="pt-3 text-[11px] text-amber-700 bg-amber-100/50 rounded-lg px-3 py-2 mb-3">
+                  <strong>Precio actual:</strong> Costo Bs {form.precio_costo.toFixed(2)} · Venta Bs {form.precio_venta.toFixed(2)} · T.C. {(parseFloat(tipoCambio) || 6.96).toFixed(2)}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <Input
+                    label="Nuevo costo (Bs)"
+                    type="number"
+                    step="0.01"
+                    value={nuevoCosto}
+                    onChange={(e) => setNuevoCosto(e.target.value)}
+                    placeholder={form.precio_costo.toFixed(2)}
+                    hint="Costo nuevo"
+                  />
+                  <Input
+                    label="Nueva venta (Bs)"
+                    type="number"
+                    step="0.01"
+                    value={nuevoVenta}
+                    onChange={(e) => setNuevoVenta(e.target.value)}
+                    placeholder={form.precio_venta.toFixed(2)}
+                    hint="Precio nuevo"
+                  />
+                  <Input
+                    label="Nuevo T.C. (Bs/$)"
+                    type="number"
+                    step="0.01"
+                    value={nuevoTipoCambio}
+                    onChange={(e) => setNuevoTipoCambio(e.target.value)}
+                    placeholder={tipoCambio}
+                    hint="Tipo de cambio nuevo"
+                  />
+                </div>
+                {nuevoCosto && nuevoVenta && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 rounded-full bg-amber-100 border border-amber-200 px-3 py-1">
+                      <svg className="h-3.5 w-3.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      <span className="text-xs font-semibold text-amber-700">
+                        Se guardará: Costo {nuevoCosto} · Venta {nuevoVenta}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── PRECIOS ESPECIALES ── */}
+        <PreciosEspecialesSection precioVenta={form.precio_venta} />
+
         {/* ── HISTORIAL DE PRECIOS ── */}
         {form.historial_precios.length > 0 && (
           <FormSection
@@ -339,6 +454,62 @@ export function ProductoModal({
 }
 
 /* ── Componente de sección ── */
+
+const COLOR_STYLES: Record<string, { bg: string; text: string; border: string }> = {
+  emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+  blue:    { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200' },
+  amber:   { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200' },
+  purple:  { bg: 'bg-purple-50',  text: 'text-purple-700',  border: 'border-purple-200' },
+  rose:    { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200' },
+  cyan:    { bg: 'bg-cyan-50',    text: 'text-cyan-700',    border: 'border-cyan-200' },
+}
+
+function PreciosEspecialesSection({ precioVenta }: { precioVenta: number }) {
+  const { descuentos } = useConfigStore()
+  const descuentosActivos = descuentos.filter((d) => d.activo)
+
+  if (descuentosActivos.length === 0 || precioVenta <= 0) return null
+
+  return (
+    <section className="rounded-xl border border-steel-100 overflow-hidden">
+      <div className="flex items-center gap-3 px-4 py-3 bg-steel-50/70 border-b border-steel-100">
+        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-white border border-steel-100 text-steel-500 shadow-sm flex-shrink-0">
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-steel-700">Precios especiales</p>
+          <p className="text-[11px] text-steel-400 leading-tight">Descuentos automáticos</p>
+        </div>
+      </div>
+      <div className="p-4 bg-white">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {descuentosActivos.map((d) => {
+            const styles = COLOR_STYLES[d.color] || COLOR_STYLES.emerald
+            const precioFinal = calcularPrecioConDescuento(precioVenta, d.porcentaje)
+            return (
+              <div
+                key={d.id}
+                className={clsx('px-3 py-2 rounded-lg border', styles.bg, styles.border)}
+              >
+                <p className={clsx('text-[10px] font-semibold uppercase', styles.text)}>
+                  {d.nombre}
+                </p>
+                <p className="text-xs text-steel-500 line-through">Bs {precioVenta.toFixed(2)}</p>
+                <p className={clsx('text-sm font-bold', styles.text)}>
+                  Bs {precioFinal.toFixed(2)}
+                </p>
+                <p className="text-[10px] text-steel-500">-{d.porcentaje}%</p>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function FormSection({
   icon,
   title,

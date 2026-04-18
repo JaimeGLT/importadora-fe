@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, Fragment } from 'react'
 import { useNavigate } from 'react-router-dom'
-import toast from 'react-hot-toast'
+import { notify } from '@/lib/notify'
 import { clsx } from 'clsx'
 import {
   useReactTable,
@@ -18,7 +18,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useVentasStore } from '@/stores/ventasStore'
 import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
 import { Button, Badge } from '@/components/ui'
-import { MOCK_RESERVAS } from '@/mock/ventas'
+// No mocks needed - using persisted store
 import type { Reserva, OrdenVenta } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -175,12 +175,12 @@ export function ReservasPage() {
   const [estadoFilter, setEstadoFilter]     = useState<EstadoFilter>(ESTADO_OPTIONS[0])
   const [canalFilter, setCanalFilter]       = useState<CanalFilter>(CANAL_OPTIONS[0])
 
-  const { reservas, ordenes, setReservas, updateReserva, addOrden } = useVentasStore()
+  const { reservas, ordenes, updateReserva, addOrden } = useVentasStore()
 
   // Load & auto-cancel expired
   useEffect(() => {
     if (!isTokenReady) return
-    if (reservas.length === 0) setReservas(MOCK_RESERVAS)
+    // No cargar mocks - usar datos persistidos del store
   }, [isTokenReady])  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -219,7 +219,7 @@ export function ReservasPage() {
     addOrden(orden)
     updateReserva(reserva.id, { estado: 'convertida' })
     setConvertLoading(null)
-    toast.success(`Reserva convertida → ${orden.numero}`)
+    notify.success(`Reserva convertida → ${orden.numero}`)
     navigate('/ventas/caja')
   }
 
@@ -230,7 +230,7 @@ export function ReservasPage() {
     updateReserva(cancelTarget.id, { estado: 'cancelada' })
     setCancelLoading(false)
     setCancelTarget(null)
-    toast.success(`Reserva ${cancelTarget.numero} cancelada`)
+    notify.success(`Reserva ${cancelTarget.numero} cancelada`)
   }
 
   const canCancel = (r: Reserva) =>
@@ -272,8 +272,8 @@ export function ReservasPage() {
           <div className="space-y-0.5 max-w-[220px]">
             {items.slice(0, 2).map(item => (
               <p key={item.id} className="text-xs text-steel-600 truncate">
-                <span className="font-mono text-brand-600">{item.producto_codigo}</span>
-                {' '}× {item.cantidad}
+                <span className="font-medium text-steel-800">{item.producto_nombre}</span>
+                <span className="text-steel-400 ml-1">×{item.cantidad}</span>
               </p>
             ))}
             {items.length > 2 && (

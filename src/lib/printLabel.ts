@@ -19,7 +19,7 @@ async function generarSVG(value: string): Promise<string> {
       width:        2,
       height:       48,
       fontSize:     11,
-      displayValue: true,   // el código aparece debajo de las barras
+      displayValue: true,   
       margin:       4,
       background:   '#ffffff',
       lineColor:    '#000000',

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useMemo } from 'react'
 import type * as XLSXType from 'xlsx'
 import { Modal, Button, ExcelColumnMapper } from '@/components/ui'
 import { imprimirLote } from '@/lib/printLabel'
@@ -29,6 +29,14 @@ type FieldMappings = Partial<Record<ImportableKey, ColumnMapping>>
 type Step = 'upload' | 'mapear' | 'preview' | 'etiquetas'
 
 type ProductoImportado = Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>
+
+export type ImportAction = 'create' | 'update'
+
+export interface ImportResult {
+  data: ProductoImportado
+  action: ImportAction
+  existingId?: string
+}
 
 interface LabelConfig {
   selected: boolean
@@ -172,16 +180,19 @@ function Stepper({ step }: { step: Step }) {
 interface ImportarExcelModalProps {
   open: boolean
   onClose: () => void
-  onImport: (productos: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>[]) => void
+  onImport: (results: ImportResult[]) => Promise<void>
+  productosExistentes: Producto[]
 }
 
-export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelModalProps) {
+export function ImportarExcelModal({ open, onClose, onImport, productosExistentes }: ImportarExcelModalProps) {
   const [step, setStep]               = useState<Step>('upload')
   const [excelCols, setExcelCols]     = useState<string[]>([])
   const [rawRows, setRawRows]         = useState<Record<string, unknown>[]>([])
   const [fileName, setFileName]       = useState('')
   const [mappings, setMappings]       = useState<FieldMappings>({})
   const [parsed, setParsed]           = useState<(ProductoImportado | null)[]>([])
+  const [previewActions, setPreviewActions] = useState<Record<string, ImportAction>>({})
+  const [tipoCambio, setTipoCambio]   = useState('6.96')
   const [dragOver, setDragOver]       = useState(false)
   const [importing, setImporting]     = useState(false)
   const [importados, setImportados]   = useState<ProductoImportado[]>([])
@@ -189,10 +200,36 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
   const [printing, setPrinting]       = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Mapa de códigos existentes para búsqueda rápida
+  const codigosMap = useMemo(() => {
+    const map = new Map<string, Producto>()
+    productosExistentes.forEach((p) => {
+      map.set(p.codigo_universal, p)
+      p.codigos_alternativos.forEach((code) => {
+        if (code) map.set(code, p)
+      })
+    })
+    return map
+  }, [productosExistentes])
+
+  // Detectar duplicados cuando se parsean los productos
+  const duplicates = useMemo(() => {
+    const dupMap = new Map<string, { existing: Producto; parsed: ProductoImportado }>()
+    parsed.forEach((p) => {
+      if (!p) return
+      const existing = codigosMap.get(p.codigo_universal)
+      if (existing) {
+        dupMap.set(p.codigo_universal, { existing, parsed: p })
+      }
+    })
+    return dupMap
+  }, [parsed, codigosMap])
+
   const reset = () => {
     setStep('upload'); setExcelCols([]); setRawRows([])
     setFileName(''); setMappings({}); setParsed([])
-    setImportados([]); setLabelConfig({})
+    setPreviewActions({}); setImportados([]); setLabelConfig({})
+    setTipoCambio('6.96')
   }
 
   const handleClose = () => { reset(); onClose() }
@@ -250,7 +287,14 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
   }
 
   const handleGoToPreview = () => {
-    setParsed(rawRows.map((row) => parseRow(row, mappings)))
+    const parsedData = rawRows.map((row) => parseRow(row, mappings))
+    setParsed(parsedData)
+    // Inicializar acciones: 'create' por defecto para todos
+    const actions: Record<string, ImportAction> = {}
+    parsedData.forEach((p) => {
+      if (p) actions[p.codigo_universal] = 'create'
+    })
+    setPreviewActions(actions)
     setStep('preview')
   }
 
@@ -261,15 +305,56 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
   // ── Step 3: importar ────────────────────────────────────────────────────────
   const handleImport = async () => {
     setImporting(true)
-    await new Promise((r) => setTimeout(r, 300))
-    const valid = parsed.filter((p): p is ProductoImportado => p !== null)
-    onImport(valid)
-    // Preparar config de etiquetas: todos seleccionados, copias = stock
+    const tc = parseFloat(tipoCambio) || 6.96
+
+    // Construir resultados con acción determinada
+    const results: ImportResult[] = parsed
+      .filter((p): p is ProductoImportado => p !== null)
+      .map((p) => {
+        const existing = codigosMap.get(p.codigo_universal)
+        const action = existing ? (previewActions[p.codigo_universal] ?? 'create') : 'create'
+
+        // Si es actualización, aplicar tipo de cambio al historial
+        if (action === 'update' && existing) {
+          return {
+            data: {
+              ...p,
+              historial_precios: [
+                ...existing.historial_precios,
+                {
+                  fecha: new Date().toISOString(),
+                  precio_costo: p.precio_costo,
+                  precio_venta: p.precio_venta,
+                  tipo_cambio: tc,
+                  nota: 'Actualizado desde Excel',
+                },
+              ],
+            },
+            action: 'update' as ImportAction,
+            existingId: existing.id,
+          }
+        }
+
+        // Para nuevos, usar tipo de cambio en el historial inicial
+        return {
+          data: {
+            ...p,
+            historial_precios: p.precio_costo > 0 || p.precio_venta > 0
+              ? [{ fecha: new Date().toISOString(), precio_costo: p.precio_costo, precio_venta: p.precio_venta, tipo_cambio: tc, nota: 'Importado desde Excel' }]
+              : [],
+          },
+          action: 'create' as ImportAction,
+        }
+      })
+
+    await onImport(results)
+
+    // Preparar config de etiquetas
     const config: Record<string, LabelConfig> = {}
-    valid.forEach((p) => {
-      config[p.codigo_universal] = { selected: true, copias: Math.max(1, p.stock) }
+    results.forEach((r) => {
+      config[r.data.codigo_universal] = { selected: true, copias: Math.max(1, r.data.stock) }
     })
-    setImportados(valid)
+    setImportados(results.map((r) => r.data))
     setLabelConfig(config)
     setImporting(false)
     setStep('etiquetas')
@@ -507,68 +592,172 @@ export function ImportarExcelModal({ open, onClose, onImport }: ImportarExcelMod
       {/* ── STEP 3: PREVIEW ── */}
       {step === 'preview' && (
         <div>
-          <div className="flex gap-3 mb-4">
+          {/* Tipo de cambio input */}
+          <div className="mb-4 flex items-center gap-3">
+            <label className="text-xs font-semibold text-steel-700">Tipo de cambio (Bs/USD):</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={tipoCambio}
+              onChange={(e) => setTipoCambio(e.target.value)}
+              className="w-24 px-2 py-1.5 text-sm border border-steel-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-400"
+            />
+            <span className="text-xs text-steel-400">Se usará para el historial de precios</span>
+          </div>
+
+          <div className="flex flex-wrap gap-3 mb-4">
             <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
               <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
               <span className="text-sm text-green-800"><strong>{validCount}</strong> válidos</span>
             </div>
+            {duplicates.size > 0 && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                <svg className="h-4 w-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span className="text-sm text-amber-800"><strong>{duplicates.size}</strong> duplicados</span>
+              </div>
+            )}
             {invalidCount > 0 && (
               <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
                 <svg className="h-4 w-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-                <span className="text-sm text-red-700"><strong>{invalidCount}</strong> omitidos (sin código o nombre)</span>
+                <span className="text-sm text-red-700"><strong>{invalidCount}</strong> omitidos</span>
               </div>
             )}
           </div>
 
+          {duplicates.size > 0 && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-xs text-amber-800 font-medium mb-2">
+                Productos duplicados detectados. Selecciona si deseas crear nuevos o actualizar los existentes:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => {
+                    const updates: Record<string, ImportAction> = {}
+                    duplicates.forEach((_, code) => { updates[code] = 'update' })
+                    setPreviewActions((prev) => ({ ...prev, ...updates }))
+                  }}
+                  className="px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
+                >
+                  Actualizar todos
+                </button>
+                <button
+                  onClick={() => {
+                    const creates: Record<string, ImportAction> = {}
+                    duplicates.forEach((_, code) => { creates[code] = 'create' })
+                    setPreviewActions((prev) => ({ ...prev, ...creates }))
+                  }}
+                  className="px-2.5 py-1 text-xs font-medium rounded-lg bg-steel-100 text-steel-700 hover:bg-steel-200 transition-colors"
+                >
+                  Crear todos nuevos
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="overflow-x-auto rounded-xl border border-steel-200 max-h-80 overflow-y-auto">
-            <table className="text-xs" style={{ minWidth: 700 }}>
-              <thead className="sticky top-0 bg-steel-50 border-b border-steel-200">
+            <table className="text-xs" style={{ minWidth: 800 }}>
+              <thead className="sticky top-0 bg-steel-50 border-b border-steel-200 z-10">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-steel-500 w-6">#</th>
                   <th className="px-3 py-2 text-left font-medium text-steel-500 whitespace-nowrap">Código *</th>
                   <th className="px-3 py-2 text-left font-medium text-steel-500">Nombre</th>
                   <th className="px-3 py-2 text-left font-medium text-steel-500">Marca</th>
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">Stock *</th>
-                  <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">Stk. mín.</th>
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">P. Costo *</th>
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">P. Venta</th>
-                  <th className="px-3 py-2 text-left font-medium text-steel-500">Ubicación</th>
+                  <th className="px-3 py-2 text-center font-medium text-steel-500 whitespace-nowrap">Acción</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-steel-100">
-                {parsed.map((row, i) =>
-                  row === null ? (
-                    <tr key={i} className="bg-red-50/50">
+                {parsed.map((row, i) => {
+                  if (row === null) {
+                    return (
+                      <tr key={i} className="bg-red-50/50">
+                        <td className="px-3 py-2 text-steel-400">{i + 1}</td>
+                        <td colSpan={7} className="px-3 py-2 text-red-400 italic">
+                          Fila omitida — sin código universal
+                        </td>
+                      </tr>
+                    )
+                  }
+
+                  const existing = codigosMap.get(row.codigo_universal)
+                  const isDuplicate = !!existing
+                  const action = previewActions[row.codigo_universal] ?? 'create'
+
+                  return (
+                    <tr key={i} className={clsx('hover:bg-steel-50', isDuplicate && 'bg-amber-50/30')}>
                       <td className="px-3 py-2 text-steel-400">{i + 1}</td>
-                      <td colSpan={8} className="px-3 py-2 text-red-400 italic">
-                        Fila omitida — sin código universal
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-brand-600 whitespace-nowrap">{row.codigo_universal}</span>
+                          {isDuplicate && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                              DUPLICADO
+                            </span>
+                          )}
+                        </div>
                       </td>
-                    </tr>
-                  ) : (
-                    <tr key={i} className="hover:bg-steel-50">
-                      <td className="px-3 py-2 text-steel-400">{i + 1}</td>
-                      <td className="px-3 py-2 font-mono text-brand-600 whitespace-nowrap">{row.codigo_universal}</td>
                       <td className="px-3 py-2 text-steel-900 max-w-[140px] truncate">{row.nombre || '—'}</td>
                       <td className="px-3 py-2 text-steel-600 whitespace-nowrap">{row.marca || '—'}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-steel-900">{row.stock}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-steel-500">{row.stock_minimo}</td>
                       <td className="px-3 py-2 text-right tabular-nums font-medium text-steel-900">
                         {row.precio_costo > 0 ? row.precio_costo.toFixed(2) : <span className="text-red-400">—</span>}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-steel-600">
                         {row.precio_venta > 0 ? row.precio_venta.toFixed(2) : '—'}
                       </td>
-                      <td className="px-3 py-2 text-steel-500 whitespace-nowrap">{row.ubicacion || '—'}</td>
+                      <td className="px-3 py-2 text-center">
+                        {isDuplicate ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => setPreviewActions((prev) => ({ ...prev, [row.codigo_universal]: 'create' }))}
+                              className={clsx(
+                                'px-2 py-1 text-[10px] font-semibold rounded transition-colors',
+                                action === 'create'
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-steel-100 text-steel-500 hover:bg-steel-200',
+                              )}
+                            >
+                              Nuevo
+                            </button>
+                            <button
+                              onClick={() => setPreviewActions((prev) => ({ ...prev, [row.codigo_universal]: 'update' }))}
+                              className={clsx(
+                                'px-2 py-1 text-[10px] font-semibold rounded transition-colors',
+                                action === 'update'
+                                  ? 'bg-amber-600 text-white'
+                                  : 'bg-steel-100 text-steel-500 hover:bg-steel-200',
+                              )}
+                            >
+                              Actualizar
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded">
+                            Nuevo
+                          </span>
+                        )}
+                      </td>
                     </tr>
                   )
-                )}
+                })}
               </tbody>
             </table>
           </div>
+
+          {duplicates.size > 0 && (
+            <p className="mt-2 text-[10px] text-steel-400">
+              Los productos marcados como "Actualizar" reemplazarán precios y stock, y agregarán un registro al historial.
+            </p>
+          )}
         </div>
       )}
     </Modal>

@@ -40,4 +40,4 @@ src/: components/{layout,ui,modals} · contexts/ · hooks/ · lib/{api.ts,graphq
 Orden fijo: (1) useAuth · (2) estado local · (3) fetch en useEffect con isTokenReady · (4) datos derivados con useMemo · (5) handlers · (6) render con MainLayout > PageContainer > PageHeader
 
 ### Diseño
-El diseño debe ser super intuitivo, super amigable y minimalista. Utiliza colores que combinen con blanco y vayan con el estilo de ua importadora de autopartes.
+El diseño debe ser super intuitivo, super amigable y minimalista.

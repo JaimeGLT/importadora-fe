@@ -1,12 +1,42 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import type { User } from '@/types'
+import { api } from '@/lib/api'
 
 interface AuthContextValue {
   user: User | null
   isAuthenticated: boolean
   isTokenReady: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<User>
   logout: () => Promise<void>
+}
+
+interface ApiUserResponse {
+  id?: string | number
+  nombre?: string
+  name?: string
+  email?: string
+  correo?: string
+  rol?: string
+  role?: string
+}
+
+function mapToUser(data: ApiUserResponse): User | null {
+  const email = data.correo ?? data.email ?? ''
+  const id = data.id ? String(data.id) : (email.split('@')[0] || null)
+  const nombre = data.nombre ?? data.name ?? email.split('@')[0] ?? ''
+  const rawRol = (data.rol ?? data.role ?? '').toLowerCase()
+  const ROL_MAP: Record<string, User['rol']> = {
+    admin: 'admin',
+    administrador: 'admin',
+    vendedor: 'vendedor',
+    sales: 'vendedor',
+    almacenero: 'almacenero',
+    almacen: 'almacenero',
+    warehouse: 'almacenero',
+  }
+  const rol: User['rol'] = ROL_MAP[rawRol] ?? 'vendedor'
+  if (!id || !email) return null
+  return { id, nombre, email, rol }
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -16,32 +46,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isTokenReady, setIsTokenReady] = useState(false)
 
   useEffect(() => {
-    // TODO: reemplazar con /api/auth/me cuando exista el backend
-    setIsTokenReady(true)
+    api.post<ApiUserResponse>('/Auth/refresh')
+      .then((data) => {
+        const u = mapToUser(data)
+        if (u) setUser(u)
+      })
+      .catch(() => {
+        // no active session — stay logged out
+      })
+      .finally(() => setIsTokenReady(true))
   }, [])
 
-  const login = async (email: string, password: string) => {
-    // TODO: reemplazar con llamada real cuando exista el backend
-    const MOCK_USERS: (User & { password: string })[] = [
-      { id: '1', nombre: 'Admin',     email: 'admin@importadora.com',    rol: 'admin',      password: 'admin123' },
-      { id: '2', nombre: 'Vendedor',  email: 'vendedor@importadora.com', rol: 'vendedor',   password: 'venta123' },
-      { id: '3', nombre: 'Almacén',   email: 'almacen@importadora.com',  rol: 'almacenero', password: 'alma123'  },
-    ]
-    const found = MOCK_USERS.find((u) => u.email === email && u.password === password)
-    if (!found) throw new Error('Credenciales inválidas')
-    const { password: _, ...user } = found
-    setUser(user)
+  const login = async (email: string, password: string): Promise<User> => {
+    const data = await api.post<ApiUserResponse>('/Auth/login', { email, password })
+    const u = mapToUser(data ?? {})
+    if (!u) throw new Error('No se pudo obtener datos del usuario')
+    setUser(u)
+    return u
   }
 
   const logout = async () => {
-    // TODO: llamar /api/auth/logout cuando exista el backend
+    try { await api.post('/Auth/logout') } catch { /* ignore */ }
     setUser(null)
   }
 
   return (
-    <AuthContext.Provider
-      value={{ user, isAuthenticated: !!user, isTokenReady, login, logout }}
-    >
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isTokenReady, login, logout }}>
       {children}
     </AuthContext.Provider>
   )

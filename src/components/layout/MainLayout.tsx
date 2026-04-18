@@ -9,7 +9,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="flex min-h-screen bg-steel-50">
+    <div className="flex min-h-screen bg-[#E8E4DE]">
 
       {/* Backdrop mobile */}
       {sidebarOpen && (
@@ -21,7 +21,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 shadow-[-1px_0_0_0_rgba(0,0,0,0.06)]">
 
         {/* Topbar mobile */}
         <header className="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 bg-steel-900 border-b border-steel-700 shrink-0">

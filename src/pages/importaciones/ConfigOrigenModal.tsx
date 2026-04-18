@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Modal, Button, Input, ConfirmModal } from '@/components/ui'
 import { useImportacionesStore } from '@/stores/importacionesStore'
 import type { OrigenConfig } from '@/types'
-import toast from 'react-hot-toast'
+import { notify } from '@/lib/notify'
 
 interface Props {
   open: boolean
@@ -28,15 +28,15 @@ export function ConfigOrigenModal({ open, onClose }: Props) {
   const handleSave = () => {
     const d = parseInt(dias, 10)
     if (!nombre.trim() || !d || d <= 0) {
-      toast.error('Completa nombre y días válidos')
+      notify.error('Completa nombre y días válidos')
       return
     }
     if (editingId) {
       updateOrigen(editingId, { nombre: nombre.trim(), tiempo_estimado_dias: d })
-      toast.success('Origen actualizado')
+      notify.success('Origen actualizado')
     } else {
       addOrigen({ id: crypto.randomUUID(), nombre: nombre.trim(), tiempo_estimado_dias: d })
-      toast.success('Origen agregado')
+      notify.success('Origen agregado')
     }
     resetForm()
   }
@@ -44,7 +44,7 @@ export function ConfigOrigenModal({ open, onClose }: Props) {
   const handleDelete = () => {
     if (!confirmDel) return
     deleteOrigen(confirmDel.id)
-    toast.success('Origen eliminado')
+    notify.success('Origen eliminado')
     setConfirmDel(null)
   }
 

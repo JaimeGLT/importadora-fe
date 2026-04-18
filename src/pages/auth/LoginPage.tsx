@@ -2,7 +2,20 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button, Input } from '@/components/ui'
-import toast from 'react-hot-toast'
+import { notify } from '@/lib/notify'
+import type { User } from '@/types'
+
+const ROLE_HOME: Record<string, string> = {
+  admin:      '/inventario',
+  vendedor:   '/ventas/caja',
+  almacenero: '/ventas/almacen',
+}
+
+const QUICK_USERS = [
+  { label: 'Admin',      email: 'admin@gmail.com',    password: 'Admin123#', color: 'bg-brand-600 hover:bg-brand-700' },
+  { label: 'Vendedor',   email: 'vendedor@importadora.com', password: 'venta123', color: 'bg-steel-600 hover:bg-steel-500' },
+  { label: 'Almacenero', email: 'almacen@importadora.com',  password: 'alma123',  color: 'bg-steel-600 hover:bg-steel-500' },
+]
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -11,17 +24,21 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading]   = useState(false)
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
+  const doLogin = async (e: string, p: string) => {
     setLoading(true)
     try {
-      await login(email, password)
-      void navigate('/inventario')
+      const user: User = await login(e, p)
+      void navigate(ROLE_HOME[user.rol] ?? '/inventario')
     } catch {
-      toast.error('Credenciales incorrectas')
+      notify.error('Credenciales incorrectas', { description: 'Verifica tu email y contraseña' })
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    await doLogin(email, password)
   }
 
   return (
@@ -73,7 +90,7 @@ export function LoginPage() {
             <LoginForm
               email={email} password={password} loading={loading}
               onEmail={setEmail} onPassword={setPassword}
-              onSubmit={handleSubmit}
+              onSubmit={handleSubmit} onQuickLogin={doLogin}
             />
           </div>
 
@@ -92,7 +109,7 @@ export function LoginPage() {
           <LoginForm
             email={email} password={password} loading={loading}
             onEmail={setEmail} onPassword={setPassword}
-            onSubmit={handleSubmit}
+            onSubmit={handleSubmit} onQuickLogin={doLogin}
           />
         </div>
         <p className="mt-16 text-xs text-steel-300">© {new Date().getFullYear()} USA Autopartes</p>
@@ -219,30 +236,57 @@ interface LoginFormProps {
   onEmail: (v: string) => void
   onPassword: (v: string) => void
   onSubmit: (e: FormEvent) => void
+  onQuickLogin: (email: string, password: string) => void
 }
 
-function LoginForm({ email, password, loading, onEmail, onPassword, onSubmit }: LoginFormProps) {
+function LoginForm({ email, password, loading, onEmail, onPassword, onSubmit, onQuickLogin }: LoginFormProps) {
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <Input
-        label="Correo electrónico"
-        type="email"
-        value={email}
-        onChange={(e) => onEmail(e.target.value)}
-        required
-        autoComplete="email"
-      />
-      <Input
-        label="Contraseña"
-        type="password"
-        value={password}
-        onChange={(e) => onPassword(e.target.value)}
-        required
-        autoComplete="current-password"
-      />
-      <Button type="submit" loading={loading} className="w-full justify-center">
-        Ingresar
-      </Button>
-    </form>
+    <div className="space-y-5">
+      {/* Acceso rápido */}
+      <div>
+        <p className="text-xs font-semibold text-steel-400 uppercase tracking-wider mb-2">Acceso rápido</p>
+        <div className="flex gap-2">
+          {QUICK_USERS.map((u) => (
+            <button
+              key={u.label}
+              type="button"
+              disabled={loading}
+              onClick={() => onQuickLogin(u.email, u.password)}
+              className={`flex-1 py-2 px-2 rounded-lg text-xs font-semibold text-white transition-colors disabled:opacity-50 ${u.color}`}
+            >
+              {u.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px bg-current opacity-20" />
+        <span className="text-xs text-steel-400">o ingresa manualmente</span>
+        <div className="flex-1 h-px bg-current opacity-20" />
+      </div>
+
+      <form onSubmit={onSubmit} className="space-y-4">
+        <Input
+          label="Correo electrónico"
+          type="email"
+          value={email}
+          onChange={(e) => onEmail(e.target.value)}
+          required
+          autoComplete="email"
+        />
+        <Input
+          label="Contraseña"
+          type="password"
+          value={password}
+          onChange={(e) => onPassword(e.target.value)}
+          required
+          autoComplete="current-password"
+        />
+        <Button type="submit" loading={loading} className="w-full justify-center">
+          Ingresar
+        </Button>
+      </form>
+    </div>
   )
 }
