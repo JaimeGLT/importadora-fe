@@ -28,13 +28,14 @@ function mapToUser(data: ApiUserResponse): User | null {
   const ROL_MAP: Record<string, User['rol']> = {
     admin: 'admin',
     administrador: 'admin',
-    vendedor: 'vendedor',
-    sales: 'vendedor',
+    vendedor: 'cajero',
+    sales: 'cajero',
+    cajero: 'cajero',
     almacenero: 'almacenero',
     almacen: 'almacenero',
     warehouse: 'almacenero',
   }
-  const rol: User['rol'] = ROL_MAP[rawRol] ?? 'vendedor'
+  const rol: User['rol'] = ROL_MAP[rawRol] ?? 'cajero'
   if (!id || !email) return null
   return { id, nombre, email, rol }
 }

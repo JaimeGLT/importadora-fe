@@ -13,7 +13,9 @@
       "Bash(find C:UsersjaimeDesktopimportadora-fe/src/pages -type f -name *.tsx -o -name *.ts)",
       "Bash(curl -s -X POST \"https://usaautopartesapi20260406085513-amh4fwdnanbpa9gs.centralus-01.azurewebsites.net/graphql/\" -H \"Content-Type: application/json\" -d '{\"query\":\"{ productos\\(first:1\\) { totalCount nodes { id nombre } } }\"}')",
       "Bash(curl *)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(./node_modules/.bin/tsc *)",
+      "Bash(./node_modules/.bin/vite build *)"
     ]
   }
 }

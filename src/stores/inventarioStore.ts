@@ -15,6 +15,9 @@ interface InventarioState {
   addProducto: (producto: Producto) => void
   updateProducto: (producto: Producto) => void
   removeProducto: (id: string) => void
+  reservarStock: (id: string, qty: number) => void
+  liberarReserva: (id: string, qty: number) => void
+  confirmarSalida: (id: string, qty: number) => void
 }
 
 const DEFAULT_FILTERS: Filters = {
@@ -60,9 +63,39 @@ export const useInventarioStore = create<InventarioState>()(
           productos: state.productos.filter(p => p.id !== id),
           total: Math.max(0, state.total - 1),
         })),
+      reservarStock: (id, qty) =>
+        set((state) => ({
+          productos: state.productos.map(p =>
+            p.id === id ? { ...p, stock_reservado: (p.stock_reservado ?? 0) + qty } : p,
+          ),
+        })),
+      liberarReserva: (id, qty) =>
+        set((state) => ({
+          productos: state.productos.map(p =>
+            p.id === id ? { ...p, stock_reservado: Math.max(0, (p.stock_reservado ?? 0) - qty) } : p,
+          ),
+        })),
+      confirmarSalida: (id, qty) =>
+        set((state) => ({
+          productos: state.productos.map(p =>
+            p.id === id
+              ? {
+                  ...p,
+                  stock: Math.max(0, p.stock - qty),
+                  stock_reservado: Math.max(0, (p.stock_reservado ?? 0) - qty),
+                }
+              : p,
+          ),
+        })),
     }),
     {
       name: 'inventario-storage',
     }
   )
 )
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'inventario-storage') useInventarioStore.persist.rehydrate()
+  })
+}

@@ -8,9 +8,9 @@ import { InventarioPage } from '@/pages/inventario/InventarioPage'
 import { PrestamosPage } from '@/pages/inventario/PrestamosPage'
 import { ImportacionesPage } from '@/pages/importaciones/ImportacionesPage'
 import { ProveedoresPage } from '@/pages/importaciones/proveedores/ProveedoresPage'
+import { CajaDiariaPage } from '@/pages/caja/CajaDiariaPage'
 import { CajaPage } from '@/pages/ventas/CajaPage'
 import { AlmacenPage } from '@/pages/ventas/AlmacenPage'
-import { ReservasPage } from '@/pages/ventas/ReservasPage'
 import { AlertasPage } from '@/pages/alertas/AlertasPage'
 import { ReportesPage } from '@/pages/reportes/ReportesPage'
 import { ConfiguracionPage } from '@/pages/config/ConfiguracionPage'
@@ -49,9 +49,9 @@ export default function App() {
             <Route path="/inventario/prestamos" element={<PrestamosPage />} />
             <Route path="/importaciones" element={<ImportacionesPage />} />
             <Route path="/importaciones/proveedores" element={<ProveedoresPage />} />
+            <Route path="/caja" element={<CajaDiariaPage />} />
             <Route path="/ventas/caja" element={<CajaPage />} />
             <Route path="/ventas/almacen" element={<AlmacenPage />} />
-            <Route path="/ventas/reservas" element={<ReservasPage />} />
             <Route path="/configuracion" element={<ConfiguracionPage />} />
             <Route path="/" element={<RootRedirect />} />
           </Route>

@@ -36,6 +36,20 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
+      keyframes: {
+        'pulse-once': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.7' },
+        },
+        'slide-in': {
+          '0%': { transform: 'translateX(20px)', opacity: '0' },
+          '100%': { transform: 'translateX(0)', opacity: '1' },
+        },
+      },
+      animation: {
+        'pulse-once': 'pulse-once 0.6s ease-in-out 1',
+        'slide-in': 'slide-in 0.3s ease-out 1',
+      },
     },
   },
   plugins: [],

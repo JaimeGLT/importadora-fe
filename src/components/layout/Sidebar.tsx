@@ -44,6 +44,19 @@ const groups: NavGroup[] = [
     ],
   },
   {
+    label: 'Caja',
+    icon: (
+      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    ),
+    roles: ['admin', 'cajero'],
+    items: [
+      { label: 'Caja diaria', to: '/caja', roles: ['admin', 'cajero'] },
+    ],
+  },
+  {
     label: 'Ventas',
     icon: (
       <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -52,9 +65,8 @@ const groups: NavGroup[] = [
       </svg>
     ),
     items: [
-      { label: 'Caja',     to: '/ventas/caja',    roles: ['admin', 'vendedor'] },
-      { label: 'Almacén',  to: '/ventas/almacen', roles: ['admin', 'almacenero'] },
-      { label: 'Reservas', to: '/ventas/reservas', roles: ['admin', 'vendedor'] },
+      { label: 'Caja',    to: '/ventas/caja',    roles: ['admin', 'cajero'] },
+      { label: 'Almacén', to: '/ventas/almacen', roles: ['admin', 'almacenero'] },
     ],
   },
   {

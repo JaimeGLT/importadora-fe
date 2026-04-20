@@ -1,4 +1,4 @@
-import { type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { type ButtonHTMLAttributes, type ReactNode, type Ref, forwardRef } from 'react'
 import { clsx } from 'clsx'
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
@@ -29,7 +29,7 @@ const sizeCls: Record<Size, string> = {
   lg: 'h-11 px-5 text-base gap-2',
 }
 
-export function Button({
+export const Button = forwardRef(function Button({
   variant = 'primary',
   size = 'md',
   loading = false,
@@ -38,9 +38,10 @@ export function Button({
   className,
   disabled,
   ...props
-}: ButtonProps) {
+}: ButtonProps, ref: Ref<HTMLButtonElement>) {
   return (
     <button
+      ref={ref}
       className={clsx(
         'inline-flex items-center justify-center rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 select-none',
         variantCls[variant],
@@ -58,4 +59,4 @@ export function Button({
       {children}
     </button>
   )
-}
+})

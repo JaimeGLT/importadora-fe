@@ -1,49 +1,41 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import type { OrdenVenta, Reserva, ConfigVentas } from '@/types'
+import type { OrdenVenta } from '@/types'
+import { MOCK_ORDENES } from '@/mock/ventas'
 
 interface VentasState {
   ordenes: OrdenVenta[]
-  reservas: Reserva[]
-  config: ConfigVentas
   setOrdenes: (ordenes: OrdenVenta[]) => void
   addOrden: (orden: OrdenVenta) => void
   updateOrden: (id: string, data: Partial<OrdenVenta>) => void
-  setReservas: (reservas: Reserva[]) => void
-  addReserva: (reserva: Reserva) => void
-  updateReserva: (id: string, data: Partial<Reserva>) => void
-  setConfig: (config: ConfigVentas) => void
 }
 
-export const useVentasStore = create<VentasState>()(
-  persist(
-    (set) => ({
-      ordenes: [],
-      reservas: [],
-      config: { tiempo_alerta_minutos: 10 },
+const broadcast = typeof window !== 'undefined'
+  ? new BroadcastChannel('ventas-sync')
+  : null
 
-      setOrdenes: (ordenes) => set({ ordenes }),
-      addOrden: (orden) => set((s) => ({ ordenes: [orden, ...s.ordenes] })),
-      updateOrden: (id, data) =>
-        set((s) => ({
-          ordenes: s.ordenes.map((o) =>
-            o.id === id ? { ...o, ...data, actualizado_en: new Date().toISOString() } : o,
-          ),
-        })),
+export const useVentasStore = create<VentasState>()((set, get) => ({
+  ordenes: MOCK_ORDENES,
 
-      setReservas: (reservas) => set({ reservas }),
-      addReserva: (reserva) => set((s) => ({ reservas: [reserva, ...s.reservas] })),
-      updateReserva: (id, data) =>
-        set((s) => ({
-          reservas: s.reservas.map((r) =>
-            r.id === id ? { ...r, ...data, actualizado_en: new Date().toISOString() } : r,
-          ),
-        })),
+  setOrdenes: (ordenes) => set({ ordenes }),
 
-      setConfig: (config) => set({ config }),
-    }),
-    {
-      name: 'ventas-storage',
-    }
-  )
-)
+  addOrden: (orden) => {
+    set(s => ({ ordenes: [orden, ...s.ordenes] }))
+    broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })
+  },
+
+  updateOrden: (id, data) => {
+    set(s => ({
+      ordenes: s.ordenes.map(o =>
+        o.id === id ? { ...o, ...data, actualizado_en: new Date().toISOString() } : o,
+      ),
+    }))
+    broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })
+  },
+}))
+
+// Recibir cambios de otras pestañas
+broadcast?.addEventListener('message', (e: MessageEvent) => {
+  if (e.data?.type === 'sync') {
+    useVentasStore.getState().setOrdenes(e.data.ordenes as OrdenVenta[])
+  }
+})
