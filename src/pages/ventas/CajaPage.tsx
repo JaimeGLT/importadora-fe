@@ -6,6 +6,7 @@ import { Button, Input, Modal } from '@/components/ui'
 import { notify } from '@/lib/notify'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { useVentasStore } from '@/stores/ventasStore'
+import { useConfigStore } from '@/stores/configStore'
 import { useSoundAlert } from '@/hooks/useSoundAlert'
 import type { Producto, OrdenVenta, ItemOrden, MetodoPago, EstadoOrden } from '@/types'
 
@@ -41,6 +42,9 @@ interface CartItem {
   cantidad: number
   precio_unitario: number
   producto_imagen?: string
+  descuento_id?: string
+  descuento_nombre?: string
+  descuento_porcentaje?: number
 }
 
 interface Cart {
@@ -49,6 +53,98 @@ interface Cart {
 }
 
 const emptyCart = (): Cart => ({ items: [], nota: '' })
+
+// ─── ProductDetailModal ─────────────────────────────────────────────────────────
+
+function ProductDetailModal({
+  producto,
+  onAdd,
+  onClose,
+}: {
+  producto: Producto
+  onAdd: (producto: Producto, descuentoId?: string) => void
+  onClose: () => void
+}) {
+  const descuentos = useConfigStore(s => s.descuentos)
+  const activeDescuentos = descuentos.filter(d => d.activo)
+  const precioBase = producto.precio_venta
+
+  const colorMap: Record<string, string> = {
+    emerald: 'bg-emerald-100 text-emerald-700',
+    blue: 'bg-blue-100 text-blue-700',
+    amber: 'bg-amber-100 text-amber-700',
+    purple: 'bg-purple-100 text-purple-700',
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Detalle del producto" size="md">
+      <div className="space-y-4 pt-1">
+        <div className="flex items-start gap-4">
+          {producto.imagen ? (
+            <img src={producto.imagen} alt={producto.nombre} className="h-20 w-20 rounded-xl object-cover bg-steel-100 border border-steel-200 shrink-0" />
+          ) : (
+            <div className="h-20 w-20 rounded-xl bg-steel-100 border border-steel-200 shrink-0 flex items-center justify-center">
+              <svg className="h-8 w-8 text-steel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-base font-bold text-steel-900">{producto.nombre}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs font-mono text-steel-500 bg-steel-50 px-2 py-0.5 rounded">{producto.codigo_universal}</span>
+              {producto.marca && <span className="text-xs text-steel-400">{producto.marca}</span>}
+            </div>
+            <p className="text-xs text-steel-400 mt-1">Stock: {Math.max(0, producto.stock - (producto.stock_reservado ?? 0))}</p>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-steel-50 border border-steel-200 px-4 py-3">
+          <p className="text-xs font-bold text-steel-500 uppercase tracking-widest mb-2">Precio base</p>
+          <p className="text-2xl font-black text-steel-900">{fmtBs(precioBase)}</p>
+        </div>
+
+        <div>
+          <p className="text-xs font-bold text-steel-500 uppercase tracking-widest mb-2">Aplicar descuento</p>
+          <div className="space-y-2">
+            <button
+              onClick={() => { onAdd(producto); onClose() }}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 border-steel-200 hover:border-steel-400 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-steel-700">Sin descuento</span>
+              </div>
+              <span className="text-sm font-bold text-steel-900">{fmtBs(precioBase)}</span>
+            </button>
+            {activeDescuentos.map(d => {
+              const precioConDesc = precioBase * (1 - d.porcentaje / 100)
+              return (
+                <button
+                  key={d.id}
+                  onClick={() => { onAdd(producto, d.id); onClose() }}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 border-steel-100 hover:border-steel-400 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={clsx('text-xs font-bold px-2 py-0.5 rounded', colorMap[d.color] ?? 'bg-steel-100 text-steel-700')}>{d.nombre}</span>
+                    <span className="text-xs text-steel-400">-{d.porcentaje}%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-steel-400 line-through">{fmtBs(precioBase)}</span>
+                    <span className="text-sm font-bold text-emerald-600">{fmtBs(precioConDesc)}</span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-1">
+          <Button variant="secondary" className="flex-1" onClick={onClose}>Cancelar</Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
 
 // ─── FlyingBall ────────────────────────────────────────────────────────────────
 
@@ -127,7 +223,13 @@ function FlyingBall({ fromRect, toRect, itemCount, onComplete }: FlyingBallProps
 
 // ─── ProductSearch ─────────────────────────────────────────────────────────────
 
-function ProductSearch({ onAddToCart }: { onAddToCart: (producto: Producto) => void }) {
+function ProductSearch({
+  onAddToCart,
+  onVerDetalle,
+}: {
+  onAddToCart: (producto: Producto, descuentoId?: string) => void
+  onVerDetalle: (producto: Producto) => void
+}) {
   const productos = useInventarioStore(s => s.productos)
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -193,7 +295,11 @@ function ProductSearch({ onAddToCart }: { onAddToCart: (producto: Producto) => v
               const disp = stockDisponible(p)
               const stockCls = disp === 0 ? 'text-red-500' : disp <= p.stock_minimo ? 'text-amber-500' : 'text-emerald-600'
               return (
-                <div key={p.id} className="flex items-center gap-3 px-4 py-3 hover:bg-steel-50 transition-colors group">
+                <div
+                  key={p.id}
+                  onClick={() => onVerDetalle(p)}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-steel-50 transition-colors group cursor-pointer"
+                >
                   {p.imagen ? (
                     <img src={p.imagen} alt={p.nombre} className="h-10 w-10 rounded-lg object-cover bg-steel-100 border border-steel-100 shrink-0" />
                   ) : (
@@ -217,7 +323,10 @@ function ProductSearch({ onAddToCart }: { onAddToCart: (producto: Producto) => v
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
                     <span className="text-sm font-bold text-steel-900">{fmtBs(p.precio_venta)}</span>
                     <button
-                      onClick={() => onAddToCart(p)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onAddToCart(p)
+                      }}
                       disabled={disp === 0}
                       className={clsx('h-7 w-7 rounded-lg flex items-center justify-center transition-all', disp === 0 ? 'bg-steel-100 text-steel-300 cursor-not-allowed' : 'bg-brand-600 text-white hover:bg-brand-700 opacity-0 group-hover:opacity-100')}
                     >
@@ -287,7 +396,14 @@ function CartPanel({ cart, onQtyChange, onRemoveItem, onNotaChange, onEmitir, em
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-steel-800 leading-tight">{item.producto_nombre}</p>
-                      <p className="text-[11px] font-mono text-steel-400 mt-0.5">{item.producto_codigo}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-[11px] font-mono text-steel-400">{item.producto_codigo}</p>
+                        {item.descuento_id && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">
+                            {item.descuento_nombre} -{item.descuento_porcentaje}%
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center justify-between mt-2">
                         <div className="flex items-center gap-1">
                           <button onClick={() => onQtyChange(idx, -1)} className="h-7 w-7 rounded-lg border border-steel-200 text-steel-600 hover:bg-steel-100 flex items-center justify-center text-base font-bold transition-colors">−</button>
@@ -720,6 +836,7 @@ export function CajaPage() {
   const [parcialOrden, setParcialOrden] = useState<OrdenVenta | null>(null)
   const [facturaOrden, setFacturaOrden] = useState<OrdenVenta | null>(null)
   const [cancelarOrden, setCancelarOrden] = useState<OrdenVenta | null>(null)
+  const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null)
 
   const misOrdenes = useMemo(() => ordenes.filter(o => o.estado !== 'pagado' && o.estado !== 'cancelado'), [ordenes])
   const canceladas = useMemo(() => ordenes.filter(o => o.estado === 'cancelado'), [ordenes])
@@ -745,15 +862,18 @@ export function CajaPage() {
     }
   }, [misOrdenes, playAlertSequence])
 
-  const addToCart = useCallback((producto: Producto) => {
+  const addToCart = useCallback((producto: Producto, descuentoId?: string) => {
+    const descuentos = useConfigStore.getState().descuentos
+    const descuento = descuentoId ? descuentos.find(d => d.id === descuentoId) : undefined
+    const precioUnitario = descuento ? producto.precio_venta * (1 - descuento.porcentaje / 100) : producto.precio_venta
     setCart(prev => {
-      const existing = prev.items.findIndex(i => i.producto_id === producto.id)
+      const existing = prev.items.findIndex(i => i.producto_id === producto.id && i.descuento_id === descuentoId)
       if (existing >= 0) {
         const disp = Math.max(0, producto.stock - (producto.stock_reservado ?? 0))
         if (prev.items[existing].cantidad >= disp) { notify.error('Stock máximo alcanzado'); return prev }
         return { ...prev, items: prev.items.map((item, idx) => idx === existing ? { ...item, cantidad: item.cantidad + 1 } : item) }
       }
-      return { ...prev, items: [...prev.items, { producto_id: producto.id, producto_codigo: producto.codigo_universal, producto_nombre: producto.nombre, producto_ubicacion: producto.ubicacion ?? '', producto_imagen: producto.imagen, cantidad: 1, precio_unitario: producto.precio_venta }] }
+      return { ...prev, items: [...prev.items, { producto_id: producto.id, producto_codigo: producto.codigo_universal, producto_nombre: producto.nombre, producto_ubicacion: producto.ubicacion ?? '', producto_imagen: producto.imagen, cantidad: 1, precio_unitario: precioUnitario, descuento_id: descuento?.id, descuento_nombre: descuento?.nombre, descuento_porcentaje: descuento?.porcentaje }] }
     })
   }, [])
 
@@ -878,7 +998,7 @@ export function CajaPage() {
         <div className="flex-1 overflow-hidden flex flex-col p-4 gap-4">
           <div className="flex-1 grid grid-cols-[1fr_380px] gap-4 overflow-hidden min-h-0">
             <div className="bg-white rounded-2xl border border-steel-100 shadow-sm overflow-hidden flex flex-col">
-              <ProductSearch onAddToCart={addToCart} />
+              <ProductSearch onAddToCart={addToCart} onVerDetalle={setSelectedProduct} />
             </div>
             <div className="bg-white rounded-2xl border border-steel-100 shadow-sm overflow-hidden flex flex-col">
               <CartPanel
@@ -918,6 +1038,13 @@ export function CajaPage() {
       {cobroOrden && <CobroModal orden={cobroOrden} onConfirm={handleConfirmarPago} onClose={() => setCobroOrden(null)} />}
       {facturaOrden && <FacturaModal orden={facturaOrden} onClose={() => setFacturaOrden(null)} />}
       {cancelarOrden && <CancelarOrdenModal orden={cancelarOrden} onConfirm={handleConfirmarCancelar} onClose={() => setCancelarOrden(null)} />}
+      {selectedProduct && (
+        <ProductDetailModal
+          producto={selectedProduct}
+          onAdd={addToCart}
+          onClose={() => setSelectedProduct(null)}
+        />
+      )}
     </MainLayout>
   )
 }

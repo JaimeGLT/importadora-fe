@@ -3,7 +3,7 @@
  * Todos los componentes deben usar gql() — nunca fetch() directo.
  */
 
-const GQL_URL = import.meta.env.VITE_GQL_URL ?? 'http://localhost:4000/graphql'
+const GQL_URL = import.meta.env.VITE_GQL_URL ?? 'http://localhost:5173/graphql'
 
 export async function gql<T = unknown>(
   query: string,
