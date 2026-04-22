@@ -119,17 +119,24 @@ export interface EvaluacionProveedor {
 
 // ─── Préstamos ────────────────────────────────────────────────────────────────
 
-export interface Prestamo {
-  id: string
+export type EstadoPrestamo = 'activo' | 'cancelado' | 'devuelto'
+
+export interface ItemPrestamo {
   producto_id: string
   producto_nombre: string
   producto_codigo: string
   cantidad: number
-  prestado_a: string
   precio_unitario: number
   precio_total: number
+}
+
+export interface Prestamo {
+  id: string
+  items: ItemPrestamo[]
+  prestado_a: string
   fecha: string
   notas: string
+  estado: EstadoPrestamo
   creado_en: string
 }
 

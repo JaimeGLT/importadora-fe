@@ -13,11 +13,11 @@ import {
 import { usePrestamosStore } from '@/stores/prestamosStore'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
-import { Button, Input, TablePagination } from '@/components/ui'
+import { Button, Input, TablePagination, ConfirmModal, Modal } from '@/components/ui'
 import { NuevoPrestamoModal } from './NuevoPrestamoModal'
 import { MOCK_PRESTAMOS } from '@/mock/prestamos'
 import { MOCK_PRODUCTOS, MOCK_PROVEEDORES } from '@/mock/inventario'
-import type { Prestamo } from '@/types'
+import type { Prestamo, ItemPrestamo } from '@/types'
 import { notify } from '@/lib/notify'
 import { clsx } from 'clsx'
 
@@ -90,8 +90,7 @@ function TableSkeleton() {
           <div className="h-4 w-24 rounded bg-steel-100" />
           <div className="h-4 w-12 rounded bg-steel-100" />
           <div className="h-4 w-20 rounded bg-steel-100" />
-          <div className="h-4 w-20 rounded bg-steel-100" />
-          <div className="h-4 w-24 rounded bg-steel-50" />
+          <div className="h-4 w-20 rounded bg-steel-50" />
         </div>
       ))}
     </div>
@@ -135,14 +134,18 @@ const colHelper = createColumnHelper<Prestamo>()
 
 export function PrestamosPage() {
   const [modalOpen, setModalOpen] = useState(false)
+  const [cancelModalOpen, setCancelModalOpen] = useState(false)
+  const [prestamoToCancel, setPrestamoToCancel] = useState<Prestamo | null>(null)
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
+  const [prestamoToDetail, setPrestamoToDetail] = useState<Prestamo | null>(null)
+  const [filterTab, setFilterTab] = useState<'todos' | 'activo' | 'cancelado'>('activo')
   const [loading, setLoading] = useState(true)
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
 
-  const { prestamos, setPrestamos, addPrestamo } = usePrestamosStore()
+  const { prestamos, setPrestamos, addPrestamo, cancelarPrestamo } = usePrestamosStore()
   const { productos, setProductos, setProveedores } = useInventarioStore()
 
-  // Cargar datos
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -159,46 +162,94 @@ export function PrestamosPage() {
     return () => { cancelled = true; clearTimeout(timer) }
   }, [prestamos.length, productos.length, setPrestamos, setProductos, setProveedores])
 
-  // Handler
-  const handleSave = (data: Omit<Prestamo, 'id' | 'creado_en'>) => {
-    const nuevo: Prestamo = { ...data, id: crypto.randomUUID(), creado_en: new Date().toISOString() }
+  const handleSave = (items: ItemPrestamo[], prestado_a: string, fecha: string, notas: string) => {
+    const total = items.reduce((s, i) => s + i.precio_total, 0)
+    const nuevo: Prestamo = {
+      id: crypto.randomUUID(),
+      items,
+      prestado_a,
+      fecha,
+      notas,
+      estado: 'activo',
+      creado_en: new Date().toISOString(),
+    }
     addPrestamo(nuevo)
-    const updated = productos.map((p) =>
-      p.id === nuevo.producto_id
-        ? { ...p, stock: p.stock - nuevo.cantidad, actualizado_en: new Date().toISOString() }
-        : p,
-    )
-    setProductos(updated, updated.length)
+    items.forEach((item) => {
+      const updated = productos.map((p) =>
+        p.id === item.producto_id
+          ? { ...p, stock: p.stock - item.cantidad, actualizado_en: new Date().toISOString() }
+          : p,
+      )
+      setProductos(updated, updated.length)
+    })
     notify.success('Préstamo registrado')
     setModalOpen(false)
   }
 
-  // KPIs
-  const kpi = useMemo(() => ({
-    total: prestamos.length,
-    totalBs: prestamos.reduce((s, p) => s + p.precio_total, 0),
-    pendientes: prestamos.filter((p) => {
-      const days = (Date.now() - new Date(p.fecha).getTime()) / (1000 * 60 * 60 * 24)
-      return days > 7
-    }).length,
-  }), [prestamos])
+  const handleCancel = () => {
+    if (!prestamoToCancel) return
+    cancelarPrestamo(prestamoToCancel.id)
+    prestamoToCancel.items.forEach((item) => {
+      const updated = productos.map((p) =>
+        p.id === item.producto_id
+          ? { ...p, stock: p.stock + item.cantidad, actualizado_en: new Date().toISOString() }
+          : p,
+      )
+      setProductos(updated, updated.length)
+    })
+    notify.success('Préstamo cancelado')
+    setCancelModalOpen(false)
+    setPrestamoToCancel(null)
+  }
 
-  // Columns
+  const openCancelModal = (prestamo: Prestamo) => {
+    setPrestamoToCancel(prestamo)
+    setCancelModalOpen(true)
+  }
+
+  const openDetailModal = (prestamo: Prestamo) => {
+    setPrestamoToDetail(prestamo)
+    setDetailModalOpen(true)
+  }
+
+  const filteredPrestamos = useMemo(() => {
+    if (filterTab === 'todos') return prestamos
+    return prestamos.filter((p) => p.estado === filterTab)
+  }, [prestamos, filterTab])
+
+  const kpi = useMemo(() => {
+    const activos = prestamos.filter((p) => p.estado === 'activo')
+    return {
+      total: activos.length,
+      totalBs: activos.reduce((s, p) => s + p.items.reduce((si, i) => si + i.precio_total, 0), 0),
+      pendientes: activos.filter((p) => {
+        const days = (Date.now() - new Date(p.fecha).getTime()) / (1000 * 60 * 60 * 24)
+        return days > 7
+      }).length,
+    }
+  }, [prestamos])
+
   const columns = useMemo(() => [
-    colHelper.accessor('producto_nombre', {
-      header: 'Producto',
+    colHelper.accessor('items', {
+      header: 'Productos',
       size: 280,
       meta: { align: 'left' },
       cell: (info) => {
-        const p = info.row.original
+        const items = info.getValue()
+        const first = items[0]
         return (
           <div>
             <div className="flex items-center gap-1.5 mb-1">
               <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-brand-600 text-white text-[10px] font-mono font-bold">
-                {p.producto_codigo}
+                {first.producto_codigo}
               </span>
+              {items.length > 1 && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-steel-100 text-[10px] font-semibold text-steel-600">
+                  +{items.length - 1}
+                </span>
+              )}
             </div>
-            <p className="text-[11px] text-steel-500 truncate">{p.producto_nombre}</p>
+            <p className="text-[11px] text-steel-500 truncate">{first.producto_nombre}</p>
           </div>
         )
       },
@@ -211,31 +262,29 @@ export function PrestamosPage() {
         <span className="text-sm font-medium text-steel-700">{info.getValue()}</span>
       ),
     }),
-    colHelper.accessor('cantidad', {
+    colHelper.accessor('items', {
       header: 'Cant.',
       size: 80,
       meta: { align: 'center' },
-      cell: (info) => (
-        <span className="inline-flex items-center justify-center w-8 h-6 rounded-lg bg-steel-100 text-sm font-bold text-steel-700">
-          {info.getValue()}
-        </span>
-      ),
+      cell: (info) => {
+        const total = info.getValue().reduce((s, i) => s + i.cantidad, 0)
+        return (
+          <span className="inline-flex items-center justify-center w-8 h-6 rounded-lg bg-steel-100 text-sm font-bold text-steel-700">
+            {total}
+          </span>
+        )
+      },
     }),
-    colHelper.accessor('precio_unitario', {
-      header: 'P. Unitario',
-      size: 100,
-      meta: { align: 'right' },
-      cell: (info) => (
-        <span className="text-sm text-steel-600 tabular-nums">Bs {info.getValue().toFixed(2)}</span>
-      ),
-    }),
-    colHelper.accessor('precio_total', {
+    colHelper.accessor('items', {
       header: 'Total',
       size: 100,
       meta: { align: 'right' },
-      cell: (info) => (
-        <span className="text-sm font-bold text-steel-900 tabular-nums">Bs {info.getValue().toFixed(2)}</span>
-      ),
+      cell: (info) => {
+        const total = info.getValue().reduce((s, i) => s + i.precio_total, 0)
+        return (
+          <span className="text-sm font-bold text-steel-900 tabular-nums">Bs {total.toFixed(2)}</span>
+        )
+      },
     }),
     colHelper.accessor('fecha', {
       header: 'Fecha',
@@ -247,6 +296,24 @@ export function PrestamosPage() {
         </span>
       ),
     }),
+    colHelper.accessor('estado', {
+      header: 'Estado',
+      size: 100,
+      meta: { align: 'center' },
+      cell: (info) => {
+        const estado = info.getValue()
+        return (
+          <span className={clsx(
+            'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold',
+            estado === 'activo' && 'bg-emerald-100 text-emerald-700',
+            estado === 'cancelado' && 'bg-red-100 text-red-700',
+            estado === 'devuelto' && 'bg-blue-100 text-blue-700',
+          )}>
+            {estado.charAt(0).toUpperCase() + estado.slice(1)}
+          </span>
+        )
+      },
+    }),
     colHelper.accessor('notas', {
       header: 'Notas',
       size: 150,
@@ -257,24 +324,46 @@ export function PrestamosPage() {
         </span>
       ),
     }),
+    colHelper.display({
+      id: 'actions',
+      header: '',
+      size: 80,
+      meta: { align: 'right' },
+      cell: (info) => {
+        const prestamo = info.row.original
+        if (prestamo.estado !== 'activo') return null
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+              openCancelModal(prestamo)
+            }}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-colors"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )
+      },
+    }),
   ], [])
 
-  // Custom global filter
   const globalFilterFn = (row: { original: Prestamo }, _columnId: string, filterValue: string): boolean => {
     const p = row.original
     const search = filterValue.toLowerCase().trim()
     if (!search) return true
     return (
-      p.producto_nombre.toLowerCase().includes(search) ||
-      p.producto_codigo.toLowerCase().includes(search) ||
+      p.items.some((i) => i.producto_nombre.toLowerCase().includes(search) || i.producto_codigo.toLowerCase().includes(search)) ||
       p.prestado_a.toLowerCase().includes(search) ||
       p.notas?.toLowerCase().includes(search)
     )
   }
 
-  // Table
   const table = useReactTable({
-    data: prestamos,
+    data: filteredPrestamos,
     columns,
     state: { sorting, globalFilter },
     onSortingChange: setSorting,
@@ -298,7 +387,6 @@ export function PrestamosPage() {
     <MainLayout>
       <PageContainer>
 
-        {/* Header */}
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
             <p className="text-[11px] font-bold text-steel-400 uppercase tracking-widest mb-1">
@@ -315,13 +403,12 @@ export function PrestamosPage() {
           </Button>
         </div>
 
-        {/* KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <KpiCard dark
             icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>}
-            label="Total préstamos"
+            label="Préstamos activos"
             value={kpi.total}
-            sub="registros activos"
+            sub="registros"
           />
           <KpiCard
             icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
@@ -337,11 +424,27 @@ export function PrestamosPage() {
           />
         </div>
 
-        {/* Table */}
         <Card>
-          {/* Toolbar */}
           <div className="px-5 pt-5 pb-4 border-b border-steel-100 flex flex-col sm:flex-row sm:items-center gap-3">
-            <SectionTitle>Lista de préstamos</SectionTitle>
+            <div className="flex items-center gap-4">
+              <SectionTitle>Lista de préstamos</SectionTitle>
+              <div className="flex items-center gap-1 bg-steel-100 rounded-lg p-0.5">
+                {(['todos', 'activo', 'cancelado'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setFilterTab(tab)}
+                    className={clsx(
+                      'px-3 py-1.5 text-xs font-semibold rounded-md transition-all',
+                      filterTab === tab
+                        ? 'bg-white text-steel-900 shadow-sm'
+                        : 'text-steel-500 hover:text-steel-700'
+                    )}
+                  >
+                    {tab === 'todos' ? 'Todos' : tab === 'activo' ? 'Prestados' : 'Cancelados'}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex-1" />
             <div className="flex items-center gap-3">
               <div className="w-72">
@@ -356,7 +459,7 @@ export function PrestamosPage() {
                     </svg>
                   }
                 />
-              </div>
+                </div>
               {globalFilter && (
                 <span className="text-xs font-semibold text-steel-500 bg-steel-100 px-2.5 py-1 rounded-full whitespace-nowrap">
                   {filteredCount} resultado{filteredCount !== 1 ? 's' : ''}
@@ -365,7 +468,6 @@ export function PrestamosPage() {
             </div>
           </div>
 
-          {/* Table content */}
           {loading ? (
             <TableSkeleton />
           ) : prestamos.length === 0 ? (
@@ -408,7 +510,19 @@ export function PrestamosPage() {
                 </thead>
                 <tbody className="divide-y divide-steel-50">
                   {table.getRowModel().rows.map((row) => (
-                    <tr key={row.id} className="group hover:bg-[#FAFAF9] transition-colors">
+                    <tr
+                      key={row.id}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openDetailModal(row.original)
+                      }}
+                      className={clsx(
+                        'group transition-all cursor-pointer',
+                        row.original.estado === 'cancelado'
+                          ? 'hover:bg-red-50 hover:shadow-[inset_0_0_0_2px_#dc2626]'
+                          : 'hover:bg-brand-50 hover:shadow-[inset_0_0_0_2px_#dc2626]'
+                      )}
+                    >
                       {row.getVisibleCells().map((cell) => {
                         const align = (cell.column.columnDef.meta as ColumnMeta<Prestamo, unknown> | undefined)?.align ?? 'left'
                         return (
@@ -431,7 +545,6 @@ export function PrestamosPage() {
             </div>
           )}
 
-          {/* Footer */}
           {!loading && prestamos.length > 0 && (
             <div className="px-5 py-4 border-t border-steel-100">
               <TablePagination table={table} totalRows={filteredCount} />
@@ -447,6 +560,66 @@ export function PrestamosPage() {
         onSave={handleSave}
         productos={productos}
       />
+
+      <ConfirmModal
+        open={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        onConfirm={handleCancel}
+        title="Cancelar préstamo"
+        message={`¿Cancelar el préstamo a "${prestamoToCancel?.prestado_a}"? Se devolverá el stock al inventario.`}
+        confirmText="Cancelar préstamo"
+        variant="danger"
+      />
+
+      <Modal
+        open={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        title={`Préstamo a ${prestamoToDetail?.prestado_a}`}
+        size="md"
+      >
+        {prestamoToDetail && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm text-steel-500">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 01225-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+              </svg>
+              <span>
+                {new Date(prestamoToDetail.fecha).toLocaleDateString('es-BO', { day: '2-digit', month: 'long', year: 'numeric' })}
+              </span>
+            </div>
+
+            {prestamoToDetail.notas && (
+              <p className="text-xs text-steel-400 bg-steel-50 px-3 py-2 rounded-lg">{prestamoToDetail.notas}</p>
+            )}
+
+            <div className="divide-y divide-steel-100 border-y border-steel-100">
+              {prestamoToDetail.items.map((item) => (
+                <div key={item.producto_id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="font-mono text-sm bg-brand-600 text-white px-2 py-0.5 rounded">
+                        {item.producto_codigo}
+                      </span>
+                    </div>
+                    <p className="text-xs text-steel-500 truncate">{item.producto_nombre}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs text-steel-400">Bs {item.precio_unitario.toFixed(2)} × {item.cantidad}</p>
+                    <p className="text-sm font-bold text-steel-900">Bs {item.precio_total.toFixed(2)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-steel-200">
+              <span className="text-sm font-semibold text-steel-600">Total</span>
+              <span className="text-lg font-black text-steel-900">
+                Bs {prestamoToDetail.items.reduce((s, i) => s + i.precio_total, 0).toFixed(2)}
+              </span>
+            </div>
+          </div>
+        )}
+      </Modal>
     </MainLayout>
   )
 }
