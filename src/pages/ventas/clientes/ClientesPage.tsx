@@ -208,7 +208,7 @@ interface RowProps {
   onHistorial: () => void
 }
 
-function ClienteRow({ cliente, onToggle, onEdit, onDelete, onHistorial }: RowProps) {
+function ClienteRow({ cliente, onEdit, onDelete, onHistorial }: RowProps) {
   const ciDisplay = cliente.ci
     ? cliente.ciComplemento
       ? `${cliente.ci}-${cliente.ciComplemento}`
