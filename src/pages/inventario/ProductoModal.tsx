@@ -27,6 +27,7 @@ const EMPTY: FormData = {
   stock_minimo: 5,
   precio_costo: 0,
   precio_venta: 0,
+  conversionABs: 6.96,
   historial_precios: [],
   ubicacion: 'Almacén Central',
   estado: 'activo',
@@ -50,6 +51,7 @@ export function ProductoModal({
 
   useEffect(() => {
     if (!open) return
+const tc = producto?.conversionABs ?? 6.96
     if (producto) {
       setForm({
         codigo_universal:     producto.codigo_universal,
@@ -64,13 +66,13 @@ export function ProductoModal({
         stock_minimo:         producto.stock_minimo,
         precio_costo:         producto.precio_costo,
         precio_venta:         producto.precio_venta,
+        conversionABs:        tc,
         historial_precios:    producto.historial_precios,
         ubicacion:            producto.ubicacion,
         estado:               producto.estado,
         proveedor_id:         producto.proveedor_id,
       })
-      // Cargar tipo de cambio del producto
-      setTipoCambio(String(producto.conversionABs ?? 6.96))
+      setTipoCambio(String(tc))
     } else {
       setForm({ ...EMPTY, proveedor_id: proveedores[0]?.id ?? '' })
       setTipoCambio('6.96')
@@ -312,7 +314,7 @@ export function ProductoModal({
               type="number"
               step="0.01"
               value={tipoCambio}
-              onChange={(e) => { setTipoCambio(e.target.value); setErrors((er) => ({ ...er, tipo_cambio: undefined })) }}
+              onChange={(e) => { setTipoCambio(e.target.value); set('conversionABs', parseFloat(e.target.value) || 6.96); setErrors((er) => ({ ...er, tipo_cambio: undefined })) }}
               error={errors.tipo_cambio}
               hint="Se guarda en el historial de precios"
             />

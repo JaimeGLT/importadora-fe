@@ -215,7 +215,8 @@ export interface Filters {
 
 // ─── Ventas ───────────────────────────────────────────────────────────────────
 
-export type EstadoOrden = 'pendiente' | 'en_preparacion' | 'listo' | 'pagado' | 'cancelado'
+export type EstadoOrden = 'pendiente' | 'en_preparacion' | 'listo' | 'pagado' | 'cancelado' | 'reservado'
+export type TipoOrden = 'venta' | 'reserva'
 export type EstadoItemOrden = 'pendiente' | 'completo' | 'parcial' | 'faltante'
 export type MetodoPago = 'efectivo' | 'tarjeta' | 'qr'
 
@@ -236,6 +237,8 @@ export interface ItemOrden {
 export interface OrdenVenta {
   id: string
   numero: string
+  tipo: TipoOrden
+  cliente_nombre?: string
   cajero_id: string
   cajero_nombre: string
   almacenero_id?: string
@@ -251,4 +254,5 @@ export interface OrdenVenta {
   aceptado_en?: string
   listo_en?: string
   pagado_en?: string
+  caduca_en?: string
 }

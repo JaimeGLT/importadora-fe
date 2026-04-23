@@ -422,6 +422,9 @@ export function InventarioPage() {
               )}
             </div>
             <p className="text-[11px] text-steel-400 truncate">{p.nombre}</p>
+            {p.descripcion && (
+              <p className="text-[10px] text-steel-300 truncate mt-0.5">{p.descripcion}</p>
+            )}
           </div>
         )
       },

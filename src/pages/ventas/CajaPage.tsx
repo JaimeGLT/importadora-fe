@@ -7,7 +7,8 @@ import { notify } from '@/lib/notify'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { useVentasStore } from '@/stores/ventasStore'
 import { useSoundAlert } from '@/hooks/useSoundAlert'
-import type { Producto, OrdenVenta, ItemOrden, MetodoPago, EstadoOrden } from '@/types'
+import { useConfigStore, calcularPrecioConDescuento } from '@/stores/configStore'
+import type { Producto, OrdenVenta, ItemOrden, MetodoPago, EstadoOrden, DescuentoConfig } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -40,15 +41,21 @@ interface CartItem {
   producto_ubicacion: string
   cantidad: number
   precio_unitario: number
+  precio_base: number
   producto_imagen?: string
+  descuento_id?: string
+  descuento_nombre?: string
+  descuento_porcentaje?: number
 }
 
 interface Cart {
   items: CartItem[]
   nota: string
+  tipo: 'venta' | 'reserva'
+  cliente_nombre: string
 }
 
-const emptyCart = (): Cart => ({ items: [], nota: '' })
+const emptyCart = (): Cart => ({ items: [], nota: '', tipo: 'venta', cliente_nombre: '' })
 
 // ─── FlyingBall ────────────────────────────────────────────────────────────────
 
@@ -125,9 +132,147 @@ function FlyingBall({ fromRect, toRect, itemCount, onComplete }: FlyingBallProps
   )
 }
 
+// ─── Select Price Modal ─────────────────────────────────────────────────────────
+
+const COLOR_STYLES: Record<string, { bg: string; text: string; border: string }> = {
+  emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+  blue:    { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200' },
+  amber:   { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200' },
+  purple:  { bg: 'bg-purple-50',  text: 'text-purple-700',  border: 'border-purple-200' },
+  rose:    { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200' },
+  cyan:    { bg: 'bg-cyan-50',    text: 'text-cyan-700',    border: 'border-cyan-200' },
+}
+
+function SelectPriceModal({
+  producto,
+  descuentos,
+  onSelect,
+  onAddAnother,
+  isEdit,
+  onClose,
+}: {
+  producto: Producto
+  descuentos: DescuentoConfig[]
+  onSelect: (precio: number, descuento_id?: string, descuento_nombre?: string, descuento_porcentaje?: number) => void
+  onAddAnother?: (precio: number, descuento_id?: string, descuento_nombre?: string, descuento_porcentaje?: number) => void
+  isEdit?: boolean
+  onClose: () => void
+}) {
+  const activeDescuentos = descuentos.filter(d => d.activo)
+  const precioBase = producto.precio_venta
+  const allCodes = [producto.codigo_universal, ...producto.codigos_alternativos.filter(Boolean)]
+
+  return (
+    <Modal open onClose={onClose} title={isEdit ? 'Cambiar precio' : 'Seleccionar precio'} size="sm">
+      <div className="space-y-4">
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-steel-50 border border-steel-100">
+          {producto.imagen ? (
+            <img src={producto.imagen} alt={producto.nombre} className="h-14 w-14 rounded-lg object-cover bg-white border border-steel-100 shrink-0" />
+          ) : (
+            <div className="h-14 w-14 rounded-lg bg-white border border-steel-100 flex items-center justify-center shrink-0">
+              <svg className="h-6 w-6 text-steel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap gap-1 mb-1">
+              {allCodes.slice(0, 3).map((code, i) => (
+                <span key={i} className={clsx(
+                  'inline-flex items-center px-2 py-0.5 rounded font-mono font-black text-xs',
+                  i === 0 ? 'bg-brand-600 text-white' : 'bg-steel-800 text-steel-100'
+                )}>
+                  {code}
+                </span>
+              ))}
+            </div>
+            <p className="text-sm font-medium text-steel-700 truncate">{producto.nombre}</p>
+            {producto.marca && <p className="text-[10px] text-steel-400 mt-0.5">{producto.marca}</p>}
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <p className="text-[10px] font-bold text-steel-400 uppercase tracking-widest px-1">Precios disponibles</p>
+
+          <button
+            onClick={() => (isEdit ? onAddAnother : onSelect)(precioBase)}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border-2 border-steel-200 hover:border-brand-600 hover:bg-brand-50 transition-all"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-steel-700">Precio base</span>
+              <span className="text-[10px] text-steel-400">Sin dto.</span>
+            </div>
+            <span className="text-base font-black text-steel-900">{fmtBs(precioBase)}</span>
+          </button>
+
+          {activeDescuentos.map(d => {
+            const styles = COLOR_STYLES[d.color] || COLOR_STYLES.emerald
+            const precioConDescuento = calcularPrecioConDescuento(precioBase, d.porcentaje)
+            return (
+              <button
+                key={d.id}
+                onClick={() => (isEdit ? onAddAnother : onSelect)(precioConDescuento, d.id, d.nombre, d.porcentaje)}
+                className={clsx(
+                  'w-full flex items-center justify-between px-3 py-2.5 rounded-xl border-2 transition-all hover:shadow-md',
+                  styles.bg, styles.border
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={clsx('font-bold text-sm', styles.text)}>{d.nombre}</span>
+                  <span className={clsx('text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/70', styles.text)}>-{d.porcentaje}%</span>
+                </div>
+                <div className="text-right">
+                  <span className={clsx('text-base font-black', styles.text)}>{fmtBs(precioConDescuento)}</span>
+                  <p className="text-[10px] text-steel-400 line-through">Bs {precioBase.toFixed(2)}</p>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        {isEdit && onAddAnother && (
+          <div className="border-t border-steel-200 pt-4">
+            <p className="text-[10px] font-semibold text-steel-400 uppercase tracking-widest px-1 mb-2">¿Actualizar precio y agregar más?</p>
+            <div className="space-y-1.5">
+              <button
+                onClick={() => onAddAnother(precioBase)}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-steel-200 hover:border-brand-600 hover:bg-brand-50 transition-all text-sm"
+              >
+                <span className="font-medium text-steel-700">Precio base</span>
+                <span className="font-bold text-steel-800">{fmtBs(precioBase)}</span>
+              </button>
+              {activeDescuentos.map(d => {
+                const styles = COLOR_STYLES[d.color] || COLOR_STYLES.emerald
+                const precioConDescuento = calcularPrecioConDescuento(precioBase, d.porcentaje)
+                return (
+                  <button
+                    key={d.id}
+                    onClick={() => onAddAnother(precioConDescuento, d.id, d.nombre, d.porcentaje)}
+                    className={clsx('w-full flex items-center justify-between px-3 py-2 rounded-xl border transition-all', styles.bg, styles.border)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={clsx('font-bold text-sm', styles.text)}>{d.nombre}</span>
+                      <span className={clsx('text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/70', styles.text)}>-{d.porcentaje}%</span>
+                    </div>
+                    <span className={clsx('font-black text-sm', styles.text)}>{fmtBs(precioConDescuento)}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        <Button variant="secondary" onClick={onClose} className="w-full">
+          {isEdit ? 'Cerrar' : 'Cancelar'}
+        </Button>
+      </div>
+    </Modal>
+  )
+}
+
 // ─── ProductSearch ─────────────────────────────────────────────────────────────
 
-function ProductSearch({ onAddToCart }: { onAddToCart: (producto: Producto) => void }) {
+function ProductSearch({ onSelectProducto }: { onSelectProducto: (producto: Producto) => void }) {
   const productos = useInventarioStore(s => s.productos)
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -204,11 +349,11 @@ function ProductSearch({ onAddToCart }: { onAddToCart: (producto: Producto) => v
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-steel-800 truncate">{p.nombre}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[11px] font-mono text-steel-400">{p.codigo_universal}</span>
-                      {p.marca && <span className="text-[11px] text-steel-400">· {p.marca}</span>}
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="font-mono text-sm font-black text-brand-600 bg-brand-50 px-2 py-0.5 rounded">{p.codigo_universal}</span>
                     </div>
+                    <p className="text-sm font-medium text-steel-600 truncate">{p.nombre}</p>
+                    {p.marca && <p className="text-[10px] text-steel-400 mt-0.5">{p.marca}</p>}
                     <div className="flex items-center gap-3 mt-1">
                       <span className={`text-[11px] font-semibold ${stockCls}`}>{disp} disponibles</span>
                       {p.ubicacion && <span className="text-[11px] text-steel-400">📦 {p.ubicacion}</span>}
@@ -217,7 +362,7 @@ function ProductSearch({ onAddToCart }: { onAddToCart: (producto: Producto) => v
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
                     <span className="text-sm font-bold text-steel-900">{fmtBs(p.precio_venta)}</span>
                     <button
-                      onClick={() => onAddToCart(p)}
+                      onClick={() => onSelectProducto(p)}
                       disabled={disp === 0}
                       className={clsx('h-7 w-7 rounded-lg flex items-center justify-center transition-all', disp === 0 ? 'bg-steel-100 text-steel-300 cursor-not-allowed' : 'bg-brand-600 text-white hover:bg-brand-700 opacity-0 group-hover:opacity-100')}
                     >
@@ -236,18 +381,130 @@ function ProductSearch({ onAddToCart }: { onAddToCart: (producto: Producto) => v
   )
 }
 
-// ─── CartPanel ────────────────────────────────────────────────────────────────
+// ─── Cart Item ────────────────────────────────────────────────────────────────
 
-interface CartPanelProps {
-  cart: Cart
+function CartItem({
+  item,
+  idx,
+  disp,
+  onQtyChange,
+  onRemoveItem,
+  onEditPrice,
+}: {
+  item: CartItem
+  idx: number
+  disp: number
   onQtyChange: (itemIdx: number, delta: number) => void
   onRemoveItem: (itemIdx: number) => void
-  onNotaChange: (nota: string) => void
-  onEmitir: () => void
-  emitButtonRef?: (el: HTMLButtonElement | null) => void
+  onEditPrice: (producto_id: string) => void
+}) {
+  const [editingQty, setEditingQty] = useState(false)
+  const [qtyValue, setQtyValue] = useState(String(item.cantidad))
+
+  return (
+    <div className="px-4 py-3">
+      <div className="flex items-start gap-3">
+        {item.producto_imagen ? (
+          <img src={item.producto_imagen} alt={item.producto_nombre} className="h-12 w-12 rounded-lg object-cover bg-steel-100 border shrink-0" />
+        ) : (
+          <div className="h-12 w-12 rounded-lg bg-steel-100 border shrink-0 flex items-center justify-center">
+            <svg className="h-5 w-5 text-steel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {item.descuento_nombre ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono text-sm font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded">{item.producto_codigo}</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">{item.descuento_nombre} -{item.descuento_porcentaje}%</span>
+                </div>
+              ) : (
+                <span className="font-mono text-sm font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded">{item.producto_codigo}</span>
+              )}
+            </div>
+            <button
+              onClick={() => onEditPrice(item.producto_id)}
+              className="p-1.5 text-steel-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+              title="Cambiar precio"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+          </div>
+          <p className="text-xs text-steel-500 mt-0.5 truncate">{item.producto_nombre}</p>
+          <div className="flex items-center justify-between mt-2">
+            <div className="flex items-center gap-1">
+              <button onClick={() => onQtyChange(idx, -1)} className="h-7 w-7 rounded-lg border border-steel-200 text-steel-600 hover:bg-steel-100 flex items-center justify-center text-base font-bold transition-colors">−</button>
+              {editingQty ? (
+                <input
+                  type="number"
+                  min={1}
+                  max={disp}
+                  value={qtyValue}
+                  autoFocus
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/[^0-9]/g, '')
+                    if (raw) {
+                      const num = parseInt(raw, 10)
+                      const clamped = Math.max(1, Math.min(disp, num))
+                      setQtyValue(String(clamped))
+                    } else {
+                      setQtyValue('')
+                    }
+                  }}
+                  onBlur={() => {
+                    const parsed = parseInt(qtyValue, 10)
+                    const newQty = isNaN(parsed) ? item.cantidad : Math.max(1, Math.min(disp, parsed))
+                    setQtyValue(String(newQty))
+                    if (newQty !== item.cantidad) {
+                      const delta = newQty - item.cantidad
+                      onQtyChange(idx, delta)
+                    }
+                    setEditingQty(false)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur()
+                    } else if (e.key === 'Escape') {
+                      setQtyValue(String(item.cantidad))
+                      setEditingQty(false)
+                    }
+                  }}
+                  className="w-14 h-7 px-2 text-center text-sm font-bold border border-brand-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              ) : (
+                <button
+                  onClick={() => {
+                    setQtyValue(String(item.cantidad))
+                    setEditingQty(true)
+                  }}
+                  className="h-7 w-10 text-center text-sm font-bold text-steel-800 hover:bg-steel-50 rounded-lg transition-colors"
+                >
+                  {item.cantidad}
+                </button>
+              )}
+              <button onClick={() => onQtyChange(idx, +1)} disabled={item.cantidad >= disp} className={clsx('h-7 w-7 rounded-lg border flex items-center justify-center text-base font-bold transition-colors', item.cantidad >= disp ? 'border-steel-100 text-steel-300 cursor-not-allowed' : 'border-steel-200 text-steel-600 hover:bg-steel-100')}>+</button>
+            </div>
+            <span className="text-sm font-bold text-steel-900">{fmtBs(item.precio_unitario * item.cantidad)}</span>
+          </div>
+        </div>
+        <button onClick={() => onRemoveItem(idx)} className="text-steel-300 hover:text-red-500 transition-colors shrink-0">
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  )
 }
 
-function CartPanel({ cart, onQtyChange, onRemoveItem, onNotaChange, onEmitir, emitButtonRef }: CartPanelProps) {
+// ─── CartPanel ────────────────────────────────────────────────────────────────
+
+function CartPanel({ cart, onQtyChange, onRemoveItem, onNotaChange, onEmitir, onEditPrice, emitButtonRef, onTipoChange, onClienteChange }: { cart: Cart; onQtyChange: (itemIdx: number, delta: number) => void; onRemoveItem: (itemIdx: number) => void; onNotaChange: (nota: string) => void; onEmitir: () => void; onEditPrice: (producto_id: string) => void; emitButtonRef?: (el: HTMLButtonElement | null) => void; onTipoChange: (tipo: 'venta' | 'reserva') => void; onClienteChange: (nombre: string) => void }) {
   const productos = useInventarioStore(s => s.productos)
   const stockDisponible = (id: string) => {
     const p = productos.find(x => x.id === id)
@@ -259,6 +516,32 @@ function CartPanel({ cart, onQtyChange, onRemoveItem, onNotaChange, onEmitir, em
     <div className="flex flex-col h-full">
       <div className="px-4 py-3 border-b border-steel-100 shrink-0">
         <p className="text-[10px] font-bold text-steel-400 uppercase tracking-widest">Carrito de venta</p>
+      </div>
+      <div className="px-4 py-2 border-b border-steel-100 shrink-0">
+        <div className="flex gap-1 bg-steel-100 rounded-xl p-1">
+          <button
+            onClick={() => onTipoChange('venta')}
+            className={clsx('flex-1 py-2 text-xs font-bold rounded-lg transition-all', cart.tipo === 'venta' ? 'bg-white text-steel-800 shadow-sm' : 'text-steel-500 hover:text-steel-700')}
+          >
+            Venta
+          </button>
+          <button
+            onClick={() => onTipoChange('reserva')}
+            className={clsx('flex-1 py-2 text-xs font-bold rounded-lg transition-all', cart.tipo === 'reserva' ? 'bg-white text-steel-800 shadow-sm' : 'text-steel-500 hover:text-steel-700')}
+          >
+            Reserva
+          </button>
+        </div>
+        {cart.tipo === 'reserva' && (
+          <input
+            type="text"
+            value={cart.cliente_nombre}
+            onChange={e => onClienteChange(e.target.value)}
+            placeholder="Nombre del cliente"
+            className="w-full mt-2 text-xs px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-amber-400"
+            maxLength={60}
+          />
+        )}
       </div>
       <div className="flex-1 overflow-y-auto">
         {cart.items.length === 0 ? (
@@ -274,36 +557,15 @@ function CartPanel({ cart, onQtyChange, onRemoveItem, onNotaChange, onEmitir, em
             {cart.items.map((item, idx) => {
               const disp = stockDisponible(item.producto_id)
               return (
-                <div key={item.producto_id} className="px-4 py-3">
-                  <div className="flex items-start gap-3">
-                    {item.producto_imagen ? (
-                      <img src={item.producto_imagen} alt={item.producto_nombre} className="h-12 w-12 rounded-lg object-cover bg-steel-100 border shrink-0" />
-                    ) : (
-                      <div className="h-12 w-12 rounded-lg bg-steel-100 border shrink-0 flex items-center justify-center">
-                        <svg className="h-5 w-5 text-steel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                        </svg>
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-steel-800 leading-tight">{item.producto_nombre}</p>
-                      <p className="text-[11px] font-mono text-steel-400 mt-0.5">{item.producto_codigo}</p>
-                      <div className="flex items-center justify-between mt-2">
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => onQtyChange(idx, -1)} className="h-7 w-7 rounded-lg border border-steel-200 text-steel-600 hover:bg-steel-100 flex items-center justify-center text-base font-bold transition-colors">−</button>
-                          <span className="w-10 text-center text-sm font-bold text-steel-800">{item.cantidad}</span>
-                          <button onClick={() => onQtyChange(idx, +1)} disabled={item.cantidad >= disp} className={clsx('h-7 w-7 rounded-lg border flex items-center justify-center text-base font-bold transition-colors', item.cantidad >= disp ? 'border-steel-100 text-steel-300 cursor-not-allowed' : 'border-steel-200 text-steel-600 hover:bg-steel-100')}>+</button>
-                        </div>
-                        <span className="text-sm font-bold text-steel-900">{fmtBs(item.precio_unitario * item.cantidad)}</span>
-                      </div>
-                    </div>
-                    <button onClick={() => onRemoveItem(idx)} className="text-steel-300 hover:text-red-500 transition-colors shrink-0">
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+                <CartItem
+                  key={item.producto_id}
+                  item={item}
+                  idx={idx}
+                  disp={disp}
+                  onQtyChange={onQtyChange}
+                  onRemoveItem={onRemoveItem}
+                  onEditPrice={onEditPrice}
+                />
               )
             })}
           </div>
@@ -334,132 +596,193 @@ function CartPanel({ cart, onQtyChange, onRemoveItem, onNotaChange, onEmitir, em
 
 function OrdersModal({
   ordenes,
+  reservaciones,
   canceladas,
   onCobrar,
   onCancelar,
+  onClaim,
   open,
   onClose,
 }: {
   ordenes: OrdenVenta[]
+  reservaciones: OrdenVenta[]
   canceladas?: OrdenVenta[]
   onCobrar: (o: OrdenVenta) => void
   onCancelar: (o: OrdenVenta) => void
+  onClaim: (o: OrdenVenta) => void
   open: boolean
   onClose: () => void
 }) {
   const [showCanceladas, setShowCanceladas] = useState(false)
+  const [tab, setTab] = useState<'ordenes' | 'reservas'>('ordenes')
   const listos = ordenes.filter(o => o.estado === 'listo')
   const otras = ordenes.filter(o => o.estado !== 'listo' && o.estado !== 'pagado' && o.estado !== 'cancelado')
 
   return (
     <Modal open={open} onClose={onClose} title="Órdenes activas" size="lg">
-      <div className="space-y-4 pt-1 max-h-[70vh] overflow-y-auto">
-        {listos.length > 0 && (
-          <div>
-            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wide mb-2 flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-bounce" />
-              Listas para cobrar
-            </p>
-            <div className="space-y-2">
-              {listos.map(o => (
-                <div key={o.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-50 to-emerald-100 border-2 border-emerald-200">
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-lg bg-emerald-500 flex items-center justify-center text-white font-bold text-sm">{o.numero.replace('ORD-', '')}</div>
-                    <div>
-                      <p className="text-sm font-bold text-emerald-800">{o.numero}</p>
-                      <p className="text-xs text-emerald-600">{o.items.length} prod. · {fmtBs(o.total)}</p>
+      <div className="space-y-4 pt-1">
+        <div className="flex gap-1 bg-steel-100 rounded-xl p-1">
+          <button
+            onClick={() => setTab('ordenes')}
+            className={clsx('flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2', tab === 'ordenes' ? 'bg-white text-steel-800 shadow-sm' : 'text-steel-500 hover:text-steel-700')}
+          >
+            Órdenes
+            {ordenes.length > 0 && <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full text-[10px] font-black bg-steel-300 text-white">{ordenes.length}</span>}
+          </button>
+          <button
+            onClick={() => setTab('reservas')}
+            className={clsx('flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2', tab === 'reservas' ? 'bg-white text-steel-800 shadow-sm' : 'text-steel-500 hover:text-steel-700')}
+          >
+            Reservas
+            {reservaciones.length > 0 && <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full text-[10px] font-black bg-amber-400 text-white">{reservaciones.length}</span>}
+          </button>
+        </div>
+        <div className="max-h-[60vh] overflow-y-auto space-y-4">
+          {tab === 'ordenes' ? (
+            <>
+              {listos.length > 0 ? (
+                <div className="space-y-2">
+                  {listos.map(o => (
+                    <div key={o.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-50 to-emerald-100 border-2 border-emerald-200">
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-lg bg-emerald-500 flex items-center justify-center text-white font-bold text-sm">{o.numero.replace('ORD-', '')}</div>
+                        <div>
+                          <p className="text-sm font-bold text-emerald-800">{o.numero}</p>
+                          <p className="text-xs text-emerald-600">{o.items.length} prod. · {fmtBs(o.total)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => { onCobrar(o); onClose() }} className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors">Cobrar</button>
+                        <button onClick={() => { onCancelar(o); onClose() }} className="p-1.5 text-steel-400 hover:text-red-500">
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => { onCobrar(o); onClose() }} className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors">Cobrar</button>
-                    <button onClick={() => { onCancelar(o); onClose() }} className="p-1.5 text-steel-400 hover:text-red-500">
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <svg className="h-12 w-12 text-steel-200 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <p className="text-sm text-steel-500">No hay órdenes listas</p>
+                </div>
+              )}
+              {otras.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-steel-400 uppercase tracking-wide mb-2">En proceso</p>
+                  <div className="space-y-2">
+                    {otras.map(o => {
+                      const cfg = ESTADO_ORDEN_CONFIG[o.estado]
+                      const tieneFaltantes = o.items.some(i => i.estado === 'faltante')
+                      return (
+                        <div key={o.id} className={clsx('flex items-center justify-between px-4 py-3 rounded-xl border', tieneFaltantes ? 'bg-amber-50 border-amber-200' : 'bg-white border-steel-100')}>
+                          <div className="flex items-center gap-3">
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${cfg.cls}`}>{cfg.label}</span>
+                            <div>
+                              <p className="text-sm font-semibold text-steel-700">{o.numero}</p>
+                              <p className="text-xs text-steel-400">{o.items.length} prod. · {fmtBs(o.total)}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {tieneFaltantes && <span className="text-[10px] font-bold text-amber-600">⚠ faltantes</span>}
+                            <span className="text-[10px] text-steel-400">{fmtTimeSince(o.creado_en)}</span>
+                            <button onClick={() => { onCancelar(o); onClose() }} className="p-1.5 text-steel-400 hover:text-red-500">
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {otras.length > 0 && (
-          <div>
-            <p className="text-xs font-bold text-steel-400 uppercase tracking-wide mb-2">En proceso</p>
-            <div className="space-y-2">
-              {otras.map(o => {
-                const cfg = ESTADO_ORDEN_CONFIG[o.estado]
-                const tieneFaltantes = o.items.some(i => i.estado === 'faltante')
-                return (
-                  <div key={o.id} className={clsx('flex items-center justify-between px-4 py-3 rounded-xl border', tieneFaltantes ? 'bg-amber-50 border-amber-200' : 'bg-white border-steel-100')}>
-                    <div className="flex items-center gap-3">
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${cfg.cls}`}>{cfg.label}</span>
-                      <div>
-                        <p className="text-sm font-semibold text-steel-700">{o.numero}</p>
-                        <p className="text-xs text-steel-400">{o.items.length} prod. · {fmtBs(o.total)}</p>
-                      </div>
+              )}
+              {canceladas && canceladas.length > 0 && (
+                <div className="border-t border-steel-200 pt-3">
+                  <button
+                    onClick={() => setShowCanceladas(!showCanceladas)}
+                    className="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-steel-50 transition-colors"
+                  >
+                    <span className="text-xs font-bold text-steel-400 uppercase tracking-wide flex items-center gap-2">
+                      <svg className={clsx('h-4 w-4 transition-transform', showCanceladas && 'rotate-90')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                      Canceladas ({canceladas.length})
+                    </span>
+                  </button>
+                  {showCanceladas && (
+                    <div className="space-y-2 mt-2">
+                      {canceladas.map(o => (
+                        <div key={o.id} className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-red-50 border border-red-100 opacity-60">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-red-100 flex items-center justify-center">
+                              <svg className="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-red-700">{o.numero}</p>
+                              <p className="text-xs text-red-400">{o.items.length} prod. · {fmtBs(o.total)}</p>
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-red-400">{fmtTimeSince(o.creado_en)}</span>
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex items-center gap-2">
-                      {tieneFaltantes && <span className="text-[10px] font-bold text-amber-600">⚠ faltantes</span>}
-                      <span className="text-[10px] text-steel-400">{fmtTimeSince(o.creado_en)}</span>
-                      <button onClick={() => { onCancelar(o); onClose() }} className="p-1.5 text-steel-400 hover:text-red-500">
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {ordenes.length === 0 && (
-          <div className="text-center py-8">
-            <svg className="h-12 w-12 text-steel-200 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <p className="text-sm text-steel-500">No hay órdenes activas</p>
-          </div>
-        )}
-
-        {canceladas && canceladas.length > 0 && (
-          <div className="border-t border-steel-200 pt-4">
-            <button
-              onClick={() => setShowCanceladas(!showCanceladas)}
-              className="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-steel-50 transition-colors"
-            >
-              <span className="text-xs font-bold text-steel-400 uppercase tracking-wide flex items-center gap-2">
-                <svg className={clsx('h-4 w-4 transition-transform', showCanceladas && 'rotate-90')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-                Canceladas ({canceladas.length})
-              </span>
-            </button>
-            {showCanceladas && (
-              <div className="space-y-2 mt-2">
-                {canceladas.map(o => (
-                  <div key={o.id} className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-red-50 border border-red-100 opacity-60">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-red-100 flex items-center justify-center">
-                        <svg className="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {reservaciones.length > 0 ? (
+                <div className="space-y-2">
+                  {reservaciones.map(o => {
+                    const caduca = o.caduca_en ? new Date(o.caduca_en).getTime() : 0
+                    const expira = caduca - Date.now()
+                    const expiraStr = expira > 0 ? `${Math.ceil(expira / 60000)}min` : 'expirada'
+                    return (
+                      <div key={o.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-amber-50 border-2 border-amber-200">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-lg bg-amber-400 flex items-center justify-center text-white font-bold text-sm">{o.numero.replace('ORD-', '')}</div>
+                          <div>
+                            <p className="text-sm font-bold text-amber-800">{o.cliente_nombre}</p>
+                            <p className="text-xs text-amber-600">{o.items.length} prod. · {fmtBs(o.total)}</p>
+                            <p className="text-[10px] text-amber-500">Expira: {expiraStr}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => { onClaim(o); onClose() }}
+                            className="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 transition-colors"
+                          >
+                            Reclamar
+                          </button>
+                          <button onClick={() => { onCancelar(o); onClose() }} className="p-1.5 text-amber-400 hover:text-red-500">
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-red-700">{o.numero}</p>
-                        <p className="text-xs text-red-400">{o.items.length} prod. · {fmtBs(o.total)}</p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] text-red-400">{fmtTimeSince(o.creado_en)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <svg className="h-12 w-12 text-amber-200 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-sm text-amber-500">No hay reservaciones activas</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </Modal>
   )
@@ -720,8 +1043,13 @@ export function CajaPage() {
   const [parcialOrden, setParcialOrden] = useState<OrdenVenta | null>(null)
   const [facturaOrden, setFacturaOrden] = useState<OrdenVenta | null>(null)
   const [cancelarOrden, setCancelarOrden] = useState<OrdenVenta | null>(null)
+  const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null)
 
-  const misOrdenes = useMemo(() => ordenes.filter(o => o.estado !== 'pagado' && o.estado !== 'cancelado'), [ordenes])
+  const descuentos = useConfigStore(s => s.descuentos)
+  const productos = useInventarioStore(s => s.productos)
+
+  const misOrdenes = useMemo(() => ordenes.filter(o => o.estado !== 'pagado' && o.estado !== 'cancelado' && o.estado !== 'reservado'), [ordenes])
+  const reservaciones = useMemo(() => ordenes.filter(o => o.estado === 'reservado'), [ordenes])
   const canceladas = useMemo(() => ordenes.filter(o => o.estado === 'cancelado'), [ordenes])
   const listosCount = misOrdenes.filter(o => o.estado === 'listo').length
   const alertedFaltantes = useRef<Set<string>>(new Set())
@@ -745,17 +1073,97 @@ export function CajaPage() {
     }
   }, [misOrdenes, playAlertSequence])
 
-  const addToCart = useCallback((producto: Producto) => {
+const addToCart = useCallback((producto: Producto) => {
     setCart(prev => {
-      const existing = prev.items.findIndex(i => i.producto_id === producto.id)
-      if (existing >= 0) {
+      const existingIdx = prev.items.findIndex(i => i.producto_id === producto.id)
+      if (existingIdx >= 0) {
         const disp = Math.max(0, producto.stock - (producto.stock_reservado ?? 0))
+        if (prev.items[existingIdx].cantidad >= disp) {
+          notify.error('Stock máximo alcanzado')
+          return prev
+        }
+        notify.success('+1 al carrito')
+        return { ...prev, items: prev.items.map((item, idx) => idx === existingIdx ? { ...item, cantidad: item.cantidad + 1 } : item) }
+      }
+      setProductoSeleccionado(producto)
+      return prev
+    })
+  }, [])
+
+  const handleSelectPrice = useCallback((precio: number, descuento_id?: string, descuento_nombre?: string, descuento_porcentaje?: number) => {
+    if (!productoSeleccionado) return
+    setCart(prev => {
+      const existing = prev.items.findIndex(i => i.producto_id === productoSeleccionado.id)
+      if (existing >= 0) {
+        const disp = Math.max(0, productoSeleccionado.stock - (productoSeleccionado.stock_reservado ?? 0))
         if (prev.items[existing].cantidad >= disp) { notify.error('Stock máximo alcanzado'); return prev }
         return { ...prev, items: prev.items.map((item, idx) => idx === existing ? { ...item, cantidad: item.cantidad + 1 } : item) }
       }
-      return { ...prev, items: [...prev.items, { producto_id: producto.id, producto_codigo: producto.codigo_universal, producto_nombre: producto.nombre, producto_ubicacion: producto.ubicacion ?? '', producto_imagen: producto.imagen, cantidad: 1, precio_unitario: producto.precio_venta }] }
+      return { ...prev, items: [...prev.items, {
+        producto_id: productoSeleccionado.id,
+        producto_codigo: productoSeleccionado.codigo_universal,
+        producto_nombre: productoSeleccionado.nombre,
+        producto_ubicacion: productoSeleccionado.ubicacion ?? '',
+        producto_imagen: productoSeleccionado.imagen,
+        cantidad: 1,
+        precio_unitario: precio,
+        precio_base: productoSeleccionado.precio_venta,
+        descuento_id,
+        descuento_nombre,
+        descuento_porcentaje,
+      }] }
     })
-  }, [])
+    setProductoSeleccionado(null)
+    playBeep({ frequency: 600, duration: 60 })
+    notify.success('Producto agregado')
+  }, [productoSeleccionado, playBeep])
+
+  const handleEditPrice = useCallback((producto_id: string) => {
+    const producto = productos.find(p => p.id === producto_id)
+    if (producto) setProductoSeleccionado(producto)
+  }, [productos])
+
+  const handleAddWithPrice = useCallback((precio: number, descuento_id?: string, descuento_nombre?: string, descuento_porcentaje?: number) => {
+    if (!productoSeleccionado) return
+    setCart(prev => {
+      const existingIdx = prev.items.findIndex(i => i.producto_id === productoSeleccionado.id)
+      if (existingIdx >= 0) {
+        const disp = Math.max(0, productoSeleccionado.stock - (productoSeleccionado.stock_reservado ?? 0))
+        if (prev.items[existingIdx].cantidad >= disp) { notify.error('Stock máximo alcanzado'); return prev }
+        const updatedItems = prev.items.map((item, idx) => {
+          if (idx === existingIdx) {
+            return {
+              ...item,
+              precio_unitario: precio,
+              precio_base: productoSeleccionado.precio_venta,
+              cantidad: item.cantidad + 1,
+              descuento_id,
+              descuento_nombre,
+              descuento_porcentaje,
+            }
+          }
+          return item
+        })
+        return { ...prev, items: updatedItems }
+      }
+      return { ...prev, items: [...prev.items, {
+        producto_id: productoSeleccionado.id,
+        producto_codigo: productoSeleccionado.codigo_universal,
+        producto_nombre: productoSeleccionado.nombre,
+        producto_ubicacion: productoSeleccionado.ubicacion ?? '',
+        producto_imagen: productoSeleccionado.imagen,
+        cantidad: 1,
+        precio_unitario: precio,
+        precio_base: productoSeleccionado.precio_venta,
+        descuento_id,
+        descuento_nombre,
+        descuento_porcentaje,
+      }] }
+    })
+    setProductoSeleccionado(null)
+    playBeep({ frequency: 600, duration: 60 })
+    notify.success('Precio actualizado')
+  }, [productoSeleccionado, playBeep])
 
   const handleQtyChange = (itemIdx: number, delta: number) => {
     setCart(prev => {
@@ -771,6 +1179,14 @@ export function CajaPage() {
 
   const handleNotaChange = (nota: string) => {
     setCart(prev => ({ ...prev, nota }))
+  }
+
+  const handleTipoChange = (tipo: 'venta' | 'reserva') => {
+    setCart(prev => ({ ...prev, tipo }))
+  }
+
+  const handleClienteChange = (nombre: string) => {
+    setCart(prev => ({ ...prev, cliente_nombre: nombre }))
   }
 
   const handleEmitir = () => {
@@ -790,13 +1206,27 @@ export function CajaPage() {
       subtotal: ci.precio_unitario * ci.cantidad, estado: 'pendiente' as const,
     }))
     const total = items.reduce((s, i) => s + i.subtotal, 0)
-    const orden: OrdenVenta = { id, numero, cajero_id: user?.id ?? 'admin', cajero_nombre: user?.nombre ?? 'Admin', items, total, estado: 'pendiente', nota: cart.nota || undefined, creado_en: now, actualizado_en: now }
-    items.forEach(i => reservarStock(i.producto_id, i.cantidad_pedida))
+    const isReserva = cart.tipo === 'reserva'
+    const caducaEn = isReserva ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : undefined
+    const orden: OrdenVenta = {
+      id, numero,
+      tipo: cart.tipo,
+      cliente_nombre: isReserva ? cart.cliente_nombre : undefined,
+      cajero_id: user?.id ?? 'admin',
+      cajero_nombre: user?.nombre ?? 'Admin',
+      items, total,
+      estado: isReserva ? 'reservado' as const : 'pendiente' as const,
+      nota: cart.nota || undefined,
+      creado_en: now,
+      actualizado_en: now,
+      caduca_en: caducaEn,
+    }
+    if (!isReserva) items.forEach(i => reservarStock(i.producto_id, i.cantidad_pedida))
     addOrden(orden)
     setCart(emptyCart())
     setFlyingBall(null)
     playBeep({ frequency: 800, duration: 80 })
-    notify.success(`${numero} enviada a almacén`)
+    notify.success(isReserva ? `${numero} reservada para ${cart.cliente_nombre}` : `${numero} enviada a almacén`)
   }
 
   const handleOpenCobro = (orden: OrdenVenta) => {
@@ -809,10 +1239,19 @@ export function CajaPage() {
 
   const handleConfirmarCancelar = () => {
     if (!cancelarOrden) return
-    cancelarOrden.items.forEach(i => liberarReserva(i.producto_id, i.cantidad_pedida))
+    if (cancelarOrden.tipo !== 'reserva') {
+      cancelarOrden.items.forEach(i => liberarReserva(i.producto_id, i.cantidad_pedida))
+    }
     updateOrden(cancelarOrden.id, { estado: 'cancelado' as EstadoOrden })
     notify.success(`${cancelarOrden.numero} cancelada`)
     setCancelarOrden(null)
+  }
+
+  const handleClaimReserva = (orden: OrdenVenta) => {
+    const now = new Date().toISOString()
+    orden.items.forEach(i => reservarStock(i.producto_id, i.cantidad_pedida))
+    updateOrden(orden.id, { estado: 'pendiente', tipo: 'venta', cliente_nombre: undefined, caduca_en: undefined })
+    notify.success(`${orden.numero} convertida a venta`)
   }
 
   const handleEntregarParcial = () => {
@@ -837,48 +1276,51 @@ export function CajaPage() {
     <MainLayout>
       <div className="flex flex-col h-screen overflow-hidden bg-steel-50">
         <div className="bg-white border-b border-steel-100 px-6 py-3 shrink-0">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <div>
               <h1 className="text-base font-bold text-steel-900">Caja</h1>
               <p className="text-xs text-steel-400">{new Date().toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                ref={headerBadgeRef}
-                onClick={() => setOrdersModalOpen(true)}
-                className={clsx(
-                  'flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-xs font-bold',
-                  listosCount > 0
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 animate-pulse'
-                    : 'bg-steel-50 border-steel-200 text-steel-600 hover:bg-steel-100'
-                )}
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                Órdenes
-                {misOrdenes.length > 0 && (
-                  <span className={clsx(
-                    'inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full text-[10px] font-black',
-                    listosCount > 0 ? 'bg-emerald-500 text-white' : 'bg-steel-300 text-white'
-                  )}>
-                    {misOrdenes.length}
-                  </span>
-                )}
-                {listosCount > 0 && <span className="text-[10px] font-normal text-emerald-600">({listosCount} listas)</span>}
-              </button>
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-xs text-steel-500">{user?.nombre}</span>
-              </div>
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-xs text-steel-500">{user?.nombre}</span>
             </div>
           </div>
+          <button
+            ref={headerBadgeRef}
+            onClick={() => setOrdersModalOpen(true)}
+            className={clsx(
+              'w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold',
+              listosCount > 0 || reservaciones.length > 0
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-steel-50 border-steel-200 text-steel-600 hover:bg-steel-100'
+            )}
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            Órdenes
+            {misOrdenes.length > 0 && (
+              <span className={clsx(
+                'inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full text-[10px] font-black',
+                listosCount > 0 ? 'bg-emerald-500 text-white' : 'bg-steel-300 text-white'
+              )}>
+                {misOrdenes.length}
+              </span>
+            )}
+            {reservaciones.length > 0 && (
+              <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full text-[10px] font-black bg-amber-400 text-white">
+                {reservaciones.length} reserva{reservaciones.length > 1 ? 's' : ''}
+              </span>
+            )}
+            {listosCount > 0 && <span className="text-[10px] font-normal text-emerald-600">({listosCount} listas)</span>}
+          </button>
         </div>
 
         <div className="flex-1 overflow-hidden flex flex-col p-4 gap-4">
           <div className="flex-1 grid grid-cols-[1fr_380px] gap-4 overflow-hidden min-h-0">
             <div className="bg-white rounded-2xl border border-steel-100 shadow-sm overflow-hidden flex flex-col">
-              <ProductSearch onAddToCart={addToCart} />
+              <ProductSearch onSelectProducto={addToCart} />
             </div>
             <div className="bg-white rounded-2xl border border-steel-100 shadow-sm overflow-hidden flex flex-col">
               <CartPanel
@@ -887,6 +1329,9 @@ export function CajaPage() {
                 onRemoveItem={handleRemoveItem}
                 onNotaChange={handleNotaChange}
                 onEmitir={handleEmitir}
+                onEditPrice={handleEditPrice}
+                onTipoChange={handleTipoChange}
+                onClienteChange={handleClienteChange}
                 emitButtonRef={(el) => { (emitButtonRef as React.MutableRefObject<HTMLButtonElement | null>).current = el }}
               />
             </div>
@@ -905,9 +1350,11 @@ export function CajaPage() {
 
       <OrdersModal
         ordenes={misOrdenes}
+        reservaciones={reservaciones}
         canceladas={canceladas}
         onCobrar={handleOpenCobro}
         onCancelar={handleCancelarOrden}
+        onClaim={handleClaimReserva}
         open={ordersModalOpen}
         onClose={() => setOrdersModalOpen(false)}
       />
@@ -918,6 +1365,16 @@ export function CajaPage() {
       {cobroOrden && <CobroModal orden={cobroOrden} onConfirm={handleConfirmarPago} onClose={() => setCobroOrden(null)} />}
       {facturaOrden && <FacturaModal orden={facturaOrden} onClose={() => setFacturaOrden(null)} />}
       {cancelarOrden && <CancelarOrdenModal orden={cancelarOrden} onConfirm={handleConfirmarCancelar} onClose={() => setCancelarOrden(null)} />}
+      {productoSeleccionado && (
+        <SelectPriceModal
+          producto={productoSeleccionado}
+          descuentos={descuentos}
+          onSelect={handleSelectPrice}
+          onAddAnother={handleAddWithPrice}
+          isEdit={cart.items.some(i => i.producto_id === productoSeleccionado.id)}
+          onClose={() => setProductoSeleccionado(null)}
+        />
+      )}
     </MainLayout>
   )
 }
