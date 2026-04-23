@@ -31,6 +31,7 @@ const STATUS_CONFIG: Record<EstadoOrden, { label: string; bg: string; text: stri
   pendiente:      { label: 'Disponible',  bg: 'bg-amber-50',  text: 'text-amber-700', dot: 'bg-amber-400' },
   en_preparacion: { label: 'En proceso', bg: 'bg-blue-50',   text: 'text-blue-700', dot: 'bg-blue-400' },
   listo:          { label: 'Para entregar', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-400' },
+  reservado:      { label: 'Reservado',   bg: 'bg-purple-50', text: 'text-purple-700', dot: 'bg-purple-400' },
   pagado:         { label: 'Cobrado',     bg: 'bg-steel-50',  text: 'text-steel-500', dot: 'bg-steel-400' },
   cancelado:      { label: 'Cancelada',   bg: 'bg-red-50',    text: 'text-red-500',  dot: 'bg-red-400' },
 }

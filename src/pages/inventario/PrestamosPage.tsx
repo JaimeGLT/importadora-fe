@@ -163,7 +163,6 @@ export function PrestamosPage() {
   }, [prestamos.length, productos.length, setPrestamos, setProductos, setProveedores])
 
   const handleSave = (items: ItemPrestamo[], prestado_a: string, fecha: string, notas: string) => {
-    const total = items.reduce((s, i) => s + i.precio_total, 0)
     const nuevo: Prestamo = {
       id: crypto.randomUUID(),
       items,
@@ -567,8 +566,6 @@ export function PrestamosPage() {
         onConfirm={handleCancel}
         title="Cancelar préstamo"
         message={`¿Cancelar el préstamo a "${prestamoToCancel?.prestado_a}"? Se devolverá el stock al inventario.`}
-        confirmText="Cancelar préstamo"
-        variant="danger"
       />
 
       <Modal

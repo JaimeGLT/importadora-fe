@@ -7,8 +7,8 @@ import { notify } from '@/lib/notify'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { useVentasStore } from '@/stores/ventasStore'
 import { useSoundAlert } from '@/hooks/useSoundAlert'
-import { useConfigStore, calcularPrecioConDescuento } from '@/stores/configStore'
-import type { Producto, OrdenVenta, ItemOrden, MetodoPago, EstadoOrden, DescuentoConfig } from '@/types'
+import { useConfigStore, calcularPrecioConDescuento, type DescuentoConfig } from '@/stores/configStore'
+import type { Producto, OrdenVenta, ItemOrden, MetodoPago, EstadoOrden } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -195,7 +195,7 @@ function SelectPriceModal({
           <p className="text-[10px] font-bold text-steel-400 uppercase tracking-widest px-1">Precios disponibles</p>
 
           <button
-            onClick={() => (isEdit ? onAddAnother : onSelect)(precioBase)}
+            onClick={() => isEdit && onAddAnother ? onAddAnother(precioBase) : onSelect(precioBase)}
             className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border-2 border-steel-200 hover:border-brand-600 hover:bg-brand-50 transition-all"
           >
             <div className="flex items-center gap-2">
@@ -211,7 +211,7 @@ function SelectPriceModal({
             return (
               <button
                 key={d.id}
-                onClick={() => (isEdit ? onAddAnother : onSelect)(precioConDescuento, d.id, d.nombre, d.porcentaje)}
+                onClick={() => isEdit && onAddAnother ? onAddAnother(precioConDescuento, d.id, d.nombre, d.porcentaje) : onSelect(precioConDescuento, d.id, d.nombre, d.porcentaje)}
                 className={clsx(
                   'w-full flex items-center justify-between px-3 py-2.5 rounded-xl border-2 transition-all hover:shadow-md',
                   styles.bg, styles.border
@@ -1248,7 +1248,6 @@ const addToCart = useCallback((producto: Producto) => {
   }
 
   const handleClaimReserva = (orden: OrdenVenta) => {
-    const now = new Date().toISOString()
     orden.items.forEach(i => reservarStock(i.producto_id, i.cantidad_pedida))
     updateOrden(orden.id, { estado: 'pendiente', tipo: 'venta', cliente_nombre: undefined, caduca_en: undefined })
     notify.success(`${orden.numero} convertida a venta`)

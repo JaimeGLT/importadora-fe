@@ -250,7 +250,7 @@ export function NuevoPrestamoModal({ open, onClose, onSave, productos }: NuevoPr
             </Button>
           </div>
 
-          {errors.producto && <p className="mt-1 text-xs text-red-500 mb-2">{errors.producto}</p>}
+          
 
           <div className="space-y-2">
             {items.map((item, index) => {

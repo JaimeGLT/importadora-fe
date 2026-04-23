@@ -7,6 +7,7 @@ export const MOCK_ORDENES: OrdenVenta[] = [
   {
     id: 'ord-001',
     numero: 'ORD-001',
+    tipo: 'venta',
     cajero_id: 'usr-cajero-1',
     cajero_nombre: 'María López',
     items: [
@@ -41,6 +42,7 @@ export const MOCK_ORDENES: OrdenVenta[] = [
   {
     id: 'ord-002',
     numero: 'ORD-002',
+    tipo: 'venta',
     cajero_id: 'usr-cajero-2',
     cajero_nombre: 'Juan Pérez',
     almacenero_id: 'usr-alm-1',
@@ -79,6 +81,7 @@ export const MOCK_ORDENES: OrdenVenta[] = [
   {
     id: 'ord-003',
     numero: 'ORD-003',
+    tipo: 'venta',
     cajero_id: 'usr-cajero-1',
     cajero_nombre: 'María López',
     almacenero_id: 'usr-alm-2',

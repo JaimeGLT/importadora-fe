@@ -13,7 +13,7 @@ import {
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
 import { Button, Input, ConfirmModal, TablePagination } from '@/components/ui'
-import type { Producto } from '@/types'
+import type { Producto, ItemPrestamo, Prestamo } from '@/types'
 import { notify } from '@/lib/notify'
 import { MOCK_PRODUCTOS } from '@/mock/inventario'
 import { ProductoModal } from './ProductoModal'
@@ -302,17 +302,23 @@ export function InventarioPage() {
     setModalOpen(false)
   }
 
-  const handleNuevoPrestamo = (data: Omit<import('@/types').Prestamo, 'id' | 'creado_en'>) => {
-    const nuevo: import('@/types').Prestamo = {
-      ...data, id: crypto.randomUUID(), creado_en: new Date().toISOString(),
+  const handleNuevoPrestamo = (items: ItemPrestamo[], prestado_a: string, fecha: string, notas: string) => {
+    const nuevo: Prestamo = {
+      id: crypto.randomUUID(),
+      items,
+      prestado_a,
+      fecha,
+      notas,
+      estado: 'activo',
+      creado_en: new Date().toISOString(),
     }
     addPrestamo(nuevo)
     setAllProducts((prev) => {
-      const updated = prev.map((p) =>
-        p.id === nuevo.producto_id
-          ? { ...p, stock: p.stock - nuevo.cantidad, actualizado_en: new Date().toISOString() }
-          : p
-      )
+      const updated = prev.map((p) => {
+        const item = items.find((i) => i.producto_id === p.id)
+        if (!item) return p
+        return { ...p, stock: p.stock - item.cantidad, actualizado_en: new Date().toISOString() }
+      })
       setProductos(updated, updated.length)
       return updated
     })
@@ -727,7 +733,6 @@ export function InventarioPage() {
         onClose={() => setPrestamoProducto(null)}
         onSave={handleNuevoPrestamo}
         productos={allProducts}
-        productoInicial={prestamoProducto}
       />
       <EtiquetaModal
         open={!!etiquetaProducto}
