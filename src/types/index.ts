@@ -1,14 +1,20 @@
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
-export interface User {
+export type RolUsuario = 'admin' | 'cajero' | 'almacenero'
+
+export interface Usuario {
   id: string
   nombre: string
+  apellido: string
   email: string
-  rol: 'admin' | 'cajero' | 'almacenero'
+  rol: RolUsuario
+  activo: boolean
+  creado_en: string
+  actualizado_en: string
 }
 
 export interface AuthState {
-  user: User | null
+  user: Usuario | null
   isAuthenticated: boolean
 }
 
@@ -213,6 +219,39 @@ export interface Filters {
   pageSize?: number
 }
 
+// ─── Clientes ─────────────────────────────────────────────────────────────────
+
+export interface Compra {
+  id: string
+  orden_id: string
+  fecha: string
+  items: ItemOrden[]
+  total: number
+  metodo_pago: MetodoPago
+  tipoDocumento?: TipoDocumento
+  facturaNro?: string
+  cliente_tipo_id?: 'ci' | 'nit' | 'sin_nit'
+  cliente_numero_id?: string
+  cliente_nombre?: string
+  cliente_nit?: string
+}
+
+export interface Cliente {
+  id: string
+  carnet?: string        // identificador corto (ej: badge de tienda)
+  ci?: string           // CI Bolivia (sin complemento)
+  ciComplemento?: string // complemento alfanumérico del CI (ej: "1A", "2B")
+  nit?: string           // NIT de empresa/negocio
+  nombre?: string
+  apellido: string
+  telefono?: string
+  email?: string
+  activo: boolean
+  compras: Compra[]
+  creado_en: string
+  actualizado_en: string
+}
+
 // ─── Ventas ───────────────────────────────────────────────────────────────────
 
 export type EstadoOrden = 'pendiente' | 'en_preparacion' | 'listo' | 'pagado' | 'cancelado' | 'reservado'
@@ -234,11 +273,19 @@ export interface ItemOrden {
   nota?: string
 }
 
+export type TipoDocumento = 'nota_venta' | 'factura'
+
 export interface OrdenVenta {
   id: string
   numero: string
   tipo: TipoOrden
+  tipoDocumento?: TipoDocumento   // nota_venta o factura
+  facturaNro?: string            // número de factura simulada (ej: 001-001-0001234)
+  cliente_id?: string
   cliente_nombre?: string
+  cliente_tipo_id?: 'ci' | 'nit' | 'sin_nit'  // tipo de identificación para facturación
+  cliente_numero_id?: string      // CI con/sin complemento, o NIT, o 99001
+  cliente_nit?: string           // NIT específico para la factura (puede diferir del cliente guardado)
   cajero_id: string
   cajero_nombre: string
   almacenero_id?: string

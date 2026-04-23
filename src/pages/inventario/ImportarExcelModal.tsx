@@ -191,7 +191,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
   const [fileName, setFileName]       = useState('')
   const [mappings, setMappings]       = useState<FieldMappings>({})
   const [parsed, setParsed]           = useState<(ProductoImportado | null)[]>([])
-  const [previewActions, setPreviewActions] = useState<Record<string, ImportAction>>({})
+  const [, setPreviewActions] = useState<Record<string, ImportAction>>({})
   const [tipoCambio, setTipoCambio]   = useState('6.96')
   const [dragOver, setDragOver]       = useState(false)
   const [importing, setImporting]     = useState(false)
@@ -289,10 +289,14 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
   const handleGoToPreview = () => {
     const parsedData = rawRows.map((row) => parseRow(row, mappings))
     setParsed(parsedData)
-    // Inicializar acciones: 'create' por defecto para todos
+    // Inicializar acciones: 'update' para duplicados (ya existen en inventario),
+    // 'create' para productos nuevos
     const actions: Record<string, ImportAction> = {}
     parsedData.forEach((p) => {
-      if (p) actions[p.codigo_universal] = 'create'
+      if (p) {
+        const exists = codigosMap.has(p.codigo_universal)
+        actions[p.codigo_universal] = exists ? 'update' : 'create'
+      }
     })
     setPreviewActions(actions)
     setStep('preview')
@@ -312,7 +316,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
       .filter((p): p is ProductoImportado => p !== null)
       .map((p) => {
         const existing = codigosMap.get(p.codigo_universal)
-        const action = existing ? (previewActions[p.codigo_universal] ?? 'create') : 'create'
+        const action: ImportAction = existing ? 'update' : 'create'
 
         // Si es actualización, aplicar tipo de cambio al historial
         if (action === 'update' && existing) {
@@ -631,35 +635,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
             )}
           </div>
 
-          {duplicates.size > 0 && (
-            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-xs text-amber-800 font-medium mb-2">
-                Productos duplicados detectados. Selecciona si deseas crear nuevos o actualizar los existentes:
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => {
-                    const updates: Record<string, ImportAction> = {}
-                    duplicates.forEach((_, code) => { updates[code] = 'update' })
-                    setPreviewActions((prev) => ({ ...prev, ...updates }))
-                  }}
-                  className="px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
-                >
-                  Actualizar todos
-                </button>
-                <button
-                  onClick={() => {
-                    const creates: Record<string, ImportAction> = {}
-                    duplicates.forEach((_, code) => { creates[code] = 'create' })
-                    setPreviewActions((prev) => ({ ...prev, ...creates }))
-                  }}
-                  className="px-2.5 py-1 text-xs font-medium rounded-lg bg-steel-100 text-steel-700 hover:bg-steel-200 transition-colors"
-                >
-                  Crear todos nuevos
-                </button>
-              </div>
-            </div>
-          )}
+          
 
           <div className="overflow-x-auto rounded-xl border border-steel-200 max-h-80 overflow-y-auto">
             <table className="text-xs" style={{ minWidth: 800 }}>
@@ -690,7 +666,6 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
 
                   const existing = codigosMap.get(row.codigo_universal)
                   const isDuplicate = !!existing
-                  const action = previewActions[row.codigo_universal] ?? 'create'
 
                   return (
                     <tr key={i} className={clsx('hover:bg-steel-50', isDuplicate && 'bg-amber-50/30')}>
@@ -716,30 +691,9 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
                       </td>
                       <td className="px-3 py-2 text-center">
                         {isDuplicate ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => setPreviewActions((prev) => ({ ...prev, [row.codigo_universal]: 'create' }))}
-                              className={clsx(
-                                'px-2 py-1 text-[10px] font-semibold rounded transition-colors',
-                                action === 'create'
-                                  ? 'bg-emerald-600 text-white'
-                                  : 'bg-steel-100 text-steel-500 hover:bg-steel-200',
-                              )}
-                            >
-                              Nuevo
-                            </button>
-                            <button
-                              onClick={() => setPreviewActions((prev) => ({ ...prev, [row.codigo_universal]: 'update' }))}
-                              className={clsx(
-                                'px-2 py-1 text-[10px] font-semibold rounded transition-colors',
-                                action === 'update'
-                                  ? 'bg-amber-600 text-white'
-                                  : 'bg-steel-100 text-steel-500 hover:bg-steel-200',
-                              )}
-                            >
-                              Actualizar
-                            </button>
-                          </div>
+                          <span className="text-[10px] text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded">
+                            Actualizar
+                          </span>
                         ) : (
                           <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded">
                             Nuevo
@@ -753,11 +707,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
             </table>
           </div>
 
-          {duplicates.size > 0 && (
-            <p className="mt-2 text-[10px] text-steel-400">
-              Los productos marcados como "Actualizar" reemplazarán precios y stock, y agregarán un registro al historial.
-            </p>
-          )}
+          
         </div>
       )}
     </Modal>

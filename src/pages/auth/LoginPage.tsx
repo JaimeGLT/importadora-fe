@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button, Input } from '@/components/ui'
 import { notify } from '@/lib/notify'
-import type { User } from '@/types'
+import type { Usuario } from '@/types'
 
 const ROLE_HOME: Record<string, string> = {
   admin:      '/inventario',
@@ -27,7 +27,7 @@ export function LoginPage() {
   const doLogin = async (e: string, p: string) => {
     setLoading(true)
     try {
-      const user: User = await login(e, p)
+      const user: Usuario = await login(e, p)
       void navigate(ROLE_HOME[user.rol] ?? '/inventario')
     } catch {
       notify.error('Credenciales incorrectas', { description: 'Verifica tu email y contraseña' })

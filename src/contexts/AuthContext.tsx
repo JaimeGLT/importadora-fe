@@ -1,12 +1,12 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
-import type { User } from '@/types'
+import type { Usuario } from '@/types'
 import { api } from '@/lib/api'
 
 interface AuthContextValue {
-  user: User | null
+  user: Usuario | null
   isAuthenticated: boolean
   isTokenReady: boolean
-  login: (email: string, password: string) => Promise<User>
+  login: (email: string, password: string) => Promise<Usuario>
   logout: () => Promise<void>
 }
 
@@ -20,12 +20,12 @@ interface ApiUserResponse {
   role?: string
 }
 
-function mapToUser(data: ApiUserResponse): User | null {
+function mapToUser(data: ApiUserResponse): Usuario | null {
   const email = data.correo ?? data.email ?? ''
   const id = data.id ? String(data.id) : (email.split('@')[0] || null)
   const nombre = data.nombre ?? data.name ?? email.split('@')[0] ?? ''
   const rawRol = (data.rol ?? data.role ?? '').toLowerCase()
-  const ROL_MAP: Record<string, User['rol']> = {
+  const ROL_MAP: Record<string, Usuario['rol']> = {
     admin: 'admin',
     administrador: 'admin',
     vendedor: 'cajero',
@@ -35,15 +35,15 @@ function mapToUser(data: ApiUserResponse): User | null {
     almacen: 'almacenero',
     warehouse: 'almacenero',
   }
-  const rol: User['rol'] = ROL_MAP[rawRol] ?? 'cajero'
+  const rol: Usuario['rol'] = ROL_MAP[rawRol] ?? 'cajero'
   if (!id || !email) return null
-  return { id, nombre, email, rol }
+  return { id, nombre, email, rol, apellido: '', activo: true, creado_en: '', actualizado_en: '' }
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<Usuario | null>(null)
   const [isTokenReady, setIsTokenReady] = useState(false)
 
   useEffect(() => {
@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setIsTokenReady(true))
   }, [])
 
-  const login = async (email: string, password: string): Promise<User> => {
+  const login = async (email: string, password: string): Promise<Usuario> => {
     const data = await api.post<ApiUserResponse>('/Auth/login', { email, password })
     const u = mapToUser(data ?? {})
     if (!u) throw new Error('No se pudo obtener datos del usuario')

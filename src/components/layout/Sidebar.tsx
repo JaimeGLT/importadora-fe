@@ -67,6 +67,7 @@ const groups: NavGroup[] = [
     items: [
       { label: 'Caja',    to: '/ventas/caja',    roles: ['admin', 'cajero'] },
       { label: 'Almacén', to: '/ventas/almacen', roles: ['admin', 'almacenero'] },
+      { label: 'Clientes', to: '/ventas/clientes', roles: ['admin', 'cajero'] },
     ],
   },
   {
@@ -103,7 +104,8 @@ const groups: NavGroup[] = [
     ),
     roles: ['admin'],
     items: [
-      { label: 'Configuración', to: '/configuracion', roles: ['admin'] },
+      { label: 'Configuración',  to: '/configuracion',                roles: ['admin'] },
+      { label: 'Usuarios y roles', to: '/sistema/usuarios',         roles: ['admin'] },
     ],
   },
 ]

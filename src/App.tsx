@@ -14,6 +14,8 @@ import { AlmacenPage } from '@/pages/ventas/AlmacenPage'
 import { AlertasPage } from '@/pages/alertas/AlertasPage'
 import { ReportesPage } from '@/pages/reportes/ReportesPage'
 import { ConfiguracionPage } from '@/pages/config/ConfiguracionPage'
+import { UsuariosPage } from '@/pages/sistema/usuarios/UsuariosPage'
+import { ClientesPage } from '@/pages/ventas/clientes/ClientesPage'
 
 function RootRedirect() {
   return <Navigate to="/dashboard" replace />
@@ -53,6 +55,8 @@ export default function App() {
             <Route path="/ventas/caja" element={<CajaPage />} />
             <Route path="/ventas/almacen" element={<AlmacenPage />} />
             <Route path="/configuracion" element={<ConfiguracionPage />} />
+            <Route path="/sistema/usuarios" element={<UsuariosPage />} />
+            <Route path="/ventas/clientes" element={<ClientesPage />} />
             <Route path="/" element={<RootRedirect />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
