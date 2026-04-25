@@ -10,17 +10,26 @@ import {
   type SortingState,
   type ColumnMeta,
 } from '@tanstack/react-table'
-import { useInventarioStore } from '@/stores/inventarioStore'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
 import { Button, Input, ConfirmModal, TablePagination } from '@/components/ui'
 import type { Producto, ItemPrestamo, Prestamo } from '@/types'
 import { notify } from '@/lib/notify'
-import { MOCK_PRODUCTOS } from '@/mock/inventario'
 import { ProductoModal } from './ProductoModal'
 import { ImportarExcelModal, type ImportResult } from './ImportarExcelModal'
 import { EtiquetaModal } from './EtiquetaModal'
 import { NuevoPrestamoModal } from './NuevoPrestamoModal'
 import { usePrestamosStore } from '@/stores/prestamosStore'
+import { useAuth } from '@/contexts/AuthContext'
+import { gql } from '@/lib/graphql'
+import {
+  PRODUCTOS_QUERY,
+  PRODUCTO_BY_ID_QUERY,
+  backendToProducto,
+  backendToProductoSimple,
+  productoToBackend,
+  type ProductoAPI,
+} from '@/lib/queries/inventario.queries'
+import { api } from '@/lib/api'
 import { clsx } from 'clsx'
 
 declare module '@tanstack/react-table' {
@@ -234,6 +243,7 @@ const colHelper = createColumnHelper<Producto>()
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function InventarioPage() {
+  const { isTokenReady } = useAuth()
   const [modalOpen, setModalOpen]               = useState(false)
   const [importOpen, setImportOpen]             = useState(false)
   const [etiquetaProducto, setEtiquetaProducto] = useState<Producto | null>(null)
@@ -242,62 +252,94 @@ export function InventarioPage() {
   const [confirmDelete, setConfirmDelete]       = useState<Producto | null>(null)
   const [deleting, setDeleting]                 = useState(false)
   const [loading, setLoading]                   = useState(true)
+  const [loadingModal, setLoadingModal]         = useState(false)
   const [allProducts, setAllProducts]           = useState<Producto[]>([])
 
-  // TanStack Table state
   const [sorting, setSorting]     = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
 
-  const { proveedores, productos: storedProductos, setProductos, addProducto, updateProducto, removeProducto } = useInventarioStore()
-  const { addPrestamo }               = usePrestamosStore()
+  const { addPrestamo } = usePrestamosStore()
 
-  // ── Load products from store or mock ────────────────────────────────────────────
+  // ── Load products from backend ──────────────────────────────────────────────
   useEffect(() => {
+    if (!isTokenReady) return
+
     let cancelled = false
     setLoading(true)
-    // Simular delay de red
-    const timer = setTimeout(() => {
-      if (!cancelled) {
-        // Si ya hay productos en el store, usarlos; si no, cargar mocks
-        if (storedProductos.length > 0) {
-          setAllProducts(storedProductos)
-        } else {
-          setAllProducts(MOCK_PRODUCTOS)
-          setProductos(MOCK_PRODUCTOS, MOCK_PRODUCTOS.length)
-        }
-        setLoading(false)
+
+    const fetchPage = async (after: string | null, acc: ProductoAPI[]): Promise<ProductoAPI[]> => {
+      const res = await gql<{ productos: { nodes: ProductoAPI[]; pageInfo: { hasNextPage: boolean; endCursor: string } } }>(
+        PRODUCTOS_QUERY,
+        { first: 50, after }
+      )
+      const { nodes, pageInfo } = res.productos
+      const all = [...acc, ...nodes]
+      if (pageInfo?.hasNextPage && pageInfo.endCursor) {
+        return fetchPage(pageInfo.endCursor, all)
       }
-    }, 300)
-    return () => { cancelled = true; clearTimeout(timer) }
-  }, [storedProductos, setProductos])
+      return all
+    }
+
+    fetchPage(null, [])
+      .then((raw) => {
+        if (cancelled) return
+        const mapped = raw.map(backendToProductoSimple)
+        setAllProducts(mapped)
+      })
+      .catch(() => {
+        if (!cancelled) notify.error('Error cargando productos')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => { cancelled = true }
+  }, [isTokenReady])
 
   // ── Mutations ──────────────────────────────────────────────────────────────
-  const handleEdit = (p: Producto) => { setEditingProducto(p); setModalOpen(true) }
+  const handleEdit = (p: Producto) => {
+    setLoadingModal(true)
+    gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTO_BY_ID_QUERY, { id: Number(p.id) })
+      .then((res) => {
+        if (res.productos?.nodes?.[0]) {
+          setEditingProducto(backendToProducto(res.productos.nodes[0]))
+        }
+      })
+      .catch(() => notify.error('Error cargando producto'))
+      .finally(() => setLoadingModal(false))
+    setModalOpen(true)
+  }
   const handleNew  = () => { setEditingProducto(null); setModalOpen(true) }
 
   const handleSave = async (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>) => {
-    // Simular delay de red
-    await new Promise(r => setTimeout(r, 200))
+    const payload = productoToBackend(data)
+    const hasPriceChange = editingProducto &&
+      (data.precio_costo !== editingProducto.precio_costo ||
+       data.precio_venta !== editingProducto.precio_venta ||
+       data.conversionABs !== editingProducto.conversionABs)
 
     if (editingProducto) {
-      const updated: Producto = {
-        ...editingProducto,
-        ...data,
-        actualizado_en: new Date().toISOString(),
+      await api.put(`/Producto/${editingProducto.id}`, payload)
+      if (hasPriceChange) {
+        const pricePayload = {
+          costo: data.precio_costo,
+          precio: data.precio_venta,
+          conversionABs: data.conversionABs,
+          nota: data.historial_precios[data.historial_precios.length - 1]?.nota ?? '',
+        }
+        await api.post(`/Producto/CambiarPrecio/${editingProducto.id}`, pricePayload)
       }
-      updateProducto(updated)
-      setAllProducts((prev) => prev.map((p) => p.id === editingProducto.id ? updated : p))
-      notify.success('Producto actualizado', { description: data.nombre })
+      setAllProducts((prev) => prev.map((p) => p.id === editingProducto.id ? { ...p, ...data } : p))
+      notify.success('Producto actualizado', {
+        description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}`,
+      })
     } else {
-      const nuevo: Producto = {
-        ...data,
-        id: crypto.randomUUID(),
-        creado_en: new Date().toISOString(),
-        actualizado_en: new Date().toISOString(),
-      }
-      addProducto(nuevo)
+      await api.post('/Producto', payload)
+      const nuevo: Producto = { ...data, id: crypto.randomUUID(), creado_en: '', actualizado_en: '' }
       setAllProducts((prev) => [nuevo, ...prev])
-      notify.success('Producto creado', { description: data.nombre })
+      notify.success('Producto creado', {
+        description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}`,
+      })
     }
     setModalOpen(false)
   }
@@ -317,9 +359,8 @@ export function InventarioPage() {
       const updated = prev.map((p) => {
         const item = items.find((i) => i.producto_id === p.id)
         if (!item) return p
-        return { ...p, stock: p.stock - item.cantidad, actualizado_en: new Date().toISOString() }
+        return { ...p, stock: p.stock - item.cantidad }
       })
-      setProductos(updated, updated.length)
       return updated
     })
     notify.success('Préstamo registrado')
@@ -327,41 +368,23 @@ export function InventarioPage() {
   }
 
   const handleImport = async (results: ImportResult[]) => {
-    // Simular delay de red
-    await new Promise(r => setTimeout(r, 500))
-
     let creados = 0
     let actualizados = 0
 
-    results.forEach((result) => {
+    for (const result of results) {
       if (result.action === 'create') {
-        const nuevo: Producto = {
-          ...result.data,
-          id: crypto.randomUUID(),
-          creado_en: new Date().toISOString(),
-          actualizado_en: new Date().toISOString(),
-        }
-        addProducto(nuevo)
+        const payload = productoToBackend(result.data)
+        await api.post('/Producto', payload)
+        const nuevo: Producto = { ...result.data, id: crypto.randomUUID(), creado_en: '', actualizado_en: '' }
         setAllProducts((prev) => [nuevo, ...prev])
         creados++
       } else if (result.action === 'update' && result.existingId) {
-        const existing = allProducts.find((p) => p.id === result.existingId)
-        if (existing) {
-          const actualizado: Producto = {
-            ...existing,
-            stock: result.data.stock,
-            stock_minimo: result.data.stock_minimo,
-            precio_costo: result.data.precio_costo,
-            precio_venta: result.data.precio_venta,
-            historial_precios: result.data.historial_precios,
-            actualizado_en: new Date().toISOString(),
-          }
-          updateProducto(actualizado)
-          setAllProducts((prev) => prev.map((p) => (p.id === existing.id ? actualizado : p)))
-          actualizados++
-        }
+        const payload = productoToBackend(result.data)
+        await api.put(`/Producto/${result.existingId}`, payload)
+        setAllProducts((prev) => prev.map((p) => p.id === result.existingId ? { ...p, ...result.data } : p))
+        actualizados++
       }
-    })
+    }
 
     const msg = creados > 0 && actualizados > 0
       ? `${creados} creados, ${actualizados} actualizados`
@@ -374,13 +397,16 @@ export function InventarioPage() {
   const handleDelete = async () => {
     if (!confirmDelete) return
     setDeleting(true)
-    // Simular delay de red
-    await new Promise(r => setTimeout(r, 200))
-    removeProducto(confirmDelete.id)
-    setAllProducts((prev) => prev.filter((p) => p.id !== confirmDelete.id))
-    notify.success('Producto eliminado', { description: confirmDelete.nombre })
-    setDeleting(false)
-    setConfirmDelete(null)
+    try {
+      await api.delete(`/Producto/${confirmDelete.id}`)
+      setAllProducts((prev) => prev.filter((p) => p.id !== confirmDelete.id))
+      notify.success('Producto eliminado', { description: confirmDelete.nombre })
+    } catch {
+      notify.error('Error al eliminar producto')
+    } finally {
+      setDeleting(false)
+      setConfirmDelete(null)
+    }
   }
 
   // ── KPIs ───────────────────────────────────────────────────────────────────
@@ -747,10 +773,10 @@ export function InventarioPage() {
       />
       <ProductoModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => { setModalOpen(false); setEditingProducto(null) }}
         onSave={handleSave}
         producto={editingProducto}
-        proveedores={proveedores}
+        loading={loadingModal}
       />
       <ConfirmModal
         open={!!confirmDelete}
