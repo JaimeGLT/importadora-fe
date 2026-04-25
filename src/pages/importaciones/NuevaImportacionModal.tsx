@@ -278,6 +278,7 @@ export function NuevaImportacionModal({
   // Guardando
   const [saving, setSaving] = useState(false)
   const [successOpen, setSuccessOpen] = useState(false)
+  const [successData, setSuccessData] = useState<{ numero: string; totalProductos: number; fobTotal: number } | null>(null)
 
   // ── Reset ────────────────────────────────────────────────────────────────
   const reset = useCallback(() => {
@@ -442,6 +443,11 @@ export function NuevaImportacionModal({
 
     onSave(importacion, Number(datos.proveedor_id))
     setSaving(false)
+    setSuccessData({
+      numero: nextNumero(totalImportaciones),
+      totalProductos: items.length,
+      fobTotal: fob_total_usd,
+    })
     reset()
     setSuccessOpen(true)
   }
@@ -560,13 +566,15 @@ export function NuevaImportacionModal({
     </Modal>
 
       {/* ── MODAL DE ÉXITO ── */}
-      <SuccessModal
-        open={successOpen}
-        onClose={() => { setSuccessOpen(false); onClose() }}
-        numero={nextNumero(totalImportaciones)}
-        totalProductos={items.length}
-        fobTotal={fobTotal}
-      />
+      {successData && (
+        <SuccessModal
+          open={successOpen}
+          onClose={() => { setSuccessOpen(false); setSuccessData(null); onClose() }}
+          numero={successData.numero}
+          totalProductos={successData.totalProductos}
+          fobTotal={successData.fobTotal}
+        />
+      )}
     </>
   )
 }

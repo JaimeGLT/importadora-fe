@@ -20,6 +20,7 @@ interface Props {
   onClose: () => void
   onSave: (data: Omit<Proveedor, 'id' | 'creado_en' | 'actualizado_en'>) => void
   initial?: Proveedor | null
+  saving?: boolean
 }
 
 type Form = {
@@ -50,7 +51,7 @@ const EMPTY: Form = {
   estado: 'activo',
 }
 
-export function ProveedorFormModal({ open, onClose, onSave, initial }: Props) {
+export function ProveedorFormModal({ open, onClose, onSave, initial, saving = false }: Props) {
   const [form, setForm] = useState<Form>(EMPTY)
   const [errors, setErrors] = useState<Partial<Record<keyof Form, string>>>({})
 
@@ -120,7 +121,9 @@ export function ProveedorFormModal({ open, onClose, onSave, initial }: Props) {
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave}>Guardar</Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? 'Guardando...' : 'Guardar'}
+          </Button>
         </>
       }
     >

@@ -4,7 +4,6 @@ import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
 import { Button, Input, TablePagination } from '@/components/ui'
 import type { Importacion, Producto, Proveedor, ItemImportacion } from '@/types'
 import { NuevaImportacionModal } from './NuevaImportacionModal'
-import { ConfigOrigenModal } from './ConfigOrigenModal'
 import { ImportacionDetailModal } from './ImportacionDetailModal'
 import { notify } from '@/lib/notify'
 import { clsx } from 'clsx'
@@ -164,7 +163,6 @@ const colHelper = createColumnHelper<Importacion>()
 export function ImportacionesPage() {
   const { isTokenReady } = useAuth()
   const [nuevaOpen, setNuevaOpen] = useState(false)
-  const [configOpen, setConfigOpen] = useState(false)
   const [detailImport, setDetailImport] = useState<Importacion | null>(null)
   const [loading, setLoading] = useState(true)
   const [sorting, setSorting] = useState<SortingState>([])
@@ -258,7 +256,7 @@ export function ImportacionesPage() {
   const columns = useMemo(() => [
     colHelper.accessor('numero', {
       header: 'Importación',
-      size: 220,
+      size: 200,
       meta: { align: 'left' },
       cell: (info) => {
         const imp = info.row.original
@@ -270,19 +268,13 @@ export function ImportacionesPage() {
         )
       },
     }),
-    colHelper.accessor('fecha_estimada_llegada', {
+    colHelper.accessor('fecha_creacion', {
       header: 'Fecha',
-      size: 120,
+      size: 110,
       meta: { align: 'center' },
-      cell: (info) => {
-        const imp = info.row.original
-        return (
-          <div className="text-center">
-            <p className="text-xs text-steel-700">{fmtDate(imp.fecha_estimada_llegada)}</p>
-            <p className="text-[10px] text-steel-400">{imp.items.length} productos</p>
-          </div>
-        )
-      },
+      cell: (info) => (
+        <span className="text-xs text-steel-700">{fmtDate(info.getValue())}</span>
+      ),
     }),
     colHelper.accessor('fob_total_usd', {
       header: 'FOB',
@@ -293,9 +285,42 @@ export function ImportacionesPage() {
       ),
     }),
     colHelper.display({
+      id: 'costos',
+      header: 'Costos',
+      size: 160,
+      meta: { align: 'right' },
+      cell: (info) => {
+        const imp = info.row.original
+        return (
+          <div className="flex flex-col items-end gap-0.5">
+            <div className="flex items-center gap-1.5 text-[11px] text-steel-600">
+              <span className="text-steel-400">Flete:</span>
+              <span className="font-semibold tabular-nums">${imp.flete_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-steel-600">
+              <span className="text-steel-400">Aduana:</span>
+              <span className="font-semibold tabular-nums">Bs {imp.aduana_bs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-steel-600">
+              <span className="text-steel-400">Transp.:</span>
+              <span className="font-semibold tabular-nums">Bs {imp.transporte_interno_bs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+          </div>
+        )
+      },
+    }),
+    colHelper.accessor('tipo_cambio', {
+      header: 'TC',
+      size: 70,
+      meta: { align: 'right' },
+      cell: (info) => (
+        <span className="text-xs font-semibold text-steel-500 tabular-nums">Bs {info.getValue().toFixed(2)}</span>
+      ),
+    }),
+    colHelper.display({
       id: 'acciones',
       header: '',
-      size: 80,
+      size: 60,
       meta: { align: 'right' },
       cell: (info) => (
         <div className="flex justify-end gap-0.5">
@@ -345,14 +370,6 @@ export function ImportacionesPage() {
             <h1 className="text-3xl font-black text-steel-900 tracking-tight">Importaciones</h1>
           </div>
           <div className="flex gap-2 shrink-0">
-            <Button variant="secondary" onClick={() => setConfigOpen(true)} icon={
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            }>
-              <span className="hidden sm:inline">Configurar</span>
-            </Button>
             <Button onClick={() => setNuevaOpen(true)} icon={
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -499,7 +516,6 @@ export function ImportacionesPage() {
         productos={productos}
         totalImportaciones={importaciones.length}
       />
-      <ConfigOrigenModal open={configOpen} onClose={() => setConfigOpen(false)} />
       <ImportacionDetailModal
         open={!!detailImport}
         onClose={() => setDetailImport(null)}

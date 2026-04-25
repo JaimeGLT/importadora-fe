@@ -1,40 +1,133 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { useProveedoresStore } from '@/stores/proveedoresStore'
-import { useImportacionesStore } from '@/stores/importacionesStore'
 import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
 import { Button } from '@/components/ui'
-import { MOCK_PROVEEDORES } from '@/mock/proveedores'
-import { MOCK_IMPORTACIONES } from '@/mock/importaciones'
-import type { Proveedor } from '@/types'
+import type { Proveedor, Importacion } from '@/types'
 import { ProveedorFormModal } from './ProveedorFormModal'
 import { CatalogoProveedorModal } from './CatalogoProveedorModal'
 import { notify } from '@/lib/notify'
 import { clsx } from 'clsx'
+import { gql } from '@/lib/graphql'
+import { api } from '@/lib/api'
+import {
+  backendToProveedor,
+  backendToImportacionSimple,
+  PROVEEDORES_LIST_QUERY,
+  PROVEEDOR_IMPORTACIONES_QUERY,
+  DtoProveedor,
+} from '@/lib/queries/proveedores.queries'
 
 export function ProveedoresPage() {
-  // 1. Auth
   const { isTokenReady } = useAuth()
 
-  // 2. Estado local
-  const [formOpen, setFormOpen]         = useState(false)
-  const [editingProv, setEditingProv]   = useState<Proveedor | null>(null)
+  const [formOpen, setFormOpen] = useState(false)
+  const [editingProv, setEditingProv] = useState<Proveedor | null>(null)
   const [historialProv, setHistorialProv] = useState<Proveedor | null>(null)
-  const [search, setSearch]             = useState('')
+  const [historialImportaciones, setHistorialImportaciones] = useState<Importacion[]>([])
+  const [historialLoading, setHistorialLoading] = useState(false)
+  const [search, setSearch] = useState('')
   const [filterEstado, setFilterEstado] = useState<'activo' | 'inactivo' | ''>('')
+  const [proveedores, setProveedores] = useState<Proveedor[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
 
-  // 3. Stores
-  const { proveedores, setProveedores, addProveedor, updateProveedor } = useProveedoresStore()
-  const { importaciones, setImportaciones } = useImportacionesStore()
-
-  // 4. Fetch (mock)
   useEffect(() => {
     if (!isTokenReady) return
-    setProveedores(MOCK_PROVEEDORES)
-    setImportaciones(MOCK_IMPORTACIONES)
-  }, [isTokenReady, setProveedores, setImportaciones])
+    loadProveedores()
+  }, [isTokenReady])
 
-  // 5. Datos derivados
+  const loadProveedores = () => {
+    let cancelled = false
+    setLoading(true)
+    gql<{ proveedor: { nodes: { id: number; nombre: string; nota: string; canImportaciones: number; total: number; pais: string; moneda: string; terminos: string; nombre_Contacto: string; email: string; telefono: string; tiempoReposicion: number; sitioWeb: string; estado: boolean }[] } }>(PROVEEDORES_LIST_QUERY)
+      .then((res) => {
+        if (cancelled) return
+        setProveedores(res.proveedor.nodes.map(backendToProveedor))
+      })
+      .catch(() => notify.error('Error cargando proveedores'))
+      .finally(() => { if (!cancelled) setLoading(false) })
+  }
+
+  const loadHistorial = (proveedorId: string) => {
+    setHistorialLoading(true)
+    gql<{ importacion: { nodes: { id: number; codigo: string; fecha: string; cantProductos: number; total: number; estado: string; id_Proveedor: number; f_Internacional: number; aduana_Arancel: number; trasporte_Interno: number; proveedor: { id: number; nombre: string; pais: string }; detalles: { id: number; codigo: string; codigoAux: string; codigoAux2: string; nombre: string; descripcion: string; marca: string; unidad_Medida: string; ubicacion: string; stock_Actual: number; stock_Minimo: number; costo: number; precio: number; conversionABs: number; tipo: string }[] }[] } }>(
+      PROVEEDOR_IMPORTACIONES_QUERY,
+      { id: Number(proveedorId) },
+    )
+      .then((res) => {
+        setHistorialImportaciones(res.importacion.nodes.map(backendToImportacionSimple))
+      })
+      .catch(() => notify.error('Error cargando historial'))
+      .finally(() => setHistorialLoading(false))
+  }
+
+  const handleSave = async (data: Omit<Proveedor, 'id' | 'creado_en' | 'actualizado_en'>) => {
+    if (!validateProveedor(data)) return
+    setSaving(true)
+    try {
+      const body: DtoProveedor = {
+        nombre: data.nombre,
+        pais: data.pais,
+        moneda: data.moneda,
+        terminos: data.terminos_pago,
+        nombre_Contacto: data.contacto,
+        email: data.email,
+        telefono: data.telefono ?? '',
+        tiempoReposicion: data.tiempo_reposicion_dias ?? 0,
+        sitioWeb: data.sitio_web ?? '',
+        estado: data.estado === 'activo',
+        nota: data.notas ?? '',
+      }
+
+      if (editingProv) {
+        await api.put(`/Proveedor/${editingProv.id}`, body)
+        setProveedores((prev) =>
+          prev.map((p) =>
+            p.id === editingProv.id
+              ? { ...p, ...data, actualizado_en: new Date().toISOString() }
+              : p,
+          ),
+        )
+        notify.success('Proveedor actualizado')
+      } else {
+        const res = await api.post<{ id: number }>('/Proveedor', body)
+        const newId = res.id ?? Date.now().toString()
+        const ahora = new Date().toISOString()
+        const nuevo: Proveedor = { ...data, id: String(newId), creado_en: ahora, actualizado_en: ahora }
+        setProveedores((prev) => [nuevo, ...prev])
+        notify.success('Proveedor registrado')
+      }
+      setFormOpen(false)
+      setEditingProv(null)
+    } catch {
+      notify.error(editingProv ? 'Error actualizando proveedor' : 'Error creando proveedor')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (prov: Proveedor) => {
+    if (!confirm(`¿Eliminar proveedor "${prov.nombre}"?`)) return
+    try {
+      await api.delete(`/Proveedor/${prov.id}`)
+      setProveedores((prev) => prev.filter((p) => p.id !== prov.id))
+      notify.success('Proveedor eliminado')
+    } catch {
+      notify.error('Error eliminando proveedor')
+    }
+  }
+
+  const validateProveedor = (data: Omit<Proveedor, 'id' | 'creado_en' | 'actualizado_en'>): boolean => {
+    if (!data.nombre.trim()) { notify.error('El nombre es requerido'); return false }
+    if (!data.pais.trim())   { notify.error('El país es requerido'); return false }
+    if (!data.contacto.trim()) { notify.error('El contacto es requerido'); return false }
+    if (!data.email.trim() || !/\S+@\S+\.\S+/.test(data.email)) {
+      notify.error('Email inválido')
+      return false
+    }
+    return true
+  }
+
   const filtered = useMemo(() => {
     return proveedores.filter((p) => {
       const matchSearch =
@@ -52,42 +145,14 @@ export function ProveedoresPage() {
     [proveedores],
   )
 
-  // Número de importaciones por nombre de proveedor
-  const impCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    importaciones.forEach((i) => {
-      counts[i.proveedor] = (counts[i.proveedor] ?? 0) + 1
-    })
-    return counts
-  }, [importaciones])
-
-  // Valor FOB total por proveedor
-  const fobTotals = useMemo(() => {
-    const totals: Record<string, number> = {}
-    importaciones.forEach((i) => {
-      totals[i.proveedor] = (totals[i.proveedor] ?? 0) + i.fob_total_usd
-    })
-    return totals
-  }, [importaciones])
-
-  // 6. Handlers
-  const handleSave = (data: Omit<Proveedor, 'id' | 'creado_en' | 'actualizado_en'>) => {
-    const ahora = new Date().toISOString()
-    if (editingProv) {
-      updateProveedor(editingProv.id, { ...data, actualizado_en: ahora })
-      notify.success('Proveedor actualizado')
-    } else {
-      addProveedor({ ...data, id: crypto.randomUUID(), creado_en: ahora, actualizado_en: ahora })
-      notify.success('Proveedor registrado')
-    }
-    setFormOpen(false)
-    setEditingProv(null)
-  }
-
   const openEdit = (p: Proveedor) => { setEditingProv(p); setFormOpen(true) }
   const openNew  = () => { setEditingProv(null); setFormOpen(true) }
 
-  // 7. Render
+  const openHistorial = (p: Proveedor) => {
+    setHistorialProv(p)
+    loadHistorial(p.id)
+  }
+
   return (
     <MainLayout>
       <PageContainer>
@@ -112,7 +177,6 @@ export function ProveedoresPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
           <MetricCard label="Proveedores activos" value={totalActivos}        bg="#DDE8FF" valueColor="#1A40C4" sublabelColor="#5270C8" sublabel="en operación" />
           <MetricCard label="Total registrados"   value={proveedores.length}  bg="#F5F5F5" sublabel="en sistema" />
-          <MetricCard label="Importaciones"        value={importaciones.length} bg="#C9F5E5" valueColor="#0A6645" sublabelColor="#2A8A60" sublabel="registradas" />
         </div>
 
         {/* Filtros */}
@@ -154,7 +218,7 @@ export function ProveedoresPage() {
         </span>
 
         {/* Lista */}
-        {!isTokenReady ? (
+        {!isTokenReady || loading ? (
           <ListSkeleton />
         ) : filtered.length === 0 ? (
           <EmptyState onNew={openNew} />
@@ -164,9 +228,9 @@ export function ProveedoresPage() {
             <div className="hidden lg:block">
               <div
                 className="grid items-center px-5 pb-2 mb-1"
-                style={{ gridTemplateColumns: '1fr 110px 100px 140px 130px 120px 80px', gap: '0 16px' }}
+                style={{ gridTemplateColumns: '1fr 110px 100px 140px 120px 80px', gap: '0 16px' }}
               >
-                {['Proveedor', 'País', 'Moneda', 'Términos pago', 'Importaciones', 'FOB total', ''].map((h) => (
+                {['Proveedor', 'País', 'Moneda', 'Términos pago', 'Email / Contacto', ''].map((h) => (
                   <span key={h} className="text-[11px] font-semibold uppercase tracking-wider text-steel-400">{h}</span>
                 ))}
               </div>
@@ -175,10 +239,9 @@ export function ProveedoresPage() {
                   <ProveedorRow
                     key={p.id}
                     prov={p}
-                    impCount={impCounts[p.nombre] ?? 0}
-                    fobTotal={fobTotals[p.nombre] ?? 0}
                     onEdit={() => openEdit(p)}
-                    onHistorial={() => setHistorialProv(p)}
+                    onDelete={() => handleDelete(p)}
+                    onHistorial={() => openHistorial(p)}
                   />
                 ))}
               </div>
@@ -190,10 +253,9 @@ export function ProveedoresPage() {
                 <ProveedorCard
                   key={p.id}
                   prov={p}
-                  impCount={impCounts[p.nombre] ?? 0}
-                  fobTotal={fobTotals[p.nombre] ?? 0}
                   onEdit={() => openEdit(p)}
-                  onHistorial={() => setHistorialProv(p)}
+                  onDelete={() => handleDelete(p)}
+                  onHistorial={() => openHistorial(p)}
                 />
               ))}
             </div>
@@ -206,6 +268,7 @@ export function ProveedoresPage() {
         onClose={() => { setFormOpen(false); setEditingProv(null) }}
         onSave={handleSave}
         initial={editingProv}
+        saving={saving}
       />
 
       {historialProv && (
@@ -213,6 +276,8 @@ export function ProveedoresPage() {
           open={!!historialProv}
           onClose={() => setHistorialProv(null)}
           proveedor={historialProv}
+          importaciones={historialImportaciones}
+          loading={historialLoading}
         />
       )}
     </MainLayout>
@@ -223,18 +288,13 @@ export function ProveedoresPage() {
 
 interface RowProps {
   prov: Proveedor
-  impCount: number
-  fobTotal: number
   onEdit: () => void
+  onDelete: () => void
   onHistorial: () => void
 }
 
-function fmtUSD(n: number) {
-  return n > 0 ? `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'
-}
-
-function ProveedorRow({ prov, impCount, fobTotal, onEdit, onHistorial }: RowProps) {
-  const COL = '1fr 110px 100px 140px 130px 120px 80px'
+function ProveedorRow({ prov, onEdit, onDelete, onHistorial }: RowProps) {
+  const COL = '1fr 110px 100px 140px 120px 80px'
   return (
     <div
       className="grid items-center px-5 py-3.5 rounded-xl"
@@ -249,7 +309,7 @@ function ProveedorRow({ prov, impCount, fobTotal, onEdit, onHistorial }: RowProp
     >
       <div className="min-w-0">
         <p className="font-semibold text-[13px] text-steel-800 truncate">{prov.nombre}</p>
-        <p className="text-[11px] text-steel-400 mt-0.5 truncate">{prov.contacto} · {prov.email}</p>
+        <p className="text-[11px] text-steel-400 mt-0.5 truncate">{prov.email}</p>
       </div>
 
       <p className="text-[12px] text-steel-700 truncate">{prov.pais}</p>
@@ -263,29 +323,27 @@ function ProveedorRow({ prov, impCount, fobTotal, onEdit, onHistorial }: RowProp
 
       <p className="text-[11px] text-steel-600 truncate">{prov.terminos_pago}</p>
 
-      <button
-        onClick={onHistorial}
-        className="flex items-center gap-1.5 text-[12px] text-brand-600 hover:text-brand-700 font-medium transition-colors w-fit"
-      >
-        <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-        {impCount} importaci{impCount !== 1 ? 'ones' : 'ón'}
-      </button>
-
-      <p className="text-[12px] font-semibold tabular-nums text-steel-700">{fmtUSD(fobTotal)}</p>
+      <p className="text-[11px] text-steel-500 truncate">{prov.contacto}</p>
 
       <div className="flex items-center gap-1 justify-end">
+        <IconBtn title="Ver historial" onClick={onHistorial}>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </IconBtn>
         <IconBtn title="Editar proveedor" onClick={onEdit}>
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
             d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </IconBtn>
+        <IconBtn title="Eliminar proveedor" onClick={onDelete}>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
         </IconBtn>
       </div>
     </div>
   )
 }
 
-function ProveedorCard({ prov, impCount, fobTotal, onEdit, onHistorial }: RowProps) {
+function ProveedorCard({ prov, onEdit, onDelete, onHistorial }: RowProps) {
   return (
     <div
       className="bg-white rounded-xl px-4 py-4"
@@ -306,9 +364,7 @@ function ProveedorCard({ prov, impCount, fobTotal, onEdit, onHistorial }: RowPro
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-[12px]">
         <span className="text-steel-400">Pago: <span className="text-steel-700">{prov.terminos_pago}</span></span>
-        {fobTotal > 0 && (
-          <span className="text-steel-400">FOB total: <span className="font-semibold text-steel-700">{fmtUSD(fobTotal)}</span></span>
-        )}
+        <span className="text-steel-400">Contacto: <span className="text-steel-700">{prov.contacto}</span></span>
       </div>
 
       <div className="flex items-center gap-2 mt-3 pt-3 border-t border-steel-100">
@@ -320,7 +376,7 @@ function ProveedorCard({ prov, impCount, fobTotal, onEdit, onHistorial }: RowPro
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          {impCount} importaci{impCount !== 1 ? 'ones' : 'ón'}
+          Ver historial
         </button>
         <div className="flex-1" />
         <button
@@ -331,6 +387,16 @@ function ProveedorCard({ prov, impCount, fobTotal, onEdit, onHistorial }: RowPro
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        </button>
+        <button
+          onClick={onDelete}
+          className="p-2 rounded-lg text-steel-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+          title="Eliminar"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
         </button>
       </div>

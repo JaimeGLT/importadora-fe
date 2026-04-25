@@ -1,13 +1,11 @@
 import { Fragment } from 'react'
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react'
-import type { Importacion, EstadoImportacion } from '@/types'
-import { clsx } from 'clsx'
+import type { Importacion } from '@/types'
 
-const ESTADO_CONFIG: Record<EstadoImportacion, { label: string; bg: string; text: string; border: string }> = {
-  en_transito: { label: 'En tránsito',  bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
-  en_aduana:   { label: 'En aduana',    bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-  recibida:    { label: 'Recibida',     bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-  cancelada:   { label: 'Cancelada',    bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
+interface Props {
+  open: boolean
+  onClose: () => void
+  importacion: Importacion | null
 }
 
 function fmtDate(iso: string) {
@@ -22,16 +20,9 @@ function fmtBs(n: number) {
   return `Bs ${n.toLocaleString('es-BO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 }
 
-interface Props {
-  open: boolean
-  onClose: () => void
-  importacion: Importacion | null
-}
-
 export function ImportacionDetailModal({ open, onClose, importacion }: Props) {
   if (!importacion) return null
 
-  const estado = ESTADO_CONFIG[importacion.estado]
   const costoTotal = importacion.fob_total_usd * importacion.tipo_cambio + importacion.aduana_bs + importacion.transporte_interno_bs
 
   return (
@@ -67,9 +58,6 @@ export function ImportacionDetailModal({ open, onClose, importacion }: Props) {
                     <DialogTitle className="text-xl font-bold text-steel-900">
                       {importacion.numero}
                     </DialogTitle>
-                    <span className={clsx('px-2.5 py-1 rounded-full text-xs font-semibold border', estado.bg, estado.text, estado.border)}>
-                      {estado.label}
-                    </span>
                   </div>
                   <p className="text-sm text-steel-500">{importacion.proveedor} · {importacion.origen}</p>
                 </div>
@@ -111,45 +99,59 @@ export function ImportacionDetailModal({ open, onClose, importacion }: Props) {
 
               {/* Tabla de productos */}
               <div className="flex-1 overflow-y-auto">
-                <table className="w-full">
+                <table className="w-full table-fixed">
+                  <colgroup>
+                    <col style={{ width: '280px' }} />
+                    <col style={{ width: '70px' }} />
+                    <col style={{ width: '120px' }} />
+                    <col style={{ width: '120px' }} />
+                    <col style={{ width: '80px' }} />
+                  </colgroup>
                   <thead className="sticky top-0 bg-white z-10 border-b border-steel-100">
                     <tr>
-                      <th className="text-left px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-steel-400">Producto</th>
-                      <th className="text-center px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-steel-400 w-16">Cant.</th>
-                      <th className="text-right px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-steel-400 w-24">Costo</th>
-                      <th className="text-right px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-steel-400 w-24">Venta</th>
-                      <th className="text-center px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-steel-400 w-20">Tipo</th>
+                      <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-steel-400">Producto</th>
+                      <th className="text-center px-2 py-3 text-[10px] font-bold uppercase tracking-widest text-steel-400">Cant.</th>
+                      <th className="text-right px-2 py-3 text-[10px] font-bold uppercase tracking-widest text-steel-400">Costo Unit.</th>
+                      <th className="text-right px-2 py-3 text-[10px] font-bold uppercase tracking-widest text-steel-400">Precio Venta</th>
+                      <th className="text-center px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-steel-400">Tipo</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-steel-50">
                     {importacion.items.map((item) => (
                       <tr key={item.id} className="hover:bg-steel-50/50 transition-colors">
-                        <td className="px-6 py-3">
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-brand-600 text-white">
+                        <td className="px-4 py-3 overflow-hidden">
+                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-brand-600 text-white shrink-0">
                               {item.codigo_proveedor}
                             </span>
                             {item.codigos_adicionales?.[0] && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-medium bg-steel-100 text-steel-600">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-medium bg-steel-100 text-steel-600 shrink-0">
                                 {item.codigos_adicionales[0]}
                               </span>
                             )}
+                            {item.codigos_adicionales?.[1] && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-medium bg-steel-100 text-steel-600 shrink-0">
+                                {item.codigos_adicionales[1]}
+                              </span>
+                            )}
                           </div>
-                          <p className="text-sm font-semibold text-steel-900">{item.nombre}</p>
+                          <p className="text-sm font-semibold text-steel-900 leading-tight truncate">{item.nombre}</p>
                           {item.marca && (
-                            <p className="text-xs text-steel-400">{item.marca}</p>
+                            <p className="text-[10px] text-steel-400 truncate">{item.marca}</p>
                           )}
                         </td>
-                        <td className="px-3 py-3 text-center">
+                        <td className="px-2 py-3 text-center">
                           <span className="text-sm font-bold text-steel-900 tabular-nums">{item.cantidad}</span>
                         </td>
-                        <td className="px-3 py-3 text-right">
-                          <span className="text-sm font-medium text-steel-700 tabular-nums">{item.costo_unitario_total_bs.toFixed(2)}</span>
+                        <td className="px-2 py-3 text-right">
+                          <span className="text-xs font-medium text-steel-500">Bs</span>
+                          <span className="text-sm font-semibold text-steel-700 tabular-nums ml-1">{item.costo_unitario_total_bs.toFixed(2)}</span>
                         </td>
-                        <td className="px-3 py-3 text-right">
-                          <span className="text-sm font-bold text-emerald-600 tabular-nums">{item.precio_venta_final.toFixed(2)}</span>
+                        <td className="px-2 py-3 text-right">
+                          <span className="text-xs font-medium text-steel-500">Bs</span>
+                          <span className="text-sm font-bold text-emerald-600 tabular-nums ml-1">{item.precio_venta_final.toFixed(2)}</span>
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-3 py-3 text-center">
                           {item.es_nuevo ? (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
                               Nuevo
@@ -167,8 +169,8 @@ export function ImportacionDetailModal({ open, onClose, importacion }: Props) {
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 bg-steel-900 text-white flex items-center justify-between">
-                <div className="flex items-center gap-6">
+              <div className="px-6 py-4 bg-steel-900 text-white flex items-center justify-between gap-4">
+                <div className="flex items-center gap-5 flex-wrap">
                   <div>
                     <p className="text-[10px] uppercase font-semibold text-steel-400">Creada</p>
                     <p className="text-sm font-medium">{fmtDate(importacion.fecha_creacion)}</p>
@@ -181,8 +183,12 @@ export function ImportacionDetailModal({ open, onClose, importacion }: Props) {
                     <p className="text-[10px] uppercase font-semibold text-steel-400">Aduana</p>
                     <p className="text-sm font-medium">{fmtBs(importacion.aduana_bs)}</p>
                   </div>
+                  <div>
+                    <p className="text-[10px] uppercase font-semibold text-steel-400">Transporte</p>
+                    <p className="text-sm font-medium">{fmtBs(importacion.transporte_interno_bs)}</p>
+                  </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right shrink-0">
                   <p className="text-[10px] uppercase font-semibold text-steel-400">Inversión Total</p>
                   <p className="text-xl font-black text-brand-400">{fmtBs(costoTotal)}</p>
                 </div>
