@@ -27,6 +27,7 @@ import {
   backendToProducto,
   backendToProductoSimple,
   productoToBackend,
+  productoToBackendBulk,
   type ProductoAPI,
 } from '@/lib/queries/inventario.queries'
 import { api } from '@/lib/api'
@@ -261,30 +262,27 @@ export function InventarioPage() {
   const { addPrestamo } = usePrestamosStore()
 
   // ── Load products from backend ──────────────────────────────────────────────
-  useEffect(() => {
-    if (!isTokenReady) return
-
-    let cancelled = false
-    setLoading(true)
-
-    const fetchPage = async (after: string | null, acc: ProductoAPI[]): Promise<ProductoAPI[]> => {
-      const res = await gql<{ productos: { nodes: ProductoAPI[]; pageInfo: { hasNextPage: boolean; endCursor: string } } }>(
-        PRODUCTOS_QUERY,
-        { first: 50, after }
-      )
+  const fetchProducts = (after: string | null, acc: ProductoAPI[]): Promise<ProductoAPI[]> => {
+    return gql<{ productos: { nodes: ProductoAPI[]; pageInfo: { hasNextPage: boolean; endCursor: string } } }>(
+      PRODUCTOS_QUERY,
+      { first: 50, after }
+    ).then(res => {
       const { nodes, pageInfo } = res.productos
       const all = [...acc, ...nodes]
       if (pageInfo?.hasNextPage && pageInfo.endCursor) {
-        return fetchPage(pageInfo.endCursor, all)
+        return fetchProducts(pageInfo.endCursor, all)
       }
       return all
-    }
+    })
+  }
 
-    fetchPage(null, [])
+  const loadProducts = () => {
+    let cancelled = false
+    setLoading(true)
+    fetchProducts(null, [])
       .then((raw) => {
         if (cancelled) return
-        const mapped = raw.map(backendToProductoSimple)
-        setAllProducts(mapped)
+        setAllProducts(raw.map(backendToProductoSimple))
       })
       .catch(() => {
         if (!cancelled) notify.error('Error cargando productos')
@@ -292,13 +290,31 @@ export function InventarioPage() {
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
+  }
 
+  useEffect(() => {
+    if (!isTokenReady) return
+    let cancelled = false
+    setLoading(true)
+    fetchProducts(null, [])
+      .then((raw) => {
+        if (cancelled) return
+        setAllProducts(raw.map(backendToProductoSimple))
+      })
+      .catch(() => {
+        if (!cancelled) notify.error('Error cargando productos')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
     return () => { cancelled = true }
   }, [isTokenReady])
 
   // ── Mutations ──────────────────────────────────────────────────────────────
   const handleEdit = (p: Producto) => {
+    setEditingProducto(p)
     setLoadingModal(true)
+    setModalOpen(true)
     gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTO_BY_ID_QUERY, { id: Number(p.id) })
       .then((res) => {
         if (res.productos?.nodes?.[0]) {
@@ -307,7 +323,6 @@ export function InventarioPage() {
       })
       .catch(() => notify.error('Error cargando producto'))
       .finally(() => setLoadingModal(false))
-    setModalOpen(true)
   }
   const handleNew  = () => { setEditingProducto(null); setModalOpen(true) }
 
@@ -335,8 +350,7 @@ export function InventarioPage() {
       })
     } else {
       await api.post('/Producto', payload)
-      const nuevo: Producto = { ...data, id: crypto.randomUUID(), creado_en: '', actualizado_en: '' }
-      setAllProducts((prev) => [nuevo, ...prev])
+      loadProducts()
       notify.success('Producto creado', {
         description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}`,
       })
@@ -368,24 +382,13 @@ export function InventarioPage() {
   }
 
   const handleImport = async (results: ImportResult[]) => {
-    let creados = 0
-    let actualizados = 0
+    const productosParaEnviar = results.map((r) => productoToBackendBulk(r.data))
+    await api.post('/Producto/lista', { conversionABs: 6.96, productos: productosParaEnviar })
 
-    for (const result of results) {
-      if (result.action === 'create') {
-        const payload = productoToBackend(result.data)
-        await api.post('/Producto', payload)
-        const nuevo: Producto = { ...result.data, id: crypto.randomUUID(), creado_en: '', actualizado_en: '' }
-        setAllProducts((prev) => [nuevo, ...prev])
-        creados++
-      } else if (result.action === 'update' && result.existingId) {
-        const payload = productoToBackend(result.data)
-        await api.put(`/Producto/${result.existingId}`, payload)
-        setAllProducts((prev) => prev.map((p) => p.id === result.existingId ? { ...p, ...result.data } : p))
-        actualizados++
-      }
-    }
+    loadProducts()
 
+    const creados = results.filter((r) => r.action === 'create').length
+    const actualizados = results.filter((r) => r.action === 'update').length
     const msg = creados > 0 && actualizados > 0
       ? `${creados} creados, ${actualizados} actualizados`
       : creados > 0

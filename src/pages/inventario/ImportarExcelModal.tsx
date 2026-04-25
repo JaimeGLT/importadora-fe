@@ -11,6 +11,7 @@ type ImportableKey =
   | 'codigo_universal' | 'codigo_alt1' | 'codigo_alt2'
   | 'nombre' | 'descripcion' | 'marca'
   | 'stock' | 'stock_minimo' | 'precio_costo' | 'precio_venta' | 'ubicacion'
+  | 'tipo_cambio'
 
 interface SystemField {
   key: ImportableKey
@@ -57,6 +58,7 @@ const SYSTEM_FIELDS: SystemField[] = [
   { key: 'precio_costo',     label: 'Precio costo (Bs)',    required: true  },
   { key: 'precio_venta',     label: 'Precio venta (Bs)',    required: false },
   { key: 'ubicacion',        label: 'Ubicación en almacén', required: false },
+  { key: 'tipo_cambio',     label: 'Tipo de cambio (Bs/$)', required: false },
 ]
 
 
@@ -86,6 +88,7 @@ function resolveValue(row: Record<string, unknown>, mapping: ColumnMapping): str
 function parseRow(
   row: Record<string, unknown>,
   mappings: FieldMappings,
+  tcManual: number,
 ): Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'> | null {
   const get = (key: ImportableKey) => {
     const m = mappings[key]
@@ -106,6 +109,8 @@ function parseRow(
 
   const precio_costo = parseNumeric(getRaw('precio_costo'))
   const precio_venta = parseNumeric(getRaw('precio_venta'))
+  const tipo_cambio_excel = parseNumeric(getRaw('tipo_cambio'))
+  const tc = tipo_cambio_excel > 0 ? tipo_cambio_excel : tcManual
 
   return {
     codigo_universal,
@@ -120,8 +125,9 @@ function parseRow(
     stock_minimo: Math.round(parseNumeric(getRaw('stock_minimo'))) || 5,
     precio_costo,
     precio_venta,
+    conversionABs: tc,
     historial_precios: precio_costo > 0 || precio_venta > 0
-      ? [{ fecha: new Date().toISOString(), precio_costo, precio_venta, tipo_cambio: 6.96, nota: 'Importado desde Excel' }]
+      ? [{ fecha: new Date().toISOString(), precio_costo, precio_venta, tipo_cambio: tc, nota: 'Importado desde Excel' }]
       : [],
     ubicacion:    get('ubicacion') || 'Almacén Central',
     estado:       'activo',
@@ -193,12 +199,17 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
   const [parsed, setParsed]           = useState<(ProductoImportado | null)[]>([])
   const [, setPreviewActions] = useState<Record<string, ImportAction>>({})
   const [tipoCambio, setTipoCambio]   = useState('6.96')
+  const [usarTipoCambioGlobal, setUsarTipoCambioGlobal] = useState(true)
   const [dragOver, setDragOver]       = useState(false)
   const [importing, setImporting]     = useState(false)
   const [importados, setImportados]   = useState<ProductoImportado[]>([])
   const [labelConfig, setLabelConfig] = useState<Record<string, LabelConfig>>({})
   const [printing, setPrinting]       = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const tieneTipoCambioEnExcel = useMemo(() => {
+    return (mappings['tipo_cambio']?.columns.length ?? 0) > 0
+  }, [mappings])
 
   // Mapa de códigos existentes para búsqueda rápida
   const codigosMap = useMemo(() => {
@@ -230,6 +241,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
     setFileName(''); setMappings({}); setParsed([])
     setPreviewActions({}); setImportados([]); setLabelConfig({})
     setTipoCambio('6.96')
+    setUsarTipoCambioGlobal(true)
   }
 
   const handleClose = () => { reset(); onClose() }
@@ -287,7 +299,8 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
   }
 
   const handleGoToPreview = () => {
-    const parsedData = rawRows.map((row) => parseRow(row, mappings))
+    const tc = usarTipoCambioGlobal ? (parseFloat(tipoCambio) || 6.96) : 0
+    const parsedData = rawRows.map((row) => parseRow(row, mappings, tc))
     setParsed(parsedData)
     // Inicializar acciones: 'update' para duplicados (ya existen en inventario),
     // 'create' para productos nuevos
@@ -309,20 +322,22 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
   // ── Step 3: importar ────────────────────────────────────────────────────────
   const handleImport = async () => {
     setImporting(true)
-    const tc = parseFloat(tipoCambio) || 6.96
 
-    // Construir resultados con acción determinada
     const results: ImportResult[] = parsed
       .filter((p): p is ProductoImportado => p !== null)
       .map((p) => {
         const existing = codigosMap.get(p.codigo_universal)
         const action: ImportAction = existing ? 'update' : 'create'
+        const tcFromExcel = p.conversionABs ?? 0
+        const tc = usarTipoCambioGlobal
+          ? (parseFloat(tipoCambio) || 6.96)
+          : tcFromExcel > 0 ? tcFromExcel : 6.96
 
-        // Si es actualización, aplicar tipo de cambio al historial
         if (action === 'update' && existing) {
           return {
             data: {
               ...p,
+              conversionABs: usarTipoCambioGlobal ? tc : (tcFromExcel > 0 ? tcFromExcel : 6.96),
               historial_precios: [
                 ...existing.historial_precios,
                 {
@@ -339,10 +354,10 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
           }
         }
 
-        // Para nuevos, usar tipo de cambio en el historial inicial
         return {
           data: {
             ...p,
+            conversionABs: tc,
             historial_precios: p.precio_costo > 0 || p.precio_venta > 0
               ? [{ fecha: new Date().toISOString(), precio_costo: p.precio_costo, precio_venta: p.precio_venta, tipo_cambio: tc, nota: 'Importado desde Excel' }]
               : [],
@@ -597,18 +612,73 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
       {step === 'preview' && (
         <div>
           {/* Tipo de cambio input */}
-          <div className="mb-4 flex items-center gap-3">
-            <label className="text-xs font-semibold text-steel-700">Tipo de cambio (Bs/USD):</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={tipoCambio}
-              onChange={(e) => setTipoCambio(e.target.value)}
-              className="w-24 px-2 py-1.5 text-sm border border-steel-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-400"
-            />
-            <span className="text-xs text-steel-400">Se usará para el historial de precios</span>
-          </div>
+          {!tieneTipoCambioEnExcel ? (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <div className="flex items-center gap-3 mb-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={usarTipoCambioGlobal}
+                    onChange={(e) => setUsarTipoCambioGlobal(e.target.checked)}
+                    className="h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span className="text-xs font-semibold text-amber-800">Aplicar tipo de cambio global</span>
+                </label>
+              </div>
+              {usarTipoCambioGlobal && (
+                <div className="flex items-center gap-3 ml-7">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={tipoCambio}
+                    onChange={(e) => setTipoCambio(e.target.value)}
+                    className="w-24 px-2 py-1.5 text-sm border border-amber-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  />
+                  <span className="text-xs text-amber-600">Bs/USD · Se aplicará a todos los productos importados</span>
+                </div>
+              )}
+              {!usarTipoCambioGlobal && (
+                <p className="ml-7 text-xs text-amber-600">No se guardará tipo de cambio para los productos importados</p>
+              )}
+            </div>
+          ) : (
+            <div className="mb-4 px-3 py-2 bg-steel-50 border border-steel-200 rounded-xl">
+              <div className="flex items-center gap-2 mb-1">
+                <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-xs font-semibold text-steel-700">Tipo de cambio por producto</span>
+              </div>
+              <p className="text-[11px] text-steel-500 mb-2 ml-6">
+                Se usará el valor de la columna "Tipo de cambio" mapeada en el Excel para cada producto.
+              </p>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={usarTipoCambioGlobal}
+                    onChange={(e) => setUsarTipoCambioGlobal(e.target.checked)}
+                    className="h-4 w-4 rounded border-steel-400 text-brand-600 focus:ring-brand-500"
+                  />
+                  <span className="text-xs font-semibold text-steel-700">Sobrescribir con tipo de cambio global</span>
+                </label>
+              </div>
+              {usarTipoCambioGlobal && (
+                <div className="flex items-center gap-3 mt-2 ml-7">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={tipoCambio}
+                    onChange={(e) => setTipoCambio(e.target.value)}
+                    className="w-24 px-2 py-1.5 text-sm border border-steel-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-400"
+                  />
+                  <span className="text-xs text-steel-500">Bs/USD · Reemplazará el tipo de cambio de todos los productos</span>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-3 mb-4">
             <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
@@ -648,6 +718,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">Stock *</th>
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">P. Costo *</th>
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">P. Venta</th>
+                  <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">T.C.</th>
                   <th className="px-3 py-2 text-center font-medium text-steel-500 whitespace-nowrap">Acción</th>
                 </tr>
               </thead>
@@ -657,7 +728,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
                     return (
                       <tr key={i} className="bg-red-50/50">
                         <td className="px-3 py-2 text-steel-400">{i + 1}</td>
-                        <td colSpan={7} className="px-3 py-2 text-red-400 italic">
+                        <td colSpan={8} className="px-3 py-2 text-red-400 italic">
                           Fila omitida — sin código universal
                         </td>
                       </tr>
@@ -688,6 +759,9 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-steel-600">
                         {row.precio_venta > 0 ? row.precio_venta.toFixed(2) : '—'}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-steel-500">
+                        {(row.conversionABs ?? 0) > 0 ? row.conversionABs!.toFixed(2) : '—'}
                       </td>
                       <td className="px-3 py-2 text-center">
                         {isDuplicate ? (

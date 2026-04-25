@@ -57,7 +57,7 @@ export function ProductoModal({
   const [nuevoTipoCambio, setNuevoTipoCambio] = useState('')
   const [nuevoNota, setNuevoNota] = useState('')
 
-  const isLoading = loading || (!producto && open)
+  const isLoading = loading && producto !== null
 
   useEffect(() => {
     if (!open) return
@@ -109,9 +109,17 @@ export function ProductoModal({
 
   const validate = (): boolean => {
     const e: typeof errors = {}
-    if (!form.codigo_universal.trim()) e.codigo_universal = 'Requerido'
-    if (!form.nombre.trim()) e.nombre = 'Requerido'
-    if (!producto && form.precio_costo <= 0) e.precio_costo = 'Debe ser mayor a 0'
+    if (!form.codigo_universal.trim()) {
+      e.codigo_universal = 'El código universal es obligatorio'
+    } else if (form.codigo_universal.trim().length < 3) {
+      e.codigo_universal = 'El código debe tener al menos 3 caracteres'
+    }
+    if (!form.nombre.trim()) {
+      e.nombre = 'El nombre del producto es obligatorio'
+    } 
+    if (!producto && form.precio_costo <= 0) {
+      e.precio_costo = 'El precio costo debe ser mayor a 0'
+    }
     setErrors(e)
     return Object.keys(e).length === 0
   }
