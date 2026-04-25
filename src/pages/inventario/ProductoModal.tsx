@@ -48,6 +48,7 @@ export function ProductoModal({
   const [nuevoCosto, setNuevoCosto] = useState('')
   const [nuevoVenta, setNuevoVenta] = useState('')
   const [nuevoTipoCambio, setNuevoTipoCambio] = useState('')
+  const [nuevoNota, setNuevoNota] = useState('')
 
   useEffect(() => {
     if (!open) return
@@ -83,6 +84,7 @@ const tc = producto?.conversionABs ?? 6.96
     setNuevoCosto('')
     setNuevoVenta('')
     setNuevoTipoCambio('')
+    setNuevoNota('')
   }, [open, producto, proveedores])
 
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) => {
@@ -100,16 +102,14 @@ const tc = producto?.conversionABs ?? 6.96
     const e: typeof errors = {}
     if (!form.codigo_universal.trim()) e.codigo_universal = 'Requerido'
     if (!form.nombre.trim()) e.nombre = 'Requerido'
-    if (form.precio_costo <= 0) e.precio_costo = 'Debe ser mayor a 0'
+    if (!producto && form.precio_costo <= 0) e.precio_costo = 'Debe ser mayor a 0'
     setErrors(e)
     return Object.keys(e).length === 0
   }
 
   const buildHistorial = (): HistorialPrecio[] => {
     const tc = parseFloat(tipoCambio) || 6.96
-    const prev = producto
 
-    // Si estamos actualizando precios con valores nuevos
     if (actualizarPrecio && nuevoCosto && nuevoVenta) {
       const nuevoTc = parseFloat(nuevoTipoCambio) || tc
       return [
@@ -119,23 +119,12 @@ const tc = producto?.conversionABs ?? 6.96
           precio_costo: form.precio_costo,
           precio_venta: form.precio_venta,
           tipo_cambio: nuevoTc,
+          nota: nuevoNota || undefined,
         },
       ]
     }
 
-    // Lógica anterior: detectar cambios directos
-    const costoChanged = !prev || prev.precio_costo !== form.precio_costo
-    const ventaChanged = !prev || prev.precio_venta !== form.precio_venta
-    if (!costoChanged && !ventaChanged) return form.historial_precios
-    return [
-      ...form.historial_precios,
-      {
-        fecha: new Date().toISOString(),
-        precio_costo: form.precio_costo,
-        precio_venta: form.precio_venta,
-        tipo_cambio: tc,
-      },
-    ]
+    return form.historial_precios
   }
 
   const handleSave = async () => {
@@ -300,6 +289,7 @@ const tc = producto?.conversionABs ?? 6.96
               value={form.precio_costo}
               onChange={(e) => set('precio_costo', Number(e.target.value))}
               error={errors.precio_costo}
+              readOnly={!!producto}
             />
             <Input
               label="Precio venta (Bs)"
@@ -308,6 +298,7 @@ const tc = producto?.conversionABs ?? 6.96
               value={form.precio_venta}
               onChange={(e) => set('precio_venta', Number(e.target.value))}
               error={errors.precio_venta}
+              readOnly={!!producto}
             />
             <Input
               label="Tipo de cambio (Bs/$)"
@@ -317,6 +308,7 @@ const tc = producto?.conversionABs ?? 6.96
               onChange={(e) => { setTipoCambio(e.target.value); set('conversionABs', parseFloat(e.target.value) || 6.96); setErrors((er) => ({ ...er, tipo_cambio: undefined })) }}
               error={errors.tipo_cambio}
               hint="Se guarda en el historial de precios"
+              readOnly={!!producto}
             />
           </div>
 
@@ -390,6 +382,15 @@ const tc = producto?.conversionABs ?? 6.96
                     hint="Tipo de cambio nuevo"
                   />
                 </div>
+                <div className="mt-3">
+                  <Input
+                    label="Nota (opcional)"
+                    value={nuevoNota}
+                    onChange={(e) => setNuevoNota(e.target.value)}
+                    placeholder="Ej. ajuste por inflación, cambio de proveedor..."
+                    hint="Descripción del cambio de precio"
+                  />
+                </div>
                 {nuevoCosto && nuevoVenta && (
                   <div className="mt-3 flex items-center gap-2">
                     <div className="flex items-center gap-1.5 rounded-full bg-amber-100 border border-amber-200 px-3 py-1">
@@ -397,7 +398,7 @@ const tc = producto?.conversionABs ?? 6.96
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                       </svg>
                       <span className="text-xs font-semibold text-amber-700">
-                        Se guardará: Costo {nuevoCosto} · Venta {nuevoVenta}
+                        Se guardará: Costo {nuevoCosto} · Venta {nuevoVenta}{nuevoNota ? ` · Nota: ${nuevoNota}` : ''}
                       </span>
                     </div>
                   </div>
