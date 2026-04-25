@@ -18,7 +18,8 @@ async function generarSVG(value: string): Promise<string> {
       format:       'CODE128',
       width:        2,
       height:       48,
-      fontSize:     11,
+      fontSize:    
+       11,
       displayValue: true,   
       margin:       4,
       background:   '#ffffff',
