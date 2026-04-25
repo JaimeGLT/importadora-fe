@@ -40,9 +40,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   const text = await response.text()
-  if (!text) {
-    return response.ok ? ({} as T) : JSON.parse(text) as T
-  }
+  if (!text) return undefined as T
   return JSON.parse(text) as T
 }
 

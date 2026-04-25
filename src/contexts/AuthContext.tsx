@@ -1,11 +1,13 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import type { Usuario } from '@/types'
-import { api } from '@/lib/api'
+import { apiInternal, setAuthCallbacks, clearAuthCallbacks } from '@/lib/api'
+import { initGqlCallbacks, clearGqlCallbacks } from '@/lib/graphql'
 
 interface AuthContextValue {
   user: Usuario | null
   isAuthenticated: boolean
   isTokenReady: boolean
+  refreshSession: () => Promise<boolean>
   login: (email: string, password: string) => Promise<Usuario>
   logout: () => Promise<void>
 }
@@ -47,32 +49,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isTokenReady, setIsTokenReady] = useState(false)
 
   useEffect(() => {
-    api.post<ApiUserResponse>('/Auth/refresh')
+    setAuthCallbacks(refreshSession, logout)
+    initGqlCallbacks(refreshSession, logout)
+    apiInternal.post<ApiUserResponse>('/Auth/refresh')
       .then((data) => {
         const u = mapToUser(data)
         if (u) setUser(u)
       })
       .catch(() => {
-        // no active session — stay logged out
       })
       .finally(() => setIsTokenReady(true))
+    return () => { clearAuthCallbacks(); clearGqlCallbacks() }
   }, [])
 
   const login = async (email: string, password: string): Promise<Usuario> => {
-    const data = await api.post<ApiUserResponse>('/Auth/login', { email, password })
+    const data = await apiInternal.post<ApiUserResponse>('/Auth/login', { email, password })
     const u = mapToUser(data ?? {})
     if (!u) throw new Error('No se pudo obtener datos del usuario')
     setUser(u)
     return u
   }
 
+  const refreshSession = async (): Promise<boolean> => {
+    try {
+      const data = await apiInternal.post<ApiUserResponse>('/Auth/refresh')
+      const u = mapToUser(data)
+      if (u) {
+        setUser(u)
+        return true
+      }
+      return false
+    } catch {
+      setUser(null)
+      return false
+    }
+  }
+
   const logout = async () => {
-    try { await api.post('/Auth/logout') } catch { /* ignore */ }
+    clearAuthCallbacks()
+    try { await apiInternal.post('/Auth/logout') } catch { /* ignore */ }
     setUser(null)
   }
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isTokenReady, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isTokenReady, refreshSession, login, logout }}>
       {children}
     </AuthContext.Provider>
   )
