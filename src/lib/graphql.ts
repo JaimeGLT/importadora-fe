@@ -3,7 +3,7 @@
  * Todos los componentes deben usar gql() — nunca fetch() directo.
  */
 
-const GQL_URL = import.meta.env.VITE_GQL_URL ?? 'https://usaautopartesapi20260406085513-amh4fwdnanbpa9gs.centralus-01.azurewebsites.net/graphql'
+const GQL_URL = import.meta.env.VITE_GQL_URL ?? 'http://usaautopartesapi20260406085513-amh4fwdnanbpa9gs.centralus-01.azurewebsites.net/graphql'
 
 export async function gql<T = unknown>(
   query: string,
