@@ -3,7 +3,7 @@
  * Todos los componentes deben usar esta función — nunca fetch() directo.
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api'
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'https://usaautopartesapi20260406085513-amh4fwdnanbpa9gs.centralus-01.azurewebsites.net/api'
 
 // .NET decimal fields require "18.0" not "18" — JSON.stringify strips trailing zeros
 function serializeBody(body: unknown): string {
