@@ -1,8 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react'
 import type * as XLSXType from 'xlsx'
 import { Modal, Button, Input, Select, ExcelColumnMapper } from '@/components/ui'
-import type { Importacion, ItemImportacion, Producto } from '@/types'
-import { useProveedoresStore } from '@/stores/proveedoresStore'
+import type { Importacion, ItemImportacion, Producto, Proveedor } from '@/types'
 import { clsx } from 'clsx'
 import { notify } from '@/lib/notify'
 
@@ -121,7 +120,7 @@ function buildRawItems(rows: Record<string, unknown>[], mappings: FieldMappings)
       precio_venta_manual: parseNumeric(getRaw('precio_venta')),
       ubicacion:     get('ubicacion') || 'Almacén Central',
     }
-  }).filter((r) => r.codigo_universal && r.precio_fob_usd > 0 && r.cantidad > 0)
+}).filter((r) => r.codigo_universal && r.precio_fob_usd > 0 && r.cantidad > 0)
 }
 
 function calcItems(
@@ -129,39 +128,29 @@ function calcItems(
   datos: { tipo_cambio: number; flete_usd: number; aduana_bs: number; transporte_interno_bs: number },
   productos: Producto[],
 ): DraftItem[] {
-  // Paso 2: Costo FOB en Bs por unidad = Precio FOB × Tipo de cambio
-  // Paso 3: Total FOB del lote en Bs = Σ (FOB_unit_bs × cantidad)
   const total_fob_bs = rawItems.reduce(
     (s, i) => s + i.precio_fob_usd * datos.tipo_cambio * i.cantidad, 0,
   )
 
-  // Costos adicionales del lote convertidos todos a Bs
   const costos_lote_bs =
     datos.flete_usd * datos.tipo_cambio + datos.aduana_bs + datos.transporte_interno_bs
 
   return rawItems.map((raw, idx) => {
-    // Paso 2: Costo FOB unitario en Bs
     const costo_unitario_fob_bs = raw.precio_fob_usd * datos.tipo_cambio
 
-    // Paso 4: Proporción = FOB del producto en Bs / Total FOB lote en Bs
     const fob_item_bs  = costo_unitario_fob_bs * raw.cantidad
     const proporcion   = total_fob_bs > 0 ? fob_item_bs / total_fob_bs : 0
 
-    // Paso 5: Costos distribuidos por unidad
     const costo_unitario_adicional_bs =
       raw.cantidad > 0 ? (proporcion * costos_lote_bs) / raw.cantidad : 0
 
-    // Paso 6: COSTO REAL = FOB en Bs + Costos distribuidos
     const costo_unitario_total_bs = costo_unitario_fob_bs + costo_unitario_adicional_bs
 
-    // Paso 7: PRECIO VENTA = Costo Real × Margen
     const precio_venta_sugerido = Math.ceil(costo_unitario_total_bs * MARGEN_DEFECTO * 100) / 100
 
-    // Si el Excel trae un precio venta manual, usarlo como valor inicial editable
     const precio_venta_final =
       raw.precio_venta_manual > 0 ? raw.precio_venta_manual : precio_venta_sugerido
 
-    // Buscar si ya existe en inventario por cualquier código
     const allCodes = [raw.codigo_universal, ...raw.codigos_adicionales].map((c) => c.toLowerCase())
     const match = productos.find(
       (p) =>
@@ -250,15 +239,15 @@ function Stepper({ step }: { step: ImportStep }) {
 interface Props {
   open: boolean
   onClose: () => void
-  onSave: (importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>) => void
+  onSave: (importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>, proveedorId: number) => void
+  proveedores: Proveedor[]
   productos: Producto[]
   totalImportaciones: number
 }
 
 export function NuevaImportacionModal({
-  open, onClose, onSave, productos, totalImportaciones,
+  open, onClose, onSave, proveedores, productos, totalImportaciones,
 }: Props) {
-  const { proveedores } = useProveedoresStore()
   // ── Estado ────────────────────────────────────────────────────────────────
   const [step, setStep] = useState<ImportStep>('upload')
 
@@ -288,6 +277,7 @@ export function NuevaImportacionModal({
 
   // Guardando
   const [saving, setSaving] = useState(false)
+  const [successOpen, setSuccessOpen] = useState(false)
 
   // ── Reset ────────────────────────────────────────────────────────────────
   const reset = useCallback(() => {
@@ -413,7 +403,6 @@ export function NuevaImportacionModal({
         if (usarNuevo) {
           return { ...it, usar_precio_nuevo: true, precio_venta_final: it.precio_venta_sugerido }
         }
-        // Mantener precio actual del producto
         const prod = productos.find((p) => p.id === it.producto_id)
         return {
           ...it,
@@ -451,10 +440,10 @@ export function NuevaImportacionModal({
       items: items.map((it, i) => ({ ...it, id: `item-${crypto.randomUUID()}-${i}` })),
     }
 
-    onSave(importacion)
+    onSave(importacion, Number(datos.proveedor_id))
     setSaving(false)
     reset()
-    onClose()
+    setSuccessOpen(true)
   }
 
   // ── Navegación atrás ──────────────────────────────────────────────────────
@@ -475,30 +464,31 @@ export function NuevaImportacionModal({
   const modalSize = step === 'preview' ? '2xl' : 'xl'
 
   return (
-    <Modal
-      open={open}
-      onClose={handleClose}
-      title="Nueva importación"
-      size={modalSize}
-      footer={
-        <ModalFooter
-          step={step}
-          saving={saving}
-          hasFile={columns.length > 0}
-          requiredMapped={requiredMapped}
-          hasItems={items.length > 0}
-          onBack={handleBack}
-          onNext={() => {
-            if (step === 'mapear')    handleGoToDatos()
-            if (step === 'datos')     handleGoToPreview()
-            if (step === 'preview')   setStep('confirmar')
-            if (step === 'confirmar') void handleConfirmar()
-          }}
-          onClose={handleClose}
-        />
-      }
-    >
-      <Stepper step={step} />
+    <>
+      <Modal
+        open={open}
+        onClose={handleClose}
+        title="Nueva importación"
+        size={modalSize}
+        footer={
+          <ModalFooter
+            step={step}
+            saving={saving}
+            hasFile={columns.length > 0}
+            requiredMapped={requiredMapped}
+            hasItems={items.length > 0}
+            onBack={handleBack}
+            onNext={() => {
+              if (step === 'mapear')    handleGoToDatos()
+              if (step === 'datos')     handleGoToPreview()
+              if (step === 'preview')   setStep('confirmar')
+              if (step === 'confirmar') void handleConfirmar()
+            }}
+            onClose={handleClose}
+          />
+        }
+      >
+        <Stepper step={step} />
 
       {/* ── STEP 1: UPLOAD ── */}
       {step === 'upload' && (
@@ -568,6 +558,77 @@ export function NuevaImportacionModal({
         )
       })()}
     </Modal>
+
+      {/* ── MODAL DE ÉXITO ── */}
+      <SuccessModal
+        open={successOpen}
+        onClose={() => { setSuccessOpen(false); onClose() }}
+        numero={nextNumero(totalImportaciones)}
+        totalProductos={items.length}
+        fobTotal={fobTotal}
+      />
+    </>
+  )
+}
+
+// ─── Modal de éxito ────────────────────────────────────────────────────────────
+
+function SuccessModal({
+  open, onClose, numero, totalProductos, fobTotal,
+}: {
+  open: boolean
+  onClose: () => void
+  numero: string
+  totalProductos: number
+  fobTotal: number
+}) {
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 text-center animate-in fade-in zoom-in duration-300">
+        {/* Icono circular verde */}
+        <div className="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6"
+          style={{ background: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)' }}>
+          <svg className="w-10 h-10" style={{ color: '#059669' }} fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+
+        {/* Título */}
+        <h2 className="text-xl font-bold text-steel-900 mb-2">¡Importación creada!</h2>
+
+        {/* Número de importación */}
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-5"
+          style={{ background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
+          <svg className="w-4 h-4" style={{ color: '#6366F1' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+          </svg>
+          <span className="text-sm font-semibold" style={{ color: '#4338CA' }}>{numero}</span>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="rounded-xl p-3" style={{ background: '#F9FAFB', border: '1px solid #E8EDF3' }}>
+            <p className="text-2xl font-black text-steel-900">{totalProductos}</p>
+            <p className="text-[11px] text-steel-400 mt-0.5">productos</p>
+          </div>
+          <div className="rounded-xl p-3" style={{ background: '#F9FAFB', border: '1px solid #E8EDF3' }}>
+            <p className="text-2xl font-black text-steel-900">${fobTotal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+            <p className="text-[11px] text-steel-400 mt-0.5">FOB total</p>
+          </div>
+        </div>
+
+        <p className="text-sm text-steel-500 mb-6">
+          Los productos han sido registrados correctamente y el inventario se ha actualizado.
+        </p>
+
+        <Button onClick={onClose} className="w-full">
+          Aceptar
+        </Button>
+      </div>
+    </div>
   )
 }
 
@@ -776,7 +837,7 @@ function StepPreview({
           <div>
             <p className="font-semibold" style={{ color: '#92400E' }}>Productos existentes — elige qué precio aplicar</p>
             <p className="mt-0.5" style={{ color: '#B45309' }}>
-              Para cada producto existente puedes elegir <strong>Nuevo</strong> (precio calculado con costos de esta importación, actualiza también el tipo de cambio en el historial)
+              Para cada producto existente puedes elegir <strong>Nuevo</strong> (precio calculado con costos de esta importación)
               o <strong>Mantener</strong> (conserva el precio de venta actual sin cambios).
               Si no cambias nada, se aplicará el precio nuevo automáticamente.
             </p>
@@ -825,13 +886,7 @@ function StepPreview({
               )}
               <th className="px-4 py-2.5 text-right font-semibold uppercase tracking-wider text-[10px]"
                 style={{ background: '#F0FDF9', color: '#059669', borderRight: '1px solid #D1FAE5' }}>
-                <span className="flex items-center justify-end gap-1">
-                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Precio de venta
-                </span>
+                Precio de venta
               </th>
               <th className="px-3 py-2.5 text-center font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Estado</th>
             </tr>
@@ -851,7 +906,6 @@ function StepPreview({
                   <tr className="group transition-colors hover:bg-steel-50/60"
                     style={{ borderBottom: (!historialAbierto && rowIdx < items.length - 1) ? '1px solid #F0F0F5' : undefined }}>
 
-                    {/* Producto */}
                     <td className="px-3 py-2.5">
                       <p className="font-mono text-[11px] font-bold" style={{ color: '#3730A3' }}>
                         {item.codigo_proveedor}
@@ -860,19 +914,16 @@ function StepPreview({
                       {item.marca && <p className="text-[10px] text-steel-400">{item.marca}</p>}
                     </td>
 
-                    {/* Unidades */}
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       <span className="text-[13px] font-semibold text-steel-700">{item.cantidad}</span>
                       <p className="text-[10px] text-steel-400">uds.</p>
                     </td>
 
-                    {/* Costo unit. */}
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       <span className="text-[12px] font-medium text-steel-700">Bs {item.costo_unitario_total_bs.toFixed(2)}</span>
                       <p className="text-[10px] text-steel-400">${item.precio_fob_usd.toFixed(2)} FOB</p>
                     </td>
 
-                    {/* Precio anterior — solo si hay existentes en el lote */}
                     {existentes > 0 && (
                       <td className="px-3 py-2.5 text-right"
                         style={{ background: '#F8F9FF', borderLeft: '1px solid #E0E7FF', borderRight: '1px solid #E0E7FF' }}>
@@ -913,11 +964,9 @@ function StepPreview({
                       </td>
                     )}
 
-                    {/* Precio de venta editable */}
                     <td className="px-4 py-2.5 text-right"
                       style={{ background: item.usar_precio_nuevo ? '#F0FDF9' : '#F9FAFB', borderRight: '1px solid #D1FAE5' }}>
                       <div className="flex flex-col items-end gap-1">
-                        {/* Selector nuevo / mantener — solo para existentes */}
                         {!item.es_nuevo && (
                           <div className="flex items-center rounded-lg overflow-hidden text-[10px] font-semibold"
                             style={{ border: '1px solid #E2E8F0' }}>
@@ -973,7 +1022,6 @@ function StepPreview({
                       </div>
                     </td>
 
-                    {/* Estado */}
                     <td className="px-3 py-2.5 text-center">
                       <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold"
                         style={item.es_nuevo
@@ -984,13 +1032,10 @@ function StepPreview({
                     </td>
                   </tr>
 
-                  {/* ── Panel historial ── */}
                   {historialAbierto && producto && (
-                    <tr style={{ borderBottom: rowIdx < items.length - 1 ? '1px solid #E8EDF3' : undefined }}>
+                    <tr>
                       <td colSpan={existentes > 0 ? 6 : 5} className="px-3 pb-3 pt-0">
                         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #E0E7FF', background: '#F8F9FF' }}>
-
-                          {/* Precio actual → nuevo */}
                           <div className="flex items-stretch">
                             <div className="flex-1 px-5 py-4" style={{ background: '#EEF2FF', borderRight: '1px solid #C7D2FE' }}>
                               <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#6366F1' }}>
@@ -1006,7 +1051,6 @@ function StepPreview({
                                 Desde {new Date(producto.actualizado_en).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })}
                               </p>
                             </div>
-
                             <div className="flex flex-col items-center justify-center px-5 gap-1.5" style={{ background: '#F8F9FF' }}>
                               {variacionPct !== null && variacionPct !== 0 ? (
                                 <span className={clsx(
@@ -1023,7 +1067,6 @@ function StepPreview({
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                               </svg>
                             </div>
-
                             <div className="flex-1 px-5 py-4" style={{ background: '#ECFDF5', borderLeft: '1px solid #A7F3D0' }}>
                               <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#059669' }}>
                                 Nuevo precio propuesto
@@ -1036,8 +1079,6 @@ function StepPreview({
                               </p>
                             </div>
                           </div>
-
-                          {/* Historial */}
                           {producto.historial_precios.length > 0 && (
                             <div className="px-5 py-3" style={{ borderTop: '1px solid #E0E7FF' }}>
                               <p className="text-[10px] font-semibold uppercase tracking-wider text-steel-400 mb-2.5">
@@ -1074,7 +1115,6 @@ function StepPreview({
                               </div>
                             </div>
                           )}
-
                           {producto.historial_precios.length === 0 && (
                             <div className="px-5 py-2.5" style={{ borderTop: '1px solid #E0E7FF' }}>
                               <p className="text-[11px] text-steel-400">Sin historial previo de precios registrado.</p>

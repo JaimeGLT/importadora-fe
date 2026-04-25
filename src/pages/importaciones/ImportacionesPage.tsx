@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useImportacionesStore } from '@/stores/importacionesStore'
-import { useInventarioStore } from '@/stores/inventarioStore'
-import { useProveedoresStore } from '@/stores/proveedoresStore'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
-import { Button, Input, ConfirmModal, TablePagination } from '@/components/ui'
-import { MOCK_IMPORTACIONES, MOCK_ORIGENES } from '@/mock/importaciones'
-import { MOCK_PRODUCTOS } from '@/mock/inventario'
-import { MOCK_PROVEEDORES } from '@/mock/proveedores'
-import type { Importacion, EstadoImportacion } from '@/types'
+import { Button, Input, TablePagination } from '@/components/ui'
+import type { Importacion, Producto, Proveedor, ItemImportacion } from '@/types'
 import { NuevaImportacionModal } from './NuevaImportacionModal'
 import { ConfigOrigenModal } from './ConfigOrigenModal'
 import { ImportacionDetailModal } from './ImportacionDetailModal'
 import { notify } from '@/lib/notify'
 import { clsx } from 'clsx'
+import { useAuth } from '@/contexts/AuthContext'
+import { gql } from '@/lib/graphql'
+import { IMPORTACIONES_QUERY, backendToImportacion } from '@/lib/queries/importaciones.queries'
+import { PRODUCTOS_LIST_QUERY, backendToProductoSimple } from '@/lib/queries/inventario.queries'
+import { api } from '@/lib/api'
+import type { DtoImportacion } from '@/lib/queries/importaciones.queries'
 import {
   useReactTable,
   getCoreRowModel,
@@ -25,38 +26,51 @@ import {
   type ColumnMeta,
 } from '@tanstack/react-table'
 
-const ESTADO_CONFIG: Record<EstadoImportacion, { label: string; bg: string; text: string; border: string; icon: React.ReactNode }> = {
-  en_transito: {
-    label: 'En tránsito',
-    bg: 'bg-blue-50',
-    text: 'text-blue-700',
-    border: 'border-blue-200',
-    icon: <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V6a1 1 0 011-1h1m-4 13a1 1 0 001-1V6a1 1 0 00-1-1H6a1 1 0 00-1 1v10a1 1 0 001 1h1m4-1a1 1 0 001-1V6a1 1 0 00-1-1h-1" /></svg>,
-  },
-  en_aduana: {
-    label: 'En aduana',
-    bg: 'bg-amber-50',
-    text: 'text-amber-700',
-    border: 'border-amber-200',
-    icon: <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>,
-  },
-  recibida: {
-    label: 'Recibida',
-    bg: 'bg-emerald-50',
-    text: 'text-emerald-700',
-    border: 'border-emerald-200',
-    icon: <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>,
-  },
-  cancelada: {
-    label: 'Cancelada',
-    bg: 'bg-red-50',
-    text: 'text-red-700',
-    border: 'border-red-200',
-    icon: <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>,
-  },
+const PROVEEDORES_QUERY = `
+  query ProveedoresList {
+    proveedor {
+      nodes {
+        id
+        nombre
+        nota
+        pais
+        moneda
+        terminos
+        nombre_Contacto
+        email
+        telefono
+        tiempoReposicion
+        sitioWeb
+        estado
+      }
+    }
+  }
+`
+
+function backendToProveedor(b: {
+  id: number; nombre: string; nota: string; pais: string; moneda: string
+  terminos: string; nombre_Contacto: string; email: string; telefono: string
+  tiempoReposicion: number; sitioWeb: string; estado: boolean
+}): Proveedor {
+  return {
+    id: String(b.id),
+    nombre: b.nombre,
+    pais: b.pais,
+    moneda: b.moneda as Proveedor['moneda'],
+    terminos_pago: b.terminos as Proveedor['terminos_pago'],
+    contacto: b.nombre_Contacto,
+    email: b.email,
+    telefono: b.telefono,
+    sitio_web: b.sitioWeb,
+    notas: b.nota,
+    tiempo_reposicion_dias: b.tiempoReposicion,
+    estado: b.estado ? 'activo' : 'inactivo',
+    creado_en: '',
+    actualizado_en: '',
+  }
 }
 
-const ESTADOS_FLOW: EstadoImportacion[] = ['en_transito', 'en_aduana', 'recibida']
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -119,8 +133,7 @@ function TableSkeleton() {
           </div>
           <div className="h-4 w-20 rounded bg-steel-100" />
           <div className="h-4 w-24 rounded bg-steel-100" />
-          <div className="h-6 w-24 rounded-full bg-steel-100" />
-          <div className="flex gap-1">{[0, 1, 2].map(j => <div key={j} className="h-7 w-7 rounded-lg bg-steel-50" />)}</div>
+          <div className="flex gap-1">{[0, 1].map(j => <div key={j} className="h-7 w-7 rounded-lg bg-steel-50" />)}</div>
         </div>
       ))}
     </div>
@@ -149,121 +162,88 @@ const colHelper = createColumnHelper<Importacion>()
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function ImportacionesPage() {
+  const { isTokenReady } = useAuth()
   const [nuevaOpen, setNuevaOpen] = useState(false)
   const [configOpen, setConfigOpen] = useState(false)
   const [detailImport, setDetailImport] = useState<Importacion | null>(null)
-  const [changeEstadoModal, setChangeEstadoModal] = useState<{ imp: Importacion; nextEstado: EstadoImportacion } | null>(null)
   const [loading, setLoading] = useState(true)
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
-  const [filterEstado, setFilterEstado] = useState<EstadoImportacion | ''>('')
+  const [proveedores, setProveedores] = useState<Proveedor[]>([])
+  const [productos, setProductos] = useState<Producto[]>([])
 
-  const { importaciones, setImportaciones, setOrigenes, addImportacion, updateImportacion } = useImportacionesStore()
-  const { productos, setProductos } = useInventarioStore()
-  const { setProveedores } = useProveedoresStore()
+  const { importaciones, setImportaciones } = useImportacionesStore()
 
-  // Cargar datos
-  useEffect(() => {
+  const loadImportaciones = () => {
     let cancelled = false
     setLoading(true)
-    const timer = setTimeout(() => {
-      if (!cancelled) {
-        if (importaciones.length === 0) setImportaciones(MOCK_IMPORTACIONES)
-        setOrigenes(MOCK_ORIGENES)
-        if (productos.length === 0) setProductos(MOCK_PRODUCTOS, MOCK_PRODUCTOS.length)
-        setProveedores(MOCK_PROVEEDORES)
-        setLoading(false)
-      }
-    }, 300)
-    return () => { cancelled = true; clearTimeout(timer) }
-  }, [importaciones.length, productos.length, setImportaciones, setOrigenes, setProductos, setProveedores])
+    gql<{ importacion: { nodes: unknown[] } }>(IMPORTACIONES_QUERY)
+      .then(res => {
+        if (cancelled) return
+        setImportaciones(res.importacion.nodes.map((n: unknown) => backendToImportacion(n as Parameters<typeof backendToImportacion>[0])))
+      })
+      .catch(() => notify.error('Error cargando importaciones'))
+      .finally(() => { if (!cancelled) setLoading(false) })
+  }
 
-  // Handlers
-  const handleSave = (data: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>) => {
-    const ahora = new Date().toISOString()
-    const nueva: Importacion = { ...data, id: crypto.randomUUID(), creado_en: ahora, actualizado_en: ahora }
-    addImportacion(nueva)
+  const loadProveedores = () => {
+    gql<{ proveedor: { nodes: { id: number; nombre: string; nota: string; pais: string; moneda: string; terminos: string; nombre_Contacto: string; email: string; telefono: string; tiempoReposicion: number; sitioWeb: string; estado: boolean }[] } }>(PROVEEDORES_QUERY)
+      .then(res => setProveedores(res.proveedor.nodes.map(n => backendToProveedor(n))))
+      .catch(() => notify.error('Error cargando proveedores'))
+  }
 
-    const updatedProductos = [...productos]
-    for (const item of nueva.items) {
-      if (item.es_nuevo) {
-        updatedProductos.push({
-          id: crypto.randomUUID(),
-          codigo_universal: item.codigo_proveedor,
-          codigos_alternativos: item.codigos_adicionales,
-          nombre: item.nombre,
-          descripcion: item.descripcion ?? '',
-          categoria: 'Otro',
-          marca: item.marca ?? '',
-          vehiculo: '',
-          unidad: item.unidad ?? 'pieza',
-          stock: item.cantidad,
-          stock_minimo: 5,
-          precio_costo: item.costo_unitario_total_bs,
-          precio_venta: item.precio_venta_final,
-          conversionABs: nueva.tipo_cambio,
-          historial_precios: [{ fecha: ahora, precio_costo: item.costo_unitario_total_bs, precio_venta: item.precio_venta_final, tipo_cambio: nueva.tipo_cambio }],
-          ubicacion: item.ubicacion ?? 'Almacén Central',
-          estado: 'activo',
-          proveedor_id: nueva.proveedor,
-          creado_en: ahora,
-          actualizado_en: ahora,
-        })
-      } else {
-        const idx = updatedProductos.findIndex((p) => p.id === item.producto_id)
-        if (idx >= 0) {
-          const prev = updatedProductos[idx]
-          const actualizarPrecio = item.usar_precio_nuevo !== false
-          updatedProductos[idx] = {
-            ...prev,
-            stock: prev.stock + item.cantidad,
-            ...(actualizarPrecio && {
-              precio_costo: item.costo_unitario_total_bs,
-              precio_venta: item.precio_venta_final,
-              conversionABs: nueva.tipo_cambio,
-              historial_precios: [
-                ...prev.historial_precios,
-                {
-                  fecha: ahora,
-                  precio_costo: prev.precio_costo,
-                  precio_venta: prev.precio_venta,
-                  tipo_cambio: prev.historial_precios[prev.historial_precios.length - 1]?.tipo_cambio ?? nueva.tipo_cambio,
-                },
-              ],
-            }),
-            actualizado_en: ahora,
-          }
-        }
-      }
+  const loadProductos = () => {
+    gql<{ productos: { nodes: { id: string | number; codigo: string; codigoAux: string; codigoAux2: string; nombre: string; marca: string; descripcion: string; unidad_Medida: string; ubicacion: string; stock_Actual: number; stock_Minimo: number; costo: number; precio: number; historialPrecios: { id: number; id_producto: number; fecha: string; costo: number; precio: number; conversionABs: number; nota: string | null }[] }[] } }>(PRODUCTOS_LIST_QUERY)
+      .then(res => setProductos(res.productos.nodes.map(backendToProductoSimple)))
+      .catch(() => notify.error('Error cargando productos'))
+  }
+
+  useEffect(() => {
+    if (!isTokenReady) return
+    loadImportaciones()
+    loadProveedores()
+    loadProductos()
+  }, [isTokenReady])
+
+  const handleSave = async (
+    importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>,
+    proveedorId: number,
+  ) => {
+    const tc = importacion.tipo_cambio
+    const fobTotal = importacion.items.reduce((s: number, i: ItemImportacion) => s + i.precio_fob_usd * i.cantidad, 0)
+    const payload: DtoImportacion = {
+      id_Proveedor: proveedorId,
+      fecha: new Date().toISOString(),
+      conversionABs: tc,
+      costoTotal: fobTotal,
+      f_Internacional: importacion.flete_usd,
+      aduana_Arancel: importacion.aduana_bs,
+      trasporte_Interno: importacion.transporte_interno_bs,
+      productos: importacion.items.map(it => ({
+        codigo: it.codigo_proveedor,
+        codigoAux: it.codigos_adicionales[0] ?? '',
+        codigoAux2: it.codigos_adicionales[1] ?? '',
+        nombre: it.nombre,
+        marca: it.marca ?? '',
+        descripcion: it.descripcion ?? '',
+        unidad_Medida: it.unidad ?? 'pieza',
+        ubicacion: it.ubicacion ?? 'Almacén Central',
+        stock_Actual: it.cantidad,
+        stock_Minimo: (it as unknown as { stock_minimo: number }).stock_minimo,
+        costo: it.costo_unitario_total_bs,
+        precio: it.precio_venta_final,
+      })),
     }
-    setProductos(updatedProductos, updatedProductos.length)
-    notify.success(`Importación ${nueva.numero} registrada`)
+    await api.post('/Producto/importacion', payload)
+    loadImportaciones()
+    notify.success('Importación registrada')
   }
 
-  const handleChangeEstado = async () => {
-    if (!changeEstadoModal) return
-    const { imp, nextEstado } = changeEstadoModal
-    updateImportacion(imp.id, { estado: nextEstado })
-    notify.success(`Estado actualizado a "${ESTADO_CONFIG[nextEstado].label}"`)
-    setChangeEstadoModal(null)
-  }
-
-  // KPIs
   const kpi = useMemo(() => ({
     total: importaciones.length,
-    enTransito: importaciones.filter((i) => i.estado === 'en_transito').length,
-    enAduana: importaciones.filter((i) => i.estado === 'en_aduana').length,
     valorTotal: importaciones.reduce((s, i) => s + i.fob_total_usd, 0),
   }), [importaciones])
 
-  // Datos filtrados
-  const filteredImportaciones = useMemo(() => {
-    return filterEstado
-      ? importaciones.filter((i) => i.estado === filterEstado)
-      : importaciones
-  }, [importaciones, filterEstado])
-
-  // Global filter
   const globalFilterFn = (row: { original: Importacion }, _columnId: string, filterValue: string): boolean => {
     const imp = row.original
     const search = filterValue.toLowerCase().trim()
@@ -275,11 +255,10 @@ export function ImportacionesPage() {
     )
   }
 
-  // Columns
   const columns = useMemo(() => [
     colHelper.accessor('numero', {
       header: 'Importación',
-      size: 200,
+      size: 220,
       meta: { align: 'left' },
       cell: (info) => {
         const imp = info.row.original
@@ -292,7 +271,7 @@ export function ImportacionesPage() {
       },
     }),
     colHelper.accessor('fecha_estimada_llegada', {
-      header: 'Llegada',
+      header: 'Fecha',
       size: 120,
       meta: { align: 'center' },
       cell: (info) => {
@@ -313,64 +292,30 @@ export function ImportacionesPage() {
         <span className="text-sm font-bold text-steel-900 tabular-nums">{fmtUSD(info.getValue())}</span>
       ),
     }),
-    colHelper.accessor('estado', {
-      header: 'Estado',
-      size: 120,
-      meta: { align: 'center' },
-      cell: (info) => {
-        const estado = ESTADO_CONFIG[info.getValue()]
-        return (
-          <span className={clsx('inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold', estado.bg, estado.text, estado.border, 'border')}>
-            {estado.icon}
-            {estado.label}
-          </span>
-        )
-      },
-    }),
     colHelper.display({
       id: 'acciones',
-      header: 'Acciones',
-      size: 130,
+      header: '',
+      size: 80,
       meta: { align: 'right' },
-      cell: (info) => {
-        const imp = info.row.original
-        const currentIndex = ESTADOS_FLOW.indexOf(imp.estado)
-        const nextEstado: EstadoImportacion | null = currentIndex >= 0 && currentIndex < ESTADOS_FLOW.length - 1
-          ? ESTADOS_FLOW[currentIndex + 1]
-          : null
-
-        return (
-          <div className="flex justify-end gap-0.5">
-            <button
-              onClick={() => setDetailImport(imp)}
-              className="p-1.5 rounded-lg text-steel-400 hover:text-steel-700 hover:bg-steel-100 transition-colors"
-              title="Ver detalle"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-            </button>
-            {nextEstado && (
-              <button
-                onClick={() => setChangeEstadoModal({ imp, nextEstado })}
-                className="p-1.5 rounded-lg text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
-                title={`Cambiar a ${ESTADO_CONFIG[nextEstado].label}`}
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </button>
-            )}
-          </div>
-        )
-      },
+      cell: (info) => (
+        <div className="flex justify-end gap-0.5">
+          <button
+            onClick={() => setDetailImport(info.row.original)}
+            className="p-1.5 rounded-lg text-steel-400 hover:text-steel-700 hover:bg-steel-100 transition-colors"
+            title="Ver detalle"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          </button>
+        </div>
+      ),
     }),
   ], [])
 
-  // Table
   const table = useReactTable({
-    data: filteredImportaciones,
+    data: importaciones,
     columns,
     state: { sorting, globalFilter },
     onSortingChange: setSorting,
@@ -427,18 +372,6 @@ export function ImportacionesPage() {
             sub="registradas"
           />
           <KpiCard
-            icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9" /></svg>}
-            label="En tránsito"
-            value={kpi.enTransito}
-            sub="en camino"
-          />
-          <KpiCard
-            icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>}
-            label="En aduana"
-            value={kpi.enAduana}
-            sub="pendientes"
-          />
-          <KpiCard
             icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
             label="Valor FOB total"
             value={fmtUSD(kpi.valorTotal)}
@@ -473,39 +406,12 @@ export function ImportacionesPage() {
                 )}
               </div>
             </div>
-
-            {/* Tabs de filtro */}
-            <div className="flex flex-wrap items-center gap-2 mt-4">
-              {(['', 'en_transito', 'en_aduana', 'recibida', 'cancelada'] as const).map((estado) => {
-                const cfg = estado ? ESTADO_CONFIG[estado] : null
-                const count = estado
-                  ? importaciones.filter((i) => i.estado === estado).length
-                  : importaciones.length
-                return (
-                  <button
-                    key={estado}
-                    onClick={() => setFilterEstado(estado)}
-                    className={clsx(
-                      'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-                      filterEstado === estado
-                        ? 'bg-steel-800 text-white border-steel-800'
-                        : 'bg-white text-steel-600 border-steel-200 hover:border-steel-300'
-                    )}
-                  >
-                    {cfg ? cfg.label : 'Todas'}
-                    <span className={clsx('ml-1.5', filterEstado === estado ? 'text-white/70' : 'text-steel-400')}>
-                      ({count})
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
           </div>
 
           {/* Table content */}
           {loading ? (
             <TableSkeleton />
-          ) : filteredImportaciones.length === 0 ? (
+          ) : importaciones.length === 0 ? (
             <EmptyState onNew={() => setNuevaOpen(true)} />
           ) : filteredCount === 0 ? (
             <EmptyState onNew={() => setNuevaOpen(true)} />
@@ -589,6 +495,7 @@ export function ImportacionesPage() {
         open={nuevaOpen}
         onClose={() => setNuevaOpen(false)}
         onSave={handleSave}
+        proveedores={proveedores}
         productos={productos}
         totalImportaciones={importaciones.length}
       />
@@ -597,13 +504,6 @@ export function ImportacionesPage() {
         open={!!detailImport}
         onClose={() => setDetailImport(null)}
         importacion={detailImport}
-      />
-      <ConfirmModal
-        open={!!changeEstadoModal}
-        onClose={() => setChangeEstadoModal(null)}
-        onConfirm={handleChangeEstado}
-        title="Cambiar estado"
-        message={`¿Cambiar estado a "${changeEstadoModal ? ESTADO_CONFIG[changeEstadoModal.nextEstado].label : ''}"?`}
       />
     </MainLayout>
   )

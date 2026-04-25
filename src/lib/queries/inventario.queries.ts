@@ -27,6 +27,38 @@ export const PRODUCTOS_QUERY = `
   }
 `
 
+export const PRODUCTOS_LIST_QUERY = `
+  query ProductosList {
+    productos {
+      totalCount
+      nodes {
+        id
+        unidad_Medida
+        ubicacion
+        stock_Actual
+        stock_Minimo
+        costo
+        codigo
+        nombre
+        precio
+        codigoAux
+        codigoAux2
+        marca
+        descripcion
+        historialPrecios {
+          id
+          id_producto
+          fecha
+          costo
+          precio
+          conversionABs
+          nota
+        }
+      }
+    }
+  }
+`
+
 export const PRODUCTO_BY_ID_QUERY = `
   query ProductoById($id: Int!) {
     productos(where: { id: { eq: $id } }) {
@@ -73,6 +105,15 @@ interface ProductoAPISimple {
   stock_Minimo: number
   costo: number
   precio: number
+  historialPrecios: {
+    id: number
+    id_producto: number
+    fecha: string
+    costo: number
+    precio: number
+    conversionABs: number
+    nota: string | null
+  }[]
 }
 
 export interface ProductoAPI extends ProductoAPISimple {
@@ -122,7 +163,13 @@ export function backendToProductoSimple(p: ProductoAPISimple): Producto {
     precio_costo: p.costo ?? 0,
     precio_venta: p.precio ?? 0,
     conversionABs: 6.96,
-    historial_precios: [],
+    historial_precios: (p.historialPrecios ?? []).map((h) => ({
+      fecha: h.fecha,
+      precio_costo: h.costo,
+      precio_venta: h.precio,
+      tipo_cambio: h.conversionABs,
+      nota: h.nota ?? undefined,
+    })),
     ubicacion: p.ubicacion ?? 'Almacén Central',
     estado: 'activo',
     proveedor_id: '',
