@@ -2,6 +2,18 @@ export const runtime = 'edge'
 
 const BACKEND = 'https://usaautopartesapi20260406085513-amh4fwdnanbpa9gs.centralus-01.azurewebsites.net'
 
+function rewriteSetCookie(setCookieValue: string | null, targetDomain: string): string {
+  if (!setCookieValue) return ''
+
+  return setCookieValue.split(', ').map(cookie => {
+    const domainMatch = cookie.match(/domain=([^;]+)/i)
+    if (domainMatch) {
+      return cookie.replace(`domain=${domainMatch[1]}`, `domain=${targetDomain}`)
+    }
+    return `${cookie}; domain=${targetDomain}`
+  }).join(', ')
+}
+
 export async function POST(request: Request) {
   const body = await request.text()
 
@@ -15,26 +27,14 @@ export async function POST(request: Request) {
     body,
   })
 
-  const newHeaders = new Headers(response.headers)
-  const setCookie = newHeaders.get('set-cookie')
-
-  if (setCookie) {
-    const rewritten = setCookie.split(', ').map(cookie => {
-      if (cookie.includes('azurewebsites')) {
-        const domainMatch = cookie.match(/domain=([^;]+)/i)
-        if (domainMatch) {
-          return cookie.replace(`domain=${domainMatch[1]}`, 'domain=.snakil.com')
-        }
-        return `${cookie}; domain=.snakil.com`
-      }
-      if (!cookie.includes('domain=')) {
-        return `${cookie}; domain=.snakil.com`
-      }
-      return cookie
-    }).join(', ')
-
-    newHeaders.set('set-cookie', rewritten)
-  }
+  const newHeaders = new Headers()
+  response.headers.forEach((value, key) => {
+    if (key.toLowerCase() === 'set-cookie') {
+      newHeaders.set(key, rewriteSetCookie(value, '.snakil.com'))
+    } else {
+      newHeaders.set(key, value)
+    }
+  })
 
   return new Response(response.body, {
     status: response.status,
@@ -55,26 +55,14 @@ export async function GET(request: Request) {
     credentials: 'include',
   })
 
-  const newHeaders = new Headers(response.headers)
-  const setCookie = newHeaders.get('set-cookie')
-
-  if (setCookie) {
-    const rewritten = setCookie.split(', ').map(cookie => {
-      if (cookie.includes('azurewebsites')) {
-        const domainMatch = cookie.match(/domain=([^;]+)/i)
-        if (domainMatch) {
-          return cookie.replace(`domain=${domainMatch[1]}`, 'domain=.snakil.com')
-        }
-        return `${cookie}; domain=.snakil.com`
-      }
-      if (!cookie.includes('domain=')) {
-        return `${cookie}; domain=.snakil.com`
-      }
-      return cookie
-    }).join(', ')
-
-    newHeaders.set('set-cookie', rewritten)
-  }
+  const newHeaders = new Headers()
+  response.headers.forEach((value, key) => {
+    if (key.toLowerCase() === 'set-cookie') {
+      newHeaders.set(key, rewriteSetCookie(value, '.snakil.com'))
+    } else {
+      newHeaders.set(key, value)
+    }
+  })
 
   return new Response(response.body, {
     status: response.status,
