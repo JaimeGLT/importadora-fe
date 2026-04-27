@@ -91,7 +91,7 @@ export function ProveedoresPage() {
         notify.success('Proveedor actualizado')
       } else {
         const res = await api.post<{ id: number }>('/Proveedor', body)
-        const newId = res.id ?? Date.now().toString()
+        const newId = res?.id ?? Date.now().toString()
         const ahora = new Date().toISOString()
         const nuevo: Proveedor = { ...data, id: String(newId), creado_en: ahora, actualizado_en: ahora }
         setProveedores((prev) => [nuevo, ...prev])
