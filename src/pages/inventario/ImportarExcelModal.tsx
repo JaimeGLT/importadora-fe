@@ -10,7 +10,7 @@ import { clsx } from 'clsx'
 type ImportableKey =
   | 'codigo_universal' | 'codigo_alt1' | 'codigo_alt2'
   | 'nombre' | 'descripcion' | 'marca'
-  | 'stock' | 'stock_minimo' | 'precio_costo' | 'precio_venta' | 'ubicacion'
+  | 'stock' | 'stock_minimo' | 'piezas' | 'precio_costo' | 'precio_venta' | 'ubicacion'
   | 'tipo_cambio'
 
 interface SystemField {
@@ -55,6 +55,7 @@ const SYSTEM_FIELDS: SystemField[] = [
   { key: 'marca',            label: 'Marca',                required: false },
   { key: 'stock',            label: 'Stock actual',         required: true  },
   { key: 'stock_minimo',     label: 'Stock mínimo',         required: false },
+  { key: 'piezas',           label: 'Piezas por unidad',     required: false },
   { key: 'precio_costo',     label: 'Precio costo (Bs)',    required: true  },
   { key: 'precio_venta',     label: 'Precio venta (Bs)',    required: false },
   { key: 'ubicacion',        label: 'Ubicación en almacén', required: false },
@@ -123,6 +124,7 @@ function parseRow(
     unidad:       'pieza',
     stock:        Math.round(parseNumeric(getRaw('stock'))),
     stock_minimo: Math.round(parseNumeric(getRaw('stock_minimo'))) || 5,
+    piezas:       Math.round(parseNumeric(getRaw('piezas'))) || 1,
     precio_costo,
     precio_venta,
     conversionABs: tc,

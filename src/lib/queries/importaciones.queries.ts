@@ -9,6 +9,7 @@ export interface DtoProductoImportacion {
   ubicacion: string
   stock_Actual: number
   stock_Minimo: number
+  piezas?: number
   costo: number
   precio: number
 }
@@ -40,6 +41,7 @@ interface BackendDetalle {
   precio: number
   conversionABs: number
   tipo: string
+  piezas?: number
 }
 
 interface BackendProveedor {
@@ -92,6 +94,7 @@ export function backendToImportacion(b: BackendImportacion): Importacion {
       ubicacion: d.ubicacion ?? 'Almacén Central',
       precio_fob_usd: 0,
       cantidad: d.stock_Actual,
+      piezas: d.piezas,
       stock_minimo: d.stock_Minimo,
       costo_unitario_fob_bs: d.costo,
       costo_unitario_adicional_bs: 0,

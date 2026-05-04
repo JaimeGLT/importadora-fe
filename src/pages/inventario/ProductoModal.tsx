@@ -25,6 +25,7 @@ const EMPTY: FormData = {
   unidad: 'pieza',
   stock: 0,
   stock_minimo: 5,
+  piezas: 1,
   precio_costo: 0,
   precio_venta: 0,
   conversionABs: 6.96,
@@ -74,6 +75,7 @@ export function ProductoModal({
         unidad:               producto.unidad,
         stock:                producto.stock,
         stock_minimo:         producto.stock_minimo,
+        piezas:               producto.piezas ?? 1,
         precio_costo:         producto.precio_costo,
         precio_venta:         producto.precio_venta,
         conversionABs:        tc,
@@ -293,7 +295,7 @@ export function ProductoModal({
                 placeholder="Almacén Central"
               />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
               <Input
                 label="Stock actual *"
                 type="number"
@@ -306,6 +308,13 @@ export function ProductoModal({
                 value={form.stock_minimo}
                 onChange={(e) => set('stock_minimo', Number(e.target.value))}
                 hint="Se activa alerta de reposición al llegar a este nivel"
+              />
+              <Input
+                label="Piezas"
+                type="number"
+                value={form.piezas}
+                onChange={(e) => set('piezas', Number(e.target.value))}
+                hint="Piezas por unidad (default 1)"
               />
             </div>
           </FormSection>

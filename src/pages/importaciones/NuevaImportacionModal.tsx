@@ -12,7 +12,7 @@ type ImportStep = 'upload' | 'mapear' | 'datos' | 'preview' | 'confirmar'
 type ImportField =
   | 'codigo_universal' | 'codigo_alt1' | 'codigo_alt2'
   | 'nombre' | 'descripcion' | 'marca'
-  | 'stock' | 'stock_minimo' | 'precio_costo' | 'precio_venta' | 'ubicacion'
+  | 'stock' | 'stock_minimo' | 'piezas' | 'precio_costo' | 'precio_venta' | 'ubicacion'
 
 interface SystemField {
   key: ImportField
@@ -26,6 +26,7 @@ type FieldMappings = Partial<Record<ImportField, { columns: string[]; separator:
 interface DraftItem extends Omit<ItemImportacion, 'id'> {
   _index: number
   stock_minimo: number
+  piezas?: number
   usar_precio_nuevo: boolean
 }
 
@@ -37,6 +38,7 @@ interface RawItem {
   marca: string
   precio_fob_usd: number   // = precio_costo del Excel (en USD)
   cantidad: number          // = stock del Excel
+  piezas?: number           // piezas por unidad (undefined = no enviar al backend)
   stock_minimo: number
   precio_venta_manual: number  // 0 = no especificado
   ubicacion: string
@@ -62,9 +64,10 @@ const SYSTEM_FIELDS: SystemField[] = [
   { key: 'nombre',           label: 'Nombre',               required: false },
   { key: 'descripcion',      label: 'Descripción',          required: false },
   { key: 'marca',            label: 'Marca',                required: false },
-  { key: 'stock',            label: 'Cantidad',             required: true,  hint: 'Unidades que ingresan al lote' },
+  { key: 'stock',            label: 'Cantidad',              required: true,  hint: 'Unidades que ingresan al lote' },
   { key: 'stock_minimo',     label: 'Stock mínimo',         required: false },
-  { key: 'precio_costo',     label: 'Precio FOB (USD)',     required: true,  hint: 'Precio unitario al proveedor en dólares' },
+  { key: 'piezas',           label: 'Piezas por unidad',    required: false },
+  { key: 'precio_costo',     label: 'Precio FOB (USD)',      required: true,  hint: 'Precio unitario al proveedor en dólares' },
   { key: 'precio_venta',     label: 'Precio venta (Bs)',    required: false, hint: 'Opcional — sobreescribe el calculado' },
   { key: 'ubicacion',        label: 'Ubicación en almacén', required: false },
 ]
@@ -116,6 +119,7 @@ function buildRawItems(rows: Record<string, unknown>[], mappings: FieldMappings)
       marca:         get('marca'),
       precio_fob_usd: parseNumeric(getRaw('precio_costo')),   // precio_costo del Excel = FOB en USD
       cantidad:       Math.round(parseNumeric(getRaw('stock'))),  // stock del Excel = cantidad del lote
+      piezas:         parseNumeric(getRaw('piezas')) || undefined,
       stock_minimo:   Math.round(parseNumeric(getRaw('stock_minimo'))) || 5,
       precio_venta_manual: parseNumeric(getRaw('precio_venta')),
       ubicacion:     get('ubicacion') || 'Almacén Central',
@@ -168,6 +172,7 @@ function calcItems(
       ubicacion:            raw.ubicacion,
       precio_fob_usd:       raw.precio_fob_usd,
       cantidad:             raw.cantidad,
+      piezas:               raw.piezas,
       stock_minimo:         raw.stock_minimo,
       costo_unitario_fob_bs,
       costo_unitario_adicional_bs,

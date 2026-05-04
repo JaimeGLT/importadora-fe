@@ -56,6 +56,7 @@ export interface Producto {
   stock: number
   stock_reservado?: number
   stock_minimo: number
+  piezas: number                   // piezas por unidad (default 1)
   precio_costo: number
   precio_venta: number            // en bolivianos (Bs)
   conversionABs?: number
@@ -167,6 +168,7 @@ export interface ItemImportacion {
   ubicacion?: string                // Almacén Central
   precio_fob_usd: number
   cantidad: number                  // stock entrada
+  piezas?: number                  // piezas por unidad (opcional, undefined = no enviar al backend)
   // costo por unidad
   costo_unitario_fob_bs: number
   costo_unitario_adicional_bs: number

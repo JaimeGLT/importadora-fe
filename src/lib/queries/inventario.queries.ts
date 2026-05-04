@@ -142,6 +142,7 @@ export interface ProductoAPIInput {
   ubicacion: string
   stock_Actual: number
   stock_Minimo: number
+  piezas: number
   costo: number
   precio: number
   conversionABs: number
@@ -229,6 +230,7 @@ export function productoToBackend(
     ubicacion: p.ubicacion,
     stock_Actual: p.stock,
     stock_Minimo: p.stock_minimo,
+    piezas: p.piezas ?? 1,
     costo,
     precio,
     conversionABs: dec(p.conversionABs ?? 6.96),
@@ -253,6 +255,7 @@ export function productoToBackendBulk(
     ubicacion: p.ubicacion,
     stock_Actual: p.stock,
     stock_Minimo: p.stock_minimo,
+    piezas: p.piezas ?? 1,
     costo,
     precio,
   }

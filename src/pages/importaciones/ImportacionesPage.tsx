@@ -228,6 +228,7 @@ export function ImportacionesPage() {
         ubicacion: it.ubicacion ?? 'Almacén Central',
         stock_Actual: it.cantidad,
         stock_Minimo: (it as unknown as { stock_minimo: number }).stock_minimo,
+        piezas: it.piezas,
         costo: it.costo_unitario_total_bs,
         precio: it.precio_venta_final,
       })),

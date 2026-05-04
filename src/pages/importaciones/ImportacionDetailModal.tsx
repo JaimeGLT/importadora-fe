@@ -101,16 +101,18 @@ export function ImportacionDetailModal({ open, onClose, importacion }: Props) {
               <div className="flex-1 overflow-y-auto">
                 <table className="w-full table-fixed">
                   <colgroup>
-                    <col style={{ width: '280px' }} />
-                    <col style={{ width: '70px' }} />
-                    <col style={{ width: '120px' }} />
-                    <col style={{ width: '120px' }} />
+                    <col style={{ width: '240px' }} />
+                    <col style={{ width: '60px' }} />
+                    <col style={{ width: '60px' }} />
+                    <col style={{ width: '100px' }} />
+                    <col style={{ width: '110px' }} />
                     <col style={{ width: '80px' }} />
                   </colgroup>
                   <thead className="sticky top-0 bg-white z-10 border-b border-steel-100">
                     <tr>
                       <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-steel-400">Producto</th>
                       <th className="text-center px-2 py-3 text-[10px] font-bold uppercase tracking-widest text-steel-400">Cant.</th>
+                      <th className="text-center px-2 py-3 text-[10px] font-bold uppercase tracking-widest text-steel-400">Pzas.</th>
                       <th className="text-right px-2 py-3 text-[10px] font-bold uppercase tracking-widest text-steel-400">Costo Unit.</th>
                       <th className="text-right px-2 py-3 text-[10px] font-bold uppercase tracking-widest text-steel-400">Precio Venta</th>
                       <th className="text-center px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-steel-400">Tipo</th>
@@ -142,6 +144,9 @@ export function ImportacionDetailModal({ open, onClose, importacion }: Props) {
                         </td>
                         <td className="px-2 py-3 text-center">
                           <span className="text-sm font-bold text-steel-900 tabular-nums">{item.cantidad}</span>
+                        </td>
+                        <td className="px-2 py-3 text-center">
+                          <span className="text-xs text-steel-400 tabular-nums">{item.piezas ?? '—'}</span>
                         </td>
                         <td className="px-2 py-3 text-right">
                           <span className="text-xs font-medium text-steel-500">Bs</span>
