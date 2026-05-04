@@ -19,6 +19,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'pieza',
     stock: 45,
     stock_minimo: 10,
+    piezas: 1,
     precio_costo: 24.50,
     precio_venta: 55.00,
     imagen: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=200&h=200&fit=crop',
@@ -44,6 +45,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'juego',
     stock: 8,
     stock_minimo: 5,
+    piezas: 1,
     precio_costo: 125.00,
     precio_venta: 290.00,
     imagen: 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=200&h=200&fit=crop',
@@ -69,6 +71,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'pieza',
     stock: 2,
     stock_minimo: 4,
+    piezas: 1,
     precio_costo: 243.00,
     precio_venta: 520.00,
     imagen: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=200&h=200&fit=crop',
@@ -93,6 +96,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'pieza',
     stock: 2,
     stock_minimo: 3,
+    piezas: 1,
     precio_costo: 382.00,
     precio_venta: 760.00,
     imagen: 'https://images.unsplash.com/photo-1620288627223-3c8b6e8a6e6e?w=200&h=200&fit=crop',
@@ -118,6 +122,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'pieza',
     stock: 120,
     stock_minimo: 20,
+    piezas: 1,
     precio_costo: 27.80,
     precio_venta: 65.00,
     imagen: 'https://images.unsplash.com/photo-1615554857734-31f8c6c10a5a?w=200&h=200&fit=crop',
@@ -143,6 +148,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'pieza',
     stock: 1,
     stock_minimo: 2,
+    piezas: 1,
     precio_costo: 486.00,
     precio_venta: 1005.00,
     imagen: 'https://images.unsplash.com/photo-1530046227880-4b0e3a8e7d5e?w=200&h=200&fit=crop',
@@ -167,6 +173,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'pieza',
     stock: 2,
     stock_minimo: 3,
+    piezas: 1,
     precio_costo: 277.00,
     precio_venta: 610.00,
     historial_precios: [
@@ -190,6 +197,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'pieza',
     stock: 4,
     stock_minimo: 2,
+    piezas: 1,
     precio_costo: 194.00,
     precio_venta: 450.00,
     historial_precios: [
@@ -213,6 +221,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'pieza',
     stock: 32,
     stock_minimo: 10,
+    piezas: 1,
     precio_costo: 42.00,
     precio_venta: 98.00,
     historial_precios: [
@@ -237,6 +246,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'pieza',
     stock: 6,
     stock_minimo: 4,
+    piezas: 1,
     precio_costo: 165.00,
     precio_venta: 360.00,
     historial_precios: [
@@ -261,6 +271,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'juego',
     stock: 18,
     stock_minimo: 6,
+    piezas: 1,
     precio_costo: 88.00,
     precio_venta: 195.00,
     historial_precios: [
@@ -285,6 +296,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'pieza',
     stock: 9,
     stock_minimo: 2,
+    piezas: 1,
     precio_costo: 268.00,
     precio_venta: 545.00,
     historial_precios: [
@@ -308,6 +320,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'kit',
     stock: 7,
     stock_minimo: 2,
+    piezas: 1,
     precio_costo: 310.00,
     precio_venta: 680.00,
     historial_precios: [
@@ -332,6 +345,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'par',
     stock: 9,
     stock_minimo: 4,
+    piezas: 1,
     precio_costo: 345.00,
     precio_venta: 760.00,
     historial_precios: [
@@ -356,6 +370,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'pieza',
     stock: 25,
     stock_minimo: 8,
+    piezas: 1,
     precio_costo: 52.00,
     precio_venta: 118.00,
     historial_precios: [
@@ -380,6 +395,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'pieza',
     stock: 4,
     stock_minimo: 1,
+    piezas: 1,
     precio_costo: 820.00,
     precio_venta: 1580.00,
     historial_precios: [
@@ -403,6 +419,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'pieza',
     stock: 3,
     stock_minimo: 1,
+    piezas: 1,
     precio_costo: 1180.00,
     precio_venta: 2280.00,
     historial_precios: [
@@ -426,6 +443,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'pieza',
     stock: 95,
     stock_minimo: 30,
+    piezas: 1,
     precio_costo: 29.50,
     precio_venta: 72.00,
     historial_precios: [
@@ -450,6 +468,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'pieza',
     stock: 5,
     stock_minimo: 1,
+    piezas: 1,
     precio_costo: 398.00,
     precio_venta: 850.00,
     historial_precios: [
@@ -473,6 +492,7 @@ export const MOCK_PRODUCTOS: Producto[] = [
     unidad: 'pieza',
     stock: 5,
     stock_minimo: 1,
+    piezas: 1,
     precio_costo: 188.00,
     precio_venta: 410.00,
     historial_precios: [

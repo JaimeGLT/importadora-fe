@@ -37,6 +37,7 @@ export const PRODUCTOS_LIST_QUERY = `
         ubicacion
         stock_Actual
         stock_Minimo
+        piezas
         costo
         codigo
         nombre
@@ -103,6 +104,7 @@ interface ProductoAPISimple {
   ubicacion: string
   stock_Actual: number
   stock_Minimo: number
+  piezas: number
   costo: number
   precio: number
   historialPrecios: {
@@ -161,6 +163,7 @@ export function backendToProductoSimple(p: ProductoAPISimple): Producto {
     unidad: (p.unidad_Medida?.toLowerCase() as Producto['unidad']) ?? 'pieza',
     stock: p.stock_Actual ?? 0,
     stock_minimo: p.stock_Minimo ?? 0,
+    piezas: p.piezas ?? 1,
     precio_costo: p.costo ?? 0,
     precio_venta: p.precio ?? 0,
     conversionABs: 6.96,
@@ -192,6 +195,7 @@ export function backendToProducto(p: ProductoAPI): Producto {
     unidad: (p.unidad_Medida?.toLowerCase() as Producto['unidad']) ?? 'pieza',
     stock: p.stock_Actual ?? 0,
     stock_minimo: p.stock_Minimo ?? 0,
+    piezas: p.piezas ?? 1,
     precio_costo: p.costo ?? 0,
     precio_venta: p.precio ?? 0,
     conversionABs: p.conversionABs ?? 6.96,
@@ -237,7 +241,7 @@ export function productoToBackend(
   }
 }
 
-export type ProductoAPIBulkInput = Omit<ProductoAPIInput, 'conversionABs'>
+export type ProductoAPIBulkInput = Omit<ProductoAPIInput, 'conversionABs' | 'stock_Actual'> & { cantidad: number }
 
 export function productoToBackendBulk(
   p: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>,
@@ -253,7 +257,7 @@ export function productoToBackendBulk(
     descripcion: p.descripcion,
     unidad_Medida: p.unidad,
     ubicacion: p.ubicacion,
-    stock_Actual: p.stock,
+    cantidad: p.stock,
     stock_Minimo: p.stock_minimo,
     piezas: p.piezas ?? 1,
     costo,

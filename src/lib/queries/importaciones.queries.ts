@@ -7,9 +7,10 @@ export interface DtoProductoImportacion {
   descripcion: string
   unidad_Medida: string
   ubicacion: string
-  stock_Actual: number
+  cantidad: number
   stock_Minimo: number
-  piezas?: number
+  piezas: number
+  conversionABs: number
   costo: number
   precio: number
 }

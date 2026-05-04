@@ -7,7 +7,8 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? 'https://usaautopartesapi202604
 
 function serializeBody(body: unknown): string {
   const json = JSON.stringify(body)
-  return json.replace(/"(costo|precio|conversionABs)":(-?\d+)(?![.\d])/g, '"$1":$2.0')
+  const withDoubles = json.replace(/"(costo|precio|conversionABs|cantidad|stock_Minimo|piezas)":(-?\d+\.\d+)/g, '"$1":$2')
+  return withDoubles.replace(/"(costo|precio|conversionABs)":(-?\d+)(?![.\d])/g, '"$1":$2.0')
 }
 
 interface RequestOptions extends Omit<RequestInit, 'body'> {

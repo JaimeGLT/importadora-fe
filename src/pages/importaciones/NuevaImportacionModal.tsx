@@ -28,6 +28,7 @@ interface DraftItem extends Omit<ItemImportacion, 'id'> {
   stock_minimo: number
   piezas?: number
   usar_precio_nuevo: boolean
+  usar_piezas_nuevo: boolean
 }
 
 interface RawItem {
@@ -131,6 +132,7 @@ function calcItems(
   rawItems: RawItem[],
   datos: { tipo_cambio: number; flete_usd: number; aduana_bs: number; transporte_interno_bs: number },
   productos: Producto[],
+  piezasMapeado: boolean,
 ): DraftItem[] {
   const total_fob_bs = rawItems.reduce(
     (s, i) => s + i.precio_fob_usd * datos.tipo_cambio * i.cantidad, 0,
@@ -172,7 +174,7 @@ function calcItems(
       ubicacion:            raw.ubicacion,
       precio_fob_usd:       raw.precio_fob_usd,
       cantidad:             raw.cantidad,
-      piezas:               raw.piezas,
+      piezas:               piezasMapeado ? (raw.piezas ?? 1) : 1,
       stock_minimo:         raw.stock_minimo,
       costo_unitario_fob_bs,
       costo_unitario_adicional_bs,
@@ -182,6 +184,7 @@ function calcItems(
       producto_id:          match?.id,
       es_nuevo:             !match,
       usar_precio_nuevo:    true,
+      usar_piezas_nuevo:    true,
     }
   })
 }
@@ -389,7 +392,8 @@ export function NuevaImportacionModal({
       aduana_bs: parseNumeric(datos.aduana_bs),
       transporte_interno_bs: parseNumeric(datos.transporte_interno_bs),
     }
-    setItems(calcItems(rawItems, d, productos))
+    const piezasMapeado = (mappings['piezas']?.columns.length ?? 0) > 0
+    setItems(calcItems(rawItems, d, productos, piezasMapeado))
     setStep('preview')
   }
 
@@ -414,6 +418,31 @@ export function NuevaImportacionModal({
           ...it,
           usar_precio_nuevo: false,
           precio_venta_final: prod?.precio_venta ?? it.precio_venta_final,
+        }
+      }),
+    )
+  }
+
+  const updatePiezas = (index: number, val: string) => {
+    setItems((prev) =>
+      prev.map((it) =>
+        it._index === index ? { ...it, piezas: parseNumeric(val) || it.piezas } : it,
+      ),
+    )
+  }
+
+  const updatePiezasEleccion = (index: number, usarNuevo: boolean) => {
+    setItems((prev) =>
+      prev.map((it) => {
+        if (it._index !== index) return it
+        if (usarNuevo) {
+          return { ...it, usar_piezas_nuevo: true, piezas: it.piezas ?? 1 }
+        }
+        const prod = productos.find((p) => p.id === it.producto_id)
+        return {
+          ...it,
+          usar_piezas_nuevo: false,
+          piezas: prod?.piezas ?? it.piezas ?? 1,
         }
       }),
     )
@@ -546,7 +575,10 @@ export function NuevaImportacionModal({
           tc={tc}
           onPrecioChange={updatePrecioFinal}
           onPrecioEleccion={updatePrecioEleccion}
+          onPiezasChange={updatePiezas}
+          onPiezasEleccion={updatePiezasEleccion}
           productos={productos}
+          piezasMapeado={(mappings['piezas']?.columns.length ?? 0) > 0}
         />
       )}
 
@@ -820,13 +852,16 @@ function StepDatos({
 }
 
 function StepPreview({
-  items, tc, onPrecioChange, onPrecioEleccion, productos,
+  items, tc, onPrecioChange, onPrecioEleccion, onPiezasChange, onPiezasEleccion, productos, piezasMapeado,
 }: {
   items: DraftItem[]
   tc: number
   onPrecioChange: (index: number, val: string) => void
   onPrecioEleccion: (index: number, usarNuevo: boolean) => void
+  onPiezasChange: (index: number, val: string) => void
+  onPiezasEleccion: (index: number, usarNuevo: boolean) => void
   productos: Producto[]
+  piezasMapeado: boolean
 }) {
   const fobTotal   = items.reduce((s, i) => s + i.precio_fob_usd * i.cantidad, 0)
   const nuevos     = items.filter((i) => i.es_nuevo).length
@@ -890,6 +925,9 @@ function StepPreview({
             <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E8EDF3' }}>
               <th className="px-3 py-2.5 text-left font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Producto</th>
               <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Unidades</th>
+              <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Piezas/ud.</th>
+              <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Stock mín.</th>
+              <th className="px-3 py-2.5 text-left font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Ubicación</th>
               <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Costo unit. Bs</th>
               {existentes > 0 && (
                 <th className="px-3 py-2.5 text-right font-semibold uppercase tracking-wider text-[10px]"
@@ -930,6 +968,50 @@ function StepPreview({
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       <span className="text-[13px] font-semibold text-steel-700">{item.cantidad}</span>
                       <p className="text-[10px] text-steel-400">uds.</p>
+                    </td>
+
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      {!item.es_nuevo && piezasMapeado && (
+                        <div className="flex items-center rounded-lg overflow-hidden text-[10px] font-semibold mb-1"
+                          style={{ border: '1px solid #E2E8F0' }}>
+                          <button
+                            type="button"
+                            onClick={() => onPiezasEleccion(item._index, true)}
+                            className="px-2 py-1 transition-colors"
+                            style={item.usar_piezas_nuevo
+                              ? { background: '#059669', color: '#fff' }
+                              : { background: '#fff', color: '#6B7280' }}
+                          >
+                            Nuevo
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onPiezasEleccion(item._index, false)}
+                            className="px-2 py-1 transition-colors"
+                            style={!item.usar_piezas_nuevo
+                              ? { background: '#6366F1', color: '#fff' }
+                              : { background: '#fff', color: '#6B7280' }}
+                          >
+                            Mantener
+                          </button>
+                        </div>
+                      )}
+                      <input
+                        type="number"
+                        min="1"
+                        defaultValue={item.piezas ?? 1}
+                        onBlur={(e) => onPiezasChange(item._index, e.target.value)}
+                        className="w-16 text-right px-2 py-1 rounded-lg border text-[12px] font-medium tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-shadow"
+                        style={{ borderColor: '#A7F3D0', color: '#065F46', background: '#fff' }}
+                      />
+                    </td>
+
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      <span className="text-[12px] font-medium text-steel-500">{item.stock_minimo}</span>
+                    </td>
+
+                    <td className="px-3 py-2.5">
+                      <span className="text-[11px] text-steel-500">{item.ubicacion}</span>
                     </td>
 
                     <td className="px-3 py-2.5 text-right tabular-nums">
@@ -1047,7 +1129,7 @@ function StepPreview({
 
                   {historialAbierto && producto && (
                     <tr>
-                      <td colSpan={existentes > 0 ? 6 : 5} className="px-3 pb-3 pt-0">
+                      <td colSpan={existentes > 0 ? 9 : 8} className="px-3 pb-3 pt-0">
                         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #E0E7FF', background: '#F8F9FF' }}>
                           <div className="flex items-stretch">
                             <div className="flex-1 px-5 py-4" style={{ background: '#EEF2FF', borderRight: '1px solid #C7D2FE' }}>

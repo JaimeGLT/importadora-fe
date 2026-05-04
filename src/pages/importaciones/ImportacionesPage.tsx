@@ -191,8 +191,8 @@ export function ImportacionesPage() {
   }
 
   const loadProductos = () => {
-    gql<{ productos: { nodes: { id: string | number; codigo: string; codigoAux: string; codigoAux2: string; nombre: string; marca: string; descripcion: string; unidad_Medida: string; ubicacion: string; stock_Actual: number; stock_Minimo: number; costo: number; precio: number; historialPrecios: { id: number; id_producto: number; fecha: string; costo: number; precio: number; conversionABs: number; nota: string | null }[] }[] } }>(PRODUCTOS_LIST_QUERY)
-      .then(res => setProductos(res.productos.nodes.map(backendToProductoSimple)))
+    gql(PRODUCTOS_LIST_QUERY)
+      .then((res: any) => setProductos(res.productos.nodes.map(backendToProductoSimple)))
       .catch(() => notify.error('Error cargando productos'))
   }
 
@@ -211,7 +211,7 @@ export function ImportacionesPage() {
     const fobTotal = importacion.items.reduce((s: number, i: ItemImportacion) => s + i.precio_fob_usd * i.cantidad, 0)
     const payload: DtoImportacion = {
       id_Proveedor: proveedorId,
-      fecha: new Date().toISOString(),
+      fecha: new Date(importacion.fecha_estimada_llegada).toISOString(),
       conversionABs: tc,
       costoTotal: fobTotal,
       f_Internacional: importacion.flete_usd,
@@ -224,12 +224,13 @@ export function ImportacionesPage() {
         nombre: it.nombre,
         marca: it.marca ?? '',
         descripcion: it.descripcion ?? '',
-        unidad_Medida: it.unidad ?? 'pieza',
+        unidad_Medida: it.unidad ?? 'unidad',
         ubicacion: it.ubicacion ?? 'Almacén Central',
-        stock_Actual: it.cantidad,
+        cantidad: it.cantidad,
         stock_Minimo: (it as unknown as { stock_minimo: number }).stock_minimo,
-        piezas: it.piezas,
-        costo: it.costo_unitario_total_bs,
+        piezas: it.piezas ?? 1,
+        conversionABs: tc,
+        costo: it.precio_fob_usd,
         precio: it.precio_venta_final,
       })),
     }

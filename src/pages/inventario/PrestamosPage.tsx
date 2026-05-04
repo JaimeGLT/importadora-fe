@@ -10,16 +10,16 @@ import {
   type SortingState,
   type ColumnMeta,
 } from '@tanstack/react-table'
-import { usePrestamosStore } from '@/stores/prestamosStore'
-import { useInventarioStore } from '@/stores/inventarioStore'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
 import { Button, Input, TablePagination, ConfirmModal, Modal } from '@/components/ui'
 import { NuevoPrestamoModal } from './NuevoPrestamoModal'
-import { MOCK_PRESTAMOS } from '@/mock/prestamos'
-import { MOCK_PRODUCTOS, MOCK_PROVEEDORES } from '@/mock/inventario'
-import type { Prestamo, ItemPrestamo } from '@/types'
+import type { Prestamo, ItemPrestamo, Producto } from '@/types'
 import { notify } from '@/lib/notify'
 import { clsx } from 'clsx'
+import { gql } from '@/lib/graphql'
+import { api } from '@/lib/api'
+import { PRESTAMOS_QUERY, backendToPrestamo, PrestamosResponse } from '@/lib/queries/prestamos.queries'
+import { PRODUCTOS_LIST_QUERY, backendToProductoSimple } from '@/lib/queries/inventario.queries'
 
 declare module '@tanstack/react-table' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -142,63 +142,57 @@ export function PrestamosPage() {
   const [loading, setLoading] = useState(true)
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
-
-  const { prestamos, setPrestamos, addPrestamo, cancelarPrestamo } = usePrestamosStore()
-  const { productos, setProductos, setProveedores } = useInventarioStore()
+  const [prestamos, setPrestamos] = useState<Prestamo[]>([])
+  const [productos, setProductos] = useState<Producto[]>([])
 
   useEffect(() => {
-    let cancelled = false
     setLoading(true)
-    const timer = setTimeout(() => {
-      if (!cancelled) {
-        if (prestamos.length === 0) setPrestamos(MOCK_PRESTAMOS)
-        if (productos.length === 0) {
-          setProductos(MOCK_PRODUCTOS, MOCK_PRODUCTOS.length)
-          setProveedores(MOCK_PROVEEDORES)
-        }
-        setLoading(false)
-      }
-    }, 300)
-    return () => { cancelled = true; clearTimeout(timer) }
-  }, [prestamos.length, productos.length, setPrestamos, setProductos, setProveedores])
+    gql<PrestamosResponse>(PRESTAMOS_QUERY).then((res) => {
+      setPrestamos(res.prestamos.nodes.map(backendToPrestamo))
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [])
 
-  const handleSave = (items: ItemPrestamo[], prestado_a: string, fecha: string, notas: string) => {
-    const nuevo: Prestamo = {
-      id: crypto.randomUUID(),
-      items,
-      prestado_a,
-      fecha,
-      notas,
-      estado: 'activo',
-      creado_en: new Date().toISOString(),
-    }
-    addPrestamo(nuevo)
-    items.forEach((item) => {
-      const updated = productos.map((p) =>
-        p.id === item.producto_id
-          ? { ...p, stock: p.stock - item.cantidad, actualizado_en: new Date().toISOString() }
-          : p,
-      )
-      setProductos(updated, updated.length)
+  useEffect(() => {
+    gql(PRODUCTOS_LIST_QUERY).then((res: any) => {
+      setProductos(res.productos.nodes.map(backendToProductoSimple))
     })
-    notify.success('Préstamo registrado')
+  }, [])
+
+  const handleSave = async (items: ItemPrestamo[], prestado_a: string, fecha: string, notas: string) => {
+    try {
+      await api.post('/Prestamo', {
+        nombre: prestado_a,
+        fecha: new Date(fecha).toISOString(),
+        nota: notas,
+        detalles: items.map((it) => ({ codigo: it.producto_codigo, cantidad: it.cantidad })),
+      })
+      notify.success('Prestamo creado')
+      const res = await gql<PrestamosResponse>(PRESTAMOS_QUERY)
+      setPrestamos(res.prestamos.nodes.map(backendToPrestamo))
+      const resProducts: any = await gql(PRODUCTOS_LIST_QUERY)
+      setProductos(resProducts.productos.nodes.map(backendToProductoSimple))
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al crear prestamo')
+    }
     setModalOpen(false)
   }
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     if (!prestamoToCancel) return
-    cancelarPrestamo(prestamoToCancel.id)
-    prestamoToCancel.items.forEach((item) => {
-      const updated = productos.map((p) =>
-        p.id === item.producto_id
-          ? { ...p, stock: p.stock + item.cantidad, actualizado_en: new Date().toISOString() }
-          : p,
-      )
-      setProductos(updated, updated.length)
-    })
-    notify.success('Préstamo cancelado')
-    setCancelModalOpen(false)
-    setPrestamoToCancel(null)
+    try {
+      await api.post(`/Prestamo/Cancelar/${prestamoToCancel.id}`)
+      notify.success('Prestamo cancelado')
+      const res = await gql<PrestamosResponse>(PRESTAMOS_QUERY)
+      setPrestamos(res.prestamos.nodes.map(backendToPrestamo))
+      const resProducts: any = await gql(PRODUCTOS_LIST_QUERY)
+      setProductos(resProducts.productos.nodes.map(backendToProductoSimple))
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al cancelar prestamo')
+    } finally {
+      setCancelModalOpen(false)
+      setPrestamoToCancel(null)
+    }
   }
 
   const openCancelModal = (prestamo: Prestamo) => {
