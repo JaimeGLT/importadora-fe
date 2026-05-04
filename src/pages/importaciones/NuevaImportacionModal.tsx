@@ -27,6 +27,7 @@ interface DraftItem extends Omit<ItemImportacion, 'id'> {
   _index: number
   stock_minimo: number
   piezas?: number
+  piezas_sugerido: number
   usar_precio_nuevo: boolean
   usar_piezas_nuevo: boolean
 }
@@ -174,7 +175,8 @@ function calcItems(
       ubicacion:            raw.ubicacion,
       precio_fob_usd:       raw.precio_fob_usd,
       cantidad:             raw.cantidad,
-      piezas:               piezasMapeado ? (raw.piezas ?? 1) : 1,
+      piezas:               piezasMapeado ? (raw.piezas ?? 1) : (match?.piezas ?? 1),
+      piezas_sugerido:      piezasMapeado ? (raw.piezas ?? 1) : (match?.piezas ?? 1),
       stock_minimo:         raw.stock_minimo,
       costo_unitario_fob_bs,
       costo_unitario_adicional_bs,
@@ -423,31 +425,6 @@ export function NuevaImportacionModal({
     )
   }
 
-  const updatePiezas = (index: number, val: string) => {
-    setItems((prev) =>
-      prev.map((it) =>
-        it._index === index ? { ...it, piezas: parseNumeric(val) || it.piezas } : it,
-      ),
-    )
-  }
-
-  const updatePiezasEleccion = (index: number, usarNuevo: boolean) => {
-    setItems((prev) =>
-      prev.map((it) => {
-        if (it._index !== index) return it
-        if (usarNuevo) {
-          return { ...it, usar_piezas_nuevo: true, piezas: it.piezas ?? 1 }
-        }
-        const prod = productos.find((p) => p.id === it.producto_id)
-        return {
-          ...it,
-          usar_piezas_nuevo: false,
-          piezas: prod?.piezas ?? it.piezas ?? 1,
-        }
-      }),
-    )
-  }
-
   // ── Step 5: confirmar ─────────────────────────────────────────────────────
   const handleConfirmar = async () => {
     setSaving(true)
@@ -575,10 +552,7 @@ export function NuevaImportacionModal({
           tc={tc}
           onPrecioChange={updatePrecioFinal}
           onPrecioEleccion={updatePrecioEleccion}
-          onPiezasChange={updatePiezas}
-          onPiezasEleccion={updatePiezasEleccion}
           productos={productos}
-          piezasMapeado={(mappings['piezas']?.columns.length ?? 0) > 0}
         />
       )}
 
@@ -852,16 +826,13 @@ function StepDatos({
 }
 
 function StepPreview({
-  items, tc, onPrecioChange, onPrecioEleccion, onPiezasChange, onPiezasEleccion, productos, piezasMapeado,
+  items, tc, onPrecioChange, onPrecioEleccion, productos,
 }: {
   items: DraftItem[]
   tc: number
   onPrecioChange: (index: number, val: string) => void
   onPrecioEleccion: (index: number, usarNuevo: boolean) => void
-  onPiezasChange: (index: number, val: string) => void
-  onPiezasEleccion: (index: number, usarNuevo: boolean) => void
   productos: Producto[]
-  piezasMapeado: boolean
 }) {
   const fobTotal   = items.reduce((s, i) => s + i.precio_fob_usd * i.cantidad, 0)
   const nuevos     = items.filter((i) => i.es_nuevo).length
@@ -971,39 +942,7 @@ function StepPreview({
                     </td>
 
                     <td className="px-3 py-2.5 text-right tabular-nums">
-                      {!item.es_nuevo && piezasMapeado && (
-                        <div className="flex items-center rounded-lg overflow-hidden text-[10px] font-semibold mb-1"
-                          style={{ border: '1px solid #E2E8F0' }}>
-                          <button
-                            type="button"
-                            onClick={() => onPiezasEleccion(item._index, true)}
-                            className="px-2 py-1 transition-colors"
-                            style={item.usar_piezas_nuevo
-                              ? { background: '#059669', color: '#fff' }
-                              : { background: '#fff', color: '#6B7280' }}
-                          >
-                            Nuevo
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onPiezasEleccion(item._index, false)}
-                            className="px-2 py-1 transition-colors"
-                            style={!item.usar_piezas_nuevo
-                              ? { background: '#6366F1', color: '#fff' }
-                              : { background: '#fff', color: '#6B7280' }}
-                          >
-                            Mantener
-                          </button>
-                        </div>
-                      )}
-                      <input
-                        type="number"
-                        min="1"
-                        defaultValue={item.piezas ?? 1}
-                        onBlur={(e) => onPiezasChange(item._index, e.target.value)}
-                        className="w-16 text-right px-2 py-1 rounded-lg border text-[12px] font-medium tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-shadow"
-                        style={{ borderColor: '#A7F3D0', color: '#065F46', background: '#fff' }}
-                      />
+                      <span className="text-[12px] font-medium text-steel-700">{item.piezas ?? 1}</span>
                     </td>
 
                     <td className="px-3 py-2.5 text-right tabular-nums">

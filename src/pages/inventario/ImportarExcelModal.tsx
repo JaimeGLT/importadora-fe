@@ -325,6 +325,8 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
   const handleImport = async () => {
     setImporting(true)
 
+    const columnaPiezasMapeada = (mappings['piezas']?.columns.length ?? 0) > 0
+
     const results: ImportResult[] = parsed
       .filter((p): p is ProductoImportado => p !== null)
       .map((p) => {
@@ -340,6 +342,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
             data: {
               ...p,
               conversionABs: usarTipoCambioGlobal ? tc : (tcFromExcel > 0 ? tcFromExcel : 6.96),
+              piezas: columnaPiezasMapeada ? p.piezas : existing.piezas ?? 1,
               historial_precios: [
                 ...existing.historial_precios,
                 {
@@ -710,7 +713,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
           
 
           <div className="overflow-x-auto rounded-xl border border-steel-200 max-h-80 overflow-y-auto">
-            <table className="text-xs" style={{ minWidth: 800 }}>
+            <table className="text-xs" style={{ minWidth: 900 }}>
               <thead className="sticky top-0 bg-steel-50 border-b border-steel-200 z-10">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-steel-500 w-6">#</th>
@@ -718,6 +721,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
                   <th className="px-3 py-2 text-left font-medium text-steel-500">Nombre</th>
                   <th className="px-3 py-2 text-left font-medium text-steel-500">Marca</th>
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">Stock *</th>
+                  <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">Pzas</th>
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">P. Costo *</th>
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">P. Venta</th>
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">T.C.</th>
@@ -730,7 +734,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
                     return (
                       <tr key={i} className="bg-red-50/50">
                         <td className="px-3 py-2 text-steel-400">{i + 1}</td>
-                        <td colSpan={8} className="px-3 py-2 text-red-400 italic">
+                        <td colSpan={9} className="px-3 py-2 text-red-400 italic">
                           Fila omitida — sin código universal
                         </td>
                       </tr>
@@ -756,6 +760,16 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
                       <td className="px-3 py-2 text-steel-900 max-w-[140px] truncate">{row.nombre || '—'}</td>
                       <td className="px-3 py-2 text-steel-600 whitespace-nowrap">{row.marca || '—'}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-steel-900">{row.stock}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {isDuplicate && existing ? (
+                          <div className="flex flex-col items-end">
+                            <span className="text-[11px] font-bold text-brand-600">{row.piezas ?? 1}</span>
+                            <span className="text-[9px] text-steel-400">actual: {existing.piezas ?? 1}</span>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] font-medium text-steel-700">{row.piezas ?? 1}</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-right tabular-nums font-medium text-steel-900">
                         {row.precio_costo > 0 ? row.precio_costo.toFixed(2) : <span className="text-red-400">—</span>}
                       </td>

@@ -27,6 +27,7 @@ import {
   backendToProducto,
   backendToProductoSimple,
   productoToBackend,
+  productoToBackendUpdate,
   productoToBackendBulk,
   type ProductoAPI,
 } from '@/lib/queries/inventario.queries'
@@ -327,14 +328,14 @@ export function InventarioPage() {
   const handleNew  = () => { setEditingProducto(null); setModalOpen(true) }
 
   const handleSave = async (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>) => {
-    const payload = productoToBackend(data)
     const hasPriceChange = editingProducto &&
       (data.precio_costo !== editingProducto.precio_costo ||
        data.precio_venta !== editingProducto.precio_venta ||
        data.conversionABs !== editingProducto.conversionABs)
 
     if (editingProducto) {
-      await api.put(`/Producto/${editingProducto.id}`, payload)
+      const updatePayload = productoToBackendUpdate(data)
+      await api.put(`/Producto/${editingProducto.id}`, updatePayload)
       if (hasPriceChange) {
         const pricePayload = {
           costo: data.precio_costo,
@@ -349,7 +350,8 @@ export function InventarioPage() {
         description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}`,
       })
     } else {
-      await api.post('/Producto', payload)
+      const createPayload = productoToBackend(data)
+      await api.post('/Producto', createPayload)
       loadProducts()
       notify.success('Producto creado', {
         description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}`,
@@ -383,7 +385,7 @@ export function InventarioPage() {
 
   const handleImport = async (results: ImportResult[]) => {
     const productosParaEnviar = results.map((r) => productoToBackendBulk(r.data))
-    await api.post('/Producto/lista', { conversionABs: 6.96, productos: productosParaEnviar })
+    await api.post('/Producto/lista', { productos: productosParaEnviar })
 
     loadProducts()
 

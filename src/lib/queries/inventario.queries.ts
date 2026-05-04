@@ -10,6 +10,7 @@ export const PRODUCTOS_QUERY = `
         ubicacion
         stock_Actual
         stock_Minimo
+        piezas
         costo
         codigo
         nombre
@@ -18,6 +19,7 @@ export const PRODUCTOS_QUERY = `
         codigoAux2
         marca
         descripcion
+        conversionABs
       }
       pageInfo {
         hasNextPage
@@ -69,6 +71,7 @@ export const PRODUCTO_BY_ID_QUERY = `
         ubicacion
         stock_Actual
         stock_Minimo
+        piezas
         costo
         conversionABs
         codigo
@@ -107,6 +110,7 @@ interface ProductoAPISimple {
   piezas: number
   costo: number
   precio: number
+  conversionABs: number
   historialPrecios: {
     id: number
     id_producto: number
@@ -166,7 +170,7 @@ export function backendToProductoSimple(p: ProductoAPISimple): Producto {
     piezas: p.piezas ?? 1,
     precio_costo: p.costo ?? 0,
     precio_venta: p.precio ?? 0,
-    conversionABs: 6.96,
+    conversionABs: p.conversionABs ?? 6.96,
     historial_precios: (p.historialPrecios ?? []).map((h) => ({
       fecha: h.fecha,
       precio_costo: h.costo,
@@ -241,7 +245,39 @@ export function productoToBackend(
   }
 }
 
-export type ProductoAPIBulkInput = Omit<ProductoAPIInput, 'conversionABs' | 'stock_Actual'> & { cantidad: number }
+export interface ProductoAPIUpdate {
+  codigo: string
+  nombre: string
+  piezas: number
+  stock_Actual: number
+  stock_Minimo: number
+  codigoAux?: string
+  codigoAux2?: string
+  descripcion?: string
+  marca?: string
+  ubicacion?: string
+  unidad_Medida?: string
+}
+
+export function productoToBackendUpdate(
+  p: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>,
+): ProductoAPIUpdate {
+  return {
+    codigo: p.codigo_universal,
+    nombre: p.nombre,
+    piezas: p.piezas ?? 1,
+    stock_Actual: p.stock,
+    stock_Minimo: p.stock_minimo,
+    codigoAux: p.codigos_alternativos[0] ?? '',
+    codigoAux2: p.codigos_alternativos[1] ?? '',
+    descripcion: p.descripcion,
+    marca: p.marca,
+    ubicacion: p.ubicacion,
+    unidad_Medida: p.unidad,
+  }
+}
+
+export type ProductoAPIBulkInput = Omit<ProductoAPIInput, 'conversionABs' | 'stock_Actual'> & { cantidad: number; conversionABs: number }
 
 export function productoToBackendBulk(
   p: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>,
@@ -262,5 +298,6 @@ export function productoToBackendBulk(
     piezas: p.piezas ?? 1,
     costo,
     precio,
+    conversionABs: dec(p.conversionABs ?? 6.96),
   }
 }
