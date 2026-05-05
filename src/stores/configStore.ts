@@ -9,12 +9,26 @@ export interface DescuentoConfig {
   activo: boolean
 }
 
+export type ModoPrecioCajero = 'solo_importacion' | 'solo_dolar_hoy' | 'ambos'
+
 interface ConfigState {
   descuentos: DescuentoConfig[]
   setDescuentos: (descuentos: DescuentoConfig[]) => void
   addDescuento: (descuento: DescuentoConfig) => void
   updateDescuento: (id: string, data: Partial<DescuentoConfig>) => void
   removeDescuento: (id: string) => void
+
+  tipoCambioHoy: number
+  tipoCambioFecha: string
+  tipoCambioHabilitado: boolean
+  tipoCambioFechaRecordatorio: string
+  margenGanancia: number
+  modoPrecioCajero: ModoPrecioCajero
+  setTipoCambio: (tipoCambio: number) => void
+  setMargenGanancia: (margen: number) => void
+  setModoPrecioCajero: (modo: ModoPrecioCajero) => void
+  setTipoCambioHabilitado: (habilitado: boolean) => void
+  setTipoCambioFechaRecordatorio: (fecha: string) => void
 }
 
 const DEFAULT_DESCUENTOS: DescuentoConfig[] = [
@@ -47,6 +61,27 @@ export const useConfigStore = create<ConfigState>()(
         set((state) => ({
           descuentos: state.descuentos.filter((d) => d.id !== id),
         })),
+
+      tipoCambioHoy: 0,
+      tipoCambioFecha: '',
+      tipoCambioHabilitado: false,
+      tipoCambioFechaRecordatorio: '',
+      margenGanancia: 1.20,
+      modoPrecioCajero: 'solo_importacion',
+
+      setTipoCambio: (tipoCambio) =>
+        set({
+          tipoCambioHoy: tipoCambio,
+          tipoCambioFecha: new Date().toISOString().split('T')[0],
+        }),
+
+      setMargenGanancia: (margen) => set({ margenGanancia: margen }),
+
+      setModoPrecioCajero: (modo) => set({ modoPrecioCajero: modo }),
+
+      setTipoCambioHabilitado: (habilitado) => set({ tipoCambioHabilitado: habilitado }),
+
+      setTipoCambioFechaRecordatorio: (fecha) => set({ tipoCambioFechaRecordatorio: fecha }),
     }),
     {
       name: 'config-storage',
@@ -57,4 +92,15 @@ export const useConfigStore = create<ConfigState>()(
 // Helper para calcular precio con descuento
 export function calcularPrecioConDescuento(precioBase: number, porcentaje: number): number {
   return precioBase * (1 - porcentaje / 100)
+}
+
+// Helper para calcular precio con dólar de hoy
+export function calcularPrecioDolarHoy(
+  precioCostoBs: number,
+  tipoCambioImportacion: number,
+  tipoCambioHoy: number,
+  margen: number
+): number {
+  if (tipoCambioImportacion <= 0 || margen <= 0) return 0
+  return (precioCostoBs / tipoCambioImportacion) * tipoCambioHoy * margen
 }

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button, Input } from '@/components/ui'
 import { notify } from '@/lib/notify'
+import { useConfigStore } from '@/stores/configStore'
+import { TipoCambioModal } from '@/components/ui/TipoCambioModal'
 import type { Usuario } from '@/types'
 
 const ROLE_HOME: Record<string, string> = {
@@ -18,21 +20,66 @@ const QUICK_USERS = [
 ]
 
 export function LoginPage() {
-  const { login } = useAuth()
+  const { login, user } = useAuth()
   const navigate = useNavigate()
+  const { setTipoCambio, setTipoCambioHabilitado, setTipoCambioFechaRecordatorio, tipoCambioFechaRecordatorio } = useConfigStore()
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading]   = useState(false)
+  const [showTipoCambio, setShowTipoCambio] = useState(false)
+  const [tipoCambioApi, setTipoCambioApi] = useState(0)
+
+  const fetchTipoCambio = async () => {
+    try {
+      const res = await fetch('https://bo.dolarapi.com/v1/dolares/binance')
+      const data = await res.json()
+      setTipoCambioApi(data.venta ?? 0)
+      return data.venta ?? 0
+    } catch {
+      return 0
+    }
+  }
 
   const doLogin = async (e: string, p: string) => {
     setLoading(true)
     try {
-      const user: Usuario = await login(e, p)
-      void navigate(ROLE_HOME[user.rol] ?? '/inventario')
+      const loggedUser: Usuario = await login(e, p)
+
+      if (loggedUser.rol === 'admin') {
+        const today = new Date().toISOString().split('T')[0]
+        if (tipoCambioFechaRecordatorio !== today) {
+          const tc = await fetchTipoCambio()
+          setTipoCambioApi(tc)
+          setShowTipoCambio(true)
+          setLoading(false)
+          return
+        }
+      }
+
+      void navigate(ROLE_HOME[loggedUser.rol] ?? '/inventario')
     } catch {
       notify.error('Credenciales incorrectas', { description: 'Verifica tu email y contraseña' })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleTipoCambioAccept = () => {
+    setTipoCambio(tipoCambioApi)
+    setTipoCambioHabilitado(true)
+    setTipoCambioFechaRecordatorio(new Date().toISOString().split('T')[0])
+    setShowTipoCambio(false)
+    if (user) {
+      void navigate(ROLE_HOME[user.rol] ?? '/inventario')
+    }
+  }
+
+  const handleTipoCambioReject = () => {
+    setTipoCambioHabilitado(false)
+    setTipoCambioFechaRecordatorio(new Date().toISOString().split('T')[0])
+    setShowTipoCambio(false)
+    if (user) {
+      void navigate(ROLE_HOME[user.rol] ?? '/inventario')
     }
   }
 
@@ -42,6 +89,7 @@ export function LoginPage() {
   }
 
   return (
+    <>
     <div className="min-h-screen flex">
 
       {/* ── Panel izquierdo — siempre visible, ocupa todo en mobile ── */}
@@ -116,6 +164,14 @@ export function LoginPage() {
       </div>
 
     </div>
+
+    <TipoCambioModal
+      open={showTipoCambio}
+      tipoCambio={tipoCambioApi}
+      onAccept={handleTipoCambioAccept}
+      onReject={handleTipoCambioReject}
+    />
+    </>
   )
 }
 

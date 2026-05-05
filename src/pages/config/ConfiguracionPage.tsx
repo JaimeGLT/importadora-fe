@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
 import { Modal, Button, Input, ConfirmModal } from '@/components/ui'
-import { useConfigStore, type DescuentoConfig, calcularPrecioConDescuento } from '@/stores/configStore'
+import { useConfigStore, type DescuentoConfig, calcularPrecioConDescuento, type ModoPrecioCajero } from '@/stores/configStore'
 import { notify } from '@/lib/notify'
 import { clsx } from 'clsx'
 
@@ -276,10 +276,36 @@ function DescuentoModal({
 // ─── Main Page ──────────────────────────────────────────────────────────────
 
 export function ConfiguracionPage() {
-  const { descuentos, addDescuento, updateDescuento, removeDescuento } = useConfigStore()
+  const { descuentos, addDescuento, updateDescuento, removeDescuento, margenGanancia, modoPrecioCajero, setMargenGanancia, setModoPrecioCajero, tipoCambioHoy, tipoCambioFecha, tipoCambioHabilitado, setTipoCambioHabilitado } = useConfigStore()
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<DescuentoConfig | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<DescuentoConfig | null>(null)
+  const [margenInput, setMargenInput] = useState('')
+
+  useEffect(() => {
+    setMargenInput(((margenGanancia - 1) * 100).toFixed(0))
+  }, [margenGanancia])
+
+  const handleMargenBlur = () => {
+    const parsed = parseFloat(margenInput)
+    if (isNaN(parsed) || parsed < 0 || parsed > 500) {
+      notify.error('Margen inválido (0-500%)')
+      setMargenInput(((margenGanancia - 1) * 100).toFixed(0))
+      return
+    }
+    setMargenGanancia(1 + parsed / 100)
+    notify.success('Margen actualizado')
+  }
+
+  const handleModoCambio = (modo: ModoPrecioCajero) => {
+    setModoPrecioCajero(modo)
+    notify.success('Modo actualizado')
+  }
+
+  const handleActivarDolar = () => {
+    setTipoCambioHabilitado(true)
+    notify.success('Precio del dólar activado')
+  }
 
   const handleNew = () => {
     setEditing(null)
@@ -363,6 +389,144 @@ export function ConfiguracionPage() {
               ))}
             </div>
           )}
+        </Card>
+
+        {/* Precios */}
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-5">
+            <div className="w-1 h-4 rounded-full bg-emerald-500" />
+            <h2 className="text-[11px] font-bold text-steel-500 uppercase tracking-widest">
+              Configuración de precios
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {/* Margen de ganancia */}
+            <div className="p-4 rounded-xl bg-emerald-50 border-2 border-emerald-200">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-10 w-10 rounded-xl bg-emerald-500 flex items-center justify-center">
+                  <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-bold text-emerald-700">Margen de ganancia</h3>
+                  <span className="text-[10px] text-emerald-600">Usado en cálculo de precio con dólar hoy</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={500}
+                    step={1}
+                    value={margenInput}
+                    onChange={(e) => setMargenInput(e.target.value)}
+                    onBlur={handleMargenBlur}
+                    hint="Porcentaje (%)"
+                  />
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-emerald-600 uppercase tracking-widest">Actual</p>
+                  <p className="text-xl font-black text-emerald-700">{((margenGanancia - 1) * 100).toFixed(0)}%</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modo precio cajeros */}
+            <div className="p-4 rounded-xl bg-amber-50 border-2 border-amber-200">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-10 w-10 rounded-xl bg-amber-500 flex items-center justify-center">
+                  <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-bold text-amber-700">Precio para cajeros</h3>
+                  <span className="text-[10px] text-amber-600">Lo que ve el cajero/operador</span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleModoCambio('solo_importacion')}
+                  className={clsx(
+                    'flex-1 py-2.5 rounded-xl border-2 text-xs font-bold transition-all',
+                    modoPrecioCajero === 'solo_importacion'
+                      ? 'border-amber-500 bg-amber-100 text-amber-700'
+                      : 'border-amber-200 bg-white text-amber-600 hover:border-amber-300'
+                  )}
+                >
+                  Importación
+                </button>
+                <button
+                  onClick={() => handleModoCambio('solo_dolar_hoy')}
+                  className={clsx(
+                    'flex-1 py-2.5 rounded-xl border-2 text-xs font-bold transition-all',
+                    modoPrecioCajero === 'solo_dolar_hoy'
+                      ? 'border-amber-500 bg-amber-100 text-amber-700'
+                      : 'border-amber-200 bg-white text-amber-600 hover:border-amber-300'
+                  )}
+                >
+                  Dólar hoy
+                </button>
+                <button
+                  onClick={() => handleModoCambio('ambos')}
+                  className={clsx(
+                    'flex-1 py-2.5 rounded-xl border-2 text-xs font-bold transition-all',
+                    modoPrecioCajero === 'ambos'
+                      ? 'border-amber-500 bg-amber-100 text-amber-700'
+                      : 'border-amber-200 bg-white text-amber-600 hover:border-amber-300'
+                  )}
+                >
+                  Ambos
+                </button>
+              </div>
+            </div>
+
+            {/* Precio dólar hoy */}
+            <div className="p-4 rounded-xl bg-blue-50 border-2 border-blue-200">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-10 w-10 rounded-xl bg-blue-500 flex items-center justify-center">
+                  <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-bold text-blue-700">Precio del dólar</h3>
+                  <span className="text-[10px] text-blue-600">Activado manualmente desde configuración</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] text-blue-600 uppercase tracking-widest mb-1">Precio actual</p>
+                  <p className="text-2xl font-black text-blue-700">
+                    {tipoCambioHoy > 0 ? `Bs ${tipoCambioHoy.toFixed(2)}` : 'No establecido'}
+                  </p>
+                  {tipoCambioFecha && (
+                    <p className="text-[10px] text-blue-500 mt-0.5">
+                      Fecha: {new Date(tipoCambioFecha).toLocaleDateString('es-BO')}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <span className={clsx(
+                    'text-[10px] font-bold px-2 py-1 rounded-full',
+                    tipoCambioHabilitado
+                      ? 'bg-emerald-200 text-emerald-700'
+                      : 'bg-red-200 text-red-700'
+                  )}>
+                    {tipoCambioHabilitado ? 'Habilitado' : 'Deshabilitado'}
+                  </span>
+                  {!tipoCambioHabilitado && tipoCambioHoy > 0 && (
+                    <Button size="sm" onClick={handleActivarDolar}>
+                      Activar precio
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </Card>
       </PageContainer>
 

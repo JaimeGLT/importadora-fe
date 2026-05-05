@@ -8,7 +8,9 @@ import { useInventarioStore } from '@/stores/inventarioStore'
 import { useVentasStore } from '@/stores/ventasStore'
 import { useClientesStore } from '@/stores/clientesStore'
 import { useSoundAlert } from '@/hooks/useSoundAlert'
-import { useConfigStore, calcularPrecioConDescuento, type DescuentoConfig } from '@/stores/configStore'
+import { useConfigStore, calcularPrecioConDescuento, calcularPrecioDolarHoy, type DescuentoConfig } from '@/stores/configStore'
+import { gql } from '@/lib/graphql'
+import { PRODUCTOS_LIST_QUERY, backendToProductoSimple, type ProductoAPI } from '@/lib/queries/inventario.queries'
 import { MOCK_CLIENTES } from '@/mock/clientes'
 import type { Producto, OrdenVenta, ItemOrden, MetodoPago, EstadoOrden, Cliente, Compra } from '@/types'
 
@@ -145,6 +147,44 @@ const COLOR_STYLES: Record<string, { bg: string; text: string; border: string }>
   cyan:    { bg: 'bg-cyan-50',    text: 'text-cyan-700',    border: 'border-cyan-200' },
 }
 
+function PrecioCard({
+  precio,
+  descuento,
+  onSelect,
+}: {
+  precio: number
+  descuento?: DescuentoConfig
+  onSelect: () => void
+}) {
+  const styles = descuento ? COLOR_STYLES[descuento.color] || COLOR_STYLES.emerald : { bg: 'bg-white', text: 'text-steel-900', border: 'border-steel-200' }
+  const precioFinal = descuento ? calcularPrecioConDescuento(precio, descuento.porcentaje) : precio
+
+  return (
+    <button
+      onClick={onSelect}
+      className={clsx(
+        'w-full flex items-center justify-between px-3 py-2.5 rounded-xl border-2 transition-all hover:shadow-md',
+        styles.bg, styles.border
+      )}
+    >
+      <div className="flex items-center gap-2">
+        {descuento ? (
+          <>
+            <span className={clsx('font-bold text-sm', styles.text)}>{descuento.nombre}</span>
+            <span className={clsx('text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/70', styles.text)}>-{descuento.porcentaje}%</span>
+          </>
+        ) : (
+          <span className="text-sm font-bold text-steel-700">Precio base</span>
+        )}
+      </div>
+      <div className="text-right">
+        <span className={clsx('text-base font-black', styles.text)}>{fmtBs(precioFinal)}</span>
+        {descuento && <p className="text-[10px] text-steel-400 line-through">Bs {precio.toFixed(2)}</p>}
+      </div>
+    </button>
+  )
+}
+
 function SelectPriceModal({
   producto,
   descuentos,
@@ -161,8 +201,28 @@ function SelectPriceModal({
   onClose: () => void
 }) {
   const activeDescuentos = descuentos.filter(d => d.activo)
+  const { modoPrecioCajero, tipoCambioHoy, margenGanancia, tipoCambioHabilitado } = useConfigStore()
+  const [activeTab, setActiveTab] = useState<'importacion' | 'dolar'>('importacion')
+
   const precioBase = producto.precio_venta
   const allCodes = [producto.codigo_universal, ...producto.codigos_alternativos.filter(Boolean)]
+  const precioDolarHoy = producto.conversionABs && producto.conversionABs > 0
+    ? calcularPrecioDolarHoy(producto.precio_costo, producto.conversionABs, tipoCambioHoy, margenGanancia)
+    : 0
+
+  const showBoth = modoPrecioCajero === 'ambos' && tipoCambioHabilitado
+  const showOnlyDolar = modoPrecioCajero === 'solo_dolar_hoy' && tipoCambioHabilitado
+
+  const precioImportacion = precioBase
+  const precioADisplay = showBoth ? (activeTab === 'importacion' ? precioImportacion : precioDolarHoy) : (showOnlyDolar ? precioDolarHoy : precioImportacion)
+
+  const handleSelect = (precio: number, descuento?: DescuentoConfig) => {
+    if (isEdit && onAddAnother) {
+      onAddAnother(descuento ? calcularPrecioConDescuento(precio, descuento.porcentaje) : precio, descuento?.id, descuento?.nombre, descuento?.porcentaje)
+    } else {
+      onSelect(descuento ? calcularPrecioConDescuento(precio, descuento.porcentaje) : precio, descuento?.id, descuento?.nombre, descuento?.porcentaje)
+    }
+  }
 
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Cambiar precio' : 'Seleccionar precio'} size="sm">
@@ -193,73 +253,57 @@ function SelectPriceModal({
           </div>
         </div>
 
+        {showBoth && (
+          <div className="flex gap-1 bg-steel-100 rounded-xl p-1">
+            <button
+              onClick={() => setActiveTab('importacion')}
+              className={clsx(
+                'flex-1 py-2 text-xs font-bold rounded-lg transition-all',
+                activeTab === 'importacion' ? 'bg-white text-steel-800 shadow-sm' : 'text-steel-500 hover:text-steel-700'
+              )}
+            >
+              Importación
+            </button>
+            <button
+              onClick={() => setActiveTab('dolar')}
+              className={clsx(
+                'flex-1 py-2 text-xs font-bold rounded-lg transition-all',
+                activeTab === 'dolar' ? 'bg-white text-steel-800 shadow-sm' : 'text-steel-500 hover:text-steel-700'
+              )}
+            >
+              Dólar hoy
+            </button>
+          </div>
+        )}
+
         <div className="space-y-1.5">
           <p className="text-[10px] font-bold text-steel-400 uppercase tracking-widest px-1">Precios disponibles</p>
 
-          <button
-            onClick={() => isEdit && onAddAnother ? onAddAnother(precioBase) : onSelect(precioBase)}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border-2 border-steel-200 hover:border-brand-600 hover:bg-brand-50 transition-all"
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-steel-700">Precio base</span>
-              <span className="text-[10px] text-steel-400">Sin dto.</span>
-            </div>
-            <span className="text-base font-black text-steel-900">{fmtBs(precioBase)}</span>
-          </button>
+          <PrecioCard precio={precioADisplay} onSelect={() => handleSelect(precioADisplay)} />
 
-          {activeDescuentos.map(d => {
-            const styles = COLOR_STYLES[d.color] || COLOR_STYLES.emerald
-            const precioConDescuento = calcularPrecioConDescuento(precioBase, d.porcentaje)
-            return (
-              <button
-                key={d.id}
-                onClick={() => isEdit && onAddAnother ? onAddAnother(precioConDescuento, d.id, d.nombre, d.porcentaje) : onSelect(precioConDescuento, d.id, d.nombre, d.porcentaje)}
-                className={clsx(
-                  'w-full flex items-center justify-between px-3 py-2.5 rounded-xl border-2 transition-all hover:shadow-md',
-                  styles.bg, styles.border
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <span className={clsx('font-bold text-sm', styles.text)}>{d.nombre}</span>
-                  <span className={clsx('text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/70', styles.text)}>-{d.porcentaje}%</span>
-                </div>
-                <div className="text-right">
-                  <span className={clsx('text-base font-black', styles.text)}>{fmtBs(precioConDescuento)}</span>
-                  <p className="text-[10px] text-steel-400 line-through">Bs {precioBase.toFixed(2)}</p>
-                </div>
-              </button>
-            )
-          })}
+          {activeDescuentos.map(d => (
+            <PrecioCard
+              key={d.id}
+              precio={precioADisplay}
+              descuento={d}
+              onSelect={() => handleSelect(precioADisplay, d)}
+            />
+          ))}
         </div>
 
         {isEdit && onAddAnother && (
           <div className="border-t border-steel-200 pt-4">
             <p className="text-[10px] font-semibold text-steel-400 uppercase tracking-widest px-1 mb-2">¿Actualizar precio y agregar más?</p>
             <div className="space-y-1.5">
-              <button
-                onClick={() => onAddAnother(precioBase)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-steel-200 hover:border-brand-600 hover:bg-brand-50 transition-all text-sm"
-              >
-                <span className="font-medium text-steel-700">Precio base</span>
-                <span className="font-bold text-steel-800">{fmtBs(precioBase)}</span>
-              </button>
-              {activeDescuentos.map(d => {
-                const styles = COLOR_STYLES[d.color] || COLOR_STYLES.emerald
-                const precioConDescuento = calcularPrecioConDescuento(precioBase, d.porcentaje)
-                return (
-                  <button
-                    key={d.id}
-                    onClick={() => onAddAnother(precioConDescuento, d.id, d.nombre, d.porcentaje)}
-                    className={clsx('w-full flex items-center justify-between px-3 py-2 rounded-xl border transition-all', styles.bg, styles.border)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={clsx('font-bold text-sm', styles.text)}>{d.nombre}</span>
-                      <span className={clsx('text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/70', styles.text)}>-{d.porcentaje}%</span>
-                    </div>
-                    <span className={clsx('font-black text-sm', styles.text)}>{fmtBs(precioConDescuento)}</span>
-                  </button>
-                )
-              })}
+              <PrecioCard precio={precioADisplay} onSelect={() => handleSelect(precioADisplay)} />
+              {activeDescuentos.map(d => (
+                <PrecioCard
+                  key={d.id}
+                  precio={precioADisplay}
+                  descuento={d}
+                  onSelect={() => handleSelect(precioADisplay, d)}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -274,7 +318,7 @@ function SelectPriceModal({
 
 // ─── ProductSearch ─────────────────────────────────────────────────────────────
 
-function ProductSearch({ onSelectProducto }: { onSelectProducto: (producto: Producto) => void }) {
+function ProductSearch({ onSelectProducto, loading }: { onSelectProducto: (producto: Producto) => void; loading?: boolean }) {
   const productos = useInventarioStore(s => s.productos)
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -322,7 +366,20 @@ function ProductSearch({ onSelectProducto }: { onSelectProducto: (producto: Prod
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {query.trim() === '' ? (
+        {loading ? (
+          <div className="divide-y divide-steel-50 px-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 py-3 animate-pulse">
+                <div className="h-10 w-10 rounded-lg bg-steel-100" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3 w-24 rounded bg-steel-100" />
+                  <div className="h-2 w-40 rounded bg-steel-100" />
+                </div>
+                <div className="h-4 w-20 rounded bg-steel-100" />
+              </div>
+            ))}
+          </div>
+        ) : query.trim() === '' ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
             <svg className="h-10 w-10 text-steel-200 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -362,7 +419,6 @@ function ProductSearch({ onSelectProducto }: { onSelectProducto: (producto: Prod
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <span className="text-sm font-bold text-steel-900">{fmtBs(p.precio_venta)}</span>
                     <button
                       onClick={() => onSelectProducto(p)}
                       disabled={disp === 0}
@@ -1375,8 +1431,8 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function CajaPage() {
-  const { user } = useAuth()
-  const { reservarStock, liberarReserva, confirmarSalida } = useInventarioStore()
+  const { user, isTokenReady } = useAuth()
+  const { reservarStock, liberarReserva, confirmarSalida, setProductos } = useInventarioStore()
   const { ordenes, addOrden, updateOrden } = useVentasStore()
   const clientesStore = useClientesStore()
   const { playAlertSequence, playBeep } = useSoundAlert()
@@ -1386,6 +1442,7 @@ export function CajaPage() {
   const [flyingBall, setFlyingBall] = useState<{ from: DOMRect | null; items: number } | null>(null)
   const emitButtonRef = useRef<HTMLButtonElement>(null)
   const headerBadgeRef = useRef<HTMLButtonElement | null>(null)
+  const [loadingProductos, setLoadingProductos] = useState(true)
 
   const [cobroOrden, setCobroOrden] = useState<OrdenVenta | null>(null)
   const [parcialOrden, setParcialOrden] = useState<OrdenVenta | null>(null)
@@ -1409,6 +1466,25 @@ export function CajaPage() {
       clientesStore.setClientes(MOCK_CLIENTES)
     }
   }, [clientesStore._hasHydrated])
+
+  useEffect(() => {
+    if (!isTokenReady) return
+    let cancelled = false
+    setLoadingProductos(true)
+    gql<{ productos: { nodes: ProductoAPI[]; totalCount: number } }>(PRODUCTOS_LIST_QUERY)
+      .then(res => {
+        if (cancelled) return
+        const prods = res.productos.nodes.map(backendToProductoSimple)
+        setProductos(prods, res.productos.totalCount)
+      })
+      .catch(() => {
+        if (!cancelled) notify.error('Error cargando productos')
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingProductos(false)
+      })
+    return () => { cancelled = true }
+  }, [isTokenReady, setProductos])
 
   useEffect(() => {
     const ordenConFaltantes = misOrdenes.find(o => o.items.some(i => i.estado === 'faltante') && !alertedFaltantes.current.has(o.id))
@@ -1727,7 +1803,7 @@ const addToCart = useCallback((producto: Producto) => {
         <div className="flex-1 overflow-hidden flex flex-col p-4 gap-4">
           <div className="flex-1 grid grid-cols-[1fr_380px] gap-4 overflow-hidden min-h-0">
             <div className="bg-white rounded-2xl border border-steel-100 shadow-sm overflow-hidden flex flex-col">
-              <ProductSearch onSelectProducto={addToCart} />
+              <ProductSearch onSelectProducto={addToCart} loading={loadingProductos} />
             </div>
             <div className="bg-white rounded-2xl border border-steel-100 shadow-sm overflow-hidden flex flex-col">
               <CartPanel

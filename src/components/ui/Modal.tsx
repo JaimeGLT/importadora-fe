@@ -9,6 +9,7 @@ interface ModalProps {
   children: ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl'
   footer?: ReactNode
+  hideCloseButton?: boolean
 }
 
 const sizeCls = {
@@ -19,7 +20,7 @@ const sizeCls = {
   '2xl': 'max-w-4xl',
 }
 
-export function Modal({ open, onClose, title, children, size = 'md', footer }: ModalProps) {
+export function Modal({ open, onClose, title, children, size = 'md', footer, hideCloseButton }: ModalProps) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -43,15 +44,17 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
       >
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-steel-100">
           <h2 className="text-sm sm:text-base font-semibold text-steel-900 truncate pr-2">{title}</h2>
-          <button
-            onClick={onClose}
-            className="text-steel-400 hover:text-steel-600 transition-colors p-1 rounded"
-            aria-label="Cerrar"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          {!hideCloseButton && (
+            <button
+              onClick={onClose}
+              className="text-steel-400 hover:text-steel-600 transition-colors p-1 rounded"
+              aria-label="Cerrar"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
         <div className="overflow-y-auto p-4 sm:p-6 flex-1">{children}</div>
         {footer && (
