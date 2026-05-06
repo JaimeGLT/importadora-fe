@@ -12,6 +12,7 @@ import { CajaPage } from '@/pages/ventas/CajaPage'
 import { AlmacenPage } from '@/pages/ventas/AlmacenPage'
 import { AlertasPage } from '@/pages/alertas/AlertasPage'
 import { ReportesPage } from '@/pages/reportes/ReportesPage'
+import { ReportesKitsPage } from '@/pages/reportes/ReportesKitsPage'
 import { ConfiguracionPage } from '@/pages/config/ConfiguracionPage'
 import { UsuariosPage } from '@/pages/sistema/usuarios/UsuariosPage'
 import { ClientesPage } from '@/pages/ventas/clientes/ClientesPage'
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="/alertas" element={<AlertasPage />} />
           <Route path="/reportes" element={<Navigate to="/reportes/rentabilidad" replace />} />
           <Route path="/reportes/:report" element={<ReportesPage />} />
+          <Route path="/reportes/kits" element={<ReportesKitsPage />} />
           <Route path="/inventario" element={<InventarioPage />} />
           <Route path="/inventario/prestamos" element={<PrestamosPage />} />
           <Route path="/importaciones" element={<ImportacionesPage />} />

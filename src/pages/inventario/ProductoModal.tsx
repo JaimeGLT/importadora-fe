@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Modal, Button, Input } from '@/components/ui'
 import type { Producto, HistorialPrecio } from '@/types'
 import { useConfigStore, calcularPrecioConDescuento } from '@/stores/configStore'
+import { useInventarioStore } from '@/stores/inventarioStore'
 import { clsx } from 'clsx'
 
 interface ProductoModalProps {
@@ -10,6 +11,7 @@ interface ProductoModalProps {
   onSave: (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>) => Promise<void>
   producto: Producto | null
   loading?: boolean
+  productosExistentes?: Producto[]
 }
 
 type FormData = Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>
@@ -33,6 +35,9 @@ const EMPTY: FormData = {
   ubicacion: 'Almacén Central',
   estado: 'activo',
   proveedor_id: '',
+  es_kit: false,
+  kit_id: null,
+  cantidad_por_kit: 1,
 }
 
 function SkeletonField({ labelWidth = 24 }: { labelWidth?: number }) {
@@ -45,7 +50,7 @@ function SkeletonField({ labelWidth = 24 }: { labelWidth?: number }) {
 }
 
 export function ProductoModal({
-  open, onClose, onSave, producto, loading,
+  open, onClose, onSave, producto, loading, productosExistentes = [],
 }: ProductoModalProps) {
   const [form, setForm]       = useState<FormData>(EMPTY)
   const [tipoCambio, setTipoCambio] = useState('6.96')
@@ -83,6 +88,9 @@ export function ProductoModal({
         ubicacion:            producto.ubicacion,
         estado:               producto.estado,
         proveedor_id:         producto.proveedor_id,
+        es_kit:               producto.es_kit ?? false,
+        kit_id:               producto.kit_id ?? null,
+        cantidad_por_kit:     producto.cantidad_por_kit ?? 1,
       })
       setTipoCambio(String(tc))
     } else {
@@ -316,6 +324,42 @@ export function ProductoModal({
                 onChange={(e) => set('piezas', Number(e.target.value))}
                 hint="Piezas por unidad (default 1)"
               />
+            </div>
+          </FormSection>
+
+          <FormSection
+            icon={<IconKit />}
+            title="Kit / Conjunto"
+            description="Relacionar producto como kit o como parte de un kit"
+          >
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.es_kit}
+                    onChange={(e) => set('es_kit', e.target.checked)}
+                    className="h-4 w-4 rounded border-steel-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <span className="text-xs font-semibold text-steel-700">Este producto es un kit</span>
+                </label>
+              </div>
+
+              {form.es_kit && (
+                <KitPartsSection
+                  productoId={producto?.id}
+                  kitId={producto?.id}
+                  productos={productosExistentes}
+                />
+              )}
+
+              {!form.es_kit && producto && (
+                <div className="p-3 rounded-lg bg-steel-50 border border-steel-100">
+                  <p className="text-xs text-steel-500">
+                    Este producto es parte del kit: <span className="font-semibold text-steel-700">{getKitNombre(producto.kit_id)}</span>
+                  </p>
+                </div>
+              )}
             </div>
           </FormSection>
 
@@ -602,6 +646,294 @@ function FormSection({
   )
 }
 
+/* ── Kit Parts Section ── */
+
+function KitPartsSection({ productoId, kitId, productos }: { productoId?: string; kitId?: string; productos: Producto[] }) {
+  const { kitRelaciones, addKitRelacion, removeKitRelacion, addProducto, updateProducto } = useInventarioStore()
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [newNombre, setNewNombre] = useState('')
+  const [newCodigo, setNewCodigo] = useState('')
+  const [editingParte, setEditingParte] = useState<{ id: string; nombre: string; codigo: string; cantidad: number } | null>(null)
+
+  const relaciones = kitId
+    ? kitRelaciones.filter(r => r.kit_id === kitId)
+    : []
+
+  const partesDelKit = relaciones.map(r => {
+    const prod = productos.find(p => p.id === r.producto_id)
+    return { ...r, producto: prod }
+  })
+
+  const productosDisponibles = productos.filter(p => {
+    if (p.id === productoId) return false
+    if (p.es_kit) return false
+    const yaEsParte = relaciones.some(r => r.producto_id === p.id)
+    if (yaEsParte) return false
+    if (!search.trim()) return false
+    const matchSearch = p.nombre.toLowerCase().includes(search.toLowerCase()) ||
+      p.codigo_universal.toLowerCase().includes(search.toLowerCase())
+    return matchSearch
+  })
+
+  const handleAddFromSearch = (originalProducto: Producto) => {
+    if (!kitId) return
+    const existe = relaciones.some(r => r.producto_id === originalProducto.id)
+    if (existe) return
+    const nuevoProducto: Producto = {
+      ...originalProducto,
+      id: crypto.randomUUID(),
+      stock: 0,
+      kit_id: kitId,
+      cantidad_por_kit: 1,
+    }
+    addProducto(nuevoProducto)
+    addKitRelacion({ kit_id: kitId, producto_id: nuevoProducto.id, cantidad: 1 })
+    setSearch('')
+    setSearchOpen(false)
+  }
+
+  const handleCreateNew = () => {
+    if (!kitId || !newNombre.trim()) return
+    const id = crypto.randomUUID()
+    const codigoFinal = newCodigo.trim() || `AUTO-${Date.now()}`
+    const nuevoProducto: Producto = {
+      id,
+      codigo_universal: codigoFinal,
+      codigos_alternativos: [],
+      nombre: newNombre.trim(),
+      descripcion: '',
+      categoria: 'Otro',
+      marca: '',
+      vehiculo: '',
+      unidad: 'pieza',
+      stock: 0,
+      stock_minimo: 5,
+      piezas: 1,
+      precio_costo: 0,
+      precio_venta: 0,
+      historial_precios: [],
+      ubicacion: 'Almacén Central',
+      estado: 'activo',
+      proveedor_id: '',
+      es_kit: false,
+      kit_id: kitId,
+      cantidad_por_kit: 1,
+      creado_en: new Date().toISOString(),
+      actualizado_en: new Date().toISOString(),
+    }
+    addProducto(nuevoProducto)
+    addKitRelacion({ kit_id: kitId, producto_id: id, cantidad: 1 })
+    setNewNombre('')
+    setNewCodigo('')
+    setCreating(false)
+    setSearchOpen(false)
+  }
+
+  const handleRemoveParte = (parteId: string) => {
+    if (!kitId) return
+    removeKitRelacion(kitId, parteId)
+  }
+
+  const handleUpdateCantidad = (parteId: string, cantidad: number) => {
+    if (!kitId) return
+    removeKitRelacion(kitId, parteId)
+    addKitRelacion({ kit_id: kitId, producto_id: parteId, cantidad: Math.max(1, cantidad) })
+  }
+
+  const handleSaveEdit = () => {
+    if (!editingParte || !kitId) return
+    const parte = productos.find(p => p.id === editingParte.id)
+    if (parte) {
+      updateProducto({
+        ...parte,
+        nombre: editingParte.nombre,
+        codigo_universal: editingParte.codigo,
+        cantidad_por_kit: editingParte.cantidad,
+        actualizado_en: new Date().toISOString(),
+      })
+      handleUpdateCantidad(editingParte.id, editingParte.cantidad)
+    }
+    setEditingParte(null)
+  }
+
+  const openEdit = (parte: typeof partesDelKit[0]) => {
+    setEditingParte({
+      id: parte.producto_id,
+      nombre: parte.producto?.nombre ?? '',
+      codigo: parte.producto?.codigo_universal ?? '',
+      cantidad: parte.cantidad,
+    })
+  }
+
+  if (relaciones.length === 0 && !searchOpen) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-xs text-steel-400 mb-3">Este kit aún no tiene partes definidas</p>
+        <Button size="sm" variant="secondary" onClick={() => setSearchOpen(true)}>
+          Agregar partes al kit
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-lg border border-steel-100 divide-y divide-steel-50">
+        {partesDelKit.map(rel => (
+          <div key={rel.producto_id} className="flex items-center gap-3 p-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-steel-700 truncate">
+                {rel.producto?.nombre ?? 'Producto no encontrado'}
+              </p>
+              <p className="text-[10px] text-steel-400">
+                {rel.producto?.codigo_universal ?? '—'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={1}
+                value={rel.cantidad}
+                onChange={(e) => handleUpdateCantidad(rel.producto_id, Number(e.target.value))}
+                className="w-16 text-center"
+              />
+              <span className="text-[10px] text-steel-400">× kit</span>
+              <button
+                onClick={() => openEdit(rel)}
+                className="p-1 rounded text-blue-400 hover:bg-blue-50 hover:text-blue-600"
+                title="Editar"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => handleRemoveParte(rel.producto_id)}
+                className="p-1 rounded text-red-400 hover:bg-red-50 hover:text-red-600"
+                title="Eliminar"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {editingParte && (
+        <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 space-y-2">
+          <p className="text-xs font-semibold text-blue-700">Editando parte</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Input
+              value={editingParte.nombre}
+              onChange={(e) => setEditingParte({ ...editingParte, nombre: e.target.value })}
+              placeholder="Nombre"
+              className="text-xs"
+            />
+            <Input
+              value={editingParte.codigo}
+              onChange={(e) => setEditingParte({ ...editingParte, codigo: e.target.value })}
+              placeholder="Código"
+              className="text-xs"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-blue-600">Cantidad por kit:</span>
+            <Input
+              type="number"
+              min={1}
+              value={editingParte.cantidad}
+              onChange={(e) => setEditingParte({ ...editingParte, cantidad: Math.max(1, Number(e.target.value)) })}
+              className="w-20 text-center text-xs"
+            />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button size="sm" variant="secondary" onClick={() => setEditingParte(null)}>Cancelar</Button>
+            <Button size="sm" onClick={handleSaveEdit}>Guardar</Button>
+          </div>
+        </div>
+      )}
+
+      {searchOpen ? (
+        <div className="space-y-2">
+          <div className="relative">
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar producto para agregar..."
+              autoFocus
+            />
+            {search.trim() && productosDisponibles.length === 0 && !creating && (
+              <p className="text-[10px] text-steel-400 mt-1 px-1">No encontrado. Usa el botón de abajo para crear uno nuevo.</p>
+            )}
+            {productosDisponibles.length > 0 && (
+              <div className="absolute z-10 top-full mt-1 w-full bg-white rounded-xl border border-steel-200 shadow-lg max-h-48 overflow-y-auto">
+                {productosDisponibles.slice(0, 10).map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => handleAddFromSearch(p)}
+                    className="w-full text-left px-3 py-2 hover:bg-steel-50 text-xs"
+                  >
+                    <span className="font-semibold text-steel-700">{p.codigo_universal}</span>
+                    <span className="text-steel-400 ml-2">{p.nombre}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {creating ? (
+            <div className="space-y-2 p-3 rounded-lg bg-steel-50 border border-steel-100">
+              <p className="text-xs font-semibold text-steel-600">Nueva pieza para el kit</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  value={newCodigo}
+                  onChange={(e) => setNewCodigo(e.target.value)}
+                  placeholder="Código (opcional)"
+                  autoFocus
+                />
+                <Input
+                  value={newNombre}
+                  onChange={(e) => setNewNombre(e.target.value)}
+                  placeholder="Nombre *"
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateNew()}
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button size="sm" variant="secondary" onClick={() => { setCreating(false); setNewNombre(''); setNewCodigo('') }}>Cancelar</Button>
+                <Button size="sm" onClick={handleCreateNew} disabled={!newNombre.trim()}>Crear</Button>
+              </div>
+            </div>
+          ) : (
+            <Button size="sm" variant="secondary" onClick={() => setCreating(true)}>
+              + Crear pieza nueva
+            </Button>
+          )}
+
+          <div className="flex justify-end mt-2">
+            <Button size="sm" variant="secondary" onClick={() => { setSearchOpen(false); setSearch(''); setCreating(false); setNewNombre(''); setNewCodigo('') }}>
+              Cerrar
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button size="sm" variant="secondary" onClick={() => setSearchOpen(true)}>
+          + Agregar parte
+        </Button>
+      )}
+    </div>
+  )
+}
+
+function getKitNombre(kitId: string | null | undefined): string {
+  if (!kitId) return '—'
+  const { productos } = useInventarioStore.getState()
+  return productos.find(p => p.id === kitId)?.nombre ?? '—'
+}
+
 /* ── Iconos ── */
 function IconBarcode() {
   return (
@@ -639,6 +971,14 @@ function IconHistory() {
   return (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
+
+function IconKit() {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
     </svg>
   )
 }

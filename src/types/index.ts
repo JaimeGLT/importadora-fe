@@ -65,8 +65,17 @@ export interface Producto {
   imagen?: string                 // URL de imagen del producto
   estado: EstadoProducto
   proveedor_id: string
+  es_kit?: boolean
+  kit_id?: string | null
+  cantidad_por_kit?: number
   creado_en: string
   actualizado_en: string
+}
+
+export interface KitRelacion {
+  kit_id: string
+  producto_id: string
+  cantidad: number
 }
 
 export type MonedaProveedor = 'USD' | 'EUR' | 'CNY' | 'GBP' | 'JPY' | 'KRW' | 'BRL' | 'ARS' | 'CLP' | 'PEN'
@@ -273,6 +282,8 @@ export interface ItemOrden {
   subtotal: number
   estado: EstadoItemOrden
   nota?: string
+  diferencia_kit?: number
+  kit_id?: string
 }
 
 export type TipoDocumento = 'nota_venta' | 'factura'

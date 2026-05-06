@@ -21,6 +21,7 @@ import { NuevoPrestamoModal } from './NuevoPrestamoModal'
 import { usePrestamosStore } from '@/stores/prestamosStore'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
+import { MOCK_PRODUCTOS } from '@/mock/inventario'
 import {
   PRODUCTOS_QUERY,
   PRODUCTO_BY_ID_QUERY,
@@ -283,7 +284,9 @@ export function InventarioPage() {
     fetchProducts(null, [])
       .then((raw) => {
         if (cancelled) return
-        setAllProducts(raw.map(backendToProductoSimple))
+        const backend = raw.map(backendToProductoSimple)
+        const mockKitYpiezas = MOCK_PRODUCTOS.filter(p => p.es_kit || p.kit_id)
+        setAllProducts(backend.length > 0 ? [...backend, ...mockKitYpiezas] : MOCK_PRODUCTOS as typeof backend)
       })
       .catch(() => {
         if (!cancelled) notify.error('Error cargando productos')
@@ -300,7 +303,9 @@ export function InventarioPage() {
     fetchProducts(null, [])
       .then((raw) => {
         if (cancelled) return
-        setAllProducts(raw.map(backendToProductoSimple))
+        const backend = raw.map(backendToProductoSimple)
+        const mockKitYpiezas = MOCK_PRODUCTOS.filter(p => p.es_kit || p.kit_id)
+        setAllProducts(backend.length > 0 ? [...backend, ...mockKitYpiezas] : MOCK_PRODUCTOS as typeof backend)
       })
       .catch(() => {
         if (!cancelled) notify.error('Error cargando productos')
@@ -782,6 +787,7 @@ export function InventarioPage() {
         onSave={handleSave}
         producto={editingProducto}
         loading={loadingModal}
+        productosExistentes={allProducts}
       />
       <ConfirmModal
         open={!!confirmDelete}

@@ -3,6 +3,7 @@ import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { Button, Input, Modal } from '@/components/ui'
+import { KitVentaParcialModal } from '@/components/ui/KitVentaParcialModal'
 import { notify } from '@/lib/notify'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { useVentasStore } from '@/stores/ventasStore'
@@ -50,6 +51,8 @@ interface CartItem {
   descuento_id?: string
   descuento_nombre?: string
   descuento_porcentaje?: number
+  diferencia_kit?: number
+  kit_id?: string
 }
 
 interface Cart {
@@ -1432,7 +1435,7 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
 
 export function CajaPage() {
   const { user, isTokenReady } = useAuth()
-  const { reservarStock, liberarReserva, confirmarSalida, setProductos } = useInventarioStore()
+  const { reservarStock, liberarReserva, confirmarSalida, setProductos, venderKit } = useInventarioStore()
   const { ordenes, addOrden, updateOrden } = useVentasStore()
   const clientesStore = useClientesStore()
   const { playAlertSequence, playBeep } = useSoundAlert()
@@ -1449,6 +1452,7 @@ export function CajaPage() {
   const [facturaOrden, setFacturaOrden] = useState<OrdenVenta | null>(null)
   const [cancelarOrden, setCancelarOrden] = useState<OrdenVenta | null>(null)
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null)
+  const [kitParcialSeleccionado, setKitParcialSeleccionado] = useState<Producto | null>(null)
 
   const descuentos = useConfigStore(s => s.descuentos)
   const productos = useInventarioStore(s => s.productos)
@@ -1505,6 +1509,10 @@ export function CajaPage() {
   }, [misOrdenes, playAlertSequence])
 
 const addToCart = useCallback((producto: Producto) => {
+    if (producto.es_kit) {
+      setKitParcialSeleccionado(producto)
+      return
+    }
     setCart(prev => {
       const existingIdx = prev.items.findIndex(i => i.producto_id === producto.id)
       if (existingIdx >= 0) {
@@ -1548,6 +1556,31 @@ const addToCart = useCallback((producto: Producto) => {
     playBeep({ frequency: 600, duration: 60 })
     notify.success('Producto agregado')
   }, [productoSeleccionado, playBeep])
+
+  const handleKitParcialConfirm = useCallback((
+    piezas: { producto_id: string; nombre: string; codigo: string; cantidad: number; cantidad_por_kit: number }[],
+    precioTotal: number,
+    diferencia: number
+  ) => {
+    const kitId = kitParcialSeleccionado?.id
+    setCart(prev => {
+      const newItems: CartItem[] = piezas.map(p => ({
+        producto_id: p.producto_id,
+        producto_codigo: p.codigo,
+        producto_nombre: p.nombre,
+        producto_ubicacion: '',
+        cantidad: p.cantidad,
+        precio_unitario: precioTotal / p.cantidad,
+        precio_base: kitParcialSeleccionado?.precio_venta ?? 0,
+        diferencia_kit: diferencia,
+        kit_id: kitId,
+      }))
+      return { ...prev, items: [...prev.items, ...newItems] }
+    })
+    setKitParcialSeleccionado(null)
+    playBeep({ frequency: 600, duration: 60 })
+    notify.success(`${piezas.length} pieza(s) de kit agregada(s)`)
+  }, [kitParcialSeleccionado, playBeep])
 
   const handleEditPrice = useCallback((producto_id: string) => {
     const producto = productos.find(p => p.id === producto_id)
@@ -1703,8 +1736,17 @@ const addToCart = useCallback((producto: Producto) => {
   const handleConfirmarPago = (metodo: MetodoPago, monto: number, billing: BillingDataFromCobro) => {
     if (!cobroOrden) return
     const now = new Date().toISOString()
+    const allProductos = useInventarioStore.getState().productos
     cobroOrden.items.forEach(i => {
-      if (i.estado === 'completo' || i.estado === 'parcial') confirmarSalida(i.producto_id, i.cantidad_recogida ?? i.cantidad_pedida)
+      if (i.estado === 'completo' || i.estado === 'parcial') {
+        const cantidad = i.cantidad_recogida ?? i.cantidad_pedida
+        const producto = allProductos.find(p => p.id === i.producto_id)
+        if (producto?.es_kit) {
+          for (let c = 0; c < cantidad; c++) venderKit(i.producto_id)
+        } else {
+          confirmarSalida(i.producto_id, cantidad)
+        }
+      }
       else if (i.estado === 'faltante') liberarReserva(i.producto_id, i.cantidad_pedida)
     })
     const clienteId = billing.cliente_id
@@ -1856,6 +1898,16 @@ const addToCart = useCallback((producto: Producto) => {
           onAddAnother={handleAddWithPrice}
           isEdit={cart.items.some(i => i.producto_id === productoSeleccionado.id)}
           onClose={() => setProductoSeleccionado(null)}
+        />
+      )}
+      {kitParcialSeleccionado && (
+        <KitVentaParcialModal
+          open={!!kitParcialSeleccionado}
+          onClose={() => setKitParcialSeleccionado(null)}
+          kit={kitParcialSeleccionado}
+          productos={productos}
+          kitRelaciones={useInventarioStore.getState().kitRelaciones}
+          onConfirm={handleKitParcialConfirm}
         />
       )}
     </MainLayout>

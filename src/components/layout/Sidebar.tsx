@@ -91,6 +91,7 @@ const groups: NavGroup[] = [
       { label: 'Por vehículo',        to: '/reportes/vehiculos',     roles: ['admin'] },
       { label: 'Clientes en fuga',    to: '/reportes/clientes-fuga', roles: ['admin'] },
       { label: 'Estacionalidad',      to: '/reportes/estacionalidad',roles: ['admin'] },
+      { label: 'Ventas de kits',      to: '/reportes/kits',          roles: ['admin'] },
       { label: 'Alertas de stock',    to: '/alertas',                roles: ['admin'] },
     ],
   },
