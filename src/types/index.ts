@@ -316,3 +316,11 @@ export interface OrdenVenta {
   pagado_en?: string
   caduca_en?: string
 }
+
+// ─── Marcas ───────────────────────────────────────────────────────────────────
+
+export interface Marca {
+  id: string
+  nombre: string
+  creado_en: string
+}

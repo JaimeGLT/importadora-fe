@@ -41,6 +41,7 @@ const groups: NavGroup[] = [
     items: [
       { label: 'Importaciones', to: '/importaciones',             roles: ['admin'] },
       { label: 'Proveedores',   to: '/importaciones/proveedores', roles: ['admin'] },
+      { label: 'Marcas',        to: '/importaciones/marcas',      roles: ['admin'] },
     ],
   },
   {

@@ -7,6 +7,7 @@ import { InventarioPage } from '@/pages/inventario/InventarioPage'
 import { PrestamosPage } from '@/pages/inventario/PrestamosPage'
 import { ImportacionesPage } from '@/pages/importaciones/ImportacionesPage'
 import { ProveedoresPage } from '@/pages/importaciones/proveedores/ProveedoresPage'
+import { MarcasPage as MarcasPageImportaciones } from '@/pages/importaciones/marcas/MarcasPage'
 import { CajaDiariaPage } from '@/pages/caja/CajaDiariaPage'
 import { CajaPage } from '@/pages/ventas/CajaPage'
 import { AlmacenPage } from '@/pages/ventas/AlmacenPage'
@@ -15,6 +16,7 @@ import { ReportesPage } from '@/pages/reportes/ReportesPage'
 import { ReportesKitsPage } from '@/pages/reportes/ReportesKitsPage'
 import { ConfiguracionPage } from '@/pages/config/ConfiguracionPage'
 import { UsuariosPage } from '@/pages/sistema/usuarios/UsuariosPage'
+import { MarcasPage } from '@/pages/sistema/marcas/MarcasPage'
 import { ClientesPage } from '@/pages/ventas/clientes/ClientesPage'
 
 function RootRedirect() {
@@ -51,11 +53,13 @@ export default function App() {
           <Route path="/inventario/prestamos" element={<PrestamosPage />} />
           <Route path="/importaciones" element={<ImportacionesPage />} />
           <Route path="/importaciones/proveedores" element={<ProveedoresPage />} />
+          <Route path="/importaciones/marcas" element={<MarcasPageImportaciones />} />
           <Route path="/caja" element={<CajaDiariaPage />} />
           <Route path="/ventas/caja" element={<CajaPage />} />
           <Route path="/ventas/almacen" element={<AlmacenPage />} />
           <Route path="/configuracion" element={<ConfiguracionPage />} />
           <Route path="/sistema/usuarios" element={<UsuariosPage />} />
+          <Route path="/sistema/marcas" element={<MarcasPage />} />
           <Route path="/ventas/clientes" element={<ClientesPage />} />
           <Route path="/" element={<RootRedirect />} />
           <Route path="*" element={<Navigate to="/" replace />} />

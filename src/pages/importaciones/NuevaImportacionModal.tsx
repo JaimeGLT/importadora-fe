@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react'
 import type * as XLSXType from 'xlsx'
-import { Modal, Button, Input, Select, ExcelColumnMapper } from '@/components/ui'
+import { Modal, Button, Input, Select, ExcelColumnMapper, BrandSelect } from '@/components/ui'
 import type { Importacion, ItemImportacion, Producto, Proveedor } from '@/types'
 import { clsx } from 'clsx'
 import { notify } from '@/lib/notify'
@@ -53,6 +53,7 @@ interface DatosForm {
   flete_usd: string
   aduana_bs: string
   transporte_interno_bs: string
+  marca_id: string
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -134,6 +135,7 @@ function calcItems(
   datos: { tipo_cambio: number; flete_usd: number; aduana_bs: number; transporte_interno_bs: number },
   productos: Producto[],
   piezasMapeado: boolean,
+  marcaDefault: string,
 ): DraftItem[] {
   const total_fob_bs = rawItems.reduce(
     (s, i) => s + i.precio_fob_usd * datos.tipo_cambio * i.cantidad, 0,
@@ -170,7 +172,7 @@ function calcItems(
       codigo_proveedor:     raw.codigo_universal,
       codigos_adicionales:  raw.codigos_adicionales,
       nombre:               raw.nombre,
-      marca:                raw.marca,
+      marca:                marcaDefault || raw.marca,
       descripcion:          raw.descripcion,
       ubicacion:            raw.ubicacion,
       precio_fob_usd:       raw.precio_fob_usd,
@@ -280,6 +282,7 @@ export function NuevaImportacionModal({
     flete_usd: '',
     aduana_bs: '',
     transporte_interno_bs: '',
+    marca_id: '',
   })
 
   // Items calculados
@@ -295,7 +298,7 @@ export function NuevaImportacionModal({
     setStep('upload')
     setColumns([]); setRows([]); setMappings({}); setFileName('')
     setRawItems([])
-    setDatos({ proveedor_id: '', fecha_estimada_llegada: '', tipo_cambio: '6.96', flete_usd: '', aduana_bs: '', transporte_interno_bs: '' })
+    setDatos({ proveedor_id: '', fecha_estimada_llegada: '', tipo_cambio: '6.96', flete_usd: '', aduana_bs: '', transporte_interno_bs: '', marca_id: '' })
     setItems([])
     setSaving(false)
   }, [])
@@ -395,7 +398,7 @@ export function NuevaImportacionModal({
       transporte_interno_bs: parseNumeric(datos.transporte_interno_bs),
     }
     const piezasMapeado = (mappings['piezas']?.columns.length ?? 0) > 0
-    setItems(calcItems(rawItems, d, productos, piezasMapeado))
+    setItems(calcItems(rawItems, d, productos, piezasMapeado, datos.marca_id))
     setStep('preview')
   }
 
@@ -762,6 +765,14 @@ function StepDatos({
           hint="Fijo para toda esta importación"
         />
       </div>
+
+      {/* Marca global */}
+      <BrandSelect
+        value={datos.marca_id}
+        onChange={(id) => setDatos((d) => ({ ...d, marca_id: id }))}
+        label="Marca (aplica a todos los productos)"
+        placeholder="Selecciona o crea una marca…"
+      />
 
       {/* Costos adicionales */}
       <div>
