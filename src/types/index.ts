@@ -306,35 +306,20 @@ export interface Caja {
 
 // ─── Clientes ─────────────────────────────────────────────────────────────────
 
-export interface Compra {
-  id: string
-  orden_id: string
-  fecha: string
-  items: ItemOrden[]
-  total: number
-  metodo_pago: MetodoPago
-  tipoDocumento?: TipoDocumento
-  facturaNro?: string
-  cliente_tipo_id?: 'ci' | 'nit' | 'sin_nit'
-  cliente_numero_id?: string
-  cliente_nombre?: string
-  cliente_nit?: string
+export interface Cliente {
+  id: number
+  nombre: string
+  apellido: string
+  telefono: string
+  creado_en?: string
+  actualizado_en?: string
 }
 
-export interface Cliente {
-  id: string
-  carnet?: string        // identificador corto (ej: badge de tienda)
-  ci?: string           // CI Bolivia (sin complemento)
-  ciComplemento?: string // complemento alfanumérico del CI (ej: "1A", "2B")
-  nit?: string           // NIT de empresa/negocio
-  nombre?: string
+export interface ClienteAPI {
+  id: number
+  nombre: string
   apellido: string
-  telefono?: string
-  email?: string
-  activo: boolean
-  compras: Compra[]
-  creado_en: string
-  actualizado_en: string
+  telefono: string
 }
 
 // ─── Ventas ───────────────────────────────────────────────────────────────────
