@@ -10,8 +10,8 @@ import {
   type SortingState,
   type ColumnMeta,
 } from '@tanstack/react-table'
-import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
-import { Button, Input, ConfirmModal, TablePagination } from '@/components/ui'
+import { MainLayout } from '@/components/layout/MainLayout'
+import { ConfirmModal, TablePagination } from '@/components/ui'
 import type { Producto, ItemPrestamo, Prestamo } from '@/types'
 import { notify } from '@/lib/notify'
 import { ProductoModal } from './ProductoModal'
@@ -42,101 +42,177 @@ declare module '@tanstack/react-table' {
   }
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-const fmtBs = (n: number) =>
-  `Bs ${n.toLocaleString('es-BO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+type StockFilter = 'all' | 'ok' | 'warn' | 'crit'
 
-// ─── UI primitives ────────────────────────────────────────────────────────────
+// ─── Icons ────────────────────────────────────────────────────────────────────
 
-function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+function IcoCal() {
   return (
-    <div className={`bg-white rounded-2xl shadow-sm border border-steel-100 ${className}`}>
-      {children}
+    <svg className="w-[15px] h-[15px] text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>
+    </svg>
+  )
+}
+function IcoBell() {
+  return (
+    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+    </svg>
+  )
+}
+function IcoSettings() {
+  return (
+    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  )
+}
+function IcoDownload() {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>
+    </svg>
+  )
+}
+function IcoPlus() {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+      <path d="M12 5v14M5 12h14"/>
+    </svg>
+  )
+}
+function IcoSearch() {
+  return (
+    <svg className="h-4 w-4 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+    </svg>
+  )
+}
+function IcoBox() {
+  return (
+    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5"/>
+    </svg>
+  )
+}
+function IcoAlert() {
+  return (
+    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/>
+    </svg>
+  )
+}
+function IcoVault() {
+  return (
+    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>
+    </svg>
+  )
+}
+function IcoUnits() {
+  return (
+    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+    </svg>
+  )
+}
+
+// ─── Warm metric card ─────────────────────────────────────────────────────────
+
+function WarmMetric({ label, value, unit, icon, sublabel, tone }: {
+  label: string
+  value: string | number
+  unit?: string
+  icon: React.ReactNode
+  sublabel: string
+  tone?: 'warn' | 'crit'
+}) {
+  return (
+    <div className={clsx(
+      'rounded-2xl border border-hair p-7 relative transition-all duration-160 hover:shadow-sm',
+      'bg-white/82',
+      tone === 'crit' && 'border-terra/20',
+      tone === 'warn' && '',
+    )}
+      style={
+        tone === 'crit' ? { background: 'linear-gradient(180deg, #FCEEE8 0%, #FFFDF9 60%)' } :
+        tone === 'warn' ? { background: 'linear-gradient(180deg, #FFF8EE 0%, #FFFDF9 60%)' } :
+        undefined
+      }
+    >
+      <div className="flex items-center justify-between mb-[18px]">
+        <div className="text-[12.5px] text-muted font-medium uppercase tracking-[0.04em]">{label}</div>
+        <div className={clsx(
+          'w-[34px] h-[34px] rounded-[10px] flex items-center justify-center',
+          tone === 'crit' ? 'bg-terra text-white animate-pulse-crit' :
+          tone === 'warn' ? 'bg-[#FEF3C7] text-[#B45309]' :
+          'bg-cream-2 text-ink-2',
+        )}>
+          {icon}
+        </div>
+      </div>
+      <div className="font-serif text-[52px] leading-[1] tracking-[-0.02em] mb-2.5 flex items-baseline gap-1.5 text-ink">
+        {unit === 'Bs.' && <span className="font-sans text-base font-medium text-muted mr-1.5">Bs.</span>}
+        {value}
+        {unit && unit !== 'Bs.' && <span className="font-sans text-base font-medium text-muted">{unit}</span>}
+      </div>
+      <div className="text-[12.5px] text-muted">{sublabel}</div>
     </div>
   )
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-2">
-      <div className="w-1 h-4 rounded-full bg-brand-600" />
-      <h2 className="text-[11px] font-bold text-steel-500 uppercase tracking-widest">{children}</h2>
-    </div>
-  )
-}
+// ─── Warm stock badge ─────────────────────────────────────────────────────────
 
-type BadgeVariant = 'red' | 'amber' | 'green'
-const BADGE_STYLES: Record<BadgeVariant, string> = {
-  red:   'bg-brand-600 text-white',
-  amber: 'bg-amber-500 text-white',
-  green: 'bg-emerald-500 text-white',
-}
-function StockBadge({ label, variant }: { label: string; variant: BadgeVariant }) {
+function WarmStockBadge({ stock, stockMinimo }: { stock: number; stockMinimo: number }) {
+  const sinStock = stock === 0
+  const bajo = stock > 0 && stock <= stockMinimo
+
+  if (sinStock) return (
+    <span className="inline-flex items-center gap-[7px] px-3.5 py-1.5 rounded-full text-[12px] font-bold tracking-[0.04em] whitespace-nowrap border bg-[#FEE2E2] text-[#B22234] border-[rgba(178,34,52,0.3)]">
+      <span className="w-[7px] h-[7px] rounded-full bg-current" style={{ boxShadow: '0 0 0 3px rgba(255,255,255,0.6)' }} />
+      Sin stock
+    </span>
+  )
+  if (bajo) return (
+    <span className="inline-flex items-center gap-[7px] px-3.5 py-1.5 rounded-full text-[12px] font-bold tracking-[0.04em] whitespace-nowrap border bg-[#FEF3C7] text-[#B45309] border-[rgba(180,83,9,0.25)]">
+      <span className="w-[7px] h-[7px] rounded-full bg-current" style={{ boxShadow: '0 0 0 3px rgba(255,255,255,0.6)' }} />
+      Stock bajo
+    </span>
+  )
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${BADGE_STYLES[variant]}`}>
-      {label}
+    <span className="inline-flex items-center gap-[7px] px-3.5 py-1.5 rounded-full text-[12px] font-bold tracking-[0.04em] whitespace-nowrap border bg-[#D1FAE5] text-[#047857] border-[rgba(4,120,87,0.25)]">
+      <span className="w-[7px] h-[7px] rounded-full bg-current" style={{ boxShadow: '0 0 0 3px rgba(255,255,255,0.6)' }} />
+      En stock
     </span>
   )
 }
 
-// ─── KPI card ─────────────────────────────────────────────────────────────────
-
-function KpiCard({ icon, label, value, sub, dark = false }: {
-  icon: React.ReactNode; label: string; value: string | number; sub: string; dark?: boolean
-}) {
-  if (dark) {
-    return (
-      <div className="relative overflow-hidden rounded-2xl bg-steel-900 p-5 text-white shadow-md">
-        <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-steel-800" />
-        <div className="absolute right-2 -bottom-8 h-24 w-24 rounded-full bg-brand-900 opacity-40" />
-        <div className="relative">
-          <div className="h-9 w-9 rounded-xl bg-white/10 flex items-center justify-center mb-3">
-            <div className="text-white">{icon}</div>
-          </div>
-          <p className="text-2xl font-black tabular-nums leading-tight">{value}</p>
-          <p className="text-xs text-steel-400 font-semibold mt-0.5">{label}</p>
-          <p className="text-[10px] text-steel-500 mt-2">{sub}</p>
-        </div>
-      </div>
-    )
-  }
-  return (
-    <Card className="p-5">
-      <div className="h-9 w-9 rounded-xl bg-steel-50 flex items-center justify-center mb-3">
-        <div className="text-steel-500">{icon}</div>
-      </div>
-      <p className="text-2xl font-black tabular-nums text-steel-900 leading-tight">{value}</p>
-      <p className="text-xs text-steel-500 font-semibold mt-0.5">{label}</p>
-      <p className="text-[10px] text-steel-400 mt-2">{sub}</p>
-    </Card>
-  )
-}
-
-// ─── Product image ────────────────────────────────────────────────────────────
+// ─── Product thumbnail ────────────────────────────────────────────────────────
 
 function ProductThumb({ src, nombre }: { src?: string; nombre: string }) {
   const [err, setErr] = useState(false)
   if (src && !err) {
     return (
       <img
-        src={src}
-        alt={nombre}
-        onError={() => setErr(true)}
-        className="h-10 w-10 rounded-xl object-cover border border-steel-100 shrink-0"
+        src={src} alt={nombre} onError={() => setErr(true)}
+        className="h-[38px] w-[38px] rounded-lg object-cover border border-hair shrink-0"
       />
     )
   }
   return (
-    <div className="h-10 w-10 rounded-xl bg-steel-50 border border-steel-100 flex items-center justify-center shrink-0">
-      <svg className="h-5 w-5 text-steel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <div className="h-[38px] w-[38px] rounded-lg bg-cream-2 border border-hair flex items-center justify-center shrink-0 relative overflow-hidden">
+      <div className="absolute inset-0" style={{ background: 'repeating-linear-gradient(45deg, transparent 0 6px, rgba(36,30,24,0.04) 6px 7px)' }} />
+      <svg className="h-[18px] w-[18px] text-ink-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
       </svg>
     </div>
   )
 }
 
-// ─── Action button ────────────────────────────────────────────────────────────
+// ─── Action buttons ───────────────────────────────────────────────────────────
 
 type ActionIcon = 'prestamo' | 'etiqueta' | 'editar' | 'eliminar'
 const ACTION_ICONS: Record<ActionIcon, React.ReactNode> = {
@@ -151,10 +227,10 @@ function ActionBtn({ icon, onClick, disabled, danger, title }: {
 }) {
   return (
     <button onClick={onClick} disabled={disabled} title={title}
-      className={clsx('p-1.5 rounded-lg transition-all duration-150',
-        disabled ? 'text-steel-200 cursor-not-allowed'
-        : danger  ? 'text-steel-400 hover:text-brand-600 hover:bg-brand-50'
-        :           'text-steel-400 hover:text-steel-700 hover:bg-steel-100',
+      className={clsx('p-[7px] rounded-lg transition-colors duration-120',
+        disabled ? 'text-hair-2 cursor-not-allowed'
+        : danger  ? 'text-muted hover:text-terra hover:bg-terra-soft'
+        :           'text-muted hover:text-ink hover:bg-cream-2',
       )}>
       {ACTION_ICONS[icon]}
     </button>
@@ -165,16 +241,16 @@ function ActionBtn({ icon, onClick, disabled, danger, title }: {
 
 function SortIcon({ direction }: { direction: false | 'asc' | 'desc' }) {
   if (!direction) return (
-    <svg className="h-3 w-3 text-steel-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg className="h-3 w-3 text-muted-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
     </svg>
   )
   return direction === 'asc' ? (
-    <svg className="h-3 w-3 text-brand-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg className="h-3 w-3 text-terra shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
     </svg>
   ) : (
-    <svg className="h-3 w-3 text-brand-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg className="h-3 w-3 text-terra shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
     </svg>
   )
@@ -184,23 +260,20 @@ function SortIcon({ direction }: { direction: false | 'asc' | 'desc' }) {
 
 function TableSkeleton() {
   return (
-    <div className="divide-y divide-steel-50">
+    <div className="divide-y divide-hair">
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 px-5 py-3.5 animate-pulse">
-          <div className="h-10 w-10 rounded-xl bg-steel-100 shrink-0" />
+        <div key={i} className="flex items-center gap-4 px-[22px] py-3.5 animate-pulse">
+          <div className="h-[38px] w-[38px] rounded-lg bg-cream-2 shrink-0" />
           <div className="flex-1 space-y-1.5">
-            <div className="flex gap-1.5">
-              <div className="h-5 w-20 rounded bg-steel-100" />
-              <div className="h-5 w-16 rounded bg-steel-50" />
-            </div>
-            <div className="h-4 w-40 rounded bg-steel-100" />
+            <div className="h-[13px] w-28 rounded bg-cream-2" />
+            <div className="h-3 w-40 rounded bg-hair" />
           </div>
-          <div className="h-4 w-20 rounded bg-steel-100" />
-          <div className="h-6 w-16 rounded-full bg-steel-100" />
-          <div className="h-4 w-20 rounded bg-steel-100" />
-          <div className="h-4 w-20 rounded bg-steel-50" />
+          <div className="h-3 w-20 rounded bg-cream-2" />
+          <div className="h-6 w-20 rounded-full bg-cream-2" />
+          <div className="h-3 w-20 rounded bg-cream-2" />
+          <div className="h-3 w-16 rounded bg-hair" />
           <div className="flex gap-1">
-            {[0,1,2,3].map(j => <div key={j} className="h-7 w-7 rounded-lg bg-steel-50" />)}
+            {[0,1,2,3].map(j => <div key={j} className="h-7 w-7 rounded-lg bg-cream-2" />)}
           </div>
         </div>
       ))}
@@ -212,29 +285,217 @@ function TableSkeleton() {
 
 function EmptyState({ onNew, searching }: { onNew: () => void; searching: boolean }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 px-4">
-      <div className="h-14 w-14 rounded-2xl bg-steel-50 border border-steel-100 flex items-center justify-center mb-4">
-        <svg className="w-7 h-7 text-steel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <div className="flex flex-col items-center justify-center py-[60px] px-5 text-center text-muted">
+      <div className="h-[38px] w-[38px] rounded-lg bg-cream-2 border border-hair flex items-center justify-center mb-4">
+        <svg className="h-5 w-5 text-muted-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
         </svg>
       </div>
-      <h3 className="text-sm font-bold text-steel-700 mb-1">
-        {searching ? 'Sin resultados' : 'Sin productos'}
-      </h3>
-      <p className="text-xs text-steel-400 text-center max-w-xs mb-5">
+      <p className="text-sm font-medium text-ink-2 mb-1">{searching ? 'Sin resultados' : 'Sin productos'}</p>
+      <p className="text-xs text-muted max-w-xs mb-5">
         {searching
-          ? 'No hay productos que coincidan con la búsqueda.'
+          ? 'No hay productos que coincidan con esta búsqueda o filtro.'
           : 'Agrega tu primer producto o importa desde Excel.'}
       </p>
       {!searching && (
-        <Button onClick={onNew} icon={
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-        }>
-          Nuevo producto
-        </Button>
+        <button onClick={onNew}
+          className="h-[38px] px-4 rounded-[10px] bg-terra text-white text-sm font-semibold flex items-center gap-2 hover:bg-terra-deep transition-colors">
+          <IcoPlus /> Nuevo producto
+        </button>
       )}
+    </div>
+  )
+}
+
+// ─── Autoparts watermark ──────────────────────────────────────────────────────
+
+function AutopartsWatermark() {
+  return (
+    <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden" style={{ opacity: 0.05, mixBlendMode: 'multiply' }}>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 2400" preserveAspectRatio="xMidYMid meet"
+           style={{ width: '100%', height: 'auto', display: 'block' }}>
+        <g fill="#241E18">
+          {/* Car 1 */}
+          <g transform="translate(60,240)">
+            <path d="M0 90 L0 60 Q0 50 10 50 L120 50 L142 18 Q148 8 160 8 L260 8 Q272 8 280 16 L322 50 L390 50 Q408 50 414 64 L420 90 Z"/>
+            <path d="M168 22 L172 46 L218 46 L218 22 Z M226 22 L226 46 L278 46 L266 26 Q262 22 256 22 Z" fill="#FAF8F5"/>
+            <circle cx="90" cy="94" r="24"/>
+            <circle cx="340" cy="94" r="24"/>
+            <circle cx="90" cy="94" r="12" fill="#FAF8F5"/>
+            <circle cx="340" cy="94" r="12" fill="#FAF8F5"/>
+          </g>
+          {/* Hex bolt */}
+          <g transform="translate(1380,80)">
+            <path d="M40 2 L74 22 L74 60 L40 80 L6 60 L6 22 Z"/>
+            <circle cx="40" cy="41" r="12" fill="#FAF8F5"/>
+          </g>
+          {/* Wrench/bolt standing */}
+          <g transform="translate(820,80) rotate(-8)">
+            <rect x="8" y="0" width="12" height="10"/>
+            <rect x="2" y="10" width="24" height="8"/>
+            <rect x="4" y="18" width="20" height="32"/>
+            <path d="M4 50 L24 50 L21 88 L7 88 Z"/>
+            <rect x="10" y="88" width="8" height="22"/>
+          </g>
+          {/* Cone */}
+          <g transform="translate(1180,220) rotate(28)">
+            <rect x="0" y="0" width="14" height="10"/>
+            <path d="M2 10 L12 10 L7 70 Z"/>
+          </g>
+          {/* Hex bolt 2 */}
+          <g transform="translate(540,480) rotate(12)">
+            <path d="M40 2 L74 22 L74 60 L40 80 L6 60 L6 22 Z"/>
+            <circle cx="40" cy="41" r="12" fill="#FAF8F5"/>
+          </g>
+          {/* Gear */}
+          <g transform="translate(1280,460) rotate(-10)">
+            <circle cx="70" cy="70" r="52"/>
+            <rect x="66" y="0" width="8" height="18"/>
+            <rect x="66" y="122" width="8" height="18"/>
+            <rect x="0" y="66" width="18" height="8"/>
+            <rect x="122" y="66" width="18" height="8"/>
+            <rect x="28" y="12" width="8" height="18" transform="rotate(-45 32 21)"/>
+            <rect x="104" y="12" width="8" height="18" transform="rotate(45 108 21)"/>
+            <rect x="28" y="110" width="8" height="18" transform="rotate(45 32 119)"/>
+            <rect x="104" y="110" width="8" height="18" transform="rotate(-45 108 119)"/>
+            <circle cx="70" cy="70" r="28" fill="#FAF8F5"/>
+            <circle cx="70" cy="70" r="8"/>
+          </g>
+          {/* Wheel */}
+          <g transform="translate(220,660)">
+            <circle cx="70" cy="70" r="66"/>
+            <circle cx="70" cy="70" r="42" fill="#FAF8F5"/>
+            <circle cx="70" cy="70" r="12"/>
+            <circle cx="70" cy="28" r="5" fill="#FAF8F5"/>
+            <circle cx="70" cy="112" r="5" fill="#FAF8F5"/>
+            <circle cx="28" cy="70" r="5" fill="#FAF8F5"/>
+            <circle cx="112" cy="70" r="5" fill="#FAF8F5"/>
+            <circle cx="100" cy="40" r="5" fill="#FAF8F5"/>
+            <circle cx="40" cy="100" r="5" fill="#FAF8F5"/>
+            <circle cx="40" cy="40" r="5" fill="#FAF8F5"/>
+            <circle cx="100" cy="100" r="5" fill="#FAF8F5"/>
+          </g>
+          {/* Truck */}
+          <g transform="translate(900,820)">
+            <path d="M0 60 L0 40 Q0 32 8 30 L40 22 Q60 4 100 0 L240 0 Q300 4 340 30 L380 38 Q400 40 410 50 L420 60 L420 80 L0 80 Z"/>
+            <path d="M70 22 Q90 8 120 6 L180 6 L180 28 L66 28 Z M196 6 L260 6 Q300 10 326 28 L196 28 Z" fill="#FAF8F5"/>
+            <circle cx="90" cy="84" r="28"/>
+            <circle cx="330" cy="84" r="28"/>
+            <circle cx="90" cy="84" r="14" fill="#FAF8F5"/>
+            <circle cx="330" cy="84" r="14" fill="#FAF8F5"/>
+          </g>
+          {/* Cone 2 */}
+          <g transform="translate(1480,940) rotate(25)">
+            <rect x="0" y="0" width="14" height="10"/>
+            <path d="M2 10 L12 10 L7 70 Z"/>
+          </g>
+          {/* Spring/coil */}
+          <g transform="translate(180,980) rotate(10)">
+            <rect x="0" y="0" width="60" height="30"/>
+            <rect x="4" y="32" width="52" height="3" fill="#FAF8F5"/>
+            <rect x="4" y="38" width="52" height="3" fill="#FAF8F5"/>
+            <rect x="4" y="44" width="52" height="3" fill="#FAF8F5"/>
+            <path d="M12 50 L20 100 L40 100 L48 50 Z"/>
+          </g>
+          {/* Bolt standing 2 */}
+          <g transform="translate(700,1140) rotate(18)">
+            <rect x="8" y="0" width="12" height="10"/>
+            <rect x="2" y="10" width="24" height="8"/>
+            <rect x="4" y="18" width="20" height="32"/>
+            <path d="M4 50 L24 50 L21 88 L7 88 Z"/>
+            <rect x="10" y="88" width="8" height="22"/>
+          </g>
+          {/* Wheel 2 */}
+          <g transform="translate(1340,1240)">
+            <circle cx="70" cy="70" r="66"/>
+            <circle cx="70" cy="70" r="42" fill="#FAF8F5"/>
+            <circle cx="70" cy="70" r="12"/>
+            <circle cx="70" cy="28" r="5" fill="#FAF8F5"/>
+            <circle cx="70" cy="112" r="5" fill="#FAF8F5"/>
+            <circle cx="28" cy="70" r="5" fill="#FAF8F5"/>
+            <circle cx="112" cy="70" r="5" fill="#FAF8F5"/>
+            <circle cx="100" cy="40" r="5" fill="#FAF8F5"/>
+            <circle cx="40" cy="100" r="5" fill="#FAF8F5"/>
+            <circle cx="40" cy="40" r="5" fill="#FAF8F5"/>
+            <circle cx="100" cy="100" r="5" fill="#FAF8F5"/>
+          </g>
+          {/* Small car */}
+          <g transform="translate(520,1340)">
+            <path d="M0 70 L0 52 Q0 44 8 42 L60 32 Q92 8 140 4 L240 4 Q280 10 310 34 L360 42 Q372 44 372 52 L372 70 Z"/>
+            <path d="M70 28 Q92 12 130 10 L180 10 L180 34 L66 34 Z M192 10 L240 10 Q280 16 310 34 L192 34 Z" fill="#FAF8F5"/>
+            <circle cx="80" cy="74" r="24"/>
+            <circle cx="292" cy="74" r="24"/>
+            <circle cx="80" cy="74" r="12" fill="#FAF8F5"/>
+            <circle cx="292" cy="74" r="12" fill="#FAF8F5"/>
+          </g>
+          {/* Steering wheel */}
+          <g transform="translate(180,1500) rotate(-8)">
+            <circle cx="80" cy="80" r="80"/>
+            <circle cx="80" cy="80" r="44" fill="#FAF8F5"/>
+            <circle cx="80" cy="80" r="14"/>
+            <rect x="76" y="4" width="8" height="32" rx="2" fill="#FAF8F5"/>
+            <rect x="76" y="124" width="8" height="32" rx="2" fill="#FAF8F5"/>
+            <rect x="4" y="76" width="32" height="8" rx="2" fill="#FAF8F5"/>
+            <rect x="124" y="76" width="32" height="8" rx="2" fill="#FAF8F5"/>
+          </g>
+          {/* Hex bolt 3 */}
+          <g transform="translate(1040,1480) rotate(-20)">
+            <path d="M40 2 L74 22 L74 60 L40 80 L6 60 L6 22 Z"/>
+            <circle cx="40" cy="41" r="12" fill="#FAF8F5"/>
+          </g>
+          {/* Cone 3 */}
+          <g transform="translate(420,1700) rotate(30)">
+            <rect x="0" y="0" width="14" height="10"/>
+            <path d="M2 10 L12 10 L7 70 Z"/>
+          </g>
+          {/* Gear 2 */}
+          <g transform="translate(940,1700)">
+            <circle cx="70" cy="70" r="52"/>
+            <rect x="66" y="0" width="8" height="18"/>
+            <rect x="66" y="122" width="8" height="18"/>
+            <rect x="0" y="66" width="18" height="8"/>
+            <rect x="122" y="66" width="18" height="8"/>
+            <rect x="28" y="12" width="8" height="18" transform="rotate(-45 32 21)"/>
+            <rect x="104" y="12" width="8" height="18" transform="rotate(45 108 21)"/>
+            <rect x="28" y="110" width="8" height="18" transform="rotate(45 32 119)"/>
+            <rect x="104" y="110" width="8" height="18" transform="rotate(-45 108 119)"/>
+            <circle cx="70" cy="70" r="28" fill="#FAF8F5"/>
+            <circle cx="70" cy="70" r="8"/>
+          </g>
+          {/* Connector/hose */}
+          <g transform="translate(540,1820) rotate(15)">
+            <path d="M0 18 Q0 0 18 0 L40 0 Q58 0 58 18 L58 28 L120 28 L120 8 L160 8 L160 48 L120 48 L120 28 L58 28 L58 38 Q58 56 40 56 L18 56 Q0 56 0 38 Z"/>
+          </g>
+          {/* Large truck 2 */}
+          <g transform="translate(1080,1980)">
+            <path d="M0 80 L0 50 Q0 40 12 40 L150 40 L180 -10 Q188 -28 210 -28 L380 -28 Q398 -28 410 -16 L470 40 L590 40 Q620 40 630 60 L640 80 Z"/>
+            <path d="M220 -8 L230 36 L308 36 L308 -8 Z M318 -8 L318 36 L398 36 L380 -2 Q375 -8 365 -8 Z" fill="#FAF8F5"/>
+            <circle cx="110" cy="88" r="38"/>
+            <circle cx="510" cy="88" r="38"/>
+            <circle cx="110" cy="88" r="18" fill="#FAF8F5"/>
+            <circle cx="510" cy="88" r="18" fill="#FAF8F5"/>
+            <rect x="438" y="52" width="26" height="8" rx="2"/>
+          </g>
+          {/* Bolt standing 3 */}
+          <g transform="translate(60,2080) rotate(90)">
+            <rect x="8" y="0" width="12" height="10"/>
+            <rect x="2" y="10" width="24" height="8"/>
+            <rect x="4" y="18" width="20" height="32"/>
+            <path d="M4 50 L24 50 L21 88 L7 88 Z"/>
+            <rect x="10" y="88" width="8" height="22"/>
+          </g>
+          {/* Hex bolt 4 */}
+          <g transform="translate(800,2200) rotate(-12)">
+            <path d="M40 2 L74 22 L74 60 L40 80 L6 60 L6 22 Z"/>
+            <circle cx="40" cy="41" r="12" fill="#FAF8F5"/>
+          </g>
+          {/* Cone 4 */}
+          <g transform="translate(280,2240) rotate(45)">
+            <rect x="0" y="0" width="14" height="10"/>
+            <path d="M2 10 L12 10 L7 70 Z"/>
+          </g>
+        </g>
+      </svg>
     </div>
   )
 }
@@ -257,23 +518,27 @@ export function InventarioPage() {
   const [loading, setLoading]                   = useState(true)
   const [loadingModal, setLoadingModal]         = useState(false)
   const [allProducts, setAllProducts]           = useState<Producto[]>([])
+  const [stockFilter, setStockFilter]           = useState<StockFilter>('all')
 
-  const [sorting, setSorting]     = useState<SortingState>([])
+  const [sorting, setSorting]           = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
 
   const { addPrestamo } = usePrestamosStore()
 
-  // ── Load products from backend ──────────────────────────────────────────────
+  const dateStr = useMemo(() => {
+    return new Date().toLocaleDateString('es-BO', {
+      weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+    })
+  }, [])
+
+  // ── Load products ──────────────────────────────────────────────────────────
   const fetchProducts = (after: string | null, acc: ProductoAPI[]): Promise<ProductoAPI[]> => {
     return gql<{ productos: { nodes: ProductoAPI[]; pageInfo: { hasNextPage: boolean; endCursor: string } } }>(
-      PRODUCTOS_QUERY,
-      { first: 50, after }
+      PRODUCTOS_QUERY, { first: 50, after }
     ).then(res => {
       const { nodes, pageInfo } = res.productos
       const all = [...acc, ...nodes]
-      if (pageInfo?.hasNextPage && pageInfo.endCursor) {
-        return fetchProducts(pageInfo.endCursor, all)
-      }
+      if (pageInfo?.hasNextPage && pageInfo.endCursor) return fetchProducts(pageInfo.endCursor, all)
       return all
     })
   }
@@ -288,12 +553,8 @@ export function InventarioPage() {
         const mockKitYpiezas = MOCK_PRODUCTOS.filter(p => p.es_kit || p.kit_id)
         setAllProducts(backend.length > 0 ? [...backend, ...mockKitYpiezas] : MOCK_PRODUCTOS as typeof backend)
       })
-      .catch(() => {
-        if (!cancelled) notify.error('Error cargando productos')
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+      .catch(() => { if (!cancelled) notify.error('Error cargando productos') })
+      .finally(() => { if (!cancelled) setLoading(false) })
   }
 
   useEffect(() => {
@@ -307,14 +568,23 @@ export function InventarioPage() {
         const mockKitYpiezas = MOCK_PRODUCTOS.filter(p => p.es_kit || p.kit_id)
         setAllProducts(backend.length > 0 ? [...backend, ...mockKitYpiezas] : MOCK_PRODUCTOS as typeof backend)
       })
-      .catch(() => {
-        if (!cancelled) notify.error('Error cargando productos')
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+      .catch(() => { if (!cancelled) notify.error('Error cargando productos') })
+      .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [isTokenReady])
+
+  // ── Stock filter ───────────────────────────────────────────────────────────
+  const displayProducts = useMemo(() => {
+    if (stockFilter === 'all') return allProducts
+    return allProducts.filter(p => {
+      const sinStock = p.stock === 0
+      const bajo = p.stock > 0 && p.stock <= p.stock_minimo
+      if (stockFilter === 'crit') return sinStock
+      if (stockFilter === 'warn') return bajo
+      if (stockFilter === 'ok')   return !sinStock && !bajo
+      return true
+    })
+  }, [allProducts, stockFilter])
 
   // ── Mutations ──────────────────────────────────────────────────────────────
   const handleEdit = (p: Producto) => {
@@ -323,9 +593,7 @@ export function InventarioPage() {
     setModalOpen(true)
     gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTO_BY_ID_QUERY, { id: Number(p.id) })
       .then((res) => {
-        if (res.productos?.nodes?.[0]) {
-          setEditingProducto(backendToProducto(res.productos.nodes[0]))
-        }
+        if (res.productos?.nodes?.[0]) setEditingProducto(backendToProducto(res.productos.nodes[0]))
       })
       .catch(() => notify.error('Error cargando producto'))
       .finally(() => setLoadingModal(false))
@@ -351,38 +619,28 @@ export function InventarioPage() {
         await api.post(`/Producto/CambiarPrecio/${editingProducto.id}`, pricePayload)
       }
       setAllProducts((prev) => prev.map((p) => p.id === editingProducto.id ? { ...p, ...data } : p))
-      notify.success('Producto actualizado', {
-        description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}`,
-      })
+      notify.success('Producto actualizado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
     } else {
       const createPayload = productoToBackend(data)
       await api.post('/Producto', createPayload)
       loadProducts()
-      notify.success('Producto creado', {
-        description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}`,
-      })
+      notify.success('Producto creado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
     }
     setModalOpen(false)
   }
 
   const handleNuevoPrestamo = (items: ItemPrestamo[], prestado_a: string, fecha: string, notas: string) => {
     const nuevo: Prestamo = {
-      id: crypto.randomUUID(),
-      items,
-      prestado_a,
-      fecha,
-      notas,
-      estado: 'activo',
-      creado_en: new Date().toISOString(),
+      id: crypto.randomUUID(), items, prestado_a, fecha, notas,
+      estado: 'activo', creado_en: new Date().toISOString(),
     }
     addPrestamo(nuevo)
     setAllProducts((prev) => {
-      const updated = prev.map((p) => {
+      return prev.map((p) => {
         const item = items.find((i) => i.producto_id === p.id)
         if (!item) return p
         return { ...p, stock: p.stock - item.cantidad }
       })
-      return updated
     })
     notify.success('Préstamo registrado')
     setPrestamoProducto(null)
@@ -391,16 +649,12 @@ export function InventarioPage() {
   const handleImport = async (results: ImportResult[]) => {
     const productosParaEnviar = results.map((r) => productoToBackendBulk(r.data))
     await api.post('/Producto/lista', { productos: productosParaEnviar })
-
     loadProducts()
-
-    const creados = results.filter((r) => r.action === 'create').length
+    const creados      = results.filter((r) => r.action === 'create').length
     const actualizados = results.filter((r) => r.action === 'update').length
     const msg = creados > 0 && actualizados > 0
       ? `${creados} creados, ${actualizados} actualizados`
-      : creados > 0
-        ? `${creados} productos creados`
-        : `${actualizados} productos actualizados`
+      : creados > 0 ? `${creados} productos creados` : `${actualizados} productos actualizados`
     notify.success(msg)
   }
 
@@ -423,7 +677,7 @@ export function InventarioPage() {
   const kpi = useMemo(() => ({
     total:         allProducts.length,
     totalUnidades: allProducts.reduce((s, p) => s + p.stock, 0),
-    totalValor:    allProducts.reduce((s, p) => s + p.precio_venta * p.stock, 0),
+    totalValor:    allProducts.reduce((s, p) => s + p.precio_costo * p.stock, 0),
     stockBajo:     allProducts.filter((p) => p.stock <= p.stock_minimo).length,
   }), [allProducts])
 
@@ -432,7 +686,7 @@ export function InventarioPage() {
     colHelper.display({
       id: 'imagen',
       header: 'Foto',
-      size: 64,
+      size: 58,
       meta: { align: 'center' },
       enableSorting: false,
       cell: (info) => (
@@ -440,32 +694,21 @@ export function InventarioPage() {
       ),
     }),
     colHelper.accessor('nombre', {
-      header: 'Producto',
+      header: 'Código / Producto',
       size: 280,
       meta: { align: 'left' },
       cell: (info) => {
         const p = info.row.original
-        const allCodes = [p.codigo_universal, ...p.codigos_alternativos.filter(Boolean)]
         return (
           <div>
-            <div className="flex flex-wrap gap-1.5 mb-1.5">
-              {allCodes.slice(0, 3).map((code, i) => (
-                <span key={`${code}-${i}`} className={clsx(
-                  'inline-flex items-center px-2.5 py-1 rounded-lg font-mono font-black tracking-wider',
-                  i === 0
-                    ? 'text-sm bg-brand-600 text-white shadow-sm'
-                    : 'text-xs bg-steel-800 text-steel-100',
-                )}>
-                  {code}
-                </span>
-              ))}
-              {allCodes.length > 3 && (
-                <span className="text-[10px] text-steel-400 self-center">+{allCodes.length - 3}</span>
-              )}
+            <div className="font-mono font-semibold tracking-[0.04em] text-[13.5px] text-ink leading-[1] mb-1">
+              {p.codigo_universal}
             </div>
-            <p className="text-[11px] text-steel-400 truncate">{p.nombre}</p>
-            {p.descripcion && (
-              <p className="text-[10px] text-steel-300 truncate mt-0.5">{p.descripcion}</p>
+            <div className="text-[12px] text-muted leading-[1.3] truncate max-w-[240px]">{p.nombre}</div>
+            {p.codigos_alternativos.filter(Boolean).length > 0 && (
+              <div className="text-[10px] text-muted-2 font-mono mt-0.5 truncate">
+                {p.codigos_alternativos.filter(Boolean).join(' · ')}
+              </div>
             )}
           </div>
         )
@@ -479,50 +722,74 @@ export function InventarioPage() {
         const p = info.row.original
         return (
           <div>
-            <p className="text-xs font-medium text-steel-700">{p.marca || '—'}</p>
-            <p className="text-[10px] text-steel-400 font-mono mt-0.5">{p.almacen} {p.estante} {p.fila} {p.columna}</p>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-terra shrink-0" />
+              <span className="text-[13.5px] font-medium text-ink-2">{p.marca || '—'}</span>
+            </div>
+            <p className="text-[10px] text-muted-2 font-mono mt-0.5">{p.almacen} {p.estante} {p.fila} {p.columna}</p>
           </div>
         )
       },
     }),
     colHelper.accessor('stock', {
       header: 'Stock',
-      size: 100,
-      meta: { align: 'center' },
+      size: 110,
+      meta: { align: 'right' },
       cell: (info) => {
         const p = info.row.original
-        const sinStock = p.stock === 0
-        const bajo = p.stock > 0 && p.stock <= p.stock_minimo
-        if (sinStock) return <StockBadge label="Sin stock" variant="red" />
         return (
-          <div className="flex flex-col items-center gap-0.5">
-            <span className={clsx('text-sm font-black tabular-nums', bajo ? 'text-amber-600' : 'text-emerald-600')}>
-              {p.stock}
-            </span>
-            <StockBadge label={bajo ? 'Bajo' : 'OK'} variant={bajo ? 'amber' : 'green'} />
+          <div className="flex flex-col items-end gap-1">
+            <span className="font-semibold text-[13.5px] text-ink tabular-nums">{p.stock.toLocaleString('es-BO')}</span>
+            <span className="text-[11px] text-muted-2">mín. {p.stock_minimo}</span>
           </div>
         )
       },
     }),
+    colHelper.display({
+      id: 'estado',
+      header: 'Estado',
+      size: 130,
+      meta: { align: 'left' },
+      enableSorting: false,
+      cell: (info) => {
+        const p = info.row.original
+        return <WarmStockBadge stock={p.stock} stockMinimo={p.stock_minimo} />
+      },
+    }),
     colHelper.accessor('precio_venta', {
       header: 'P. Venta',
-      size: 110,
+      size: 120,
       meta: { align: 'right' },
       cell: (info) => (
-        <span className="text-sm font-bold text-steel-900 tabular-nums">
-          Bs {info.getValue().toFixed(2)}
-        </span>
+        <div className="text-right">
+          <div className="font-semibold text-[13.5px] text-ink tabular-nums">
+            <span className="text-[10.5px] text-muted-2 font-medium mr-0.5">Bs.</span>
+            {info.getValue().toFixed(2)}
+          </div>
+          <div className="text-[10.5px] text-muted-2 mt-0.5">PVP unitario</div>
+        </div>
       ),
     }),
     colHelper.accessor('precio_costo', {
       header: 'P. Costo',
-      size: 110,
+      size: 120,
       meta: { align: 'right' },
-      cell: (info) => (
-        <span className="text-xs font-semibold text-steel-400 tabular-nums">
-          Bs {info.getValue().toFixed(2)}
-        </span>
-      ),
+      cell: (info) => {
+        const sale = info.row.original.precio_venta
+        const cost = info.getValue()
+        const margen = sale > 0 && cost > 0 ? Math.round(((sale - cost) / sale) * 100) : null
+        return (
+          <div className="text-right">
+            <div className="font-semibold text-[13.5px] text-muted tabular-nums">
+              <span className="text-[10.5px] text-muted-2 font-medium mr-0.5">Bs.</span>
+              {cost.toFixed(2)}
+            </div>
+            {margen !== null && (
+              <div className="text-[10.5px] text-muted-2 mt-0.5">margen {margen}%</div>
+            )}
+          </div>
+        )
+      },
     }),
     colHelper.display({
       id: 'acciones',
@@ -546,28 +813,23 @@ export function InventarioPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [])
 
-  // ── Custom global filter function ──────────────────────────────────────────
+  // ── Global filter fn ───────────────────────────────────────────────────────
   const globalFilterFn = (row: { original: Producto }, _columnId: string, filterValue: string): boolean => {
     const p = row.original
     const search = filterValue.toLowerCase().trim()
     if (!search) return true
-
-    // Buscar en todos los campos relevantes
     const fields = [
       p.codigo_universal,
       p.codigos_alternativos[0] ?? '',
       p.codigos_alternativos[1] ?? '',
-      p.nombre,
-      p.marca,
-      p.descripcion,
+      p.nombre, p.marca, p.descripcion,
     ]
-
     return fields.some(field => field.toLowerCase().includes(search))
   }
 
   // ── TanStack Table ─────────────────────────────────────────────────────────
   const table = useReactTable({
-    data: allProducts,
+    data: displayProducts,
     columns,
     state: { sorting, globalFilter },
     onSortingChange: setSorting,
@@ -580,106 +842,158 @@ export function InventarioPage() {
     initialState: { pagination: { pageSize: 25, pageIndex: 0 } },
   })
 
-  // Reset to page 1 when search changes
   useEffect(() => {
     table.setPageIndex(0)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [globalFilter])
+  }, [globalFilter, stockFilter])
 
   const filteredCount = table.getFilteredRowModel().rows.length
 
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  const fmtBs = (n: number) =>
+    n.toLocaleString('es-BO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+
+  const STOCK_FILTERS: { k: StockFilter; l: string }[] = [
+    { k: 'all',  l: 'Todos'    },
+    { k: 'ok',   l: 'En stock' },
+    { k: 'warn', l: 'Bajo'     },
+    { k: 'crit', l: 'Crítico'  },
+  ]
+
   return (
     <MainLayout>
-      <PageContainer>
+      <div className="relative px-14 py-9 pb-20 min-h-screen"
+           style={{ background: 'linear-gradient(180deg, #F4EFE6 0%, #FAF8F5 200px, #FAF8F5 100%)' }}>
 
-        {/* ── Header ─────────────────────────────────────────────────── */}
-        <div className="mb-8 flex items-end justify-between gap-4">
+        <AutopartsWatermark />
+
+        <div className="relative z-[1]">
+
+        {/* ── Topbar ──────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between mb-9">
+          <div className="flex items-center gap-1.5 text-[12.5px] text-muted tracking-[0.02em]">
+            <span>Operaciones</span>
+            <span className="opacity-50">/</span>
+            <span className="text-ink">Inventario</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="h-[38px] px-3.5 border border-hair bg-paper rounded-[10px] flex items-center gap-2 text-[13px] text-ink-2">
+              <IcoCal /><span>{dateStr}</span>
+            </div>
+            <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors relative"
+                    title="Notificaciones">
+              <IcoBell />
+              <span className="absolute top-[9px] right-[10px] w-[7px] h-[7px] rounded-full bg-terra border-2 border-paper" />
+            </button>
+            <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors"
+                    title="Configuración">
+              <IcoSettings />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Header ──────────────────────────────────────────────────── */}
+        <div className="flex items-end justify-between gap-8 mb-10">
           <div>
-            <p className="text-[11px] font-bold text-steel-400 uppercase tracking-widest mb-1">
-              Gestión de stock
+            <h1 className="font-serif text-[72px] leading-[0.95] tracking-[-0.025em] m-0 mb-2.5 text-ink">
+              Inventario<em className="italic text-terra">.</em>
+            </h1>
+            <p className="text-base text-muted max-w-[520px]">
+              Gestión de repuestos y autopartes — control en tiempo real de existencias, costos en bolivianos y movimientos de almacén.
             </p>
-            <h1 className="text-3xl font-black text-steel-900 tracking-tight">Inventario</h1>
           </div>
-          <div className="flex gap-2 shrink-0">
-            <Button variant="secondary" onClick={() => setImportOpen(true)} icon={
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-            }>
-              <span className="hidden sm:inline">Importar</span>
-            </Button>
-            <Button onClick={handleNew} icon={
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            }>
-              <span className="hidden sm:inline">Nuevo producto</span>
-            </Button>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <button onClick={() => setImportOpen(true)}
+              className="h-[46px] px-[22px] rounded-[12px] text-sm font-semibold flex items-center gap-2 bg-paper text-ink border border-hair hover:border-hair-2 transition-colors">
+              <IcoDownload /> <span>Importar</span>
+            </button>
+            <button onClick={handleNew}
+              className="h-[46px] px-[22px] rounded-[12px] text-sm font-semibold flex items-center gap-2 bg-terra text-white hover:bg-terra-deep transition-all hover:-translate-y-px active:translate-y-0"
+              style={{ boxShadow: '0 1px 2px rgba(200,80,31,0.3), 0 6px 16px -8px rgba(200,80,31,0.5)' }}>
+              <IcoPlus /> <span>Nuevo producto</span>
+            </button>
           </div>
         </div>
 
-        {/* ── KPIs ───────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <KpiCard dark
-            icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>}
+        {/* ── Metrics ─────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-4 gap-5 mb-11">
+          <WarmMetric
             label="Total productos"
-            value={kpi.total.toLocaleString()}
-            sub="en catálogo"
+            value={kpi.total.toLocaleString('es-BO')}
+            icon={<IcoBox />}
+            sublabel="en catálogo"
           />
-          <KpiCard
-            icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>}
-            label="Unidades totales"
-            value={kpi.totalUnidades.toLocaleString()}
-            sub="en stock"
-          />
-          <KpiCard
-            icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-            label="Valor total"
-            value={fmtBs(kpi.totalValor)}
-            sub="en inventario"
-          />
-          <KpiCard
-            icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>}
-            label="Stock bajo"
+          <WarmMetric
+            label="Stock crítico"
             value={kpi.stockBajo}
-            sub="bajo mínimo"
+            icon={<IcoAlert />}
+            tone={kpi.stockBajo > 0 ? 'crit' : undefined}
+            sublabel="bajo mínimo"
+          />
+          <WarmMetric
+            label="Valor de almacén"
+            value={fmtBs(kpi.totalValor)}
+            unit="Bs."
+            icon={<IcoVault />}
+            sublabel="al precio de costo"
+          />
+          <WarmMetric
+            label="Unidades totales"
+            value={kpi.totalUnidades.toLocaleString('es-BO')}
+            icon={<IcoUnits />}
+            sublabel="en stock"
           />
         </div>
 
-        {/* ── Tabla ──────────────────────────────────────────────────── */}
-        <Card>
+        {/* ── Table card ──────────────────────────────────────────────── */}
+        <div className="rounded-[18px] border border-hair overflow-hidden"
+             style={{ background: 'rgba(255,255,255,0.86)', backdropFilter: 'blur(2px)' }}>
+
           {/* Toolbar */}
-          <div className="px-5 pt-5 pb-4 border-b border-steel-100 flex flex-col sm:flex-row sm:items-center gap-3">
-            <SectionTitle>Productos</SectionTitle>
-            <div className="flex-1" />
-            <div className="flex items-center gap-3">
-              <div className="w-72">
-                <Input
-                  placeholder="Buscar código, nombre, marca..."
+          <div className="flex items-center gap-3.5 px-7 py-[22px] border-b border-hair">
+            <div>
+              <span className="font-serif text-[28px] leading-[1] tracking-[-0.01em] text-ink">Productos</span>
+              <span className="text-base text-muted ml-2.5 font-normal">
+                {globalFilter ? `${filteredCount} de ${displayProducts.length}` : displayProducts.length}
+              </span>
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <div className="h-10 flex items-center gap-2.5 px-3.5 border border-hair rounded-[10px] bg-cream min-w-[320px] transition-colors focus-within:border-terra focus-within:bg-paper">
+                <IcoSearch />
+                <input
+                  className="flex-1 bg-transparent border-none outline-none text-sm text-ink placeholder-muted-2"
+                  placeholder="Buscar por código, nombre o marca…"
                   value={globalFilter}
-                  onChange={(e) => setGlobalFilter(e.target.value)}
-                  leftIcon={
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
-                    </svg>
-                  }
+                  onChange={e => setGlobalFilter(e.target.value)}
                 />
               </div>
-              {globalFilter && (
-                <span className="text-xs font-semibold text-steel-500 bg-steel-100 px-2.5 py-1 rounded-full whitespace-nowrap">
-                  {filteredCount} resultado{filteredCount !== 1 ? 's' : ''}
-                </span>
-              )}
             </div>
           </div>
 
-          {/* Table content */}
+          {/* Filter row */}
+          <div className="flex items-center gap-2 px-7 py-3.5 border-b border-hair"
+               style={{ background: 'linear-gradient(180deg, #FAF8F5 0%, #FFFFFF 100%)' }}>
+            <span className="text-[11px] text-muted uppercase tracking-[0.1em] mr-1">Stock</span>
+            {STOCK_FILTERS.map(f => (
+              <button key={f.k}
+                onClick={() => setStockFilter(f.k)}
+                className={clsx(
+                  'h-10 px-3.5 border rounded-[10px] flex items-center text-[13px] transition-colors duration-120',
+                  stockFilter === f.k
+                    ? 'bg-ink text-cream border-ink'
+                    : 'bg-paper text-ink-2 border-hair hover:border-hair-2',
+                )}>
+                {f.l}
+              </button>
+            ))}
+          </div>
+
+          {/* Table */}
           {loading ? (
             <TableSkeleton />
-          ) : allProducts.length === 0 ? (
-            <EmptyState onNew={handleNew} searching={false} />
+          ) : displayProducts.length === 0 ? (
+            <EmptyState onNew={handleNew} searching={stockFilter !== 'all'} />
           ) : filteredCount === 0 ? (
             <EmptyState onNew={handleNew} searching={!!globalFilter} />
           ) : (
@@ -692,7 +1006,8 @@ export function InventarioPage() {
                 </colgroup>
                 <thead>
                   {table.getHeaderGroups().map((hg) => (
-                    <tr key={hg.id} className="border-b border-steel-100">
+                    <tr key={hg.id} className="border-b border-hair"
+                        style={{ background: 'rgba(250,248,245,0.7)' }}>
                       {hg.headers.map((header) => {
                         const canSort = header.column.getCanSort()
                         const sorted  = header.column.getIsSorted()
@@ -701,13 +1016,11 @@ export function InventarioPage() {
                           <th
                             key={header.id}
                             className={clsx(
-                              'px-3 py-3 text-[10px] font-bold text-steel-400 uppercase tracking-widest select-none whitespace-nowrap',
+                              'px-[22px] py-4 text-[11.5px] font-semibold text-muted uppercase tracking-[0.1em] select-none whitespace-nowrap',
                               align === 'center' && 'text-center',
                               align === 'right'  && 'text-right',
                               align === 'left'   && 'text-left',
-                              canSort && 'cursor-pointer hover:text-steel-600 transition-colors',
-                              header.id === 'imagen'   && 'pl-5',
-                              header.id === 'acciones' && 'pr-5',
+                              canSort && 'cursor-pointer hover:text-ink-2 transition-colors',
                             )}
                             onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                           >
@@ -725,20 +1038,28 @@ export function InventarioPage() {
                     </tr>
                   ))}
                 </thead>
-                <tbody className="divide-y divide-steel-50">
-                  {table.getRowModel().rows.map((row) => (
-                    <tr key={row.id} className="group hover:bg-[#FAFAF9] transition-colors">
+                <tbody>
+                  {table.getRowModel().rows.map((row, idx) => (
+                    <tr key={row.id}
+                      className="border-b border-hair transition-colors"
+                      style={{
+                        background: idx % 2 === 0
+                          ? 'rgba(255,255,255,0.55)'
+                          : 'rgba(250,250,248,0.45)',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(244,239,230,0.8)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = idx % 2 === 0
+                        ? 'rgba(255,255,255,0.55)' : 'rgba(250,250,248,0.45)')}
+                    >
                       {row.getVisibleCells().map((cell) => {
                         const align = (cell.column.columnDef.meta as ColumnMeta<Producto, unknown> | undefined)?.align ?? 'left'
                         return (
                           <td
                             key={cell.id}
                             className={clsx(
-                              'px-3 py-3',
+                              'px-[22px] py-3 align-middle text-[13.5px]',
                               align === 'center' && 'text-center',
                               align === 'right'  && 'text-right',
-                              cell.column.id === 'imagen'   && 'pl-5',
-                              cell.column.id === 'acciones' && 'pr-5',
                             )}
                           >
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -753,15 +1074,20 @@ export function InventarioPage() {
           )}
 
           {/* Footer */}
-          {!loading && allProducts.length > 0 && (
-            <div className="px-5 py-4 border-t border-steel-100">
+          {!loading && displayProducts.length > 0 && (
+            <div className="px-7 py-4 border-t border-hair bg-cream flex items-center justify-between">
+              <span className="text-[12.5px] text-muted">
+                Mostrando {filteredCount} de {displayProducts.length} productos
+              </span>
               <TablePagination table={table} totalRows={filteredCount} />
             </div>
           )}
-        </Card>
+        </div>
 
-      </PageContainer>
+        </div>{/* end relative z-[1] content wrapper */}
+      </div>
 
+      {/* ── Modals ──────────────────────────────────────────────────────── */}
       <NuevoPrestamoModal
         open={!!prestamoProducto}
         onClose={() => setPrestamoProducto(null)}

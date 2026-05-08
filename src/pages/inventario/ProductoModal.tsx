@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Modal, Button, Input } from '@/components/ui'
+import { Button, Input } from '@/components/ui'
 import type { Producto, HistorialPrecio } from '@/types'
 import { useConfigStore, calcularPrecioConDescuento } from '@/stores/configStore'
 import { useInventarioStore } from '@/stores/inventarioStore'
@@ -41,6 +41,77 @@ const EMPTY: FormData = {
   es_kit: false,
   kit_id: null,
   cantidad_por_kit: 1,
+}
+
+// ─── Drawer wrapper ───────────────────────────────────────────────────────────
+
+function DrawerWrapper({ open, onClose, subtitle, title, sku, children, footer }: {
+  open: boolean
+  onClose: () => void
+  subtitle: string
+  title: string
+  sku?: string
+  children: React.ReactNode
+  footer: React.ReactNode
+}) {
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [open, onClose])
+
+  return (
+    <>
+      {/* Overlay */}
+      <div
+        className="fixed inset-0 z-50 transition-opacity duration-200"
+        style={{
+          background: 'rgba(36,30,24,0.35)',
+          backdropFilter: 'blur(4px)',
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? 'auto' : 'none',
+        }}
+        onClick={onClose}
+      />
+      {/* Drawer */}
+      <aside
+        className="fixed top-0 right-0 bottom-0 w-[520px] bg-white border-l border-[#E8E1D6] z-[60] flex flex-col"
+        style={{
+          transform: open ? 'translateX(0)' : 'translateX(100%)',
+          transition: 'transform 280ms cubic-bezier(0.32, 0.72, 0.2, 1)',
+          boxShadow: '-24px 0 40px -20px rgba(36,30,24,0.2)',
+        }}
+      >
+        {/* Head */}
+        <div className="px-8 pt-7 pb-[22px] border-b border-[#E8E1D6] flex items-start justify-between gap-3 shrink-0">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.1em] text-[#7A6E62] mb-1.5">{subtitle}</div>
+            <h2 className="font-serif text-[36px] leading-[1.05] tracking-[-0.02em] m-0 mb-1 text-[#241E18]">{title}</h2>
+            {sku && (
+              <div className="font-mono text-[13.5px] font-semibold tracking-[0.04em] text-[#241E18]">{sku}</div>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-[#7A6E62] hover:text-[#241E18] hover:bg-[#E8E1D6] transition-colors shrink-0 mt-1"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-8">
+          {children}
+        </div>
+        {/* Footer */}
+        <div className="px-8 py-[18px] border-t border-[#E8E1D6] bg-[#FAF8F5] flex justify-end gap-2.5 shrink-0">
+          {footer}
+        </div>
+      </aside>
+    </>
+  )
 }
 
 function SkeletonField({ labelWidth = 24 }: { labelWidth?: number }) {
@@ -188,11 +259,12 @@ export function ProductoModal({
       : null
 
   return (
-    <Modal
+    <DrawerWrapper
       open={open}
       onClose={onClose}
-      title={producto ? 'Editar producto' : 'Nuevo producto'}
-      size="xl"
+      subtitle={producto ? 'Detalle del producto' : 'Nuevo producto'}
+      title={producto ? producto.nombre : 'Registrar autoparte'}
+      sku={producto?.codigo_universal}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>Cancelar</Button>
@@ -549,7 +621,7 @@ export function ProductoModal({
           )}
         </div>
       )}
-    </Modal>
+    </DrawerWrapper>
   )
 }
 

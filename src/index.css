@@ -8,7 +8,26 @@
   }
 
   body {
-    @apply bg-steel-50 text-steel-900 font-sans;
+    @apply bg-cream text-ink font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg,
+      #B22234 0%,
+      #B22234 33%,
+      #FAF8F5 33%,
+      #FAF8F5 38%,
+      #002868 38%,
+      #002868 100%);
+    z-index: 100;
   }
 
   * {
@@ -22,9 +41,9 @@
     @apply bg-transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-steel-300 rounded-full;
+    @apply bg-hair-2 rounded-full;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-steel-400;
+    @apply bg-muted-2;
   }
 }

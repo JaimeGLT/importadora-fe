@@ -1,7 +1,7 @@
-import { useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/AuthContext'
+import { useState } from 'react'
 
 interface NavItem {
   label: string
@@ -14,28 +14,27 @@ interface NavGroup {
   icon: React.ReactNode
   items: NavItem[]
   roles?: string[]
+  badge?: number
 }
 
 const groups: NavGroup[] = [
   {
     label: 'Inventario',
     icon: (
-      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      <svg className="h-[18px] w-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5"/><path d="M12 22V13"/>
       </svg>
     ),
     items: [
-      { label: 'Productos', to: '/inventario',           roles: ['admin'] },
-      { label: 'Préstamos', to: '/inventario/prestamos', roles: ['admin'] },
+      { label: 'Productos',  to: '/inventario',           roles: ['admin'] },
+      { label: 'Préstamos',  to: '/inventario/prestamos', roles: ['admin'] },
     ],
   },
   {
     label: 'Importaciones',
     icon: (
-      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-          d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+      <svg className="h-[18px] w-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M16 3h5v5"/><path d="M21 3 13 11"/><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/>
       </svg>
     ),
     items: [
@@ -47,9 +46,8 @@ const groups: NavGroup[] = [
   {
     label: 'Caja',
     icon: (
-      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+      <svg className="h-[18px] w-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>
       </svg>
     ),
     roles: ['admin', 'cajero'],
@@ -60,55 +58,53 @@ const groups: NavGroup[] = [
   {
     label: 'Ventas',
     icon: (
-      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-          d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+      <svg className="h-[18px] w-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 6-6"/>
       </svg>
     ),
     items: [
-      { label: 'Caja',    to: '/ventas/caja',    roles: ['admin', 'cajero'] },
-      { label: 'Almacén', to: '/ventas/almacen', roles: ['admin', 'almacenero'] },
-      { label: 'Escaneo', to: '/ventas/escaneo', roles: ['admin', 'cajero'] },
+      { label: 'Caja',     to: '/ventas/caja',    roles: ['admin', 'cajero'] },
+      { label: 'Almacén',  to: '/ventas/almacen', roles: ['admin', 'almacenero'] },
+      { label: 'Escaneo',  to: '/ventas/escaneo', roles: ['admin', 'cajero'] },
       { label: 'Clientes', to: '/ventas/clientes', roles: ['admin', 'cajero'] },
     ],
   },
   {
     label: 'Reportes',
     icon: (
-      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      <svg className="h-[18px] w-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>
       </svg>
     ),
     roles: ['admin'],
     items: [
-      { label: 'Rentabilidad',        to: '/reportes/rentabilidad',  roles: ['admin'] },
-      { label: 'Costo importación',   to: '/reportes/landed-cost',   roles: ['admin'] },
-      { label: 'Rotación',            to: '/reportes/rotacion',      roles: ['admin'] },
-      { label: 'Cuentas por cobrar',  to: '/reportes/cxc',           roles: ['admin'] },
-      { label: 'En tránsito',         to: '/reportes/transito',      roles: ['admin'] },
-      { label: 'Quiebre proyectado',  to: '/reportes/quiebre',       roles: ['admin'] },
-      { label: 'Proveedores',         to: '/reportes/proveedores',   roles: ['admin'] },
-      { label: 'Stock muerto',        to: '/reportes/stock-muerto',  roles: ['admin'] },
-      { label: 'Por vehículo',        to: '/reportes/vehiculos',     roles: ['admin'] },
-      { label: 'Clientes en fuga',    to: '/reportes/clientes-fuga', roles: ['admin'] },
-      { label: 'Estacionalidad',      to: '/reportes/estacionalidad',roles: ['admin'] },
-      { label: 'Ventas de kits',      to: '/reportes/kits',          roles: ['admin'] },
-      { label: 'Alertas de stock',    to: '/alertas',                roles: ['admin'] },
+      { label: 'Rentabilidad',        to: '/reportes/rentabilidad',   roles: ['admin'] },
+      { label: 'Costo importación',   to: '/reportes/landed-cost',    roles: ['admin'] },
+      { label: 'Rotación',            to: '/reportes/rotacion',       roles: ['admin'] },
+      { label: 'Cuentas por cobrar',  to: '/reportes/cxc',            roles: ['admin'] },
+      { label: 'En tránsito',         to: '/reportes/transito',       roles: ['admin'] },
+      { label: 'Quiebre proyectado',  to: '/reportes/quiebre',        roles: ['admin'] },
+      { label: 'Proveedores',         to: '/reportes/proveedores',    roles: ['admin'] },
+      { label: 'Stock muerto',        to: '/reportes/stock-muerto',   roles: ['admin'] },
+      { label: 'Por vehículo',        to: '/reportes/vehiculos',      roles: ['admin'] },
+      { label: 'Clientes en fuga',    to: '/reportes/clientes-fuga',  roles: ['admin'] },
+      { label: 'Estacionalidad',      to: '/reportes/estacionalidad', roles: ['admin'] },
+      { label: 'Ventas de kits',      to: '/reportes/kits',           roles: ['admin'] },
+      { label: 'Alertas de stock',    to: '/alertas',                 roles: ['admin'] },
     ],
   },
   {
     label: 'Sistema',
     icon: (
-      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <svg className="h-[18px] w-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
       </svg>
     ),
     roles: ['admin'],
     items: [
-      { label: 'Configuración',  to: '/configuracion',                roles: ['admin'] },
-      { label: 'Usuarios y roles', to: '/sistema/usuarios',         roles: ['admin'] },
+      { label: 'Configuración',    to: '/configuracion',    roles: ['admin'] },
+      { label: 'Usuarios y roles', to: '/sistema/usuarios', roles: ['admin'] },
     ],
   },
 ]
@@ -123,7 +119,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
 
-  // Inicializar con los grupos que tienen una ruta activa abiertos
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
     const initial = new Set<string>()
     groups.forEach((g) => {
@@ -142,99 +137,141 @@ export function Sidebar({ open, onClose }: SidebarProps) {
     })
   }
 
+  const initials = user?.nombre
+    ? user.nombre.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+    : '?'
+
   return (
     <aside className={clsx(
-      'flex flex-col w-60 bg-steel-900 text-white shrink-0',
-      // Mobile: drawer fijo que desliza
+      'flex flex-col w-[248px] shrink-0',
+      'bg-[#F0EDE8] border-r border-[#E1DBCF]',
       'fixed inset-y-0 left-0 z-50 h-full transition-transform duration-300 ease-in-out',
-      // Desktop: posición normal en el flujo
-      'md:relative md:translate-x-0 md:h-screen md:sticky md:top-0',
+      'md:relative md:translate-x-0 md:h-screen md:sticky md:top-1',
       open ? 'translate-x-0' : '-translate-x-full',
     )}>
 
-      {/* Logo */}
-      <div className="px-5 py-5 border-b border-steel-700 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-brand-600 flex items-center justify-center shrink-0">
-            <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+      {/* Brand */}
+      <div className="px-[18px] pt-8 pb-5 border-b border-hair">
+        <div className="flex items-center gap-3 mb-3">
+          {/* Brand mark */}
+          <div className="relative w-[46px] h-[46px] rounded-[10px] bg-navy flex flex-col items-center justify-center shrink-0 overflow-hidden"
+               style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08), 0 1px 2px rgba(0,40,104,0.25)' }}>
+            <span className="relative z-10 text-white text-sm font-black tracking-[0.08em] mt-0.5">USA</span>
+            <div className="absolute bottom-0 left-0 right-0 h-2"
+                 style={{ background: 'repeating-linear-gradient(to bottom, #B22234 0px, #B22234 1.4px, #FFFFFF 1.4px, #FFFFFF 2.8px)', opacity: 0.92 }} />
           </div>
           <div>
-            <p className="text-sm font-semibold leading-tight">Importadora</p>
-            <p className="text-xs text-steel-400 leading-tight">Autopartes</p>
+            <div className="font-serif text-2xl leading-none tracking-[-0.015em] text-ink">
+              USA <em className="italic text-terra not-italic">Autopartes</em>
+            </div>
           </div>
-        </div>
 
-        {/* Botón cerrar — solo mobile */}
-        <button
-          onClick={onClose}
-          className="md:hidden p-1.5 rounded-lg text-steel-400 hover:text-white hover:bg-steel-800 transition-colors"
-          aria-label="Cerrar menú"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+          {/* Close button mobile */}
+          <button
+            onClick={onClose}
+            className="md:hidden ml-auto p-1.5 rounded-lg text-muted hover:text-ink hover:bg-hair transition-colors"
+            aria-label="Cerrar menú"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="font-serif italic text-[12.5px] text-muted leading-[1.35]">
+          Repuestos para vehículos americanos
+        </div>
+        <div className="mt-2 flex items-center gap-1.5 text-[10px] tracking-[0.16em] uppercase text-muted-2 font-semibold">
+          <span className="w-[5px] h-[5px] rounded-full bg-terra"
+                style={{ boxShadow: '0 0 0 3px #F5DCDF' }} />
+          Cochabamba · Bolivia
+        </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {/* Dashboard — acceso directo */}
+      <nav className="flex-1 px-[18px] py-4 overflow-y-auto space-y-0.5">
+
+        {/* Dashboard */}
+        <div className="text-[10.5px] tracking-[0.14em] uppercase text-muted-2 px-3 pt-3.5 pb-2 font-medium">
+          Principal
+        </div>
         <NavLink
           to="/dashboard"
           onClick={onClose}
           className={({ isActive }) =>
             clsx(
-              'w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors',
+              'w-full flex items-center gap-3 px-3 py-[10px] rounded-[10px] text-sm font-medium transition-colors duration-120',
               isActive
-                ? 'text-white bg-brand-600'
-                : 'text-steel-400 hover:text-white hover:bg-steel-800',
+                ? 'bg-ink text-cream'
+                : 'text-ink-2 hover:bg-ink/[0.04]',
             )
           }
         >
-          <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          <svg className="h-[18px] w-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/>
+            <rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>
           </svg>
-          <span className="text-xs font-semibold uppercase tracking-wider">Dashboard</span>
+          <span>Dashboard</span>
         </NavLink>
 
-        {groups.map((group) => {
+        <div className="text-[10.5px] tracking-[0.14em] uppercase text-muted-2 px-3 pt-3.5 pb-2 font-medium">
+          Operaciones
+        </div>
+
+        {groups.slice(0, 4).map((group) => {
           const visibleItems = group.items.filter(i => !i.roles || !user || i.roles.includes(user.rol))
           if (visibleItems.length === 0) return null
           const groupActive = visibleItems.some((i) => pathname === i.to || pathname.startsWith(i.to + '/'))
           const isExpanded = expandedGroups.has(group.label)
 
+          if (visibleItems.length === 1) {
+            const item = visibleItems[0]
+            return (
+              <NavLink
+                key={group.label}
+                to={item.to}
+                end={item.to === '/inventario' || item.to === '/caja'}
+                onClick={onClose}
+                className={({ isActive }) =>
+                  clsx(
+                    'w-full flex items-center gap-3 px-3 py-[10px] rounded-[10px] text-sm font-medium transition-colors duration-120',
+                    isActive
+                      ? 'bg-ink text-cream'
+                      : 'text-ink-2 hover:bg-ink/[0.04]',
+                  )
+                }
+              >
+                {group.icon}
+                <span>{group.label}</span>
+              </NavLink>
+            )
+          }
+
           return (
             <div key={group.label}>
-              {/* Header clickeable del grupo */}
               <button
                 onClick={() => toggleGroup(group.label)}
                 className={clsx(
-                  'w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-left',
-                  groupActive
-                    ? 'text-white bg-steel-800'
-                    : 'text-steel-400 hover:text-white hover:bg-steel-800',
+                  'w-full flex items-center gap-3 px-3 py-[10px] rounded-[10px] text-sm font-medium transition-colors duration-120 text-left',
+                  groupActive && !isExpanded
+                    ? 'bg-ink text-cream'
+                    : 'text-ink-2 hover:bg-ink/[0.04]',
                 )}
               >
                 {group.icon}
-                <span className="text-xs font-semibold uppercase tracking-wider flex-1">{group.label}</span>
+                <span className="flex-1">{group.label}</span>
                 <svg
-                  className={clsx('h-3.5 w-3.5 shrink-0 transition-transform duration-200', isExpanded && 'rotate-180')}
+                  className={clsx('h-3.5 w-3.5 shrink-0 transition-transform duration-200 opacity-50', isExpanded && 'rotate-180')}
                   fill="none" viewBox="0 0 24 24" stroke="currentColor"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
 
-              {/* Subitems con animación */}
               <div className={clsx(
                 'overflow-hidden transition-all duration-200 ease-in-out',
                 isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0',
               )}>
-                <div className="space-y-0.5 pl-2 pt-0.5 pb-1">
+                <div className="pl-[42px] pt-0.5 pb-1 space-y-0.5">
                   {visibleItems.map((item) => (
                     <NavLink
                       key={item.to}
@@ -243,14 +280,75 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                       onClick={onClose}
                       className={({ isActive }) =>
                         clsx(
-                          'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
+                          'flex items-center gap-2 px-3 py-2 rounded-[10px] text-[13.5px] transition-colors duration-120',
                           isActive
-                            ? 'bg-brand-600 text-white font-medium'
-                            : 'text-steel-300 hover:bg-steel-800 hover:text-white',
+                            ? 'bg-ink text-cream font-medium'
+                            : 'text-ink-2 hover:bg-ink/[0.04]',
                         )
                       }
                     >
-                      <span className="h-1.5 w-1.5 rounded-full bg-current shrink-0 opacity-60" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-current shrink-0 opacity-40" />
+                      {item.label}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+
+        <div className="text-[10.5px] tracking-[0.14em] uppercase text-muted-2 px-3 pt-3.5 pb-2 font-medium">
+          General
+        </div>
+
+        {groups.slice(4).map((group) => {
+          const visibleItems = group.items.filter(i => !i.roles || !user || i.roles.includes(user.rol))
+          if (visibleItems.length === 0) return null
+          const groupActive = visibleItems.some((i) => pathname === i.to || pathname.startsWith(i.to + '/'))
+          const isExpanded = expandedGroups.has(group.label)
+
+          return (
+            <div key={group.label}>
+              <button
+                onClick={() => toggleGroup(group.label)}
+                className={clsx(
+                  'w-full flex items-center gap-3 px-3 py-[10px] rounded-[10px] text-sm font-medium transition-colors duration-120 text-left',
+                  groupActive && !isExpanded
+                    ? 'bg-ink text-cream'
+                    : 'text-ink-2 hover:bg-ink/[0.04]',
+                )}
+              >
+                {group.icon}
+                <span className="flex-1">{group.label}</span>
+                <svg
+                  className={clsx('h-3.5 w-3.5 shrink-0 transition-transform duration-200 opacity-50', isExpanded && 'rotate-180')}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              <div className={clsx(
+                'overflow-hidden transition-all duration-200 ease-in-out',
+                isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0',
+              )}>
+                <div className="pl-[42px] pt-0.5 pb-1 space-y-0.5">
+                  {visibleItems.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end
+                      onClick={onClose}
+                      className={({ isActive }) =>
+                        clsx(
+                          'flex items-center gap-2 px-3 py-2 rounded-[10px] text-[13.5px] transition-colors duration-120',
+                          isActive
+                            ? 'bg-ink text-cream font-medium'
+                            : 'text-ink-2 hover:bg-ink/[0.04]',
+                        )
+                      }
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-current shrink-0 opacity-40" />
                       {item.label}
                     </NavLink>
                   ))}
@@ -261,27 +359,33 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         })}
       </nav>
 
-      {/* User */}
-      <div className="px-4 py-4 border-t border-steel-700">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="h-8 w-8 rounded-full bg-brand-700 flex items-center justify-center text-xs font-semibold shrink-0">
-            {user?.nombre.charAt(0).toUpperCase() ?? '?'}
+      {/* User footer */}
+      <div className="px-[18px] py-4 border-t border-hair shrink-0">
+        <div className="flex items-center gap-3 px-1.5 py-2">
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[13px] font-semibold shrink-0 border-2 border-cream-2"
+            style={{
+              background: 'linear-gradient(135deg, #B22234 0%, #8C1A28 100%)',
+              boxShadow: '0 0 0 1px #E8E1D6',
+            }}
+          >
+            {initials}
           </div>
-          <div className="overflow-hidden">
-            <p className="text-sm font-medium text-white truncate">{user?.nombre ?? '—'}</p>
-            <p className="text-xs text-steel-400 capitalize">{user?.rol ?? ''}</p>
+          <div className="flex-1 overflow-hidden">
+            <p className="text-[13.5px] font-semibold text-ink leading-[1.2] truncate">{user?.nombre ?? '—'}</p>
+            <p className="text-[11.5px] text-muted capitalize">{user?.rol ?? ''}</p>
           </div>
+          <button
+            onClick={() => { void logout().then(() => navigate('/login')) }}
+            className="p-1.5 rounded-lg text-muted hover:text-ink hover:bg-hair transition-colors shrink-0"
+            title="Cerrar sesión"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
         </div>
-        <button
-          onClick={() => { void logout().then(() => navigate('/login')) }}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-steel-400 hover:text-white hover:bg-steel-800 transition-colors"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          Cerrar sesión
-        </button>
       </div>
     </aside>
   )
