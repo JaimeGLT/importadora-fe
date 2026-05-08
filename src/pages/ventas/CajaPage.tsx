@@ -10,8 +10,11 @@ import { useVentasStore } from '@/stores/ventasStore'
 import { useSoundAlert } from '@/hooks/useSoundAlert'
 import { useConfigStore, calcularPrecioConDescuento, calcularPrecioDolarHoy, type DescuentoConfig } from '@/stores/configStore'
 import { gql } from '@/lib/graphql'
+import { api } from '@/lib/api'
 import { PRODUCTOS_QUERY, backendToProductoSimple, type ProductoAPI } from '@/lib/queries/inventario.queries'
-import type { Producto, OrdenVenta, ItemOrden, MetodoPago, EstadoOrden, Cliente } from '@/types'
+import { MIS_ORDENES_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
+import { useVentasHub } from '@/hooks/useVentasHub'
+import type { Producto, OrdenVenta, MetodoPago, Cliente } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1436,8 +1439,8 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
 
 export function CajaPage() {
   const { user, isTokenReady } = useAuth()
-  const { reservarStock, liberarReserva, confirmarSalida, setProductos, venderKit } = useInventarioStore()
-  const { ordenes, addOrden, updateOrden } = useVentasStore()
+  const { setProductos } = useInventarioStore()
+  const { ordenes, setOrdenes, updateOrden } = useVentasStore()
   const { playAlertSequence, playBeep } = useSoundAlert()
 
   const [cart, setCart] = useState<Cart>(emptyCart())
@@ -1483,6 +1486,44 @@ export function CajaPage() {
       })
     return () => { cancelled = true }
   }, [isTokenReady, setProductos])
+
+  const joinGrupoRef = useRef<(g: string) => Promise<void>>(() => Promise.resolve())
+
+  const loadOrdenes = useCallback(async () => {
+    if (!isTokenReady) return
+    try {
+      const data = await gql<{ misOrdenes: { nodes: OrdenVentaAPI[] } }>(MIS_ORDENES_QUERY)
+      const converted = data.misOrdenes.nodes.map(backendToOrdenVenta)
+      setOrdenes(converted)
+      converted
+        .filter(o => o.estado !== 'completada' && o.estado !== 'cancelada')
+        .forEach(o => joinGrupoRef.current(`orden-${o.id}`))
+    } catch {
+      notify.error('Error cargando órdenes')
+    }
+  }, [isTokenReady, setOrdenes])
+
+  useEffect(() => { loadOrdenes() }, [loadOrdenes])
+
+  const { isConnected, joinGrupo } = useVentasHub({
+    onOrdenAceptada: ({ id }) => {
+      updateOrden(String(id), { estado: 'en_preparacion' })
+      playAlertSequence()
+      notify.info('Almacenero tomó la orden')
+    },
+    onOrdenLista: ({ id }) => {
+      updateOrden(String(id), { estado: 'listo_para_escaneo' })
+      playAlertSequence()
+      notify.success('¡Orden lista!', { description: 'Mercadería preparada', duration: 8000 })
+    },
+    onOrdenCompletada: ({ id }) => {
+      updateOrden(String(id), { estado: 'completada' })
+    },
+    onOrdenCancelada: ({ id }) => {
+      updateOrden(String(id), { estado: 'cancelada' })
+    },
+  }, isTokenReady)
+  joinGrupoRef.current = joinGrupo
 
   useEffect(() => {
     const ordenConFaltantes = misOrdenes.find(o => o.items.some(i => i.estado === 'faltante') && !alertedFaltantes.current.has(o.id))
@@ -1662,39 +1703,56 @@ const addToCart = useCallback((producto: Producto) => {
     setFlyingBall({ from: fromRect, items: cart.items.length })
   }
 
-  const handleFlyingComplete = () => {
+  const handleFlyingComplete = async () => {
     if (!flyingBall) return
-    const now = new Date().toISOString()
-    const id = newId()
-    const numero = `ORD-${String(ordenes.length + 1).padStart(3, '0')}`
-    const items: ItemOrden[] = cart.items.map(ci => ({
-      id: newId(), producto_id: ci.producto_id, producto_codigo: ci.producto_codigo, producto_nombre: ci.producto_nombre,
-      producto_almacen: ci.producto_almacen, producto_estante: ci.producto_estante, producto_fila: ci.producto_fila, producto_columna: ci.producto_columna,
-      cantidad_pedida: ci.cantidad, precio_unitario: ci.precio_unitario,
-      subtotal: ci.precio_unitario * ci.cantidad, estado: 'pendiente' as const,
-    }))
-    const total = items.reduce((s, i) => s + i.subtotal, 0)
-    const isReserva = cart.tipo === 'reserva'
-    const caducaEn = isReserva ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : undefined
-    const orden: OrdenVenta = {
-      id, numero,
-      tipo: cart.tipo,
-      cliente_nombre: isReserva ? cart.cliente_nombre : undefined,
-      cajero_id: user?.id ?? 'admin',
-      cajero_nombre: user?.nombre ?? 'Admin',
-      items, total,
-      estado: isReserva ? 'pendiente_almacenero' as const : 'pendiente_almacenero' as const,
-      nota: cart.nota || undefined,
-      creado_en: now,
-      actualizado_en: now,
-      caduca_en: caducaEn,
-    }
-    if (!isReserva) items.forEach(i => reservarStock(i.producto_id, i.cantidad_pedida))
-    addOrden(orden)
-    setCart(emptyCart())
     setFlyingBall(null)
-    playBeep({ frequency: 800, duration: 80 })
-    notify.success(isReserva ? `${numero} reservada para ${cart.cliente_nombre}` : `${numero} enviada a almacén`)
+
+    // Agrupar piezas de kit por kit_id
+    const regularItems = cart.items.filter(i => !i.kit_id)
+    const kitGroups = cart.items
+      .filter(i => !!i.kit_id)
+      .reduce<Record<string, CartItem[]>>((acc, i) => {
+        if (!acc[i.kit_id!]) acc[i.kit_id!] = []
+        acc[i.kit_id!].push(i)
+        return acc
+      }, {})
+
+    const apiItems = [
+      ...regularItems.map(i => ({
+        id_Producto: Number(i.producto_id),
+        cantidad: i.cantidad,
+        esParcial: false,
+        precioUnitario: i.precio_unitario,
+        id_Descuento: i.descuento_id ? Number(i.descuento_id) : null,
+        montoDescuento: i.descuento_porcentaje
+          ? i.precio_base * (i.descuento_porcentaje / 100) * i.cantidad
+          : 0,
+        piezas: [],
+      })),
+      ...Object.entries(kitGroups).map(([kitId, pieces]) => ({
+        id_Producto: Number(kitId),
+        cantidad: 1,
+        esParcial: true,
+        precioUnitario: pieces.reduce((s, p) => s + p.precio_unitario * p.cantidad, 0),
+        id_Descuento: null,
+        montoDescuento: 0,
+        piezas: pieces.map(p => ({ id_Pieza: Number(p.producto_id), cantidad: p.cantidad })),
+      })),
+    ]
+
+    try {
+      const result = await api.post<{ id: number; numero: string }>('/OrdenVenta', {
+        id_Cliente: null,
+        items: apiItems,
+      })
+      await joinGrupo(`orden-${result.id}`)
+      setCart(emptyCart())
+      playBeep({ frequency: 800, duration: 80 })
+      notify.success(`${result.numero ?? `#${result.id}`} enviada a almacén`)
+      await loadOrdenes()
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al crear la orden')
+    }
   }
 
   const handleOpenCobro = (orden: OrdenVenta) => {
@@ -1705,18 +1763,19 @@ const addToCart = useCallback((producto: Producto) => {
     setCancelarOrden(orden)
   }
 
-  const handleConfirmarCancelar = () => {
+  const handleConfirmarCancelar = async () => {
     if (!cancelarOrden) return
-    if (cancelarOrden.tipo !== 'reserva') {
-      cancelarOrden.items.forEach(i => liberarReserva(i.producto_id, i.cantidad_pedida))
+    try {
+      await api.post(`/OrdenVenta/${cancelarOrden.id}/Cancelar`, null)
+      updateOrden(cancelarOrden.id, { estado: 'cancelada' })
+      notify.success(`${cancelarOrden.numero} cancelada`)
+      setCancelarOrden(null)
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al cancelar')
     }
-    updateOrden(cancelarOrden.id, { estado: 'cancelado' as EstadoOrden })
-    notify.success(`${cancelarOrden.numero} cancelada`)
-    setCancelarOrden(null)
   }
 
   const handleClaimReserva = (orden: OrdenVenta) => {
-    orden.items.forEach(i => reservarStock(i.producto_id, i.cantidad_pedida))
     updateOrden(orden.id, { estado: 'pendiente_almacenero', tipo: 'venta', cliente_nombre: undefined, caduca_en: undefined })
     notify.success(`${orden.numero} convertida a venta`)
   }
@@ -1740,23 +1799,6 @@ const addToCart = useCallback((producto: Producto) => {
   const handleConfirmarPago = (metodo: MetodoPago, monto: number, billing: BillingDataFromCobro) => {
     if (!cobroOrden) return
     const now = new Date().toISOString()
-    const allProductos = useInventarioStore.getState().productos
-    cobroOrden.items.forEach(i => {
-      if (i.estado === 'completo' || i.estado === 'parcial') {
-        const cantidad = i.cantidad_recogida ?? i.cantidad_pedida
-        const producto = allProductos.find(p => p.id === i.producto_id)
-        if (producto?.es_kit) {
-          for (let c = 0; c < cantidad; c++) venderKit(i.producto_id)
-        } else {
-          confirmarSalida(i.producto_id, cantidad)
-        }
-      }
-      else if (i.estado === 'faltante') liberarReserva(i.producto_id, i.cantidad_pedida)
-    })
-
-    const facturaNro = billing.tipoDocumento === 'factura'
-      ? `001-001-${String(Math.floor(Math.random() * 9999999)).padStart(7, '0')}`
-      : undefined
 
     updateOrden(cobroOrden.id, {
       estado: 'completada',
@@ -1764,7 +1806,6 @@ const addToCart = useCallback((producto: Producto) => {
       monto_recibido: monto,
       pagado_en: now,
       tipoDocumento: billing.tipoDocumento as 'nota_venta' | 'factura',
-      facturaNro,
       cliente_id: billing.cliente_id,
       cliente_tipo_id: billing.cliente_tipo_id as 'ci' | 'nit' | 'sin_nit' | undefined,
       cliente_numero_id: billing.cliente_numero_id,
@@ -1774,7 +1815,7 @@ const addToCart = useCallback((producto: Producto) => {
     setCobroOrden(null)
     setFacturaOrden({ ...cobroOrden, estado: 'completada', metodo_pago: metodo, monto_recibido: monto, pagado_en: now })
     if (billing.tipoDocumento === 'factura') {
-      notify.success('Venta facturada', { description: `Factura ${facturaNro} emitida` })
+      notify.success('Venta facturada')
     } else {
       notify.success('Venta cobrada', { description: `${cobroOrden.numero} pagada con ${metodo}` })
     }
@@ -1790,7 +1831,7 @@ const addToCart = useCallback((producto: Producto) => {
               <p className="text-xs text-steel-400">{new Date().toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
             </div>
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <div className={clsx('h-2 w-2 rounded-full', isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400')} title={isConnected ? 'Conectado' : 'Reconectando...'} />
               <span className="text-xs text-steel-500">{user?.nombre}</span>
             </div>
           </div>

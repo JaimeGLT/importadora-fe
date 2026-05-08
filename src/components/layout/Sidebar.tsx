@@ -27,7 +27,7 @@ const groups: NavGroup[] = [
     ),
     items: [
       { label: 'Productos',  to: '/inventario',           roles: ['admin'] },
-      { label: 'Préstamos',  to: '/inventario/prestamos', roles: ['admin'] },
+      { label: 'Préstamos',  to: '/inventario/prestamos', roles: ['admin', 'cajero'] },
     ],
   },
   {

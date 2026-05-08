@@ -26,6 +26,13 @@ export default defineConfig({
         secure: true,
         cookieDomainRewrite: { '*': '' },
       },
+      '/hubs': {
+        target: BACKEND,
+        changeOrigin: true,
+        secure: true,
+        ws: true,
+        cookieDomainRewrite: { '*': '' },
+      },
     },
   },
 })

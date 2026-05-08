@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout } from '@/components/layout/MainLayout'
@@ -11,6 +11,10 @@ import { TicketPreview } from '@/components/ui/TicketPreview'
 import { useSoundAlert } from '@/hooks/useSoundAlert'
 import { useVentasAlerts } from '@/hooks/useVentasAlerts'
 import type { OrdenVenta, EstadoOrden } from '@/types'
+import { gql } from '@/lib/graphql'
+import { api } from '@/lib/api'
+import { useVentasHub } from '@/hooks/useVentasHub'
+import { ORDENES_PENDIENTES_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -470,8 +474,8 @@ function PickingView({
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export function AlmacenPage() {
-  const { user } = useAuth()
-  const { ordenes, updateOrden, marcarItemFaltante } = useVentasStore()
+  const { user, isTokenReady } = useAuth()
+  const { ordenes, updateOrden, setOrdenes } = useVentasStore()
   const { playBeep, playAlertSequence } = useSoundAlert()
   useVentasAlerts()
 
@@ -481,6 +485,40 @@ export function AlmacenPage() {
   const [faltantesOrden, setFaltantesOrden] = useState<OrdenVenta | null>(null)
   const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set())
   const previousPendientesRef = useRef<Set<string>>(new Set())
+
+  const loadOrdenes = useCallback(async () => {
+    try {
+      const data = await gql<{ ordenesPendientes: { nodes: OrdenVentaAPI[] } }>(ORDENES_PENDIENTES_QUERY)
+      setOrdenes((data.ordenesPendientes?.nodes ?? []).map(backendToOrdenVenta))
+    } catch {
+      notify.error('Error cargando órdenes')
+    }
+  }, [setOrdenes])
+
+  useEffect(() => {
+    if (!isTokenReady) return
+    loadOrdenes()
+    const poll = setInterval(loadOrdenes, 15_000)
+    return () => clearInterval(poll)
+  }, [isTokenReady, loadOrdenes])
+
+  const { isConnected } = useVentasHub({
+    onNuevaOrden: () => loadOrdenes(),
+    onOrdenAceptada: () => loadOrdenes(),
+    onOrdenLista: () => loadOrdenes(),
+    onOrdenCompletada: (p) => {
+      updateOrden(String(p.id), { estado: 'completada' })
+      if (pickingOrdenId === String(p.id)) setPickingOrdenId(null)
+    },
+    onOrdenCancelada: (p) => {
+      const oid = String(p.id)
+      updateOrden(oid, { estado: 'cancelada' })
+      if (pickingOrdenId === oid) {
+        setPickingOrdenId(null)
+        notify.warning('La orden fue cancelada')
+      }
+    },
+  }, isTokenReady, ['Almaceneros'])
 
   const [, setTick] = useState(0)
   useEffect(() => {
@@ -526,58 +564,64 @@ export function AlmacenPage() {
     listo_para_escaneo:    activeOrdenes.filter(o => o.estado === 'listo_para_escaneo').length,
   }), [activeOrdenes])
 
-  const handleTomar = (orden: OrdenVenta) => {
-    const almaceneroId = user?.id ?? 'demo-almacenero'
-    const almaceneroNombre = user?.nombre ?? 'Almacenero'
-    const now = new Date().toISOString()
-    updateOrden(orden.id, {
-      almacenero_id: almaceneroId,
-      almacenero_nombre: almaceneroNombre,
-      estado: 'en_preparacion' as EstadoOrden,
-      aceptado_en: now,
-    })
-    setPickingOrdenId(orden.id)
-    playBeep({ frequency: 1000, duration: 80 })
-    notify.success(`Orden ${orden.numero} tomada`)
+  const handleTomar = async (orden: OrdenVenta) => {
+    try {
+      await api.post(`/OrdenVenta/${orden.id}/Aceptar`, null)
+      await loadOrdenes()
+      setPickingOrdenId(orden.id)
+      playBeep({ frequency: 1000, duration: 80 })
+      notify.success(`Orden ${orden.numero} tomada`)
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al tomar orden')
+    }
   }
 
-  const handleMarcarListo = () => {
+  const handleMarcarListo = async () => {
     if (!pickingOrdenId) return
-    const now = new Date().toISOString()
     const ordenActual = ordenes.find(o => o.id === pickingOrdenId)
     if (!ordenActual) return
-
-    updateOrden(pickingOrdenId, {
-      estado: 'listo_para_escaneo' as EstadoOrden,
-      listo_en: now,
-    })
-
-    playAlertSequence()
-    setPickingOrdenId(null)
-    setTicketOrden({ ...ordenActual, estado: 'listo_para_escaneo', listo_en: now })
+    try {
+      await api.post(`/OrdenVenta/${pickingOrdenId}/Lista`, null)
+      await loadOrdenes()
+      playAlertSequence()
+      setPickingOrdenId(null)
+      setTicketOrden({ ...ordenActual, estado: 'listo_para_escaneo', listo_en: new Date().toISOString() })
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al marcar como lista')
+    }
   }
 
   const handleFaltantesConfirm = async (itemIds: string[]) => {
     if (!faltantesOrden) return
-
-    for (const itemId of itemIds) {
-      const item = faltantesOrden.items.find(i => i.id === itemId)
-      if (!item) continue
-      marcarItemFaltante(faltantesOrden.id, itemId, item.cantidad_pedida)
+    const nonFaltanteCount = faltantesOrden.items.filter(i => i.estado !== 'faltante').length
+    const todosReportados = itemIds.length >= nonFaltanteCount
+    try {
+      for (const itemId of itemIds) {
+        await api.post(`/OrdenVenta/${faltantesOrden.id}/Items/${itemId}/Incompleto`, null)
+      }
+      if (todosReportados) {
+        await api.post(`/OrdenVenta/${faltantesOrden.id}/Cancelar`, null)
+        await loadOrdenes()
+        setFaltantesOrden(null)
+        setPickingOrdenId(null)
+        notify.warning('Todos los productos son faltantes — orden cancelada')
+      } else {
+        await loadOrdenes()
+        setFaltantesOrden(null)
+        notify.warning(`${itemIds.length} producto(s) reportado(s) como faltante(s)`)
+      }
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al reportar faltantes')
     }
+  }
 
-    const updatedOrden = ordenes.find(o => o.id === faltantesOrden.id)
-    const hayFaltantes = (updatedOrden?.items.filter(i => i.estado === 'faltante').length ?? 0) > 0
-    const todosFaltantes = itemIds.length === updatedOrden?.items.filter(i => i.estado !== 'faltante').length
-
-    if (todosFaltantes) {
-      useVentasStore.getState().cancelarOrdenYLiberarStock(faltantesOrden.id)
-      setFaltantesOrden(null)
+  const handleCancelarOrden = async (ordenId: string) => {
+    try {
+      await api.post(`/OrdenVenta/${ordenId}/Cancelar`, null)
+      await loadOrdenes()
       setPickingOrdenId(null)
-      notify.warning('Todos los productos son faltantes — orden cancelada')
-    } else if (hayFaltantes) {
-      setFaltantesOrden(null)
-      notify.warning(`${itemIds.length} producto(s) reportado(s) como faltante(s)`)
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al cancelar orden')
     }
   }
 
@@ -603,10 +647,7 @@ export function AlmacenPage() {
               orden={pickingOrden}
               onMarcarListo={handleMarcarListo}
               onVolver={() => setPickingOrdenId(null)}
-              onCancelar={() => {
-                useVentasStore.getState().cancelarOrdenYLiberarStock(pickingOrden.id)
-                setPickingOrdenId(null)
-              }}
+              onCancelar={() => handleCancelarOrden(pickingOrden.id)}
               onFaltantes={() => setFaltantesOrden(pickingOrden)}
             />
           </div>
@@ -619,7 +660,7 @@ export function AlmacenPage() {
                   <p className="text-xs text-steel-400">Órdenes de picking</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <div className={clsx('h-2 w-2 rounded-full', isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400')} />
                   <span className="text-xs text-steel-500">{user?.nombre}</span>
                 </div>
               </div>

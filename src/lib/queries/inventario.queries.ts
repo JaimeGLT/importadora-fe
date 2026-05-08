@@ -159,7 +159,7 @@ export interface ProductoAPIInput {
   descripcion: string
   unidad_Medida: string
   ubicacion: string
-  stock_Actual: number
+  cantidad: number
   stock_Minimo: number
   piezas: number
   costo: number
@@ -227,7 +227,7 @@ export function productoToBackend(
     descripcion: p.descripcion,
     unidad_Medida: p.unidad,
     ubicacion: [p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / '),
-    stock_Actual: p.stock,
+    cantidad: p.stock,
     stock_Minimo: p.stock_minimo,
     piezas: p.piezas ?? 1,
     costo,

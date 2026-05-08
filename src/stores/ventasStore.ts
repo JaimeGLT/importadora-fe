@@ -1,7 +1,5 @@
 import { create } from 'zustand'
 import type { OrdenVenta } from '@/types'
-import { MOCK_ORDENES } from '@/mock/ventas'
-import { useInventarioStore } from './inventarioStore'
 import { useConfigStore } from './configStore'
 
 interface VentasState {
@@ -18,7 +16,7 @@ const broadcast = typeof window !== 'undefined'
   : null
 
 export const useVentasStore = create<VentasState>()((set, get) => ({
-  ordenes: MOCK_ORDENES,
+  ordenes: [],
 
   setOrdenes: (ordenes) => set({ ordenes }),
 
@@ -36,9 +34,7 @@ export const useVentasStore = create<VentasState>()((set, get) => ({
     broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })
   },
 
-  marcarItemFaltante: (ordenId, itemId, cantidad) => {
-    const inventario = useInventarioStore.getState()
-    inventario.liberarReserva(itemId, cantidad)
+  marcarItemFaltante: (ordenId, itemId, _cantidad) => {
     set((s) => ({
       ordenes: s.ordenes.map((o) => {
         if (o.id !== ordenId) return o
@@ -55,14 +51,6 @@ export const useVentasStore = create<VentasState>()((set, get) => ({
   },
 
   cancelarOrdenYLiberarStock: (id) => {
-    const orden = get().ordenes.find((o) => o.id === id)
-    if (!orden) return
-    const inventario = useInventarioStore.getState()
-    orden.items.forEach((item) => {
-      if (item.estado !== 'faltante') {
-        inventario.liberarReserva(item.producto_id, item.cantidad_pedida)
-      }
-    })
     set((s) => ({
       ordenes: s.ordenes.map((o) =>
         o.id === id
