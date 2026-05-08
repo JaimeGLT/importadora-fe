@@ -15,25 +15,23 @@ interface KitVentaParcialModalProps {
   open: boolean
   onClose: () => void
   kit: Producto
-  productos: Producto[]
-  kitRelaciones: { kit_id: string; producto_id: string; cantidad: number }[]
   onConfirm: (piezas: PiezaSeleccionada[], precioTotal: number, diferencia: number) => void
 }
 
-export function KitVentaParcialModal({ open, onClose, kit, productos, kitRelaciones, onConfirm }: KitVentaParcialModalProps) {
+export function KitVentaParcialModal({ open, onClose, kit, onConfirm }: KitVentaParcialModalProps) {
   const [seleccionadas, setSeleccionadas] = useState<PiezaSeleccionada[]>([])
   const [precioTotal, setPrecioTotal] = useState('')
 
-  const piezasKit = useMemo(() => {
-    const relaciones = kitRelaciones.filter(r => r.kit_id === kit.id)
-    return relaciones.map(r => {
-      const producto = productos.find(p => p.id === r.producto_id)
-      return {
-        ...r,
-        producto,
-      }
-    }).filter(r => r.producto != null)
-  }, [kitRelaciones, productos, kit.id])
+  const piezasKit = useMemo(() =>
+    (kit.piezas_kit ?? []).map(p => ({
+      producto_id: String(p.id_producto),
+      nombre: p.nombre,
+      codigo: p.codigo_universal,
+      stock: Math.max(0, p.stock_actual - p.stock_reservado),
+      cantidad_por_kit: p.cantidad_por_kit,
+    })),
+    [kit.piezas_kit],
+  )
 
   const precioKit = kit.precio_venta
   const precioIngresado = parseFloat(precioTotal) || 0
@@ -45,16 +43,8 @@ export function KitVentaParcialModal({ open, onClose, kit, productos, kitRelacio
       setSeleccionadas(prev => prev.filter(s => s.producto_id !== productoId))
     } else {
       const info = piezasKit.find(p => p.producto_id === productoId)
-      if (!info?.producto) return
-      const prod = info.producto
-      setSeleccionadas(prev => [...prev, {
-        producto_id: productoId,
-        nombre: prod.nombre,
-        codigo: prod.codigo_universal,
-        stock: prod.stock,
-        cantidad: 1,
-        cantidad_por_kit: info.cantidad,
-      }])
+      if (!info) return
+      setSeleccionadas(prev => [...prev, { ...info, cantidad: info.cantidad_por_kit }])
     }
   }
 
@@ -63,8 +53,8 @@ export function KitVentaParcialModal({ open, onClose, kit, productos, kitRelacio
       prev.map(s =>
         s.producto_id === productoId
           ? { ...s, cantidad: Math.max(1, Math.min(cantidad, s.stock)) }
-          : s
-      )
+          : s,
+      ),
     )
   }
 
@@ -134,51 +124,53 @@ export function KitVentaParcialModal({ open, onClose, kit, productos, kitRelacio
           <p className="text-xs font-semibold text-steel-500 uppercase tracking-wider mb-2">
             Seleccionar piezas ({seleccionadas.length})
           </p>
-          <div className="rounded-xl border border-steel-200 divide-y divide-steel-100 max-h-64 overflow-y-auto">
-            {piezasKit.map(rel => {
-              const prod = rel.producto
-              if (!prod) return null
-              const sel = seleccionadas.find(s => s.producto_id === prod.id)
-              const checked = !!sel
+          {piezasKit.length === 0 ? (
+            <p className="text-sm text-steel-400 text-center py-6">Este kit no tiene piezas registradas</p>
+          ) : (
+            <div className="rounded-xl border border-steel-200 divide-y divide-steel-100 max-h-64 overflow-y-auto">
+              {piezasKit.map(pieza => {
+                const sel = seleccionadas.find(s => s.producto_id === pieza.producto_id)
+                const checked = !!sel
 
-              return (
-                <div
-                  key={prod.id}
-                  className={`flex items-center gap-3 p-3 transition-colors ${checked ? 'bg-blue-50' : 'hover:bg-steel-50'}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => togglePieza(prod.id)}
-                    className="h-4 w-4 rounded border-steel-300 text-brand-600 shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-steel-800 truncate">{prod.nombre}</p>
-                    <p className="text-[10px] text-steel-400">
-                      {prod.codigo_universal} · Stock: {prod.stock} · {rel.cantidad}× por kit
-                    </p>
-                  </div>
-                  {checked && (
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => updateCantidad(prod.id, (sel?.cantidad ?? 1) - 1)}
-                        className="h-7 w-7 rounded border border-steel-200 flex items-center justify-center text-steel-500 hover:bg-steel-100"
-                      >
-                        -
-                      </button>
-                      <span className="w-8 text-center text-sm font-medium">{sel?.cantidad ?? 1}</span>
-                      <button
-                        onClick={() => updateCantidad(prod.id, (sel?.cantidad ?? 1) + 1)}
-                        className="h-7 w-7 rounded border border-steel-200 flex items-center justify-center text-steel-500 hover:bg-steel-100"
-                      >
-                        +
-                      </button>
+                return (
+                  <div
+                    key={pieza.producto_id}
+                    className={`flex items-center gap-3 p-3 transition-colors ${checked ? 'bg-blue-50' : 'hover:bg-steel-50'}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => togglePieza(pieza.producto_id)}
+                      className="h-4 w-4 rounded border-steel-300 text-brand-600 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-steel-800 truncate">{pieza.nombre}</p>
+                      <p className="text-[10px] text-steel-400">
+                        {pieza.codigo} · Stock: {pieza.stock} · {pieza.cantidad_por_kit}× por kit
+                      </p>
                     </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                    {checked && (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => updateCantidad(pieza.producto_id, (sel?.cantidad ?? 1) - 1)}
+                          className="h-7 w-7 rounded border border-steel-200 flex items-center justify-center text-steel-500 hover:bg-steel-100"
+                        >
+                          -
+                        </button>
+                        <span className="w-8 text-center text-sm font-medium">{sel?.cantidad ?? 1}</span>
+                        <button
+                          onClick={() => updateCantidad(pieza.producto_id, (sel?.cantidad ?? 1) + 1)}
+                          className="h-7 w-7 rounded border border-steel-200 flex items-center justify-center text-steel-500 hover:bg-steel-100"
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {seleccionadas.length > 0 && (

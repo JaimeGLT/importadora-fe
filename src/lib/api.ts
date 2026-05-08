@@ -57,10 +57,14 @@ async function requestWithInterceptor<T>(path: string, options: RequestOptions =
   if (!response.ok) {
     const text = await response.text().catch(() => response.statusText)
     try {
-      const json = JSON.parse(text) as { error?: string; title?: string }
-      throw new Error(json.error ?? json.title ?? text)
-    } catch {
-      throw new Error(text || `HTTP ${response.status}`)
+      const json = JSON.parse(text) as { error?: string; title?: string; message?: string }
+      const msg = json.error ?? json.title ?? json.message
+      if (msg) throw new Error(msg)
+    } catch (err) {
+      if (err instanceof Error && err.message && err.message !== text) throw err
+      const match = text.match(/"message":\s*"([^"]+)"/)
+      const simpleMsg = match?.[1] ?? text.replace(/[^{\}]+/g, '').replace(/[{}"]/g, '').trim()
+      throw new Error(simpleMsg || `HTTP ${response.status}`)
     }
   }
 
@@ -85,10 +89,14 @@ async function requestNoIntercept<T>(path: string, options: RequestOptions = {})
   if (!response.ok) {
     const text = await response.text().catch(() => response.statusText)
     try {
-      const json = JSON.parse(text) as { error?: string; title?: string }
-      throw new Error(json.error ?? json.title ?? text)
-    } catch {
-      throw new Error(text || `HTTP ${response.status}`)
+      const json = JSON.parse(text) as { error?: string; title?: string; message?: string }
+      const msg = json.error ?? json.title ?? json.message
+      if (msg) throw new Error(msg)
+    } catch (err) {
+      if (err instanceof Error && err.message && err.message !== text) throw err
+      const match = text.match(/"message":\s*"([^"]+)"/)
+      const simpleMsg = match?.[1] ?? text.replace(/[^{\}]+/g, '').replace(/[{}"]/g, '').trim()
+      throw new Error(simpleMsg || `HTTP ${response.status}`)
     }
   }
 

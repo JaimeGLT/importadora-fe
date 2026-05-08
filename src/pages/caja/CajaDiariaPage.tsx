@@ -1,133 +1,83 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/AuthContext'
-import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
-import { Button, Input, Select, Modal } from '@/components/ui'
+import { MainLayout } from '@/components/layout/MainLayout'
+import { Button, Input, Select, Modal, WarmMetric } from '@/components/ui'
 import { notify } from '@/lib/notify'
+import { gql } from '@/lib/graphql'
+import { api } from '@/lib/api'
+import { MI_CAJA_QUERY, backendToCaja, type CajaAPI } from '@/lib/queries/caja.queries'
+import type { Caja, MovimientoCaja, CierreCajaResponse } from '@/types'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Icons ────────────────────────────────────────────────────────────────────
 
-interface AperturaCaja {
-  id: string
-  fecha: string
-  monto_inicial: number
-  usuario: string
-  creado_en: string
+function IcoCal() {
+  return (
+    <svg className="w-[15px] h-[15px] text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>
+    </svg>
+  )
 }
-
-type TipoMovimiento = 'ingreso' | 'egreso'
-type TipoPago = 'efectivo' | 'qr' | 'tarjeta'
-type CategoriaMovimiento = 'venta' | 'compra' | 'gasto' | 'transferencia' | 'otro'
-
-interface MovimientoCaja {
-  id: string
-  tipo: TipoMovimiento
-  categoria: CategoriaMovimiento
-  tipo_pago: TipoPago
-  monto: number
-  motivo: string
-  usuario: string
-  creado_en: string
+function IcoBell() {
+  return (
+    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+    </svg>
+  )
 }
-
-interface CierreCaja {
-  monto_contado: number
-  efectivo_esperado: number
-  diferencia: number
+function IcoSettings() {
+  return (
+    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  )
 }
-
-// ─── Mock data ────────────────────────────────────────────────────────────────
-
-const MOCK_APERTURA: AperturaCaja = {
-  id: '1',
-  fecha: new Date().toISOString().slice(0, 10),
-  monto_inicial: 500,
-  usuario: 'Admin',
-  creado_en: new Date().toISOString(),
-}
-
-const MOCK_MOVIMIENTOS: MovimientoCaja[] = [
-  { id: '1', tipo: 'ingreso', categoria: 'venta', tipo_pago: 'efectivo', monto: 350, motivo: 'Venta #1042 - Filtros aceite', usuario: 'Admin', creado_en: new Date(Date.now() - 3600000).toISOString() },
-  { id: '2', tipo: 'ingreso', categoria: 'venta', tipo_pago: 'qr',       monto: 120, motivo: 'Venta #1043 - Pastillas freno', usuario: 'Admin', creado_en: new Date(Date.now() - 2700000).toISOString() },
-  { id: '3', tipo: 'egreso',  categoria: 'compra', tipo_pago: 'efectivo', monto: 80, motivo: 'Compra insumos limpieza', usuario: 'Admin', creado_en: new Date(Date.now() - 1800000).toISOString() },
-  { id: '4', tipo: 'ingreso', categoria: 'venta', tipo_pago: 'tarjeta',  monto: 210, motivo: 'Venta #1044 - Bujías NGK x4', usuario: 'Admin', creado_en: new Date(Date.now() - 900000).toISOString() },
-  { id: '5', tipo: 'egreso',  categoria: 'gasto', tipo_pago: 'efectivo', monto: 45,  motivo: 'Pago servicio mensajería', usuario: 'Admin', creado_en: new Date(Date.now() - 300000).toISOString() },
-]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const fmtBs = (n: number) =>
-  `Bs ${n.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })
 
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('es-BO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-
-const CATEGORIA_LABELS: Record<CategoriaMovimiento, string> = {
-  venta: 'Venta', compra: 'Compra', gasto: 'Gasto', transferencia: 'Transferencia', otro: 'Otro',
+const CATEGORIA_LABELS: Record<MovimientoCaja['categoria'], string> = {
+  Ventas: 'Ventas',
+  OtroIngreso: 'Otro ingreso',
+  Compra: 'Compra',
+  GastoOperativo: 'Gasto operativo',
+  OtroEgreso: 'Otro egreso',
+  Transferencia: 'Transferencia',
 }
 
-const TIPO_PAGO_CONFIG: Record<TipoPago, { label: string; style: string }> = {
-  efectivo:  { label: 'Efectivo',  style: 'bg-steel-100 text-steel-600' },
-  qr:        { label: 'QR',        style: 'bg-violet-100 text-violet-700' },
-  tarjeta:   { label: 'Tarjeta',   style: 'bg-blue-100 text-blue-700' },
+const TIPO_PAGO_CONFIG: Record<MovimientoCaja['tipoPago'], { label: string; style: string }> = {
+  Efectivo:  { label: 'Efectivo', style: 'bg-steel-100 text-steel-600' },
+  QR:        { label: 'QR', style: 'bg-violet-100 text-violet-700' },
+  Tarjeta:   { label: 'Tarjeta', style: 'bg-blue-100 text-blue-700' },
+}
+
+type TipoBackend = 'ingreso' | 'egreso'
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function MetricsSkeleton() {
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 mb-7 md:mb-11">
+      {[1, 2, 3, 4].map(i => (
+        <div key={i} className="rounded-2xl border border-hair p-4 md:p-7 bg-white/82 animate-pulse">
+          <div className="flex items-center justify-between mb-4">
+            <div className="h-3 w-24 rounded bg-cream-2" />
+            <div className="h-[34px] w-[34px] rounded-[10px] bg-cream-2" />
+          </div>
+          <div className="h-9 w-32 rounded bg-cream-2" />
+          <div className="h-3 w-20 rounded bg-hair mt-2" />
+        </div>
+      ))}
+    </div>
+  )
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`bg-white rounded-2xl shadow-sm border border-steel-100 ${className}`}>
-      {children}
-    </div>
-  )
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-2">
-      <div className="w-1 h-4 rounded-full bg-brand-600" />
-      <h2 className="text-[11px] font-bold text-steel-500 uppercase tracking-widest">{children}</h2>
-    </div>
-  )
-}
-
-function KpiCard({ icon, label, value, sub, variant = 'light' }: {
-  icon: React.ReactNode; label: string; value: string; sub?: string
-  variant?: 'light' | 'dark' | 'green' | 'red'
-}) {
-  if (variant === 'dark') {
-    return (
-      <div className="relative overflow-hidden rounded-2xl bg-steel-900 p-5 text-white shadow-md">
-        <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-steel-800" />
-        <div className="absolute right-2 -bottom-8 h-24 w-24 rounded-full bg-brand-900 opacity-40" />
-        <div className="relative">
-          <div className="h-9 w-9 rounded-xl bg-white/10 flex items-center justify-center mb-3">{icon}</div>
-          <p className="text-2xl font-black tabular-nums leading-tight">{value}</p>
-          <p className="text-xs text-steel-400 font-semibold mt-0.5">{label}</p>
-          {sub && <p className="text-[10px] text-steel-500 mt-2">{sub}</p>}
-        </div>
-      </div>
-    )
-  }
-  const bg = variant === 'green' ? 'bg-emerald-50' : variant === 'red' ? 'bg-red-50' : 'bg-steel-50'
-  const iconColor = variant === 'green' ? 'text-emerald-600' : variant === 'red' ? 'text-red-500' : 'text-steel-500'
-  const valueColor = variant === 'green' ? 'text-emerald-700' : variant === 'red' ? 'text-red-600' : 'text-steel-900'
-  return (
-    <Card className="p-5">
-      <div className={`h-9 w-9 rounded-xl ${bg} flex items-center justify-center mb-3`}>
-        <div className={iconColor}>{icon}</div>
-      </div>
-      <p className={`text-2xl font-black tabular-nums leading-tight ${valueColor}`}>{value}</p>
-      <p className="text-xs text-steel-500 font-semibold mt-0.5">{label}</p>
-      {sub && <p className="text-[10px] text-steel-400 mt-2">{sub}</p>}
-    </Card>
-  )
-}
-
-function PagoBadge({ tipo_pago }: { tipo_pago: TipoPago }) {
+function PagoBadge({ tipo_pago }: { tipo_pago: MovimientoCaja['tipoPago'] }) {
   const cfg = TIPO_PAGO_CONFIG[tipo_pago]
   return (
     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide ${cfg.style}`}>
@@ -136,92 +86,52 @@ function PagoBadge({ tipo_pago }: { tipo_pago: TipoPago }) {
   )
 }
 
-function TipoBadge({ tipo }: { tipo: TipoMovimiento }) {
+function TipoBadge({ tipo }: { tipo: MovimientoCaja['tipo'] }) {
   return (
     <span className={clsx(
       'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide',
-      tipo === 'ingreso' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600',
+      tipo === 'Ingreso' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600',
     )}>
-      <span className={clsx('h-1.5 w-1.5 rounded-full', tipo === 'ingreso' ? 'bg-emerald-500' : 'bg-red-500')} />
-      {tipo === 'ingreso' ? 'Ingreso' : 'Egreso'}
+      <span className={clsx('h-1.5 w-1.5 rounded-full', tipo === 'Ingreso' ? 'bg-emerald-500' : 'bg-red-500')} />
+      {tipo === 'Ingreso' ? 'Ingreso' : 'Egreso'}
     </span>
-  )
-}
-
-// ─── Apertura screen ──────────────────────────────────────────────────────────
-
-function AperturaScreen({ onAbrir }: { onAbrir: (monto: number) => void }) {
-  const [monto, setMonto] = useState('')
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const n = parseFloat(monto.replace(',', '.'))
-    if (isNaN(n) || n < 0) { notify.error('Ingresa un monto válido'); return }
-    onAbrir(n)
-  }
-
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
-      <div className="w-full max-w-sm">
-        <div className="flex justify-center mb-6">
-          <div className="h-16 w-16 rounded-2xl bg-steel-900 flex items-center justify-center shadow-md">
-            <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          </div>
-        </div>
-        <div className="text-center mb-6">
-          <h2 className="text-xl font-bold text-steel-900">Abrir caja</h2>
-          <p className="text-sm text-steel-500 mt-1">{fmtDate(new Date().toISOString())}</p>
-          <p className="text-xs text-steel-400 mt-2">Registra el efectivo con el que inicias el día</p>
-        </div>
-        <Card className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-steel-600 mb-1.5">Monto inicial en efectivo (Bs)</label>
-              <Input type="number" min="0" step="0.01" placeholder="0.00" value={monto}
-                onChange={e => setMonto(e.target.value)} autoFocus />
-            </div>
-            <Button type="submit" className="w-full">Abrir caja</Button>
-          </form>
-        </Card>
-      </div>
-    </div>
   )
 }
 
 // ─── Movimiento modal ─────────────────────────────────────────────────────────
 
 interface MovimientoModalProps {
-  tipo: TipoMovimiento
+  tipo: TipoBackend
   onClose: () => void
-  onSave: (mov: Omit<MovimientoCaja, 'id' | 'usuario' | 'creado_en'>) => void
+  onSave: (mov: Omit<MovimientoCaja, 'id' | 'id_Caja' | 'fecha'>) => void
 }
 
 function MovimientoModal({ tipo, onClose, onSave }: MovimientoModalProps) {
   const [monto, setMonto] = useState('')
   const [motivo, setMotivo] = useState('')
-  const [categoria, setCategoria] = useState<CategoriaMovimiento>(tipo === 'ingreso' ? 'venta' : 'gasto')
-  const [tipoPago, setTipoPago] = useState<TipoPago>('efectivo')
+  const [categoria, setCategoria] = useState<MovimientoCaja['categoria']>(
+    tipo === 'ingreso' ? 'Ventas' : 'GastoOperativo'
+  )
+  const [tipoPago, setTipoPago] = useState<MovimientoCaja['tipoPago']>('Efectivo')
 
   const categorias =
     tipo === 'ingreso'
       ? [
-          { value: 'venta',         label: 'Venta' },
-          { value: 'transferencia', label: 'Transferencia' },
-          { value: 'otro',          label: 'Otro ingreso' },
+          { value: 'Ventas',         label: 'Ventas' },
+          { value: 'Transferencia',  label: 'Transferencia' },
+          { value: 'OtroIngreso',    label: 'Otro ingreso' },
         ]
       : [
-          { value: 'compra',        label: 'Compra' },
-          { value: 'gasto',         label: 'Gasto operativo' },
-          { value: 'transferencia', label: 'Transferencia' },
-          { value: 'otro',          label: 'Otro egreso' },
+          { value: 'Compra',          label: 'Compra' },
+          { value: 'GastoOperativo', label: 'Gasto operativo' },
+          { value: 'Transferencia',  label: 'Transferencia' },
+          { value: 'OtroEgreso',     label: 'Otro egreso' },
         ]
 
   const tiposPago = [
-    { value: 'efectivo', label: 'Efectivo' },
-    { value: 'qr',       label: 'QR' },
-    { value: 'tarjeta',  label: 'Tarjeta' },
+    { value: 'Efectivo', label: 'Efectivo' },
+    { value: 'QR',       label: 'QR' },
+    { value: 'Tarjeta',  label: 'Tarjeta' },
   ]
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -229,7 +139,7 @@ function MovimientoModal({ tipo, onClose, onSave }: MovimientoModalProps) {
     const n = parseFloat(monto.replace(',', '.'))
     if (isNaN(n) || n <= 0) { notify.error('Monto inválido'); return }
     if (!motivo.trim()) { notify.error('Ingresa un motivo'); return }
-    onSave({ tipo, categoria, tipo_pago: tipoPago, monto: n, motivo: motivo.trim() })
+    onSave({ tipo: tipo === 'ingreso' ? 'Ingreso' : 'Egreso', categoria, tipoPago, monto: n, motivo: motivo.trim() })
   }
 
   const isIngreso = tipo === 'ingreso'
@@ -253,7 +163,7 @@ function MovimientoModal({ tipo, onClose, onSave }: MovimientoModalProps) {
               {isIngreso ? 'Entrada de dinero' : 'Salida de dinero'}
             </p>
             <p className="text-[11px] text-steel-500">
-              {tipoPago !== 'efectivo' ? 'No afecta el efectivo físico en caja' : 'Afecta el efectivo físico en caja'}
+              {tipoPago !== 'Efectivo' ? 'No afecta el efectivo físico en caja' : 'Afecta el efectivo físico en caja'}
             </p>
           </div>
         </div>
@@ -262,12 +172,12 @@ function MovimientoModal({ tipo, onClose, onSave }: MovimientoModalProps) {
           <div>
             <label className="block text-xs font-semibold text-steel-600 mb-1.5">Categoría</label>
             <Select value={categoria} options={categorias}
-              onChange={e => setCategoria(e.target.value as CategoriaMovimiento)} />
+              onChange={e => setCategoria(e.target.value as MovimientoCaja['categoria'])} />
           </div>
           <div>
             <label className="block text-xs font-semibold text-steel-600 mb-1.5">Tipo de pago</label>
             <Select value={tipoPago} options={tiposPago}
-              onChange={e => setTipoPago(e.target.value as TipoPago)} />
+              onChange={e => setTipoPago(e.target.value as MovimientoCaja['tipoPago'])} />
           </div>
         </div>
 
@@ -298,33 +208,41 @@ function MovimientoModal({ tipo, onClose, onSave }: MovimientoModalProps) {
 interface CierreCajaModalProps {
   efectivoEsperado: number
   onClose: () => void
-  onConfirm: (cierre: CierreCaja) => void
+  onConfirm: (montoContado: number, justificacion: string | null) => void
 }
 
 function CierreCajaModal({ efectivoEsperado, onClose, onConfirm }: CierreCajaModalProps) {
   const [montoContado, setMontoContado] = useState('')
+  const [justificacion, setJustificacion] = useState('')
 
   const contado = parseFloat(montoContado.replace(',', '.'))
   const contadoValido = !isNaN(contado) && montoContado.trim() !== ''
-  const diferencia = contadoValido ? contado - efectivoEsperado : null
+  const diferencia: number | null = contadoValido ? contado - efectivoEsperado : null
+  const esFaltante = diferencia !== null && diferencia < 0
+  const esSobrante = diferencia !== null && diferencia > 0
+
+  const puedeCerrar = () => {
+    if (!contadoValido) return false
+    if (esFaltante && !justificacion.trim()) return false
+    return true
+  }
 
   const handleConfirm = (e: React.FormEvent) => {
     e.preventDefault()
     if (!contadoValido) { notify.error('Ingresa el monto contado'); return }
-    onConfirm({ monto_contado: contado, efectivo_esperado: efectivoEsperado, diferencia: diferencia! })
+    if (esFaltante && !justificacion.trim()) { notify.error('El faltante requiere una justificación'); return }
+    onConfirm(contado, justificacion.trim() || null)
   }
 
   return (
     <Modal open onClose={onClose} title="Cierre de caja">
       <form onSubmit={handleConfirm} className="space-y-5 pt-1">
-        {/* Efectivo esperado */}
         <div className="p-4 rounded-xl bg-steel-50 border border-steel-100">
           <p className="text-[11px] font-bold text-steel-400 uppercase tracking-widest mb-1">Efectivo esperado en caja</p>
-          <p className="text-2xl font-black tabular-nums text-steel-900">{fmtBs(efectivoEsperado)}</p>
+          <p className="text-2xl font-black tabular-nums text-steel-900">{efectivoEsperado.toFixed(2)} Bs.</p>
           <p className="text-[11px] text-steel-400 mt-1">Calculado solo con movimientos en efectivo</p>
         </div>
 
-        {/* Monto contado */}
         <div>
           <label className="block text-xs font-semibold text-steel-600 mb-1.5">
             Monto que contaste físicamente (Bs)
@@ -340,39 +258,75 @@ function CierreCajaModal({ efectivoEsperado, onClose, onConfirm }: CierreCajaMod
           />
         </div>
 
-        {/* Diferencia — visible solo cuando hay valor ingresado */}
         {contadoValido && diferencia !== null && (
           <div className={clsx(
             'flex items-center justify-between p-4 rounded-xl border',
             diferencia === 0
               ? 'bg-emerald-50 border-emerald-200'
-              : diferencia > 0
+              : esSobrante
                 ? 'bg-blue-50 border-blue-200'
                 : 'bg-red-50 border-red-200',
           )}>
             <div>
               <p className={clsx(
                 'text-[11px] font-bold uppercase tracking-widest',
-                diferencia === 0 ? 'text-emerald-600' : diferencia > 0 ? 'text-blue-600' : 'text-red-600',
+                diferencia === 0 ? 'text-emerald-600' : esSobrante ? 'text-blue-600' : 'text-red-600',
               )}>
-                {diferencia === 0 ? 'Cuadra exacto' : diferencia > 0 ? 'Sobrante' : 'Faltante'}
+                {diferencia === 0 ? 'Cuadrado' : esSobrante ? 'Sobrante' : 'Faltante'}
               </p>
               <p className="text-xs text-steel-500 mt-0.5">
-                {diferencia === 0 ? 'El monto coincide con el sistema' : 'Diferencia respecto al sistema'}
+                {diferencia === 0
+                  ? 'El monto coincide con el sistema'
+                  : esSobrante
+                    ? 'Hay más efectivo del esperado en sistema'
+                    : 'Falta efectivo según registros del sistema'}
               </p>
             </div>
             <p className={clsx(
               'text-xl font-black tabular-nums',
-              diferencia === 0 ? 'text-emerald-700' : diferencia > 0 ? 'text-blue-700' : 'text-red-600',
+              diferencia === 0 ? 'text-emerald-700' : esSobrante ? 'text-blue-700' : 'text-red-600',
             )}>
-              {diferencia > 0 ? '+' : ''}{fmtBs(diferencia)}
+              {diferencia > 0 ? '+' : ''}{diferencia.toFixed(2)} Bs.
             </p>
+          </div>
+        )}
+
+        {esFaltante && (
+          <div>
+            <label className="block text-xs font-semibold text-red-600 mb-1.5">
+              Justificación del faltante *
+            </label>
+            <Input
+              type="text"
+              placeholder="Ej: Billete falso, error de vuelto, robo..."
+              value={justificacion}
+              onChange={e => setJustificacion(e.target.value)}
+              maxLength={200}
+            />
+            <p className="text-[10px] text-steel-400 mt-1">
+              Campo obligatorio cuando hay faltante. Máx. 200 caracteres.
+            </p>
+          </div>
+        )}
+
+        {contadoValido && !esFaltante && (
+          <div>
+            <label className="block text-xs font-semibold text-steel-600 mb-1.5">
+              Motivo (opcional)
+            </label>
+            <Input
+              type="text"
+              placeholder="Ej: Ajuste por tolerancia, ingreso extra..."
+              value={justificacion}
+              onChange={e => setJustificacion(e.target.value)}
+              maxLength={200}
+            />
           </div>
         )}
 
         <div className="flex gap-2 pt-1">
           <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" className="flex-1" disabled={!contadoValido}>
+          <Button type="submit" className="flex-1" disabled={!puedeCerrar()}>
             Cerrar caja
           </Button>
         </div>
@@ -381,191 +335,411 @@ function CierreCajaModal({ efectivoEsperado, onClose, onConfirm }: CierreCajaMod
   )
 }
 
+// ─── Apertura screen ──────────────────────────────────────────────────────────
+
+function AperturaScreen({ onAbrir }: { onAbrir: (monto: number) => void }) {
+  const [monto, setMonto] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const n = parseFloat(monto.replace(',', '.'))
+    if (isNaN(n) || n < 0) { notify.error('Ingresa un monto válido'); return }
+    setLoading(true)
+    await onAbrir(n)
+    setLoading(false)
+  }
+
+  const dateStr = new Date().toLocaleDateString('es-BO', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  })
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
+      <div className="w-full max-w-sm">
+        <div className="flex justify-center mb-6">
+          <div className="h-16 w-16 rounded-2xl bg-steel-900 flex items-center justify-center shadow-md">
+            <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+        </div>
+        <div className="text-center mb-6">
+          <h2 className="text-xl font-bold text-steel-900">Abrir caja</h2>
+          <p className="text-sm text-steel-500 mt-1">{dateStr}</p>
+          <p className="text-xs text-steel-400 mt-2">Registra el efectivo con el que inicias el día</p>
+        </div>
+        <div className="rounded-[18px] border border-hair bg-white/86 backdrop-blur p-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-steel-600 mb-1.5">Monto inicial en efectivo (Bs)</label>
+              <Input type="number" min="0" step="0.01" placeholder="0.00" value={monto}
+                onChange={e => setMonto(e.target.value)} autoFocus disabled={loading} />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Abriendo...' : 'Abrir caja'}
+            </Button>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function CajaDiariaPage() {
-  const { user } = useAuth()
+  const { isTokenReady } = useAuth()
 
-  const [apertura, setApertura]     = useState<AperturaCaja | null>(null)
-  const [movimientos, setMovimientos] = useState<MovimientoCaja[]>([])
-  const [modalTipo, setModalTipo]   = useState<TipoMovimiento | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [caja, setCaja] = useState<Caja | null>(null)
+  const [resumenCierre, setResumenCierre] = useState<CierreCajaResponse | null>(null)
+  const [modalTipo, setModalTipo] = useState<TipoBackend | null>(null)
   const [showCierre, setShowCierre] = useState(false)
-  const [cierre, setCierre]         = useState<CierreCaja | null>(null)
 
-  // ── Totales generales
+  const dateStr = useMemo(() => {
+    return new Date().toLocaleDateString('es-BO', {
+      weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+    })
+  }, [])
+
+  const movimientos = caja?.movimientos ?? []
+
   const totalIngresos = useMemo(
-    () => movimientos.filter(m => m.tipo === 'ingreso').reduce((s, m) => s + m.monto, 0),
+    () => movimientos.filter(m => m.tipo === 'Ingreso').reduce((s, m) => s + m.monto, 0),
     [movimientos],
   )
   const totalEgresos = useMemo(
-    () => movimientos.filter(m => m.tipo === 'egreso').reduce((s, m) => s + m.monto, 0),
+    () => movimientos.filter(m => m.tipo === 'Egreso').reduce((s, m) => s + m.monto, 0),
     [movimientos],
   )
 
-  // ── Solo efectivo (para el saldo físico real)
   const ingresosEfectivo = useMemo(
-    () => movimientos.filter(m => m.tipo === 'ingreso' && m.tipo_pago === 'efectivo').reduce((s, m) => s + m.monto, 0),
+    () => movimientos.filter(m => m.tipo === 'Ingreso' && m.tipoPago === 'Efectivo').reduce((s, m) => s + m.monto, 0),
     [movimientos],
   )
   const egresosEfectivo = useMemo(
-    () => movimientos.filter(m => m.tipo === 'egreso' && m.tipo_pago === 'efectivo').reduce((s, m) => s + m.monto, 0),
+    () => movimientos.filter(m => m.tipo === 'Egreso' && m.tipoPago === 'Efectivo').reduce((s, m) => s + m.monto, 0),
     [movimientos],
   )
-  const efectivoEsperado = (apertura?.monto_inicial ?? 0) + ingresosEfectivo - egresosEfectivo
+  const efectivoEsperado = (caja?.montoInicial ?? 0) + ingresosEfectivo - egresosEfectivo
 
-  // ── Por tipo de pago para resumen de ingresos
-  const ingresosPorPago = useMemo(() => ({
-    efectivo: movimientos.filter(m => m.tipo === 'ingreso' && m.tipo_pago === 'efectivo').reduce((s, m) => s + m.monto, 0),
-    qr:       movimientos.filter(m => m.tipo === 'ingreso' && m.tipo_pago === 'qr').reduce((s, m) => s + m.monto, 0),
-    tarjeta:  movimientos.filter(m => m.tipo === 'ingreso' && m.tipo_pago === 'tarjeta').reduce((s, m) => s + m.monto, 0),
-  }), [movimientos])
+  useEffect(() => {
+    if (!isTokenReady) return
+    cargarCaja()
+  }, [isTokenReady])
 
-  const handleAbrir = (monto: number) => {
-    setApertura({
-      id: Date.now().toString(),
-      fecha: new Date().toISOString().slice(0, 10),
-      monto_inicial: monto,
-      usuario: user?.nombre ?? 'Usuario',
-      creado_en: new Date().toISOString(),
-    })
-    setMovimientos(MOCK_MOVIMIENTOS)
-    notify.success('Caja abierta correctamente')
+  const cargarCaja = () => {
+    setLoading(true)
+    gql<{ misCajas: { nodes: CajaAPI[] } }>(MI_CAJA_QUERY)
+      .then(res => {
+        const abierta = res.misCajas.nodes[0]
+        setCaja(abierta ? backendToCaja(abierta) : null)
+      })
+      .catch(() => notify.error('Error cargando estado de caja'))
+      .finally(() => setLoading(false))
   }
 
-  const handleGuardarMovimiento = (data: Omit<MovimientoCaja, 'id' | 'usuario' | 'creado_en'>) => {
-    setMovimientos(prev => [{
-      ...data,
-      id: Date.now().toString(),
-      usuario: user?.nombre ?? 'Usuario',
-      creado_en: new Date().toISOString(),
-    }, ...prev])
-    notify.success(data.tipo === 'ingreso' ? 'Ingreso registrado' : 'Egreso registrado')
-    setModalTipo(null)
+  const handleAbrir = async (montoInicial: number) => {
+    try {
+      await api.post('/Caja', {
+        montoInicial,
+        fechaInicio: new Date().toISOString(),
+      })
+      notify.success('Caja abierta correctamente')
+      cargarCaja()
+    } catch (err) {
+      notify.error((err as Error).message || 'Error al abrir caja')
+    }
   }
 
-  const handleConfirmarCierre = (data: CierreCaja) => {
-    setCierre(data)
-    setShowCierre(false)
-    notify.success('Caja cerrada. Resumen guardado.')
+  const handleGuardarMovimiento = async (data: Omit<MovimientoCaja, 'id' | 'id_Caja' | 'fecha'>) => {
+    if (!caja) return
+    try {
+      await api.post(`/Caja/${caja.id}/Movimiento`, {
+        tipo: data.tipo,
+        categoria: data.categoria,
+        tipoPago: data.tipoPago,
+        monto: data.monto,
+        motivo: data.motivo,
+      })
+      notify.success(data.tipo === 'Ingreso' ? 'Ingreso registrado' : 'Egreso registrado')
+      setModalTipo(null)
+      cargarCaja()
+    } catch (err) {
+      notify.error((err as Error).message || 'Error al registrar movimiento')
+    }
   }
 
-  // ── Pantalla: caja cerrada ─────────────────────────────────────────────────
-  if (cierre && apertura) {
+  const handleConfirmarCierre = async (montoContado: number, justificacion: string | null) => {
+    if (!caja) return
+    try {
+      const res = await api.post<CierreCajaResponse>(`/Caja/Cerrar/${caja.id}`, {
+        montoContado,
+        justificacion: justificacion ?? null,
+      })
+      notify.success('Caja cerrada. Resumen guardado.')
+      setShowCierre(false)
+      setCaja(null)
+      setResumenCierre(res)
+    } catch (err) {
+      notify.error((err as Error).message || 'Error al cerrar caja')
+    }
+  }
+
+  // ── Loading skeleton ──────────────────────────────────────────────────────
+  if (loading) {
     return (
       <MainLayout>
-        <PageContainer>
-          <div className="flex flex-col items-center justify-center min-h-[60vh]">
-            <div className="w-full max-w-md">
-              <div className="text-center mb-6">
-                <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
-                  <svg className="h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h2 className="text-xl font-bold text-steel-900">Caja cerrada</h2>
-                <p className="text-sm text-steel-500 mt-0.5 capitalize">{fmtDate(apertura.fecha + 'T12:00:00')}</p>
+        <div className="relative px-4 sm:px-8 md:px-14 py-5 md:py-9 pb-10 md:pb-20 min-h-screen"
+             style={{ background: 'linear-gradient(180deg, #F4EFE6 0%, #FAF8F5 200px, #FAF8F5 100%)' }}>
+          <div className="relative z-[1]">
+            <div className="flex items-center justify-between mb-9">
+              <div className="flex items-center gap-1.5 text-[12.5px] text-muted tracking-[0.02em]">
+                <span>Operaciones</span>
+                <span className="opacity-50">/</span>
+                <span className="text-ink">Caja</span>
               </div>
-
-              <Card className="p-5 space-y-3 mb-4">
-                <SectionTitle>Resumen del día</SectionTitle>
-                <div className="space-y-2 pt-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-steel-500">Monto inicial</span>
-                    <span className="font-semibold text-steel-700">{fmtBs(apertura.monto_inicial)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-steel-500">Total ingresos</span>
-                    <span className="font-semibold text-emerald-600">{fmtBs(totalIngresos)}</span>
-                  </div>
-                  {/* Desglose ingresos por tipo pago */}
-                  <div className="pl-3 space-y-1">
-                    {ingresosPorPago.efectivo > 0 && (
-                      <div className="flex justify-between text-xs">
-                        <span className="text-steel-400 flex items-center gap-1.5">
-                          <span className="h-1.5 w-1.5 rounded-full bg-steel-400" />Efectivo
-                        </span>
-                        <span className="text-steel-500">{fmtBs(ingresosPorPago.efectivo)}</span>
-                      </div>
-                    )}
-                    {ingresosPorPago.qr > 0 && (
-                      <div className="flex justify-between text-xs">
-                        <span className="text-steel-400 flex items-center gap-1.5">
-                          <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />QR
-                        </span>
-                        <span className="text-steel-500">{fmtBs(ingresosPorPago.qr)}</span>
-                      </div>
-                    )}
-                    {ingresosPorPago.tarjeta > 0 && (
-                      <div className="flex justify-between text-xs">
-                        <span className="text-steel-400 flex items-center gap-1.5">
-                          <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />Tarjeta
-                        </span>
-                        <span className="text-steel-500">{fmtBs(ingresosPorPago.tarjeta)}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-steel-500">Total egresos</span>
-                    <span className="font-semibold text-red-500">{fmtBs(totalEgresos)}</span>
-                  </div>
-                  <div className="pt-2 border-t border-steel-100 flex justify-between">
-                    <span className="text-sm font-bold text-steel-700">Efectivo esperado</span>
-                    <span className="text-sm font-black text-steel-900">{fmtBs(cierre.efectivo_esperado)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm font-bold text-steel-700">Monto contado</span>
-                    <span className="text-sm font-black text-steel-900">{fmtBs(cierre.monto_contado)}</span>
-                  </div>
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex h-[38px] px-3.5 border border-hair bg-paper rounded-[10px] items-center gap-2 text-[13px] text-ink-2">
+                  <IcoCal /><span>{dateStr}</span>
                 </div>
-              </Card>
-
-              {/* Diferencia */}
-              <div className={clsx(
-                'flex items-center justify-between p-4 rounded-xl border mb-5',
-                cierre.diferencia === 0
-                  ? 'bg-emerald-50 border-emerald-200'
-                  : cierre.diferencia > 0
-                    ? 'bg-blue-50 border-blue-200'
-                    : 'bg-red-50 border-red-200',
-              )}>
-                <div>
-                  <p className={clsx('text-xs font-bold uppercase tracking-widest',
-                    cierre.diferencia === 0 ? 'text-emerald-600' : cierre.diferencia > 0 ? 'text-blue-600' : 'text-red-600')}>
-                    {cierre.diferencia === 0 ? 'Caja cuadrada' : cierre.diferencia > 0 ? 'Sobrante' : 'Faltante'}
-                  </p>
-                  <p className="text-xs text-steel-500 mt-0.5">Diferencia contado vs. esperado</p>
-                </div>
-                <p className={clsx('text-xl font-black tabular-nums',
-                  cierre.diferencia === 0 ? 'text-emerald-700' : cierre.diferencia > 0 ? 'text-blue-700' : 'text-red-600')}>
-                  {cierre.diferencia > 0 ? '+' : ''}{fmtBs(cierre.diferencia)}
-                </p>
+                <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2">
+                  <IcoBell />
+                </button>
+                <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2">
+                  <IcoSettings />
+                </button>
               </div>
-
-              <Button className="w-full" onClick={() => { setApertura(null); setMovimientos([]); setCierre(null) }}>
-                Nueva apertura
-              </Button>
             </div>
+            <div className="mb-10">
+              <h1 className="font-serif text-[44px] md:text-[72px] leading-[0.95] tracking-[-0.025em] m-0 mb-2.5 text-ink">
+                Caja diaria<em className="italic text-terra">.</em>
+              </h1>
+            </div>
+            <MetricsSkeleton />
           </div>
-        </PageContainer>
+        </div>
       </MainLayout>
     )
   }
 
-  // ── Pantalla: apertura ─────────────────────────────────────────────────────
-  if (!apertura) {
+  // ── Pantalla: resumen de cierre ─────────────────────────────────────────────
+  if (resumenCierre) {
     return (
       <MainLayout>
-        <PageContainer>
-          <AperturaScreen onAbrir={handleAbrir} />
-          <div className="flex justify-center mt-4">
-            <button
-              onClick={() => { setApertura(MOCK_APERTURA); setMovimientos(MOCK_MOVIMIENTOS) }}
-              className="text-xs text-steel-400 hover:text-steel-600 underline"
-            >
-              Cargar datos de demo
-            </button>
+        <div className="relative px-4 sm:px-8 md:px-14 py-5 md:py-9 pb-10 md:pb-20 min-h-screen"
+             style={{ background: 'linear-gradient(180deg, #F4EFE6 0%, #FAF8F5 200px, #FAF8F5 100%)' }}>
+          <div className="relative z-[1]">
+
+            {/* ── Topbar ──────────────────────────────────────────────────── */}
+            <div className="flex items-center justify-between mb-9">
+              <div className="flex items-center gap-1.5 text-[12.5px] text-muted tracking-[0.02em]">
+                <span>Operaciones</span>
+                <span className="opacity-50">/</span>
+                <span className="text-ink">Caja</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex h-[38px] px-3.5 border border-hair bg-paper rounded-[10px] items-center gap-2 text-[13px] text-ink-2">
+                  <IcoCal /><span>{dateStr}</span>
+                </div>
+                <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors">
+                  <IcoBell />
+                </button>
+                <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors">
+                  <IcoSettings />
+                </button>
+              </div>
+            </div>
+
+            {/* ── Header ──────────────────────────────────────────────────── */}
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-8 mb-7 md:mb-10">
+              <div>
+                <h1 className="font-serif text-[44px] md:text-[72px] leading-[0.95] tracking-[-0.025em] m-0 mb-2.5 text-ink">
+                  Resumen de cierre<em className="italic text-terra">.</em>
+                </h1>
+                <p className="text-base text-muted max-w-[520px]">
+                  Reporte completo de la jornada de caja cerrada.
+                </p>
+              </div>
+              <button
+                onClick={() => setResumenCierre(null)}
+                className="h-[46px] px-[22px] rounded-[12px] text-sm font-semibold flex items-center gap-2 bg-terra text-white hover:bg-terra-deep transition-all hover:-translate-y-px active:translate-y-0"
+                style={{ boxShadow: '0 1px 2px rgba(200,80,31,0.3), 0 6px 16px -8px rgba(200,80,31,0.5)' }}
+              >
+                Nueva caja
+              </button>
+            </div>
+
+            {/* ── Resumen card ──────────────────────────────────────────────── */}
+            <div className="rounded-[18px] border border-hair bg-white/86 backdrop-blur overflow-hidden">
+              <div className="px-7 py-6 border-b border-hair">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                    <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-ink">Caja cerrada exitosamente</p>
+                    <p className="text-xs text-muted">
+                      {new Date(resumenCierre.fechaCierre).toLocaleDateString('es-BO', {
+                        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+                      })} — {new Date(resumenCierre.fechaCierre).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-7 space-y-6">
+                {/* Totales generales */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-xl bg-steel-50 border border-steel-100">
+                    <p className="text-[11px] font-bold text-steel-400 uppercase tracking-widest mb-1">Monto inicial</p>
+                    <p className="text-xl font-black text-ink">{resumenCierre.montoInicial.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs.</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100">
+                    <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Total ingresos</p>
+                    <p className="text-xl font-black text-emerald-700">{resumenCierre.totalIngresos.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs.</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-red-50 border border-red-100">
+                    <p className="text-[11px] font-bold text-red-500 uppercase tracking-widest mb-1">Total egresos</p>
+                    <p className="text-xl font-black text-red-600">{resumenCierre.totalEgresos.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs.</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-steel-50 border border-steel-100">
+                    <p className="text-[11px] font-bold text-steel-400 uppercase tracking-widest mb-1">Efectivo esperado</p>
+                    <p className={clsx('text-xl font-black', resumenCierre.efectivoEsperado >= 0 ? 'text-ink' : 'text-red-600')}>
+                      {resumenCierre.efectivoEsperado.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Desglose ingresos por tipo de pago */}
+                <div>
+                  <p className="text-[11px] font-bold text-steel-400 uppercase tracking-widest mb-3">Ingresos por tipo de pago</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="p-4 rounded-xl bg-steel-50 border border-steel-100">
+                      <p className="text-xs text-steel-500 mb-1">Efectivo</p>
+                      <p className="text-lg font-black text-steel-800">{resumenCierre.ingresoEfectivo.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs.</p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-violet-50 border border-violet-100">
+                      <p className="text-xs text-violet-600 mb-1">QR</p>
+                      <p className="text-lg font-black text-violet-700">{resumenCierre.ingresoQR.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs.</p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
+                      <p className="text-xs text-blue-600 mb-1">Tarjeta</p>
+                      <p className="text-lg font-black text-blue-700">{resumenCierre.ingresoTarjeta.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Diferencia */}
+                {(() => {
+                  const diferencia = resumenCierre.montoContado - resumenCierre.efectivoEsperado
+                  const esFaltante = diferencia < 0
+                  const esCuadrado = diferencia === 0
+                  return (
+                    <div className={clsx(
+                      'flex items-center justify-between p-5 rounded-xl border',
+                      esCuadrado
+                        ? 'bg-emerald-50 border-emerald-200'
+                        : esFaltante
+                          ? 'bg-red-50 border-red-200'
+                          : 'bg-blue-50 border-blue-200',
+                    )}>
+                      <div>
+                        <p className={clsx(
+                          'text-xs font-bold uppercase tracking-widest',
+                          esCuadrado ? 'text-emerald-600' : esFaltante ? 'text-red-600' : 'text-blue-600',
+                        )}>
+                          {esCuadrado ? 'Caja cuadrada' : esFaltante ? 'Faltante' : 'Sobrante'}
+                        </p>
+                        <p className="text-xs text-steel-500 mt-0.5">
+                          {esCuadrado
+                            ? 'El monto contado coincide con el sistema'
+                            : esFaltante
+                              ? `Falta efectivo según registros del sistema`
+                              : `Excedente de efectivo según registros`}
+                        </p>
+                        {resumenCierre.justificacion && (
+                          <p className="text-[11px] text-steel-400 mt-1 italic">"{resumenCierre.justificacion}"</p>
+                        )}
+                      </div>
+                      <p className={clsx(
+                        'text-2xl font-black tabular-nums',
+                        esCuadrado ? 'text-emerald-700' : esFaltante ? 'text-red-600' : 'text-blue-700',
+                      )}>
+                        {diferencia >= 0 ? '+' : ''}{diferencia.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs.
+                      </p>
+                    </div>
+                  )
+                })()}
+
+                {/* Efectivo contado */}
+                <div className="p-5 rounded-xl bg-steel-50 border border-steel-100 flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-bold text-steel-400 uppercase tracking-widest">Efectivo contado</p>
+                    <p className="text-xs text-steel-500 mt-0.5">Lo que contaste físicamente en caja</p>
+                  </div>
+                  <p className="text-2xl font-black text-steel-900">{resumenCierre.montoContado.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs.</p>
+                </div>
+              </div>
+            </div>
+
           </div>
-        </PageContainer>
+        </div>
+      </MainLayout>
+    )
+  }
+
+  // ── Pantalla: caja cerrada ─────────────────────────────────────────────────
+  if (!caja) {
+    return (
+      <MainLayout>
+        <div className="relative px-4 sm:px-8 md:px-14 py-5 md:py-9 pb-10 md:pb-20 min-h-screen"
+             style={{ background: 'linear-gradient(180deg, #F4EFE6 0%, #FAF8F5 200px, #FAF8F5 100%)' }}>
+
+          <div className="relative z-[1]">
+
+            {/* ── Topbar ──────────────────────────────────────────────────── */}
+            <div className="flex items-center justify-between mb-9">
+              <div className="flex items-center gap-1.5 text-[12.5px] text-muted tracking-[0.02em]">
+                <span>Operaciones</span>
+                <span className="opacity-50">/</span>
+                <span className="text-ink">Caja</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex h-[38px] px-3.5 border border-hair bg-paper rounded-[10px] items-center gap-2 text-[13px] text-ink-2">
+                  <IcoCal /><span>{dateStr}</span>
+                </div>
+                <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors relative"
+                        title="Notificaciones">
+                  <IcoBell />
+                  <span className="absolute top-[9px] right-[10px] w-[7px] h-[7px] rounded-full bg-terra border-2 border-paper" />
+                </button>
+                <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors"
+                        title="Configuración">
+                  <IcoSettings />
+                </button>
+              </div>
+            </div>
+
+            {/* ── Header ──────────────────────────────────────────────────── */}
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-8 mb-7 md:mb-10">
+              <div>
+                <h1 className="font-serif text-[44px] md:text-[72px] leading-[0.95] tracking-[-0.025em] m-0 mb-2.5 text-ink">
+                  Caja diaria<em className="italic text-terra">.</em>
+                </h1>
+                <p className="text-base text-muted max-w-[520px]">
+                  Gestión de efectivo y movimientos de caja — registra ingresos, egresos y cierra tu jornada.
+                </p>
+              </div>
+            </div>
+
+            {/* ── Apertura screen ──────────────────────────────────────────── */}
+            <AperturaScreen onAbrir={handleAbrir} />
+          </div>
+        </div>
       </MainLayout>
     )
   }
@@ -573,165 +747,218 @@ export function CajaDiariaPage() {
   // ── Pantalla: caja abierta ─────────────────────────────────────────────────
   return (
     <MainLayout>
-      <PageContainer>
-        {/* Header */}
-        <div className="flex items-start justify-between mb-6 gap-3">
-          <div>
-            <h1 className="text-xl font-semibold text-steel-900">Caja diaria</h1>
-            <p className="text-sm text-steel-500 mt-0.5 capitalize">{fmtDate(apertura.fecha + 'T12:00:00')}</p>
-          </div>
-          <Button variant="secondary" onClick={() => setShowCierre(true)}>
-            <svg className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            Cerrar caja
-          </Button>
-        </div>
+      <div className="relative px-4 sm:px-8 md:px-14 py-5 md:py-9 pb-10 md:pb-20 min-h-screen"
+           style={{ background: 'linear-gradient(180deg, #F4EFE6 0%, #FAF8F5 200px, #FAF8F5 100%)' }}>
 
-        {/* KPIs */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <KpiCard
-            variant="dark"
-            label="Monto inicial"
-            value={fmtBs(apertura.monto_inicial)}
-            sub={`Apertura ${fmtTime(apertura.creado_en)}`}
-            icon={
-              <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
-          />
-          <KpiCard
-            variant="green"
-            label="Total ingresos"
-            value={fmtBs(totalIngresos)}
-            sub={`${movimientos.filter(m => m.tipo === 'ingreso').length} movimientos`}
-            icon={
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M7 11l5-5m0 0l5 5m-5-5v12" />
-              </svg>
-            }
-          />
-          <KpiCard
-            variant="red"
-            label="Total egresos"
-            value={fmtBs(totalEgresos)}
-            sub={`${movimientos.filter(m => m.tipo === 'egreso').length} movimientos`}
-            icon={
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17 13l-5 5m0 0l-5-5m5 5V6" />
-              </svg>
-            }
-          />
-          <KpiCard
-            variant="light"
-            label="Efectivo en caja"
-            value={fmtBs(efectivoEsperado)}
-            sub="Solo movimientos en efectivo"
-            icon={
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            }
-          />
-        </div>
+        <div className="relative z-[1]">
 
-        {/* Movements */}
-        <Card>
-          <div className="flex items-center justify-between px-5 py-4 border-b border-steel-100">
-            <SectionTitle>Movimientos del día</SectionTitle>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setModalTipo('egreso')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-              >
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
-                </svg>
-                Egreso
-              </button>
-              <button
-                onClick={() => setModalTipo('ingreso')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
-              >
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                Ingreso
-              </button>
+          {/* ── Topbar ──────────────────────────────────────────────────── */}
+          <div className="flex items-center justify-between mb-9">
+            <div className="flex items-center gap-1.5 text-[12.5px] text-muted tracking-[0.02em]">
+              <span>Operaciones</span>
+              <span className="opacity-50">/</span>
+              <span className="text-ink">Caja</span>
             </div>
-          </div>
-
-          {movimientos.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-              <div className="h-12 w-12 rounded-2xl bg-steel-50 border border-steel-100 flex items-center justify-center mb-3">
-                <svg className="h-6 w-6 text-steel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:flex h-[38px] px-3.5 border border-hair bg-paper rounded-[10px] items-center gap-2 text-[13px] text-ink-2">
+                <IcoCal /><span>{dateStr}</span>
               </div>
-              <p className="text-sm font-semibold text-steel-600">Sin movimientos aún</p>
-              <p className="text-xs text-steel-400 mt-1">Registra el primer ingreso o egreso del día</p>
+              <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors relative"
+                      title="Notificaciones">
+                <IcoBell />
+                <span className="absolute top-[9px] right-[10px] w-[7px] h-[7px] rounded-full bg-terra border-2 border-paper" />
+              </button>
+              <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors"
+                      title="Configuración">
+                <IcoSettings />
+              </button>
             </div>
-          ) : (
-            <div className="divide-y divide-steel-50">
-              {movimientos.map((mov) => (
-                <div key={mov.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-steel-50/50 transition-colors">
-                  <div className={clsx(
-                    'h-9 w-9 rounded-xl flex items-center justify-center shrink-0',
-                    mov.tipo === 'ingreso' ? 'bg-emerald-50' : 'bg-red-50',
-                  )}>
-                    <svg className={clsx('h-4 w-4', mov.tipo === 'ingreso' ? 'text-emerald-600' : 'text-red-500')}
-                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      {mov.tipo === 'ingreso'
-                        ? <path strokeLinecap="round" strokeLinejoin="round" d="M7 11l5-5m0 0l5 5m-5-5v12" />
-                        : <path strokeLinecap="round" strokeLinejoin="round" d="M17 13l-5 5m0 0l-5-5m5 5V6" />}
-                    </svg>
-                  </div>
+          </div>
 
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-steel-800 truncate">{mov.motivo}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                      <TipoBadge tipo={mov.tipo} />
-                      <PagoBadge tipo_pago={mov.tipo_pago} />
-                      <span className="text-[11px] text-steel-400">{CATEGORIA_LABELS[mov.categoria]}</span>
-                      <span className="text-[11px] text-steel-300">·</span>
-                      <span className="text-[11px] text-steel-400">{fmtTime(mov.creado_en)}</span>
-                    </div>
-                  </div>
-
-                  <p className={clsx(
-                    'text-sm font-bold tabular-nums shrink-0',
-                    mov.tipo === 'ingreso' ? 'text-emerald-600' : 'text-red-500',
-                  )}>
-                    {mov.tipo === 'ingreso' ? '+' : '−'}{fmtBs(mov.monto)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {movimientos.length > 0 && (
-            <div className="px-5 py-3.5 border-t border-steel-100 bg-steel-50/50 rounded-b-2xl flex items-center justify-between">
-              <p className="text-xs text-steel-500">{movimientos.length} movimiento{movimientos.length !== 1 ? 's' : ''}</p>
-              <p className="text-xs font-bold text-steel-700">
-                Efectivo: <span className="text-steel-900 font-black">{fmtBs(efectivoEsperado)}</span>
+          {/* ── Header ──────────────────────────────────────────────────── */}
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-8 mb-7 md:mb-10">
+            <div>
+              <h1 className="font-serif text-[44px] md:text-[72px] leading-[0.95] tracking-[-0.025em] m-0 mb-2.5 text-ink">
+                Caja diaria<em className="italic text-terra">.</em>
+              </h1>
+              <p className="text-base text-muted max-w-[520px]">
+                Gestión de efectivo y movimientos de caja — registra ingresos, egresos y cierra tu jornada.
               </p>
             </div>
-          )}
-        </Card>
-      </PageContainer>
+            <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+              <button
+                onClick={() => setShowCierre(true)}
+                className="h-[46px] px-[22px] rounded-[12px] text-sm font-semibold flex items-center gap-2 bg-paper text-ink border border-hair hover:border-hair-2 transition-colors"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Cerrar caja
+              </button>
+            </div>
+          </div>
 
-      {modalTipo && (
-        <MovimientoModal tipo={modalTipo} onClose={() => setModalTipo(null)} onSave={handleGuardarMovimiento} />
-      )}
+          {/* ── Metrics ─────────────────────────────────────────────────── */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 mb-7 md:mb-11">
+            <WarmMetric
+              label="Monto inicial"
+              value={caja.montoInicial.toLocaleString('es-BO')}
+              unit="Bs."
+              icon={
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              }
+              sublabel={`Apertura ${fmtTime(caja.fechaInicio)}`}
+            />
+            <WarmMetric
+              label="Total ingresos"
+              value={totalIngresos.toLocaleString('es-BO')}
+              unit="Bs."
+              icon={
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                </svg>
+              }
+              sublabel={`${movimientos.filter(m => m.tipo === 'Ingreso').length} movimientos`}
+            />
+            <WarmMetric
+              label="Total egresos"
+              value={totalEgresos.toLocaleString('es-BO')}
+              unit="Bs."
+              icon={
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 13l-5 5m0 0l-5-5m5 5V6" />
+                </svg>
+              }
+              sublabel={`${movimientos.filter(m => m.tipo === 'Egreso').length} movimientos`}
+            />
+            <WarmMetric
+              label="Efectivo en caja"
+              value={efectivoEsperado.toLocaleString('es-BO')}
+              unit="Bs."
+              icon={
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              }
+              sublabel="Solo movimientos en efectivo"
+            />
+          </div>
 
-      {showCierre && (
-        <CierreCajaModal
-          efectivoEsperado={efectivoEsperado}
-          onClose={() => setShowCierre(false)}
-          onConfirm={handleConfirmarCierre}
-        />
-      )}
+          {/* ── Movements card ───────────────────────────────────────────── */}
+          <div className="rounded-[18px] border border-hair overflow-hidden"
+               style={{ background: 'rgba(255,255,255,0.86)', backdropFilter: 'blur(2px)' }}>
+
+            {/* Toolbar */}
+            <div className="flex items-center gap-3.5 px-4 md:px-7 py-4 md:py-[22px] border-b border-hair flex-wrap">
+              <div>
+                <span className="font-serif text-[28px] leading-[1] tracking-[-0.01em] text-ink">Movimientos</span>
+                <span className="text-base text-muted ml-2.5 font-normal">
+                  {movimientos.length}
+                </span>
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={() => setModalTipo('egreso')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
+                  </svg>
+                  Egreso
+                </button>
+                <button
+                  onClick={() => setModalTipo('ingreso')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Ingreso
+                </button>
+              </div>
+            </div>
+
+            {/* Table */}
+            {movimientos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center text-muted">
+                <div className="h-12 w-12 rounded-2xl bg-cream-2 border border-hair flex items-center justify-center mb-3">
+                  <svg className="h-6 w-6 text-muted-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <p className="text-sm font-semibold text-ink-2 mb-1">Sin movimientos aún</p>
+                <p className="text-xs text-muted max-w-xs">
+                  Registra el primer ingreso o egreso del día
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-steel-50">
+                {movimientos.map((mov) => (
+                  <div key={mov.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-steel-50/50 transition-colors">
+                    <div className={clsx(
+                      'h-9 w-9 rounded-xl flex items-center justify-center shrink-0',
+                      mov.tipo === 'Ingreso' ? 'bg-emerald-50' : 'bg-red-50',
+                    )}>
+                      <svg className={clsx('h-4 w-4', mov.tipo === 'Ingreso' ? 'text-emerald-600' : 'text-red-500')}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        {mov.tipo === 'Ingreso'
+                          ? <path strokeLinecap="round" strokeLinejoin="round" d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                          : <path strokeLinecap="round" strokeLinejoin="round" d="M17 13l-5 5m0 0l-5-5m5 5V6" />}
+                      </svg>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-steel-800 truncate">{mov.motivo}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <TipoBadge tipo={mov.tipo} />
+                        <PagoBadge tipo_pago={mov.tipoPago} />
+                        <span className="text-[11px] text-steel-400">{CATEGORIA_LABELS[mov.categoria]}</span>
+                        <span className="text-[11px] text-steel-300">·</span>
+                        <span className="text-[11px] text-steel-400">{fmtTime(mov.fecha)}</span>
+                      </div>
+                    </div>
+
+                    <p className={clsx(
+                      'text-sm font-bold tabular-nums shrink-0',
+                      mov.tipo === 'Ingreso' ? 'text-emerald-600' : 'text-red-500',
+                    )}>
+                      {mov.tipo === 'Ingreso' ? '+' : '−'}{mov.monto.toFixed(2)} Bs.
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {movimientos.length > 0 && (
+              <div className="px-5 py-3.5 border-t border-steel-100 bg-steel-50/50 rounded-b-2xl flex items-center justify-between">
+                <p className="text-xs text-steel-500">{movimientos.length} movimiento{movimientos.length !== 1 ? 's' : ''}</p>
+                <p className="text-xs font-bold text-steel-700">
+                  Efectivo: <span className="text-steel-900 font-black">{efectivoEsperado.toFixed(2)} Bs.</span>
+                </p>
+              </div>
+            )}
+          </div>
+
+        </div>
+
+        {modalTipo && (
+          <MovimientoModal
+            tipo={modalTipo}
+            onClose={() => setModalTipo(null)}
+            onSave={handleGuardarMovimiento}
+          />
+        )}
+
+        {showCierre && (
+          <CierreCajaModal
+            efectivoEsperado={efectivoEsperado}
+            onClose={() => setShowCierre(false)}
+            onConfirm={handleConfirmarCierre}
+          />
+        )}
+      </div>
     </MainLayout>
   )
 }

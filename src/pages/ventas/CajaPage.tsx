@@ -11,7 +11,7 @@ import { useSoundAlert } from '@/hooks/useSoundAlert'
 import { useConfigStore, calcularPrecioConDescuento, calcularPrecioDolarHoy, type DescuentoConfig } from '@/stores/configStore'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
-import { PRODUCTOS_QUERY, backendToProductoSimple, type ProductoAPI } from '@/lib/queries/inventario.queries'
+import { PRODUCTOS_QUERY, PRODUCTO_BY_ID_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI } from '@/lib/queries/inventario.queries'
 import { MIS_ORDENES_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
 import { useVentasHub } from '@/hooks/useVentasHub'
 import type { Producto, OrdenVenta, MetodoPago, Cliente } from '@/types'
@@ -1543,9 +1543,18 @@ export function CajaPage() {
     }
   }, [misOrdenes, playAlertSequence])
 
-const addToCart = useCallback((producto: Producto) => {
+const addToCart = useCallback(async (producto: Producto) => {
     if (producto.es_kit) {
-      setKitParcialSeleccionado(producto)
+      try {
+        const data = await gql<{ productos: { nodes: ProductoAPI[] } }>(
+          PRODUCTO_BY_ID_QUERY,
+          { id: Number(producto.id) },
+        )
+        const node = data.productos?.nodes?.[0]
+        setKitParcialSeleccionado(node ? backendToProducto(node) : producto)
+      } catch {
+        setKitParcialSeleccionado(producto)
+      }
       return
     }
     setCart(prev => {
@@ -1929,8 +1938,6 @@ const addToCart = useCallback((producto: Producto) => {
           open={!!kitParcialSeleccionado}
           onClose={() => setKitParcialSeleccionado(null)}
           kit={kitParcialSeleccionado}
-          productos={productos}
-          kitRelaciones={useInventarioStore.getState().kitRelaciones}
           onConfirm={handleKitParcialConfirm}
         />
       )}

@@ -244,6 +244,66 @@ export interface Filters {
   pageSize?: number
 }
 
+// ─── Caja ──────────────────────────────────────────────────────────────────────
+
+export type CategoriaMovimientoCaja =
+  | 'Ventas'
+  | 'OtroIngreso'
+  | 'Compra'
+  | 'GastoOperativo'
+  | 'OtroEgreso'
+  | 'Transferencia'
+
+export interface MovimientoCaja {
+  id: number
+  id_Caja: number
+  tipo: 'Ingreso' | 'Egreso'
+  tipoPago: 'Efectivo' | 'QR' | 'Tarjeta'
+  categoria: CategoriaMovimientoCaja
+  monto: number
+  motivo: string
+  fecha: string
+}
+
+export interface Caja {
+  id: number
+  usuarioId: string
+  montoInicial: number
+  fechaInicio: string
+  fechaCierre: string | null
+  estado: 'Abierta' | 'Cerrada'
+  montoContado: number | null
+  justificacion: string | null
+  movimientos: MovimientoCaja[]
+}
+
+export interface CierreCajaResponse {
+  estado: string
+  fechaInicio: string
+  fechaCierre: string
+  montoInicial: number
+  totalIngresos: number
+  ingresoEfectivo: number
+  ingresoQR: number
+  ingresoTarjeta: number
+  totalEgresos: number
+  efectivoEsperado: number
+  montoContado: number
+  justificacion: string | null
+}
+
+export interface Caja {
+  id: number
+  usuarioId: string
+  montoInicial: number
+  fechaInicio: string
+  fechaCierre: string | null
+  estado: 'Abierta' | 'Cerrada'
+  montoContado: number | null
+  justificacion: string | null
+  movimientos: MovimientoCaja[]
+}
+
 // ─── Clientes ─────────────────────────────────────────────────────────────────
 
 export interface Compra {
