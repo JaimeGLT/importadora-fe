@@ -1,5 +1,23 @@
 import type { Producto } from '@/types'
 
+function parseUbicacion(ubicacion: string): { almacen: string; estante: string; fila: string; columna: string } {
+  if (!ubicacion) return { almacen: 'Almacén Central', estante: '', fila: '', columna: '' }
+  if (ubicacion.includes('/')) {
+    const parts = ubicacion.split('/').map((p) => p.trim())
+    return {
+      almacen: parts[0] || 'Almacén Central',
+      estante: parts[1] || '',
+      fila: parts[2] || '',
+      columna: parts[3] || '',
+    }
+  }
+  if (ubicacion.includes('-') && ubicacion.split('-').length >= 3) {
+    const [e, f, c] = ubicacion.split('-')
+    return { almacen: 'Almacén Central', estante: e || '', fila: f || '', columna: c || '' }
+  }
+  return { almacen: ubicacion, estante: '', fila: '', columna: '' }
+}
+
 export const PRODUCTOS_QUERY = `
   query Productos($first: Int!, $after: String) {
     productos(first: $first, after: $after) {
@@ -178,7 +196,7 @@ export function backendToProductoSimple(p: ProductoAPISimple): Producto {
       tipo_cambio: h.conversionABs,
       nota: h.nota ?? undefined,
     })),
-    ubicacion: p.ubicacion ?? 'Almacén Central',
+    ...parseUbicacion(p.ubicacion ?? ''),
     estado: 'activo',
     proveedor_id: '',
     creado_en: '',
@@ -210,7 +228,7 @@ export function backendToProducto(p: ProductoAPI): Producto {
       tipo_cambio: h.conversionABs,
       nota: h.nota ?? undefined,
     })),
-    ubicacion: p.ubicacion ?? 'Almacén Central',
+    ...parseUbicacion(p.ubicacion ?? ''),
     estado: 'activo',
     proveedor_id: '',
     creado_en: '',
@@ -235,7 +253,7 @@ export function productoToBackend(
     marca: p.marca,
     descripcion: p.descripcion,
     unidad_Medida: p.unidad,
-    ubicacion: p.ubicacion,
+    ubicacion: [p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / '),
     stock_Actual: p.stock,
     stock_Minimo: p.stock_minimo,
     piezas: p.piezas ?? 1,
@@ -272,7 +290,7 @@ export function productoToBackendUpdate(
     codigoAux2: p.codigos_alternativos[1] ?? '',
     descripcion: p.descripcion,
     marca: p.marca,
-    ubicacion: p.ubicacion,
+    ubicacion: [p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / '),
     unidad_Medida: p.unidad,
   }
 }
@@ -292,7 +310,7 @@ export function productoToBackendBulk(
     marca: p.marca,
     descripcion: p.descripcion,
     unidad_Medida: p.unidad,
-    ubicacion: p.ubicacion,
+    ubicacion: [p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / '),
     cantidad: p.stock,
     stock_Minimo: p.stock_minimo,
     piezas: p.piezas ?? 1,

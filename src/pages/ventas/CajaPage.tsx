@@ -43,7 +43,10 @@ interface CartItem {
   producto_id: string
   producto_codigo: string
   producto_nombre: string
-  producto_ubicacion: string
+  producto_almacen: string
+  producto_estante: string
+  producto_fila: string
+  producto_columna: string
   cantidad: number
   precio_unitario: number
   precio_base: number
@@ -418,7 +421,7 @@ function ProductSearch({ onSelectProducto, loading }: { onSelectProducto: (produ
                     {p.marca && <p className="text-[10px] text-steel-400 mt-0.5">{p.marca}</p>}
                     <div className="flex items-center gap-3 mt-1">
                       <span className={`text-[11px] font-semibold ${stockCls}`}>{disp} disponibles</span>
-                      {p.ubicacion && <span className="text-[11px] text-steel-400">📦 {p.ubicacion}</span>}
+                      {p.almacen && <span className="text-[11px] text-steel-400">📦 {p.almacen} {p.estante} {p.fila} {p.columna}</span>}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -676,8 +679,8 @@ function OrdersModal({
 }) {
   const [showCanceladas, setShowCanceladas] = useState(false)
   const [tab, setTab] = useState<'ordenes' | 'reservas'>('ordenes')
-  const listos = ordenes.filter(o => o.estado === 'listo')
-  const otras = ordenes.filter(o => o.estado !== 'listo' && o.estado !== 'pagado' && o.estado !== 'cancelado')
+  const listos = ordenes.filter(o => o.estado === 'listo_para_escaneo')
+  const otras = ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada')
 
   return (
     <Modal open={open} onClose={onClose} title="Órdenes activas" size="lg">
@@ -736,7 +739,7 @@ function OrdersModal({
                   <p className="text-xs font-bold text-steel-400 uppercase tracking-wide mb-2">En proceso</p>
                   <div className="space-y-2">
                     {otras.map(o => {
-                      const cfg = ESTADO_ORDEN_CONFIG[o.estado]
+                      const cfg = ESTADO_ORDEN_CONFIG[o.estado] ?? { label: o.estado, cls: 'bg-steel-100 text-steel-500', dot: 'bg-steel-400' }
                       const tieneFaltantes = o.items.some(i => i.estado === 'faltante')
                       return (
                         <div key={o.id} className={clsx('flex items-center justify-between px-4 py-3 rounded-xl border', tieneFaltantes ? 'bg-amber-50 border-amber-200' : 'bg-white border-steel-100')}>
@@ -1457,10 +1460,10 @@ export function CajaPage() {
   const descuentos = useConfigStore(s => s.descuentos)
   const productos = useInventarioStore(s => s.productos)
 
-  const misOrdenes = useMemo(() => ordenes.filter(o => o.estado !== 'pagado' && o.estado !== 'cancelado' && o.estado !== 'reservado'), [ordenes])
-  const reservaciones = useMemo(() => ordenes.filter(o => o.estado === 'reservado'), [ordenes])
-  const canceladas = useMemo(() => ordenes.filter(o => o.estado === 'cancelado'), [ordenes])
-  const listosCount = misOrdenes.filter(o => o.estado === 'listo').length
+  const misOrdenes = useMemo(() => ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada' && o.tipo !== 'reserva'), [ordenes])
+  const reservaciones = useMemo(() => ordenes.filter(o => o.tipo === 'reserva' && o.estado !== 'cancelada'), [ordenes])
+  const canceladas = useMemo(() => ordenes.filter(o => o.estado === 'cancelada'), [ordenes])
+  const listosCount = misOrdenes.filter(o => o.estado === 'completada').length
   const alertedFaltantes = useRef<Set<string>>(new Set())
   const alertedListo = useRef<Set<string>>(new Set())
 
@@ -1500,7 +1503,7 @@ export function CajaPage() {
   }, [misOrdenes, playAlertSequence])
 
   useEffect(() => {
-    const ordenLista = misOrdenes.find(o => o.estado === 'listo' && !alertedListo.current.has(o.id))
+    const ordenLista = misOrdenes.find(o => o.estado === 'completada' && !alertedListo.current.has(o.id))
     if (ordenLista) {
       alertedListo.current.add(ordenLista.id)
       playAlertSequence()
@@ -1542,7 +1545,10 @@ const addToCart = useCallback((producto: Producto) => {
         producto_id: productoSeleccionado.id,
         producto_codigo: productoSeleccionado.codigo_universal,
         producto_nombre: productoSeleccionado.nombre,
-        producto_ubicacion: productoSeleccionado.ubicacion ?? '',
+        producto_almacen: productoSeleccionado.almacen,
+        producto_estante: productoSeleccionado.estante,
+        producto_fila: productoSeleccionado.fila,
+        producto_columna: productoSeleccionado.columna,
         producto_imagen: productoSeleccionado.imagen,
         cantidad: 1,
         precio_unitario: precio,
@@ -1568,7 +1574,10 @@ const addToCart = useCallback((producto: Producto) => {
         producto_id: p.producto_id,
         producto_codigo: p.codigo,
         producto_nombre: p.nombre,
-        producto_ubicacion: '',
+        producto_almacen: '',
+        producto_estante: '',
+        producto_fila: '',
+        producto_columna: '',
         cantidad: p.cantidad,
         precio_unitario: precioTotal / p.cantidad,
         precio_base: kitParcialSeleccionado?.precio_venta ?? 0,
@@ -1614,7 +1623,10 @@ const addToCart = useCallback((producto: Producto) => {
         producto_id: productoSeleccionado.id,
         producto_codigo: productoSeleccionado.codigo_universal,
         producto_nombre: productoSeleccionado.nombre,
-        producto_ubicacion: productoSeleccionado.ubicacion ?? '',
+        producto_almacen: productoSeleccionado.almacen,
+        producto_estante: productoSeleccionado.estante,
+        producto_fila: productoSeleccionado.fila,
+        producto_columna: productoSeleccionado.columna,
         producto_imagen: productoSeleccionado.imagen,
         cantidad: 1,
         precio_unitario: precio,
@@ -1666,7 +1678,8 @@ const addToCart = useCallback((producto: Producto) => {
     const numero = `ORD-${String(ordenes.length + 1).padStart(3, '0')}`
     const items: ItemOrden[] = cart.items.map(ci => ({
       id: newId(), producto_id: ci.producto_id, producto_codigo: ci.producto_codigo, producto_nombre: ci.producto_nombre,
-      producto_ubicacion: ci.producto_ubicacion, cantidad_pedida: ci.cantidad, precio_unitario: ci.precio_unitario,
+      producto_almacen: ci.producto_almacen, producto_estante: ci.producto_estante, producto_fila: ci.producto_fila, producto_columna: ci.producto_columna,
+      cantidad_pedida: ci.cantidad, precio_unitario: ci.precio_unitario,
       subtotal: ci.precio_unitario * ci.cantidad, estado: 'pendiente' as const,
     }))
     const total = items.reduce((s, i) => s + i.subtotal, 0)
@@ -1679,7 +1692,7 @@ const addToCart = useCallback((producto: Producto) => {
       cajero_id: user?.id ?? 'admin',
       cajero_nombre: user?.nombre ?? 'Admin',
       items, total,
-      estado: isReserva ? 'reservado' as const : 'pendiente' as const,
+      estado: isReserva ? 'pendiente_almacenero' as const : 'pendiente_almacenero' as const,
       nota: cart.nota || undefined,
       creado_en: now,
       actualizado_en: now,
@@ -1713,7 +1726,7 @@ const addToCart = useCallback((producto: Producto) => {
 
   const handleClaimReserva = (orden: OrdenVenta) => {
     orden.items.forEach(i => reservarStock(i.producto_id, i.cantidad_pedida))
-    updateOrden(orden.id, { estado: 'pendiente', tipo: 'venta', cliente_nombre: undefined, caduca_en: undefined })
+    updateOrden(orden.id, { estado: 'pendiente_almacenero', tipo: 'venta', cliente_nombre: undefined, caduca_en: undefined })
     notify.success(`${orden.numero} convertida a venta`)
   }
 
@@ -1776,7 +1789,7 @@ const addToCart = useCallback((producto: Producto) => {
       : undefined
 
     updateOrden(cobroOrden.id, {
-      estado: 'pagado',
+      estado: 'completada',
       metodo_pago: metodo,
       monto_recibido: monto,
       pagado_en: now,
@@ -1789,7 +1802,7 @@ const addToCart = useCallback((producto: Producto) => {
       cliente_nit: billing.cliente_nit,
     })
     setCobroOrden(null)
-    setFacturaOrden({ ...cobroOrden, estado: 'pagado', metodo_pago: metodo, monto_recibido: monto, pagado_en: now })
+    setFacturaOrden({ ...cobroOrden, estado: 'completada', metodo_pago: metodo, monto_recibido: monto, pagado_en: now })
     if (billing.tipoDocumento === 'factura') {
       notify.success('Venta facturada', { description: `Factura ${facturaNro} emitida` })
     } else {

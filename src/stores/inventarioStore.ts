@@ -86,13 +86,17 @@ export const useInventarioStore = create<InventarioState>()((set, get) => ({
   reservarStock: (id, qty) =>
     set((state) => ({
       productos: state.productos.map(p =>
-        p.id === id ? { ...p, stock_reservado: (p.stock_reservado ?? 0) + qty } : p,
+        p.id === id
+          ? { ...p, stock: Math.max(0, p.stock - qty), stock_reservado: (p.stock_reservado ?? 0) + qty }
+          : p,
       ),
     })),
   liberarReserva: (id, qty) =>
     set((state) => ({
       productos: state.productos.map(p =>
-        p.id === id ? { ...p, stock_reservado: Math.max(0, (p.stock_reservado ?? 0) - qty) } : p,
+        p.id === id
+          ? { ...p, stock: p.stock + qty, stock_reservado: Math.max(0, (p.stock_reservado ?? 0) - qty) }
+          : p,
       ),
     })),
   confirmarSalida: (id, qty) =>

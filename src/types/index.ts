@@ -61,7 +61,10 @@ export interface Producto {
   precio_venta: number            // en bolivianos (Bs)
   conversionABs?: number
   historial_precios: HistorialPrecio[]
-  ubicacion: string               // default "Almacén Central"
+  almacen: string
+  estante: string
+  fila: string
+  columna: string
   imagen?: string                 // URL de imagen del producto
   estado: EstadoProducto
   proveedor_id: string
@@ -265,7 +268,12 @@ export interface Cliente {
 
 // ─── Ventas ───────────────────────────────────────────────────────────────────
 
-export type EstadoOrden = 'pendiente' | 'en_preparacion' | 'listo' | 'pagado' | 'cancelado' | 'reservado'
+export type EstadoOrden =
+  | 'pendiente_almacenero'
+  | 'en_preparacion'
+  | 'listo_para_escaneo'
+  | 'completada'
+  | 'cancelada'
 export type TipoOrden = 'venta' | 'reserva'
 export type EstadoItemOrden = 'pendiente' | 'completo' | 'parcial' | 'faltante'
 export type MetodoPago = 'efectivo' | 'tarjeta' | 'qr'
@@ -275,10 +283,14 @@ export interface ItemOrden {
   producto_id: string
   producto_codigo: string
   producto_nombre: string
-  producto_ubicacion: string
+  producto_almacen: string
+  producto_estante: string
+  producto_fila: string
+  producto_columna: string
   cantidad_pedida: number
   cantidad_recogida?: number
   precio_unitario: number
+  precio_escaneo?: number
   subtotal: number
   estado: EstadoItemOrden
   nota?: string

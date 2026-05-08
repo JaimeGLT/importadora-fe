@@ -138,7 +138,7 @@ function AlertaStockCard({ alerta }: { alerta: AlertaStock }) {
       {/* Product info */}
       <div className="mb-4">
         <p className="text-sm font-semibold text-steel-900 leading-snug">{producto.nombre}</p>
-        <p className="text-xs text-steel-400 mt-0.5">📦 {producto.ubicacion} · {producto.marca}</p>
+        <p className="text-xs text-steel-400 mt-0.5">📦 {producto.almacen} {producto.estante} {producto.fila} {producto.columna} · {producto.marca}</p>
       </div>
 
       {/* Metrics row */}

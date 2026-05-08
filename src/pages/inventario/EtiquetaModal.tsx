@@ -1,8 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import type JsBarcodeType from 'jsbarcode'
 import { Modal, Button } from '@/components/ui'
-import { imprimirLote } from '@/lib/printLabel'
+import { imprimirLote, imprimirLoteZPL, connectQZTray } from '@/lib/printLabel'
+import { getAvailablePrinters } from '@/lib/qzTray'
 import type { Producto } from '@/types'
+
+const EMPRESA_NOMBRE = 'USAImportadora'
+const PRINTER_NAME_PARTIAL = 'GS-2409'
+
+function formatearFecha(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const year = d.getFullYear()
+  return `${day}/${month}/${year}`
+}
 
 interface EtiquetaModalProps {
   open: boolean
@@ -10,43 +23,91 @@ interface EtiquetaModalProps {
   producto: Producto | null
 }
 
-export function EtiquetaModal({ open, onClose, producto }: EtiquetaModalProps) {
-  const svgPreviewRef = useRef<SVGSVGElement>(null)
-  const [copias, setCopias] = useState(1)
-  const [printing, setPrinting] = useState(false)
+function EtiquetaSimulada({ codigo, fecha }: { codigo: string; fecha: string }) {
+  const svgRef = useRef<SVGSVGElement>(null)
 
   useEffect(() => {
-    if (!open || !producto) return
-
+    if (!codigo || !svgRef.current) return
     import('jsbarcode').then((mod) => {
       const JsBarcode = mod.default as typeof JsBarcodeType
-      if (svgPreviewRef.current) {
-        try {
-          JsBarcode(svgPreviewRef.current, producto.codigo_universal, {
-            format: 'CODE128',
-            width: 2,
-            height: 60,
-            fontSize: 12,
-            displayValue: true,
-            margin: 8,
-            background: '#ffffff',
-            lineColor: '#000000',
-            font: 'Inter, system-ui, sans-serif',
-            textMargin: 4,
-          })
-        } catch { /* código inválido */ }
-      }
+      try {
+        JsBarcode(svgRef.current!, codigo, {
+          format: 'CODE128',
+          width: 2,
+          height: 40,
+          fontSize: 10,
+          displayValue: true,
+          margin: 3,
+          background: '#ffffff',
+          lineColor: '#000000',
+          font: 'Arial, sans-serif',
+          textMargin: 2,
+        })
+      } catch { /* código inválido */ }
     }).catch(() => null)
-  }, [open, producto])
+  }, [codigo])
+
+  return (
+    <div className="w-[113px] h-[75px] px-1.5 pt-1 pb-0.5 flex flex-col justify-between items-center border border-dashed border-steel-200 shrink-0">
+      <p className="text-[5px] font-bold text-black text-center w-full tracking-widest uppercase leading-none">{EMPRESA_NOMBRE}</p>
+      <div className="w-full flex justify-center">
+        <svg ref={svgRef} className="w-full" />
+      </div>
+      <p className="text-[4px] text-gray-500 text-center w-full leading-none">{fecha}</p>
+    </div>
+  )
+}
+
+export function EtiquetaModal({ open, onClose, producto }: EtiquetaModalProps) {
+  const [copias, setCopias] = useState(1)
+  const [printing, setPrinting] = useState(false)
+  const [qzConnected, setQzConnected] = useState(false)
+  const [qzError, setQzError] = useState<string | null>(null)
+  const [selectedPrinter, setSelectedPrinter] = useState<string>('')
+  const [printMode, setPrintMode] = useState<'pdf' | 'zpl'>('zpl')
+  const [availablePrinters, setAvailablePrinters] = useState<string[]>([])
+  const [testingConnection, setTestingConnection] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    setQzError(null)
+    setTestingConnection(true)
+    connectQZTray().then(async (status) => {
+      setTestingConnection(false)
+      setQzConnected(status.connected)
+      if (!status.connected && status.error) {
+        setQzError(status.error)
+        return
+      }
+      const printers = await getAvailablePrinters()
+      setAvailablePrinters(printers)
+      const autoSelect = printers.find((p: string) =>
+        p.toLowerCase().includes(PRINTER_NAME_PARTIAL.toLowerCase())
+      )
+      if (autoSelect) setSelectedPrinter(autoSelect)
+    })
+  }, [open])
 
   const handlePrint = async () => {
     if (!producto) return
     setPrinting(true)
-    await imprimirLote([{ producto, copias }])
+    setQzError(null)
+
+    if (printMode === 'zpl' && selectedPrinter) {
+      const result = await imprimirLoteZPL([{ producto, copias }], selectedPrinter)
+      if (!result.success && result.error) {
+        setQzError(result.error)
+      }
+    } else {
+      await imprimirLote([{ producto, copias }])
+    }
+
     setPrinting(false)
   }
 
   if (!producto) return null
+
+  const fechaLabel = producto.creado_en ? formatearFecha(producto.creado_en) : ''
 
   return (
     <Modal
@@ -72,34 +133,104 @@ export function EtiquetaModal({ open, onClose, producto }: EtiquetaModalProps) {
         </>
       }
     >
-      {/* Preview — mismo layout que la etiqueta real impresa */}
-      <div className="bg-steel-100 rounded-lg p-5 flex flex-col items-center gap-2 mb-4">
-        <p className="text-xs text-steel-400 mb-1">Vista previa (62 × 38 mm)</p>
+      {qzError && (
+        <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600 flex items-center gap-2">
+          <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {qzError}
+        </div>
+      )}
 
-        {/* Etiqueta simulada */}
-        <div className="bg-white border border-steel-300 w-[234px] h-[144px] px-2.5 pt-2 pb-1.5 flex flex-col justify-between items-center shadow-sm">
-          {/* Nombre */}
-          <p className="text-[12px] font-bold text-black leading-tight text-center line-clamp-2 w-full">
-            {producto.nombre}
-          </p>
+      {testingConnection && (
+        <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-600 flex items-center gap-2">
+          <svg className="h-4 w-4 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          Conectando con QZ Tray...
+        </div>
+      )}
 
-          {/* Código de barras (incluye el código bajo las barras) */}
-          <div className="w-full flex justify-center">
-            <svg ref={svgPreviewRef} className="w-full" />
+      {qzConnected && !testingConnection && (
+        <div className="mb-3 space-y-2">
+          <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700">
+            <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+            QZ Tray conectado
           </div>
 
-          {/* Precio */}
-          <p className="text-[15px] font-bold text-black text-center w-full">
-            Bs {producto.precio_venta.toFixed(2)}
-          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPrintMode('pdf')}
+              className={`flex-1 py-1.5 px-3 rounded text-xs font-medium border transition-colors ${printMode === 'pdf' ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-white border-steel-200 text-steel-500 hover:bg-steel-50'}`}
+            >
+              PDF
+            </button>
+            <button
+              onClick={() => setPrintMode('zpl')}
+              className={`flex-1 py-1.5 px-3 rounded text-xs font-medium border transition-colors ${printMode === 'zpl' ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-white border-steel-200 text-steel-500 hover:bg-steel-50'}`}
+            >
+              ZPL (térmica)
+            </button>
+          </div>
+
+          {printMode === 'zpl' && (
+            <div className="space-y-1">
+              <input
+                type="text"
+                value={selectedPrinter}
+                onChange={(e) => setSelectedPrinter(e.target.value)}
+                placeholder="Nombre de impresora"
+                list="printer-list"
+                className="w-full px-2 py-1.5 text-xs border border-steel-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
+              <datalist id="printer-list">
+                {availablePrinters.map((p) => (
+                  <option key={p} value={p} />
+                ))}
+              </datalist>
+              {availablePrinters.length > 0 && (
+                <p className="text-[10px] text-steel-400">
+                  {availablePrinters.length} impresoras disponibles
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="bg-steel-100 rounded-lg p-5 flex flex-col items-center gap-2 mb-4">
+        <p className="text-xs text-steel-400 mb-1">Vista previa (90 × 20 mm — 3 etiquetas por fila)</p>
+
+        <div className="flex gap-px">
+          <EtiquetaSimulada codigo={producto.codigo_universal} fecha={fechaLabel} />
+          <EtiquetaSimulada codigo={producto.codigo_universal} fecha={fechaLabel} />
+          <EtiquetaSimulada codigo={producto.codigo_universal} fecha={fechaLabel} />
+        </div>
+
+        <div className="flex gap-px opacity-40">
+          <div className="w-[113px] h-[75px] px-1.5 pt-1 pb-0.5 flex flex-col justify-between items-center border border-dashed border-steel-200 shrink-0">
+            <p className="text-[5px] font-bold text-black text-center w-full tracking-widest uppercase leading-none">{EMPRESA_NOMBRE}</p>
+            <div className="w-full flex justify-center"><div className="h-6 w-full bg-steel-200 rounded" /></div>
+            <p className="text-[4px] text-gray-400 text-center w-full leading-none">continúa...</p>
+          </div>
+          <div className="w-[113px] h-[75px] px-1.5 pt-1 pb-0.5 flex flex-col justify-between items-center border border-dashed border-steel-200 shrink-0">
+            <p className="text-[5px] font-bold text-black text-center w-full tracking-widest uppercase leading-none">{EMPRESA_NOMBRE}</p>
+            <div className="w-full flex justify-center"><div className="h-6 w-full bg-steel-200 rounded" /></div>
+            <p className="text-[4px] text-gray-400 text-center w-full leading-none">continúa...</p>
+          </div>
+          <div className="w-[113px] h-[75px] px-1.5 pt-1 pb-0.5 flex flex-col justify-between items-center border border-dashed border-steel-200 shrink-0">
+            <p className="text-[5px] font-bold text-black text-center w-full tracking-widest uppercase leading-none">{EMPRESA_NOMBRE}</p>
+            <div className="w-full flex justify-center"><div className="h-6 w-full bg-steel-200 rounded" /></div>
+            <p className="text-[4px] text-gray-400 text-center w-full leading-none">continúa...</p>
+          </div>
         </div>
 
         <p className="text-[10px] text-steel-400 text-center">
-          El código <span className="font-mono">{producto.codigo_universal}</span> aparece bajo las barras
+          3 etiquetas por fila · código OEM: <span className="font-mono">{producto.codigo_universal}</span>
         </p>
       </div>
 
-      {/* Copias */}
       <div className="flex items-center justify-between px-1">
         <span className="text-sm text-steel-600 font-medium">Cantidad de etiquetas</span>
         <div className="flex items-center gap-2">
@@ -123,7 +254,7 @@ export function EtiquetaModal({ open, onClose, producto }: EtiquetaModalProps) {
         </div>
       </div>
       <p className="mt-3 text-xs text-steel-400 text-center">
-        Formato 62 × 38 mm · Optimizado para impresoras térmicas
+        Formato 30 × 20 mm · 203 DPI · Gainscha GS-2409T PLUS
       </p>
     </Modal>
   )

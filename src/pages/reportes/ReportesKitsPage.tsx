@@ -28,7 +28,7 @@ export function ReportesKitsPage() {
 
   const kitItems = useMemo(() => {
     return ordenes
-      .filter(o => o.estado === 'pagado')
+      .filter(o => o.estado === 'completada')
       .flatMap(o =>
         o.items
           .filter(i => i.diferencia_kit !== undefined || i.kit_id)

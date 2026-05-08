@@ -1,4 +1,7 @@
 import type JsBarcodeType from 'jsbarcode'
+import { jsPDF } from 'jspdf'
+import { generarZPLMultiple, type ZPLLabelData } from './zplCommands'
+import { printZPL } from './qzTray'
 
 export interface LabelData {
   codigo_universal: string
@@ -7,20 +10,42 @@ export interface LabelData {
   vehiculo: string
   precio_venta: number
   unidad: string
+  creado_en?: string
+  fecha_importacion?: string
 }
 
-async function generarSVG(value: string): Promise<string> {
+const EMPRESA_NOMBRE = 'USAImportadora'
+
+const MM_TO_PT = 2.83465
+
+function mmToPt(mm: number): number {
+  return mm * MM_TO_PT
+}
+
+function formatearFecha(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const year = d.getFullYear()
+  return `${day}/${month}/${year}`
+}
+
+async function generarBarcodePNG(value: string): Promise<string> {
   const mod = await import('jsbarcode')
   const JsBarcode = mod.default as typeof JsBarcodeType
+
   const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svgEl.setAttribute('width', '300')
+  svgEl.setAttribute('height', '72')
+
   try {
     JsBarcode(svgEl, value, {
       format:       'CODE128',
       width:        2,
-      height:       48,
-      fontSize:    
-       11,
-      displayValue: true,   
+      height:       40,
+      fontSize:     10,
+      displayValue: true,
       margin:       4,
       background:   '#ffffff',
       lineColor:    '#000000',
@@ -30,129 +55,138 @@ async function generarSVG(value: string): Promise<string> {
   } catch {
     return ''
   }
-  return svgEl.outerHTML
+
+  const serializer = new XMLSerializer()
+  const svgStr = serializer.serializeToString(svgEl)
+  const blob = new Blob([svgStr], { type: 'image/svg+xml' })
+  const svgUrl = URL.createObjectURL(blob)
+
+  return new Promise<string>((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 300
+      canvas.height = 72
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        URL.revokeObjectURL(svgUrl)
+        resolve('')
+        return
+      }
+      ctx.drawImage(img, 0, 0, 300, 72)
+      URL.revokeObjectURL(svgUrl)
+      resolve(canvas.toDataURL('image/png'))
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(svgUrl)
+      resolve('')
+    }
+    img.src = svgUrl
+  })
 }
 
-function etiquetaHTML(producto: LabelData, svg: string): string {
-  return `
-    <div class="etiqueta">
-      <p class="nombre">${producto.nombre}</p>
-      <div class="barcode">${svg}</div>
-      <p class="precio">Bs ${producto.precio_venta.toFixed(2)}</p>
-    </div>`
-}
+async function generarPDF(
+  items: { producto: LabelData; copias: number }[],
+): Promise<Blob> {
+  const PAGE_W_MM = 90
+  const PAGE_H_MM = 20
+  const PAGE_W_PT = mmToPt(PAGE_W_MM)
+  const PAGE_H_PT = mmToPt(PAGE_H_MM)
+  const LABEL_W_MM = 30
 
-// Estilos optimizados para impresora térmica:
-// - Solo blanco y negro (sin grises, sin sombras)
-// - Fuente sans-serif estándar (Arial / Helvetica)
-// - Sin bordes decorativos en impresión
-// - Alto contraste en barras y texto
-const ESTILOS = `
-  @page {
-    size: 62mm 38mm;
-    margin: 0;
-  }
+  const pdf = new jsPDF({
+    orientation: 'landscape',
+    unit: 'pt',
+    format: [PAGE_W_PT, PAGE_H_PT],
+  })
 
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
+  for (const item of items) {
+    const pngBase64 = await generarBarcodePNG(item.producto.codigo_universal)
 
-  body {
-    font-family: Arial, Helvetica, sans-serif;
-    background: #fff;
-    color: #000;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
+    const fechaFormateada = item.producto.fecha_importacion
+      ? formatearFecha(item.producto.fecha_importacion)
+      : item.producto.creado_en
+      ? formatearFecha(item.producto.creado_en)
+      : ''
 
-  .pagina {
-    display: flex;
-    flex-wrap: wrap;
-  }
+    for (let c = 0; c < item.copias; c++) {
+      pdf.addPage([PAGE_W_PT, PAGE_H_PT])
 
-  .etiqueta {
-    width: 62mm;
-    height: 38mm;
-    padding: 2mm 2.5mm 1.5mm 2.5mm;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    overflow: hidden;
-    page-break-inside: avoid;
-  }
+      for (let col = 0; col < 3; col++) {
+        const xBase = mmToPt(col * LABEL_W_MM)
+        const xCenter = xBase + mmToPt(LABEL_W_MM / 2)
 
-  /* Borde solo visible en pantalla (preview) */
-  @media screen {
-    .etiqueta {
-      outline: 0.5pt solid #bbb;
+        pdf.setFontSize(5)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text(EMPRESA_NOMBRE, xCenter, mmToPt(1.8), { align: 'center' })
+
+        if (pngBase64) {
+          const barcodeW = mmToPt(LABEL_W_MM - 2)
+          const barcodeH = mmToPt(12)
+          try {
+            pdf.addImage(pngBase64, 'PNG', xBase + mmToPt(1), mmToPt(3.5), barcodeW, barcodeH)
+          } catch { /* skip if image fails */ }
+        }
+
+        pdf.setFontSize(4.5)
+        pdf.setFont('courier', 'bold')
+        pdf.text(item.producto.codigo_universal, xCenter, mmToPt(17.2), { align: 'center' })
+
+        if (fechaFormateada) {
+          pdf.setFontSize(3.5)
+          pdf.setFont('helvetica', 'normal')
+          pdf.text(fechaFormateada, xCenter, mmToPt(19), { align: 'center' })
+        }
+      }
     }
   }
 
-  .nombre {
-    font-size: 8.5pt;
-    font-weight: bold;
-    line-height: 1.25;
-    text-align: center;
-    width: 100%;
-    /* máximo 2 líneas */
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+  return pdf.output('blob')
+}
+
+export interface PrintResult {
+  success: boolean
+  method: 'zpl' | 'pdf'
+  error?: string
+}
+
+export async function imprimirLoteZPL(
+  items: { producto: LabelData; copias: number }[],
+  printerName: string,
+): Promise<PrintResult> {
+  if (items.length === 0) return { success: false, method: 'zpl', error: 'No items to print' }
+
+  const zplCommands: string[] = []
+
+  for (const item of items) {
+    const zplData: ZPLLabelData = { ...item.producto }
+    const labelCommands = generarZPLMultiple([zplData], item.copias)
+    zplCommands.push(...labelCommands)
   }
 
-  .barcode {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    /* el SVG lleva las barras + código debajo */
+  const result = await printZPL(printerName, zplCommands)
+  return {
+    success: result.success,
+    method: 'zpl',
+    error: result.error,
   }
+}
 
-  .barcode svg {
-    max-width: 100%;
-    height: auto;
-  }
-
-  .precio {
-    font-size: 11pt;
-    font-weight: bold;
-    text-align: center;
-    width: 100%;
-    letter-spacing: 0.3pt;
-  }
-`
-
-/** Imprime un lote de etiquetas. items: lista de { producto, copias } */
 export async function imprimirLote(
   items: { producto: LabelData; copias: number }[],
 ): Promise<void> {
-  const svgs = await Promise.all(
-    items.map((item) => generarSVG(item.producto.codigo_universal)),
-  )
+  if (items.length === 0) return
 
-  const contenido = items
-    .map((item, i) => etiquetaHTML(item.producto, svgs[i]).repeat(item.copias))
-    .join('')
-
-  const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8"/>
-  <title>Etiquetas</title>
-  <style>${ESTILOS}</style>
-</head>
-<body>
-  <div class="pagina">${contenido}</div>
-  <script>window.onload = function(){ window.print(); }<\/script>
-</body>
-</html>`
-
-  const win = window.open('', '_blank', 'width=520,height=420')
-  if (!win) return
-  win.document.write(html)
-  win.document.close()
+  const blob = await generarPDF(items)
+  const url = URL.createObjectURL(blob)
+  const win = window.open(url, '_blank')
+  if (!win) {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'etiquetas.pdf'
+    a.click()
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 10000)
 }
+
+export { connectQZTray } from './qzTray'

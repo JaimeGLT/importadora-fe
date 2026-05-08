@@ -254,7 +254,7 @@ export function DashboardPage() {
     )
 
     const ordenesActivas = MOCK_ORDENES.filter(
-      o => o.estado !== 'pagado' && o.estado !== 'cancelado'
+      o => o.estado !== 'completada' && o.estado !== 'cancelada'
     ).length
 
     const importacionesTransito = MOCK_IMPORTACIONES.filter(

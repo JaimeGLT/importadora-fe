@@ -480,9 +480,7 @@ export function InventarioPage() {
         return (
           <div>
             <p className="text-xs font-medium text-steel-700">{p.marca || '—'}</p>
-            {p.ubicacion && (
-              <p className="text-[10px] text-steel-400 font-mono mt-0.5">{p.ubicacion}</p>
-            )}
+            <p className="text-[10px] text-steel-400 font-mono mt-0.5">{p.almacen} {p.estante} {p.fila} {p.columna}</p>
           </div>
         )
       },

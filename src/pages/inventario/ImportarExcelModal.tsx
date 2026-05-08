@@ -10,7 +10,8 @@ import { clsx } from 'clsx'
 type ImportableKey =
   | 'codigo_universal' | 'codigo_alt1' | 'codigo_alt2'
   | 'nombre' | 'descripcion' | 'marca'
-  | 'stock' | 'stock_minimo' | 'piezas' | 'precio_costo' | 'precio_venta' | 'ubicacion'
+  | 'stock' | 'stock_minimo' | 'piezas' | 'precio_costo' | 'precio_venta'
+  | 'almacen' | 'estante' | 'fila' | 'columna'
   | 'tipo_cambio'
 
 interface SystemField {
@@ -58,7 +59,10 @@ const SYSTEM_FIELDS: SystemField[] = [
   { key: 'piezas',           label: 'Piezas por unidad',     required: false },
   { key: 'precio_costo',     label: 'Precio costo (Bs)',    required: true  },
   { key: 'precio_venta',     label: 'Precio venta (Bs)',    required: false },
-  { key: 'ubicacion',        label: 'Ubicación en almacén', required: false },
+  { key: 'almacen',         label: 'Almacén',              required: false },
+  { key: 'estante',         label: 'Estante',              required: false },
+  { key: 'fila',            label: 'Fila',                 required: false },
+  { key: 'columna',         label: 'Columna',              required: false },
   { key: 'tipo_cambio',     label: 'Tipo de cambio (Bs/$)', required: false },
 ]
 
@@ -131,7 +135,10 @@ function parseRow(
     historial_precios: precio_costo > 0 || precio_venta > 0
       ? [{ fecha: new Date().toISOString(), precio_costo, precio_venta, tipo_cambio: tc, nota: 'Importado desde Excel' }]
       : [],
-    ubicacion:    get('ubicacion') || 'Almacén Central',
+    almacen:       get('almacen') || 'Almacén Central',
+    estante:       get('estante') || '',
+    fila:          get('fila') || '',
+    columna:       get('columna') || '',
     estado:       'activo',
     proveedor_id: '',
   }

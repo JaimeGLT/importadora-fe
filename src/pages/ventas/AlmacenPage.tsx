@@ -2,11 +2,15 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout } from '@/components/layout/MainLayout'
+import { Button } from '@/components/ui'
+import { Modal } from '@/components/ui/Modal'
 import { notify } from '@/lib/notify'
 import { useVentasStore } from '@/stores/ventasStore'
+import { useInventarioStore } from '@/stores/inventarioStore'
 import { TicketPreview } from '@/components/ui/TicketPreview'
 import { useSoundAlert } from '@/hooks/useSoundAlert'
-import type { OrdenVenta, EstadoOrden, EstadoItemOrden } from '@/types'
+import { useVentasAlerts } from '@/hooks/useVentasAlerts'
+import type { OrdenVenta, EstadoOrden } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -23,17 +27,16 @@ const fmtTimeSince = (iso: string) => {
 
 const ALERT_MINS = 10
 
-type TabFiltro = 'todos' | 'pendiente' | 'en_preparacion' | 'listo'
+type TabFiltro = 'todos' | 'pendiente_almacenero' | 'en_preparacion' | 'listo_para_escaneo'
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<EstadoOrden, { label: string; bg: string; text: string; dot: string }> = {
-  pendiente:      { label: 'Disponible',  bg: 'bg-amber-50',  text: 'text-amber-700', dot: 'bg-amber-400' },
-  en_preparacion: { label: 'En proceso', bg: 'bg-blue-50',   text: 'text-blue-700', dot: 'bg-blue-400' },
-  listo:          { label: 'Para entregar', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-400' },
-  reservado:      { label: 'Reservado',   bg: 'bg-purple-50', text: 'text-purple-700', dot: 'bg-purple-400' },
-  pagado:         { label: 'Cobrado',     bg: 'bg-steel-50',  text: 'text-steel-500', dot: 'bg-steel-400' },
-  cancelado:      { label: 'Cancelada',   bg: 'bg-red-50',    text: 'text-red-500',  dot: 'bg-red-400' },
+  pendiente_almacenero: { label: 'Pendiente',       bg: 'bg-amber-50',   text: 'text-amber-700', dot: 'bg-amber-400' },
+  en_preparacion:       { label: 'En preparación',  bg: 'bg-blue-50',    text: 'text-blue-700',  dot: 'bg-blue-400' },
+  listo_para_escaneo:   { label: 'Para escanear',   bg: 'bg-indigo-50',  text: 'text-indigo-700', dot: 'bg-indigo-400' },
+  completada:           { label: 'Completada',     bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-400' },
+  cancelada:            { label: 'Cancelada',       bg: 'bg-red-50',     text: 'text-red-500',   dot: 'bg-red-400' },
 }
 
 // ─── OrderCard (lista) ───────────────────────────────────────────────────────
@@ -50,7 +53,7 @@ function OrderCard({
   isNew?: boolean
 }) {
   const mins = Math.floor((Date.now() - new Date(orden.creado_en).getTime()) / 60_000)
-  const isLate = mins >= ALERT_MINS && orden.estado === 'pendiente'
+  const isLate = mins >= ALERT_MINS && orden.estado === 'pendiente_almacenero'
   const esMia = orden.almacenero_id === userId
   const tomadaPorOtro = !!orden.almacenero_id && !esMia
   const status = STATUS_CONFIG[orden.estado]
@@ -60,15 +63,14 @@ function OrderCard({
       className={clsx(
         'bg-white rounded-2xl border shadow-sm p-4 transition-all duration-300',
         isNew && 'ring-2 ring-brand-400 ring-offset-2 animate-pulse-once',
-        isLate && orden.estado === 'pendiente' ? 'border-red-200' : 'border-steel-100',
+        isLate && orden.estado === 'pendiente_almacenero' ? 'border-red-200' : 'border-steel-100',
       )}
     >
-      {/* Top row: number + status badge */}
       <div className="flex items-center justify-between gap-3 mb-3">
         <div className="flex items-center gap-2">
           <span className="text-base font-black text-steel-900">{orden.numero}</span>
           <span className={clsx('inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold', status.bg, status.text)}>
-            <span className={clsx('h-1.5 w-1.5 rounded-full', status.dot, orden.estado === 'pendiente' && 'animate-pulse')} />
+            <span className={clsx('h-1.5 w-1.5 rounded-full', status.dot, orden.estado === 'pendiente_almacenero' && 'animate-pulse')} />
             {status.label}
           </span>
           {isLate && (
@@ -85,7 +87,6 @@ function OrderCard({
         </span>
       </div>
 
-      {/* Info row */}
       <div className="flex items-center gap-3 text-xs text-steel-500 mb-1">
         <span className="font-medium text-steel-700">{orden.cajero_nombre}</span>
         <span>·</span>
@@ -94,14 +95,12 @@ function OrderCard({
         <span className="font-semibold text-steel-700">{fmtBs(orden.total)}</span>
       </div>
 
-      {/* Nota */}
       {orden.nota && (
         <p className="mt-1.5 text-xs text-amber-600 italic bg-amber-50 px-2 py-1 rounded-lg border border-amber-100">
           📝 {orden.nota}
         </p>
       )}
 
-      {/* Tomada por otro - prominently shown */}
       {tomadaPorOtro && orden.estado === 'en_preparacion' && (
         <div className="mt-3 flex items-center gap-2 p-2.5 rounded-xl bg-steel-50 border border-steel-100">
           <div className="h-8 w-8 rounded-full bg-steel-200 flex items-center justify-center text-xs font-bold text-steel-600">
@@ -117,9 +116,8 @@ function OrderCard({
         </div>
       )}
 
-      {/* Actions */}
       <div className="mt-3">
-        {orden.estado === 'pendiente' && (
+        {orden.estado === 'pendiente_almacenero' && (
           <button
             onClick={() => onTomar(orden)}
             className="w-full py-2.5 rounded-xl bg-steel-900 text-white text-xs font-bold hover:bg-steel-800 active:bg-steel-950 transition-all flex items-center justify-center gap-2"
@@ -141,10 +139,10 @@ function OrderCard({
             Continuar preparación
           </button>
         )}
-        {orden.estado === 'listo' && (
-          <div className="flex items-center justify-center gap-2 py-2.5 bg-emerald-50 rounded-xl border border-emerald-100">
-            <div className="h-2 w-2 rounded-full bg-emerald-400 animate-bounce" />
-            <p className="text-xs text-emerald-700 font-bold">Lista — esperando al cajero</p>
+        {orden.estado === 'listo_para_escaneo' && (
+          <div className="flex items-center justify-center gap-2 py-2.5 bg-indigo-50 rounded-xl border border-indigo-100">
+            <div className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce" />
+            <p className="text-xs text-indigo-700 font-bold">Lista — esperando escaneo</p>
           </div>
         )}
       </div>
@@ -152,99 +150,190 @@ function OrderCard({
   )
 }
 
-// ─── PickingView (en preparación) ──────────────────────────────────────────────
+// ─── FaltantesModal ─────────────────────────────────────────────────────────
+
+function FaltantesModal({
+  orden,
+  open,
+  onClose,
+  onConfirm,
+}: {
+  orden: OrdenVenta
+  open: boolean
+  onClose: () => void
+  onConfirm: (itemIds: string[]) => void
+}) {
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
+  const [confirmando, setConfirmando] = useState(false)
+
+  const handleToggle = (id: string) => {
+    setSeleccionados(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleConfirm = async () => {
+    if (seleccionados.size === 0) {
+      notify.warning('Selecciona al menos un producto faltante')
+      return
+    }
+    setConfirmando(true)
+    await onConfirm([...seleccionados])
+    setConfirmando(false)
+    setSeleccionados(new Set())
+  }
+
+  const handleClose = () => {
+    setSeleccionados(new Set())
+    onClose()
+  }
+
+  const faltantesCount = orden.items.filter(i => i.estado === 'faltante').length
+  const disponiblesCount = orden.items.filter(i => i.estado !== 'faltante').length
+
+  return (
+    <Modal
+      open={open}
+      onClose={handleClose}
+      title={`Reportar faltantes — ${orden.numero}`}
+      size="md"
+      footer={
+        <>
+          <Button variant="secondary" onClick={handleClose} disabled={confirmando}>
+            Cancelar
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleConfirm}
+            loading={confirmando}
+            disabled={seleccionados.size === 0}
+          >
+            Reportar {seleccionados.size > 0 ? `(${seleccionados.size})` : ''}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-xs text-steel-500">
+          Marca los productos que no encontraste físicamente. El stock reservado será liberado y el cajero recibirá una notificación sonora.
+        </p>
+
+        {disponiblesCount > 0 && (
+          <div>
+            <p className="text-[10px] font-bold text-steel-400 uppercase tracking-wide mb-2">
+              Productos disponibles ({disponiblesCount})
+            </p>
+            <div className="space-y-1.5">
+              {orden.items.filter(i => i.estado !== 'faltante').map(item => (
+                <div
+                  key={item.id}
+                  onClick={() => handleToggle(item.id)}
+                  className={clsx(
+                    'flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all',
+                    seleccionados.has(item.id)
+                      ? 'bg-red-50 border-red-200'
+                      : 'bg-white border-steel-100 hover:border-red-100'
+                  )}
+                >
+                  <div className={clsx(
+                    'h-5 w-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all',
+                    seleccionados.has(item.id)
+                      ? 'bg-red-500 border-red-500'
+                      : 'border-steel-200'
+                  )}>
+                    {seleccionados.has(item.id) && (
+                      <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-steel-800 truncate">{item.producto_nombre}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[11px] font-mono text-steel-400 bg-steel-50 px-1.5 py-0.5 rounded">{item.producto_codigo}</span>
+                      {item.kit_id && <span className="text-[10px] text-indigo-500 font-medium">parte de kit</span>}
+                      {(item.producto_almacen || item.producto_estante) && (
+                        <span className="text-[11px] text-steel-400">
+                          📦 {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}
+                          {item.producto_fila ? ` / ${item.producto_fila}` : ''}{item.producto_columna ? ` / ${item.producto_columna}` : ''}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-sm font-bold text-steel-600 shrink-0">×{item.cantidad_pedida}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {faltantesCount > 0 && (
+          <div>
+            <p className="text-[10px] font-bold text-red-400 uppercase tracking-wide mb-2">
+              Ya reportados ({faltantesCount})
+            </p>
+            <div className="space-y-1">
+              {orden.items.filter(i => i.estado === 'faltante').map(item => (
+                <div key={item.id} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-red-50 border border-red-100 opacity-60">
+                  <svg className="h-4 w-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-red-700 truncate">{item.producto_nombre}</p>
+                    <span className="text-[11px] font-mono text-red-400">{item.producto_codigo}</span>
+                  </div>
+                  <span className="text-xs text-red-400">faltante</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {orden.items.length === 0 && (
+          <p className="text-sm text-steel-400 text-center py-4">No hay productos en esta orden</p>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
+// ─── PickingView (en preparación) ──────────────────────────────────────────
 
 function PickingView({
   orden,
   onMarcarListo,
   onVolver,
+  onCancelar,
+  onFaltantes,
 }: {
   orden: OrdenVenta
-  onMarcarListo: (items: OrdenVenta['items']) => void
+  onMarcarListo: () => void
   onVolver: () => void
+  onCancelar: () => void
+  onFaltantes: () => void
 }) {
-  const [itemStates, setItemStates] = useState<OrdenVenta['items']>(
-    orden.items.map(i => ({ ...i }))
-  )
-  const [scanInput, setScanInput] = useState('')
-  const [activeItemId, setActiveItemId] = useState<string | null>(null)
-  const [cantidadInput, setCantidadInput] = useState('')
-  const scanRef = useRef<HTMLInputElement>(null)
+  const productos = useInventarioStore(s => s.productos)
 
-  const procesadosCount = itemStates.filter(i => i.estado !== 'pendiente').length
-  const todosProcesados = procesadosCount === itemStates.length
-  const completosCount = itemStates.filter(i => i.estado === 'completo').length
-  const faltantesCount = itemStates.filter(i => i.estado === 'faltante').length
+  const getKitNombre = (kitId: string) => {
+    const kit = productos.find(p => p.id === kitId)
+    return kit?.nombre ?? 'Kit'
+  }
 
-  const handleScan = (e: React.FormEvent) => {
-    e.preventDefault()
-    const codigo = scanInput.trim().toUpperCase()
-    if (!codigo) return
-
-    const match = itemStates.find(
-      i => i.producto_codigo.toUpperCase() === codigo && i.estado === 'pendiente'
-    )
-
-    if (!match) {
-      const yaProcessado = itemStates.find(i => i.producto_codigo.toUpperCase() === codigo)
-      if (yaProcessado) {
-        notify.error(`${codigo} ya fue procesado`)
-      } else {
-        notify.error('Código no pertenece a esta orden')
+  const gruposKit = useMemo(() => {
+    const grupos: Record<string, typeof orden.items> = {}
+    orden.items.forEach(item => {
+      if (item.kit_id) {
+        if (!grupos[item.kit_id]) grupos[item.kit_id] = []
+        grupos[item.kit_id].push(item)
       }
-      setScanInput('')
-      return
-    }
+    })
+    return grupos
+  }, [orden.items])
 
-    setActiveItemId(match.id)
-    setCantidadInput(String(match.cantidad_pedida))
-    setScanInput('')
-  }
-
-  const handleConfirmarCantidad = (itemId: string) => {
-    const item = itemStates.find(i => i.id === itemId)
-    if (!item) return
-
-    const qty = parseInt(cantidadInput, 10)
-    if (isNaN(qty) || qty < 0) {
-      notify.error('Cantidad inválida')
-      return
-    }
-
-    if (qty > item.cantidad_pedida) {
-      notify.error(`Máximo ${item.cantidad_pedida} — no puedes despachar más de lo pedido`)
-      return
-    }
-
-    let nuevoEstado: EstadoItemOrden
-    if (qty === item.cantidad_pedida) nuevoEstado = 'completo'
-    else if (qty > 0) nuevoEstado = 'parcial'
-    else nuevoEstado = 'faltante'
-
-    setItemStates(prev =>
-      prev.map(i => i.id === itemId ? { ...i, cantidad_recogida: qty, estado: nuevoEstado } : i)
-    )
-    setActiveItemId(null)
-    setCantidadInput('')
-    scanRef.current?.focus()
-  }
-
-  const handleFaltante = (itemId: string) => {
-    setItemStates(prev =>
-      prev.map(i => i.id === itemId ? { ...i, estado: 'faltante' as EstadoItemOrden, cantidad_recogida: 0 } : i)
-    )
-    setActiveItemId(null)
-    setCantidadInput('')
-    notify.warning('Item marcado como faltante')
-    scanRef.current?.focus()
-  }
-
-  const ITEM_CONFIG: Record<EstadoItemOrden, { icon: string; bg: string; border: string; text: string }> = {
-    pendiente: { icon: '◻️', bg: 'bg-white', border: 'border-steel-100', text: 'text-steel-400' },
-    completo: { icon: '✓', bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700' },
-    parcial: { icon: '◑', bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700' },
-    faltante: { icon: '✕', bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-600' },
-  }
+  const itemsSinKit = orden.items.filter(i => !i.kit_id)
 
   return (
     <div className="flex flex-col h-full">
@@ -264,116 +353,81 @@ function PickingView({
               <h2 className="text-sm font-black text-steel-900">{orden.numero}</h2>
               <span className="text-xs text-steel-400 shrink-0">Cajero: {orden.cajero_nombre}</span>
             </div>
-            <p className="text-[11px] text-steel-400">
-              {completosCount} completos · {faltantesCount} faltantes
-            </p>
-          </div>
-          <div className="flex items-center gap-2 ml-auto shrink-0">
-            <form onSubmit={handleScan} className="flex items-center gap-1.5">
-              <input
-                ref={scanRef}
-                type="text"
-                value={scanInput}
-                onChange={e => setScanInput(e.target.value.toUpperCase())}
-                placeholder="Escanear..."
-                autoFocus
-                className="w-32 px-3 py-2 text-sm bg-steel-50 border border-steel-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-steel-400 font-mono uppercase"
-              />
-              <button
-                type="submit"
-                className="px-3 py-2 rounded-xl bg-steel-900 text-white text-xs font-bold hover:bg-steel-800 active:bg-steel-950 transition-all"
-              >
-                ✓
-              </button>
-            </form>
+            <p className="text-[11px] text-steel-400">{orden.items.length} producto{orden.items.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
       </div>
 
       {/* Items list */}
       <div className="flex-1 overflow-y-auto px-3 pt-2">
-        <div className="space-y-1.5 pb-2">
-          {itemStates.map(item => {
-            const cfg = ITEM_CONFIG[item.estado]
-            const isActive = activeItemId === item.id
-
-            return (
-              <div
-                key={item.id}
-                className={clsx(
-                  'rounded-xl border-2 p-4 transition-all',
-                  cfg.bg,
-                  cfg.border,
-                  isActive && 'ring-2 ring-brand-500'
-                )}
-              >
-                <div className="flex items-start gap-3">
-                  <div className={clsx('h-10 w-10 rounded-xl flex items-center justify-center text-lg font-bold border', cfg.border, cfg.text)}>
-                    {cfg.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-steel-800 leading-tight">{item.producto_nombre}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[11px] font-mono text-steel-400 bg-steel-50 px-1.5 py-0.5 rounded">
-                        {item.producto_codigo}
+        <div className="space-y-3 pb-2">
+          {/* Items que no son parte de kit */}
+          {itemsSinKit.map(item => (
+            <div key={item.id} className="rounded-xl border border-steel-100 bg-white p-4">
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded-xl bg-steel-50 border border-steel-100 flex items-center justify-center shrink-0">
+                  <svg className="h-5 w-5 text-steel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-steel-800 leading-tight">{item.producto_nombre}</p>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <span className="text-[11px] font-mono text-steel-400 bg-steel-50 px-1.5 py-0.5 rounded">
+                      {item.producto_codigo}
+                    </span>
+                    {(item.producto_almacen || item.producto_estante || item.producto_fila || item.producto_columna) && (
+                      <span className="text-[11px] text-steel-400">
+                        📦 {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}{item.producto_fila ? ` / ${item.producto_fila}` : ''}{item.producto_columna ? ` / ${item.producto_columna}` : ''}
                       </span>
-                      {item.producto_ubicacion && (
-                        <span className="text-[11px] text-steel-400">📦 {item.producto_ubicacion}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-lg font-black text-steel-800">×{item.cantidad_pedida}</p>
-                    {item.estado === 'parcial' && item.cantidad_recogida != null && (
-                      <p className="text-[11px] text-amber-600 font-semibold">recogido: ×{item.cantidad_recogida}</p>
                     )}
                   </div>
                 </div>
+                <div className="text-right shrink-0">
+                  <p className="text-lg font-black text-steel-800">×{item.cantidad_pedida}</p>
+                </div>
+              </div>
+            </div>
+          ))}
 
-                {isActive && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <input
-                      type="number"
-                      min={0}
-                      max={item.cantidad_pedida}
-                      value={cantidadInput}
-                      onChange={e => setCantidadInput(e.target.value)}
-                      autoFocus
-                      className="w-20 px-3 py-2 text-sm text-center border-2 border-brand-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 font-bold"
-                      onKeyDown={e => { if (e.key === 'Enter') handleConfirmarCantidad(item.id) }}
-                    />
-                    <span className="text-xs text-steel-400">/ {item.cantidad_pedida}</span>
-                    <button
-                      onClick={() => handleConfirmarCantidad(item.id)}
-                      className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 active:bg-emerald-800 transition-all"
-                    >
-                      Confirmar
-                    </button>
-                    <button
-                      onClick={() => handleFaltante(item.id)}
-                      className="px-4 py-2 rounded-xl bg-red-50 text-red-600 text-xs font-bold hover:bg-red-100 active:bg-red-200 transition-all border border-red-200"
-                    >
-                      No encontrado
-                    </button>
-                    <button
-                      onClick={() => { setActiveItemId(null); scanRef.current?.focus() }}
-                      className="p-1.5 text-steel-400 hover:text-steel-600"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
-
-                {!isActive && item.estado === 'pendiente' && (
-                  <button
-                    onClick={() => { setActiveItemId(item.id); setCantidadInput(String(item.cantidad_pedida)) }}
-                    className="mt-2 text-[11px] text-brand-600 hover:text-brand-800 font-semibold"
-                  >
-                    + Ingresar manualmente
-                  </button>
-                )}
+          {/* Grupos de kits */}
+          {Object.entries(gruposKit).map(([kitId, partes]) => {
+            const kitNombre = getKitNombre(kitId)
+            return (
+              <div key={kitId} className="rounded-xl border border-indigo-100 bg-indigo-50/50 overflow-hidden">
+                <div className="px-4 py-2.5 bg-indigo-100 border-b border-indigo-200">
+                  <p className="text-xs font-bold text-indigo-700">
+                    {kitNombre}
+                  </p>
+                  <p className="text-[10px] text-indigo-500 mt-0.5">Kit — {partes.length} pieza{partes.length !== 1 ? 's' : ''}</p>
+                </div>
+                <div className="divide-y divide-indigo-100">
+                  {partes.map(item => (
+                    <div key={item.id} className="flex items-start gap-3 px-4 py-3">
+                      <div className="h-8 w-8 rounded-lg bg-white border border-indigo-200 flex items-center justify-center shrink-0">
+                        <svg className="h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-steel-700 leading-tight">{item.producto_nombre}</p>
+                        <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                          <span className="text-[11px] font-mono text-steel-400 bg-steel-50 px-1.5 py-0.5 rounded">
+                            {item.producto_codigo}
+                          </span>
+                          {(item.producto_almacen || item.producto_estante || item.producto_fila || item.producto_columna) && (
+                            <span className="text-[11px] text-steel-400">
+                              📦 {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}{item.producto_fila ? ` / ${item.producto_fila}` : ''}{item.producto_columna ? ` / ${item.producto_columna}` : ''}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-base font-black text-steel-800">×{item.cantidad_pedida}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )
           })}
@@ -381,40 +435,50 @@ function PickingView({
       </div>
 
       {/* Footer */}
-      <div className="border-t border-steel-100 bg-white px-4 py-3 shrink-0 flex items-center gap-3">
+      <div className="border-t border-steel-100 bg-white px-4 py-3 shrink-0">
         <div className="flex items-center gap-2">
-          <div className={clsx('h-2 w-2 rounded-full', todosProcesados ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse')} />
+          <div className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
           <span className="text-xs text-steel-600 font-medium">
-            {procesadosCount}/{itemStates.length} procesados
+            {orden.items.length} producto{orden.items.length !== 1 ? 's' : ''} por recoger
           </span>
         </div>
-        <button
-          onClick={() => onMarcarListo(itemStates)}
-          disabled={!todosProcesados}
-          className={clsx(
-            'ml-auto px-5 py-2.5 rounded-xl text-sm font-bold transition-all',
-            todosProcesados
-              ? 'bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800'
-              : 'bg-steel-100 text-steel-400 cursor-not-allowed'
-          )}
-        >
-          {todosProcesados ? '✓ Marcar como lista' : 'Completa todos los items'}
-        </button>
+        <div className="flex gap-2 mt-3">
+          <button
+            onClick={onCancelar}
+            className="px-4 py-2.5 rounded-xl text-sm font-bold text-red-600 hover:bg-red-50 border border-red-200 transition-all"
+          >
+            Cancelar orden
+          </button>
+          <button
+            onClick={onFaltantes}
+            className="px-4 py-2.5 rounded-xl text-sm font-bold text-amber-600 hover:bg-amber-50 border border-amber-200 transition-all"
+          >
+            Reportar faltante
+          </button>
+          <button
+            onClick={onMarcarListo}
+            className="ml-auto px-5 py-2.5 rounded-xl text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 transition-all"
+          >
+            ✓ Marcar como lista
+          </button>
+        </div>
       </div>
     </div>
   )
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Main Page ───────────────────────────────────────────────────────────────
 
 export function AlmacenPage() {
   const { user } = useAuth()
-  const { ordenes, updateOrden } = useVentasStore()
+  const { ordenes, updateOrden, marcarItemFaltante } = useVentasStore()
   const { playBeep, playAlertSequence } = useSoundAlert()
+  useVentasAlerts()
 
   const [tab, setTab] = useState<TabFiltro>('todos')
   const [pickingOrdenId, setPickingOrdenId] = useState<string | null>(null)
   const [ticketOrden, setTicketOrden] = useState<OrdenVenta | null>(null)
+  const [faltantesOrden, setFaltantesOrden] = useState<OrdenVenta | null>(null)
   const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set())
   const previousPendientesRef = useRef<Set<string>>(new Set())
 
@@ -425,7 +489,7 @@ export function AlmacenPage() {
   }, [])
 
   useEffect(() => {
-    const pendientes = ordenes.filter(o => o.estado === 'pendiente')
+    const pendientes = ordenes.filter(o => o.estado === 'pendiente_almacenero')
     const currentPendientes = new Set(pendientes.map(o => o.id))
 
     const newOnes = [...currentPendientes].filter(id => !previousPendientesRef.current.has(id))
@@ -446,7 +510,7 @@ export function AlmacenPage() {
   }, [ordenes, playBeep])
 
   const activeOrdenes = useMemo(
-    () => ordenes.filter(o => o.estado !== 'pagado' && o.estado !== 'cancelado'),
+    () => ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada'),
     [ordenes]
   )
 
@@ -456,10 +520,10 @@ export function AlmacenPage() {
   }, [activeOrdenes, tab])
 
   const counts = useMemo(() => ({
-    todos:          activeOrdenes.length,
-    pendiente:      activeOrdenes.filter(o => o.estado === 'pendiente').length,
-    en_preparacion: activeOrdenes.filter(o => o.estado === 'en_preparacion').length,
-    listo:          activeOrdenes.filter(o => o.estado === 'listo').length,
+    todos:                 activeOrdenes.length,
+    pendiente_almacenero:  activeOrdenes.filter(o => o.estado === 'pendiente_almacenero').length,
+    en_preparacion:       activeOrdenes.filter(o => o.estado === 'en_preparacion').length,
+    listo_para_escaneo:    activeOrdenes.filter(o => o.estado === 'listo_para_escaneo').length,
   }), [activeOrdenes])
 
   const handleTomar = (orden: OrdenVenta) => {
@@ -477,28 +541,44 @@ export function AlmacenPage() {
     notify.success(`Orden ${orden.numero} tomada`)
   }
 
-  const handleMarcarListo = (items: OrdenVenta['items']) => {
+  const handleMarcarListo = () => {
     if (!pickingOrdenId) return
     const now = new Date().toISOString()
     const ordenActual = ordenes.find(o => o.id === pickingOrdenId)
     if (!ordenActual) return
 
-    const ordenConItems: OrdenVenta = {
-      ...ordenActual,
-      items,
-      estado: 'listo' as EstadoOrden,
-      listo_en: now,
-    }
-
     updateOrden(pickingOrdenId, {
-      items,
-      estado: 'listo' as EstadoOrden,
+      estado: 'listo_para_escaneo' as EstadoOrden,
       listo_en: now,
     })
 
     playAlertSequence()
     setPickingOrdenId(null)
-    setTicketOrden(ordenConItems)
+    setTicketOrden({ ...ordenActual, estado: 'listo_para_escaneo', listo_en: now })
+  }
+
+  const handleFaltantesConfirm = async (itemIds: string[]) => {
+    if (!faltantesOrden) return
+
+    for (const itemId of itemIds) {
+      const item = faltantesOrden.items.find(i => i.id === itemId)
+      if (!item) continue
+      marcarItemFaltante(faltantesOrden.id, itemId, item.cantidad_pedida)
+    }
+
+    const updatedOrden = ordenes.find(o => o.id === faltantesOrden.id)
+    const hayFaltantes = (updatedOrden?.items.filter(i => i.estado === 'faltante').length ?? 0) > 0
+    const todosFaltantes = itemIds.length === updatedOrden?.items.filter(i => i.estado !== 'faltante').length
+
+    if (todosFaltantes) {
+      useVentasStore.getState().cancelarOrdenYLiberarStock(faltantesOrden.id)
+      setFaltantesOrden(null)
+      setPickingOrdenId(null)
+      notify.warning('Todos los productos son faltantes — orden cancelada')
+    } else if (hayFaltantes) {
+      setFaltantesOrden(null)
+      notify.warning(`${itemIds.length} producto(s) reportado(s) como faltante(s)`)
+    }
   }
 
   const handleTicketClose = () => {
@@ -508,10 +588,10 @@ export function AlmacenPage() {
   const pickingOrden = pickingOrdenId ? ordenes.find(o => o.id === pickingOrdenId) : null
 
   const TABS: { key: TabFiltro; label: string }[] = [
-    { key: 'todos',          label: 'Todos' },
-    { key: 'pendiente',      label: 'Pendiente' },
-    { key: 'en_preparacion', label: 'En preparación' },
-    { key: 'listo',          label: 'Listo' },
+    { key: 'todos',                 label: 'Todos' },
+    { key: 'pendiente_almacenero',  label: 'Pendiente' },
+    { key: 'en_preparacion',        label: 'En preparación' },
+    { key: 'listo_para_escaneo',   label: 'Para escanear' },
   ]
 
   return (
@@ -523,6 +603,11 @@ export function AlmacenPage() {
               orden={pickingOrden}
               onMarcarListo={handleMarcarListo}
               onVolver={() => setPickingOrdenId(null)}
+              onCancelar={() => {
+                useVentasStore.getState().cancelarOrdenYLiberarStock(pickingOrden.id)
+                setPickingOrdenId(null)
+              }}
+              onFaltantes={() => setFaltantesOrden(pickingOrden)}
             />
           </div>
         ) : (
@@ -595,6 +680,16 @@ export function AlmacenPage() {
           </>
         )}
       </div>
+
+      {faltantesOrden && (
+        <FaltantesModal
+          orden={faltantesOrden}
+          open={!!faltantesOrden}
+          onClose={() => setFaltantesOrden(null)}
+          onConfirm={handleFaltantesConfirm}
+        />
+      )}
+
       {ticketOrden && (
         <TicketPreview orden={ticketOrden} open onClose={handleTicketClose} />
       )}

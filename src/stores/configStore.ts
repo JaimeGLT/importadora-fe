@@ -24,11 +24,14 @@ interface ConfigState {
   tipoCambioFechaRecordatorio: string
   margenGanancia: number
   modoPrecioCajero: ModoPrecioCajero
+  tiempoAceptacionAlmacenero: number
+  tiempoCompletarAlmacenero: number
   setTipoCambio: (tipoCambio: number) => void
   setMargenGanancia: (margen: number) => void
   setModoPrecioCajero: (modo: ModoPrecioCajero) => void
   setTipoCambioHabilitado: (habilitado: boolean) => void
   setTipoCambioFechaRecordatorio: (fecha: string) => void
+  setTiemposVenta: (aceptacion: number, completacion: number) => void
 }
 
 const DEFAULT_DESCUENTOS: DescuentoConfig[] = [
@@ -68,6 +71,8 @@ export const useConfigStore = create<ConfigState>()(
       tipoCambioFechaRecordatorio: '',
       margenGanancia: 1.20,
       modoPrecioCajero: 'solo_importacion',
+      tiempoAceptacionAlmacenero: 10,
+      tiempoCompletarAlmacenero: 10,
 
       setTipoCambio: (tipoCambio) =>
         set({
@@ -82,6 +87,9 @@ export const useConfigStore = create<ConfigState>()(
       setTipoCambioHabilitado: (habilitado) => set({ tipoCambioHabilitado: habilitado }),
 
       setTipoCambioFechaRecordatorio: (fecha) => set({ tipoCambioFechaRecordatorio: fecha }),
+
+      setTiemposVenta: (aceptacion, completacion) =>
+        set({ tiempoAceptacionAlmacenero: aceptacion, tiempoCompletarAlmacenero: completacion }),
     }),
     {
       name: 'config-storage',

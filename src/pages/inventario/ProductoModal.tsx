@@ -32,7 +32,10 @@ const EMPTY: FormData = {
   precio_venta: 0,
   conversionABs: 6.96,
   historial_precios: [],
-  ubicacion: 'Almacén Central',
+  almacen: 'Almacén Central',
+  estante: '',
+  fila: '',
+  columna: '',
   estado: 'activo',
   proveedor_id: '',
   es_kit: false,
@@ -85,7 +88,10 @@ export function ProductoModal({
         precio_venta:         producto.precio_venta,
         conversionABs:        tc,
         historial_precios:    producto.historial_precios,
-        ubicacion:            producto.ubicacion,
+        almacen: producto.almacen,
+        estante: producto.estante,
+        fila: producto.fila,
+        columna: producto.columna,
         estado:               producto.estado,
         proveedor_id:         producto.proveedor_id,
         es_kit:               producto.es_kit ?? false,
@@ -289,18 +295,30 @@ export function ProductoModal({
             title="Stock y almacén"
             description="Cantidades, unidad de medida y ubicación física"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Input
-                label="Unidad de medida"
-                value="Pieza"
-                readOnly
-                hint="Unidad fija para todos los productos"
+                label="Almacén"
+                value={form.almacen}
+                onChange={(e) => set('almacen', e.target.value)}
+                placeholder="Almacén Central"
               />
               <Input
-                label="Ubicación"
-                value={form.ubicacion}
-                onChange={(e) => set('ubicacion', e.target.value)}
-                placeholder="Almacén Central"
+                label="Estante"
+                value={form.estante}
+                onChange={(e) => set('estante', e.target.value)}
+                placeholder="A"
+              />
+              <Input
+                label="Fila"
+                value={form.fila}
+                onChange={(e) => set('fila', e.target.value)}
+                placeholder="1"
+              />
+              <Input
+                label="Columna"
+                value={form.columna}
+                onChange={(e) => set('columna', e.target.value)}
+                placeholder="1"
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
@@ -714,7 +732,10 @@ function KitPartsSection({ productoId, kitId, productos }: { productoId?: string
       precio_costo: 0,
       precio_venta: 0,
       historial_precios: [],
-      ubicacion: 'Almacén Central',
+      almacen: 'Almacén Central',
+      estante: '',
+      fila: '',
+      columna: '',
       estado: 'activo',
       proveedor_id: '',
       es_kit: false,

@@ -276,15 +276,25 @@ function DescuentoModal({
 // ─── Main Page ──────────────────────────────────────────────────────────────
 
 export function ConfiguracionPage() {
-  const { descuentos, addDescuento, updateDescuento, removeDescuento, margenGanancia, modoPrecioCajero, setMargenGanancia, setModoPrecioCajero, tipoCambioHoy, tipoCambioFecha, tipoCambioHabilitado, setTipoCambioHabilitado } = useConfigStore()
+  const { descuentos, addDescuento, updateDescuento, removeDescuento, margenGanancia, modoPrecioCajero, setMargenGanancia, setModoPrecioCajero, tipoCambioHoy, tipoCambioFecha, tipoCambioHabilitado, setTipoCambioHabilitado, tiempoAceptacionAlmacenero, tiempoCompletarAlmacenero, setTiemposVenta } = useConfigStore()
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<DescuentoConfig | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<DescuentoConfig | null>(null)
   const [margenInput, setMargenInput] = useState('')
+  const [tiempoAceptacionInput, setTiempoAceptacionInput] = useState('')
+  const [tiempoCompletarInput, setTiempoCompletarInput] = useState('')
 
   useEffect(() => {
     setMargenInput(((margenGanancia - 1) * 100).toFixed(0))
   }, [margenGanancia])
+
+  useEffect(() => {
+    setTiempoAceptacionInput(String(tiempoAceptacionAlmacenero))
+  }, [tiempoAceptacionAlmacenero])
+
+  useEffect(() => {
+    setTiempoCompletarInput(String(tiempoCompletarAlmacenero))
+  }, [tiempoCompletarAlmacenero])
 
   const handleMargenBlur = () => {
     const parsed = parseFloat(margenInput)
@@ -305,6 +315,28 @@ export function ConfiguracionPage() {
   const handleActivarDolar = () => {
     setTipoCambioHabilitado(true)
     notify.success('Precio del dólar activado')
+  }
+
+  const handleTiempoAceptacionBlur = () => {
+    const parsed = parseInt(tiempoAceptacionInput, 10)
+    if (isNaN(parsed) || parsed < 1 || parsed > 120) {
+      notify.error('Tiempo inválido (1-120 minutos)')
+      setTiempoAceptacionInput(String(tiempoAceptacionAlmacenero))
+      return
+    }
+    setTiemposVenta(parsed, tiempoCompletarAlmacenero)
+    notify.success('Tiempo actualizado')
+  }
+
+  const handleTiempoCompletarBlur = () => {
+    const parsed = parseInt(tiempoCompletarInput, 10)
+    if (isNaN(parsed) || parsed < 1 || parsed > 120) {
+      notify.error('Tiempo inválido (1-120 minutos)')
+      setTiempoCompletarInput(String(tiempoCompletarAlmacenero))
+      return
+    }
+    setTiemposVenta(tiempoAceptacionAlmacenero, parsed)
+    notify.success('Tiempo actualizado')
   }
 
   const handleNew = () => {
@@ -528,6 +560,85 @@ export function ConfiguracionPage() {
             </div>
           </div>
         </Card>
+
+        {/* Tiempos de venta */}
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-5">
+            <div className="w-1 h-4 rounded-full bg-purple-500" />
+            <h2 className="text-[11px] font-bold text-steel-500 uppercase tracking-widest">
+              Tiempos de venta
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {/* Tiempo aceptación almacenero */}
+            <div className="p-4 rounded-xl bg-purple-50 border-2 border-purple-200">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-10 w-10 rounded-xl bg-purple-500 flex items-center justify-center">
+                  <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-bold text-purple-700">Tiempo para aceptar</h3>
+                  <span className="text-[10px] text-purple-600">Desde que se crea la orden</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={120}
+                    step={1}
+                    value={tiempoAceptacionInput}
+                    onChange={(e) => setTiempoAceptacionInput(e.target.value)}
+                    onBlur={handleTiempoAceptacionBlur}
+                    hint="Minutos"
+                  />
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-purple-600 uppercase tracking-widest">Actual</p>
+                  <p className="text-xl font-black text-purple-700">{tiempoAceptacionAlmacenero} min</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Tiempo completar búsqueda */}
+            <div className="p-4 rounded-xl bg-indigo-50 border-2 border-indigo-200">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-10 w-10 rounded-xl bg-indigo-500 flex items-center justify-center">
+                  <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-bold text-indigo-700">Tiempo para completar</h3>
+                  <span className="text-[10px] text-indigo-600">Desde que se acepta la orden</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={120}
+                    step={1}
+                    value={tiempoCompletarInput}
+                    onChange={(e) => setTiempoCompletarInput(e.target.value)}
+                    onBlur={handleTiempoCompletarBlur}
+                    hint="Minutos"
+                  />
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-indigo-600 uppercase tracking-widest">Actual</p>
+                  <p className="text-xl font-black text-indigo-700">{tiempoCompletarAlmacenero} min</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+
       </PageContainer>
 
       <DescuentoModal
