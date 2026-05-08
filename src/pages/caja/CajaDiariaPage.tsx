@@ -7,6 +7,7 @@ import { notify } from '@/lib/notify'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
 import { MI_CAJA_QUERY, backendToCaja, type CajaAPI } from '@/lib/queries/caja.queries'
+import { AutopartsWatermark } from '@/pages/inventario/AutopartsWatermark'
 import type { Caja, MovimientoCaja, CierreCajaResponse } from '@/types'
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -494,6 +495,7 @@ export function CajaDiariaPage() {
         <div className="relative px-4 sm:px-8 md:px-14 py-5 md:py-9 pb-10 md:pb-20 min-h-screen"
              style={{ background: 'linear-gradient(180deg, #F4EFE6 0%, #FAF8F5 200px, #FAF8F5 100%)' }}>
           <div className="relative z-[1]">
+            <AutopartsWatermark />
             <div className="flex items-center justify-between mb-9">
               <div className="flex items-center gap-1.5 text-[12.5px] text-muted tracking-[0.02em]">
                 <span>Operaciones</span>
@@ -528,9 +530,10 @@ export function CajaDiariaPage() {
   if (resumenCierre) {
     return (
       <MainLayout>
-        <div className="relative px-4 sm:px-8 md:px-14 py-5 md:py-9 pb-10 md:pb-20 min-h-screen"
+<div className="relative px-4 sm:px-8 md:px-14 py-5 md:py-9 pb-10 md:pb-20 min-h-screen"
              style={{ background: 'linear-gradient(180deg, #F4EFE6 0%, #FAF8F5 200px, #FAF8F5 100%)' }}>
           <div className="relative z-[1]">
+            <AutopartsWatermark />
 
             {/* ── Topbar ──────────────────────────────────────────────────── */}
             <div className="flex items-center justify-between mb-9">
@@ -543,10 +546,13 @@ export function CajaDiariaPage() {
                 <div className="hidden sm:flex h-[38px] px-3.5 border border-hair bg-paper rounded-[10px] items-center gap-2 text-[13px] text-ink-2">
                   <IcoCal /><span>{dateStr}</span>
                 </div>
-                <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors">
+                <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors relative"
+                        title="Notificaciones">
                   <IcoBell />
+                  <span className="absolute top-[9px] right-[10px] w-[7px] h-[7px] rounded-full bg-terra border-2 border-paper" />
                 </button>
-                <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors">
+                <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors"
+                        title="Configuración">
                   <IcoSettings />
                 </button>
               </div>
@@ -556,7 +562,7 @@ export function CajaDiariaPage() {
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-8 mb-7 md:mb-10">
               <div>
                 <h1 className="font-serif text-[44px] md:text-[72px] leading-[0.95] tracking-[-0.025em] m-0 mb-2.5 text-ink">
-                  Resumen de cierre<em className="italic text-terra">.</em>
+                  Caja diaria<em className="italic text-terra">.</em>
                 </h1>
                 <p className="text-base text-muted max-w-[520px]">
                   Reporte completo de la jornada de caja cerrada.
@@ -696,10 +702,11 @@ export function CajaDiariaPage() {
   if (!caja) {
     return (
       <MainLayout>
-        <div className="relative px-4 sm:px-8 md:px-14 py-5 md:py-9 pb-10 md:pb-20 min-h-screen"
+<div className="relative px-4 sm:px-8 md:px-14 py-5 md:py-9 pb-10 md:pb-20 min-h-screen"
              style={{ background: 'linear-gradient(180deg, #F4EFE6 0%, #FAF8F5 200px, #FAF8F5 100%)' }}>
 
           <div className="relative z-[1]">
+            <AutopartsWatermark />
 
             {/* ── Topbar ──────────────────────────────────────────────────── */}
             <div className="flex items-center justify-between mb-9">
@@ -728,7 +735,7 @@ export function CajaDiariaPage() {
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-8 mb-7 md:mb-10">
               <div>
                 <h1 className="font-serif text-[44px] md:text-[72px] leading-[0.95] tracking-[-0.025em] m-0 mb-2.5 text-ink">
-                  Caja diaria<em className="italic text-terra">.</em>
+                  Resumen de cierre<em className="italic text-terra">.</em>
                 </h1>
                 <p className="text-base text-muted max-w-[520px]">
                   Gestión de efectivo y movimientos de caja — registra ingresos, egresos y cierra tu jornada.
@@ -751,6 +758,7 @@ export function CajaDiariaPage() {
            style={{ background: 'linear-gradient(180deg, #F4EFE6 0%, #FAF8F5 200px, #FAF8F5 100%)' }}>
 
         <div className="relative z-[1]">
+          <AutopartsWatermark />
 
           {/* ── Topbar ──────────────────────────────────────────────────── */}
           <div className="flex items-center justify-between mb-9">
