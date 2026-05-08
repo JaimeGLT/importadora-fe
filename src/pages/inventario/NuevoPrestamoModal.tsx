@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import Select, { type SingleValue, type GroupBase } from 'react-select'
 import { Modal, Button, Input } from '@/components/ui'
 import type { Producto, ItemPrestamo } from '@/types'
@@ -258,8 +258,8 @@ export function NuevoPrestamoModal({ open, onClose, onSave, productos }: NuevoPr
               const selectedOption = productOptions.find((o) => o.value === item.producto_id) ?? null
 
               return (
-                <>
-                <div key={index} className="flex items-center gap-2">
+                <React.Fragment key={item.producto_id || index}>
+                <div className="flex items-center gap-2">
                   <div className="flex-1">
                     <Select<ProductOption, false, GroupBase<ProductOption>>
                       options={productOptions}
@@ -322,7 +322,7 @@ export function NuevoPrestamoModal({ open, onClose, onSave, productos }: NuevoPr
                     Stock: <span className={clsx(p.stock <= p.stock_minimo ? 'text-amber-600' : 'text-emerald-600', 'font-semibold')}>{p.stock}</span>
                   </p>
                 )}
-                </>
+                </React.Fragment>
               )
             })}
           </div>

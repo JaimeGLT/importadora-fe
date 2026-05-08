@@ -109,6 +109,65 @@ const groups: NavGroup[] = [
   },
 ]
 
+function SidebarWatermark() {
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-none"
+         style={{ opacity: 0.04, mixBlendMode: 'multiply' }}>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 248 900" preserveAspectRatio="xMidYMax meet"
+           style={{ width: '100%', height: '100%', display: 'block' }}>
+        <g fill="#241E18">
+          {/* Gear top-right */}
+          <g transform="translate(148,80) rotate(15)">
+            <circle cx="50" cy="50" r="38"/>
+            <rect x="47" y="0" width="6" height="14"/>
+            <rect x="47" y="86" width="6" height="14"/>
+            <rect x="0" y="47" width="14" height="6"/>
+            <rect x="86" y="47" width="14" height="6"/>
+            <rect x="20" y="9" width="6" height="14" transform="rotate(-45 23 16)"/>
+            <rect x="74" y="9" width="6" height="14" transform="rotate(45 77 16)"/>
+            <rect x="20" y="77" width="6" height="14" transform="rotate(45 23 84)"/>
+            <rect x="74" y="77" width="6" height="14" transform="rotate(-45 77 84)"/>
+            <circle cx="50" cy="50" r="20" fill="#FAF8F5"/>
+            <circle cx="50" cy="50" r="6"/>
+          </g>
+          {/* Wheel center */}
+          <g transform="translate(14,320)">
+            <circle cx="52" cy="52" r="50"/>
+            <circle cx="52" cy="52" r="32" fill="#FAF8F5"/>
+            <circle cx="52" cy="52" r="9"/>
+            <circle cx="52" cy="10" r="4" fill="#FAF8F5"/>
+            <circle cx="52" cy="94" r="4" fill="#FAF8F5"/>
+            <circle cx="10" cy="52" r="4" fill="#FAF8F5"/>
+            <circle cx="94" cy="52" r="4" fill="#FAF8F5"/>
+            <circle cx="80" cy="24" r="4" fill="#FAF8F5"/>
+            <circle cx="24" cy="80" r="4" fill="#FAF8F5"/>
+            <circle cx="24" cy="24" r="4" fill="#FAF8F5"/>
+            <circle cx="80" cy="80" r="4" fill="#FAF8F5"/>
+          </g>
+          {/* Hex bolt */}
+          <g transform="translate(172,490) rotate(-20)">
+            <path d="M30 2 L56 16 L56 44 L30 58 L4 44 L4 16 Z"/>
+            <circle cx="30" cy="30" r="9" fill="#FAF8F5"/>
+          </g>
+          {/* Cone */}
+          <g transform="translate(28,620) rotate(10)">
+            <rect x="0" y="0" width="12" height="8"/>
+            <path d="M2 8 L10 8 L6 60 Z"/>
+          </g>
+          {/* Small bolt */}
+          <g transform="translate(168,710) rotate(40)">
+            <rect x="6" y="0" width="9" height="8"/>
+            <rect x="1" y="8" width="18" height="6"/>
+            <rect x="3" y="14" width="15" height="24"/>
+            <path d="M3 38 L18 38 L16 66 L5 66 Z"/>
+            <rect x="7" y="66" width="7" height="16"/>
+          </g>
+        </g>
+      </svg>
+    </div>
+  )
+}
+
 interface SidebarProps {
   open: boolean
   onClose: () => void
@@ -146,9 +205,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       'flex flex-col w-[248px] shrink-0',
       'bg-[#F0EDE8] border-r border-[#E1DBCF]',
       'fixed inset-y-0 left-0 z-50 h-full transition-transform duration-300 ease-in-out',
-      'md:relative md:translate-x-0 md:h-screen md:sticky md:top-1',
+      'md:sticky md:top-1 md:translate-x-0 md:h-screen',
       open ? 'translate-x-0' : '-translate-x-full',
     )}>
+      <SidebarWatermark />
+
+      <div className="relative z-[1] flex flex-col flex-1 min-h-0">
 
       {/* Brand */}
       <div className="px-[18px] pt-8 pb-5 border-b border-hair">
@@ -387,6 +449,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           </button>
         </div>
       </div>
+
+      </div>{/* end z-[1] wrapper */}
     </aside>
   )
 }

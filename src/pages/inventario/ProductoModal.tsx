@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Input } from '@/components/ui'
+import { Button, WarmInput, DrawerWrapper, FormSection } from '@/components/ui'
 import type { Producto, HistorialPrecio } from '@/types'
 import { useConfigStore, calcularPrecioConDescuento } from '@/stores/configStore'
 import { useInventarioStore } from '@/stores/inventarioStore'
@@ -43,85 +43,67 @@ const EMPTY: FormData = {
   cantidad_por_kit: 1,
 }
 
-// ─── Drawer wrapper ───────────────────────────────────────────────────────────
-
-function DrawerWrapper({ open, onClose, subtitle, title, sku, children, footer }: {
-  open: boolean
-  onClose: () => void
-  subtitle: string
-  title: string
-  sku?: string
-  children: React.ReactNode
-  footer: React.ReactNode
-}) {
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [open, onClose])
-
-  return (
-    <>
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 z-50 transition-opacity duration-200"
-        style={{
-          background: 'rgba(36,30,24,0.35)',
-          backdropFilter: 'blur(4px)',
-          opacity: open ? 1 : 0,
-          pointerEvents: open ? 'auto' : 'none',
-        }}
-        onClick={onClose}
-      />
-      {/* Drawer */}
-      <aside
-        className="fixed top-0 right-0 bottom-0 w-[520px] bg-white border-l border-[#E8E1D6] z-[60] flex flex-col"
-        style={{
-          transform: open ? 'translateX(0)' : 'translateX(100%)',
-          transition: 'transform 280ms cubic-bezier(0.32, 0.72, 0.2, 1)',
-          boxShadow: '-24px 0 40px -20px rgba(36,30,24,0.2)',
-        }}
-      >
-        {/* Head */}
-        <div className="px-8 pt-7 pb-[22px] border-b border-[#E8E1D6] flex items-start justify-between gap-3 shrink-0">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.1em] text-[#7A6E62] mb-1.5">{subtitle}</div>
-            <h2 className="font-serif text-[36px] leading-[1.05] tracking-[-0.02em] m-0 mb-1 text-[#241E18]">{title}</h2>
-            {sku && (
-              <div className="font-mono text-[13.5px] font-semibold tracking-[0.04em] text-[#241E18]">{sku}</div>
-            )}
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-[#7A6E62] hover:text-[#241E18] hover:bg-[#E8E1D6] transition-colors shrink-0 mt-1"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18 6 6 18M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto p-8">
-          {children}
-        </div>
-        {/* Footer */}
-        <div className="px-8 py-[18px] border-t border-[#E8E1D6] bg-[#FAF8F5] flex justify-end gap-2.5 shrink-0">
-          {footer}
-        </div>
-      </aside>
-    </>
-  )
-}
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function SkeletonField({ labelWidth = 24 }: { labelWidth?: number }) {
   return (
-    <div className="space-y-1.5">
-      <div className="h-3 w-16 rounded bg-steel-100 animate-pulse" style={{ width: `${labelWidth}%` }} />
-      <div className="h-10 w-full rounded-xl bg-steel-100 animate-pulse" />
+    <div className="flex flex-col gap-1.5">
+      <div className="h-2.5 rounded bg-cream-2 animate-pulse" style={{ width: `${labelWidth}%` }} />
+      <div className="h-[42px] w-full rounded-[10px] bg-cream-2 animate-pulse" />
     </div>
   )
 }
+
+// ─── Precios especiales ───────────────────────────────────────────────────────
+
+const COLOR_STYLES: Record<string, { bg: string; text: string; border: string }> = {
+  emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+  blue:    { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200' },
+  amber:   { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200' },
+  purple:  { bg: 'bg-purple-50',  text: 'text-purple-700',  border: 'border-purple-200' },
+  rose:    { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200' },
+  cyan:    { bg: 'bg-cyan-50',    text: 'text-cyan-700',    border: 'border-cyan-200' },
+}
+
+function PreciosEspecialesSection({ precioVenta }: { precioVenta: number }) {
+  const { descuentos } = useConfigStore()
+  const descuentosActivos = descuentos.filter((d) => d.activo)
+  if (descuentosActivos.length === 0 || precioVenta <= 0) return null
+
+  return (
+    <section className="rounded-[14px] border border-hair overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-3.5 bg-gradient-to-b from-cream-2/90 to-cream/50 border-b border-hair">
+        <div className="flex items-center justify-center w-[30px] h-[30px] rounded-[8px] bg-white border border-hair text-ink-2 shadow-sm flex-shrink-0">
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[12.5px] font-semibold text-ink-2">Precios especiales</p>
+          <p className="text-[11px] text-muted-2 leading-tight">Descuentos automáticos configurados</p>
+        </div>
+      </div>
+      <div className="p-5 bg-white">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {descuentosActivos.map((d) => {
+            const styles = COLOR_STYLES[d.color] || COLOR_STYLES.emerald
+            const precioFinal = calcularPrecioConDescuento(precioVenta, d.porcentaje)
+            return (
+              <div key={d.id} className={clsx('px-3 py-2.5 rounded-[10px] border', styles.bg, styles.border)}>
+                <p className={clsx('text-[10px] font-semibold uppercase tracking-wide', styles.text)}>{d.nombre}</p>
+                <p className="text-[11px] text-muted-2 line-through mt-0.5">Bs {precioVenta.toFixed(2)}</p>
+                <p className={clsx('text-sm font-bold', styles.text)}>Bs {precioFinal.toFixed(2)}</p>
+                <p className="text-[10px] text-muted-2">-{d.porcentaje}%</p>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export function ProductoModal({
   open, onClose, onSave, producto, loading, productosExistentes = [],
@@ -203,7 +185,7 @@ export function ProductoModal({
     }
     if (!form.nombre.trim()) {
       e.nombre = 'El nombre del producto es obligatorio'
-    } 
+    }
     if (!producto && form.precio_costo <= 0) {
       e.precio_costo = 'El precio costo debe ser mayor a 0'
     }
@@ -267,15 +249,21 @@ export function ProductoModal({
       sku={producto?.codigo_universal}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button onClick={() => void handleSave()} loading={saving}>
+          <Button variant="secondary"
+            className="h-[42px] px-5 rounded-[10px] !border-hair !text-ink-2 !bg-white hover:!bg-cream-2 hover:!border-hair-2 !text-[13.5px] !font-medium"
+            onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button
+            className="h-[42px] px-5 rounded-[10px] !bg-terra hover:!bg-terra-deep !text-white !text-[13.5px] !font-semibold"
+            onClick={() => void handleSave()} loading={saving}>
             {producto ? 'Guardar cambios' : 'Crear producto'}
           </Button>
         </>
       }
     >
       {isLoading ? (
-        <div className="space-y-4 px-1">
+        <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <SkeletonField labelWidth={30} />
             <SkeletonField labelWidth={50} />
@@ -300,13 +288,11 @@ export function ProductoModal({
         </div>
       ) : (
         <div className="space-y-4">
-          <FormSection
-            icon={<IconBarcode />}
-            title="Identificación"
-            description="Códigos únicos que identifican el producto"
-          >
+
+          {/* Identificación */}
+          <FormSection icon={<IconBarcode />} title="Identificación" description="Códigos únicos que identifican el producto">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input
+              <WarmInput
                 label="Código universal *"
                 value={form.codigo_universal}
                 onChange={(e) => set('codigo_universal', e.target.value)}
@@ -314,8 +300,8 @@ export function ProductoModal({
                 placeholder="MOT-0011"
                 hint="Código principal — usado en búsquedas y etiquetas"
               />
-              <Input
-                label="Nombre del producto"
+              <WarmInput
+                label="Nombre del producto *"
                 value={form.nombre}
                 onChange={(e) => set('nombre', e.target.value)}
                 error={errors.nombre}
@@ -323,14 +309,14 @@ export function ProductoModal({
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-              <Input
+              <WarmInput
                 label="Código alternativo 1"
                 value={form.codigos_alternativos[0] ?? ''}
                 onChange={(e) => setAltCode(0, e.target.value)}
                 placeholder="Ej. código del proveedor"
                 hint="Opcional — también busca por este código"
               />
-              <Input
+              <WarmInput
                 label="Código alternativo 2"
                 value={form.codigos_alternativos[1] ?? ''}
                 onChange={(e) => setAltCode(1, e.target.value)}
@@ -340,20 +326,17 @@ export function ProductoModal({
             </div>
           </FormSection>
 
-          <FormSection
-            icon={<IconClipboard />}
-            title="Descripción"
-            description="Marca y detalle del producto"
-          >
+          {/* Descripción */}
+          <FormSection icon={<IconClipboard />} title="Descripción" description="Marca y detalle del producto">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input
+              <WarmInput
                 label="Marca"
                 value={form.marca}
                 onChange={(e) => set('marca', e.target.value)}
                 error={errors.marca}
                 placeholder="Bosch / NGK / OEM…"
               />
-              <Input
+              <WarmInput
                 label="Descripción adicional"
                 value={form.descripcion}
                 onChange={(e) => set('descripcion', e.target.value)}
@@ -362,31 +345,28 @@ export function ProductoModal({
             </div>
           </FormSection>
 
-          <FormSection
-            icon={<IconBox />}
-            title="Stock y almacén"
-            description="Cantidades, unidad de medida y ubicación física"
-          >
+          {/* Stock y almacén */}
+          <FormSection icon={<IconBox />} title="Stock y almacén" description="Cantidades, unidad de medida y ubicación física">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <Input
+              <WarmInput
                 label="Almacén"
                 value={form.almacen}
                 onChange={(e) => set('almacen', e.target.value)}
                 placeholder="Almacén Central"
               />
-              <Input
+              <WarmInput
                 label="Estante"
                 value={form.estante}
                 onChange={(e) => set('estante', e.target.value)}
                 placeholder="A"
               />
-              <Input
+              <WarmInput
                 label="Fila"
                 value={form.fila}
                 onChange={(e) => set('fila', e.target.value)}
                 placeholder="1"
               />
-              <Input
+              <WarmInput
                 label="Columna"
                 value={form.columna}
                 onChange={(e) => set('columna', e.target.value)}
@@ -394,20 +374,20 @@ export function ProductoModal({
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
-              <Input
+              <WarmInput
                 label="Stock actual *"
                 type="number"
                 value={form.stock}
                 onChange={(e) => set('stock', Number(e.target.value))}
               />
-              <Input
+              <WarmInput
                 label="Stock mínimo"
                 type="number"
                 value={form.stock_minimo}
                 onChange={(e) => set('stock_minimo', Number(e.target.value))}
                 hint="Se activa alerta de reposición al llegar a este nivel"
               />
-              <Input
+              <WarmInput
                 label="Piezas"
                 type="number"
                 value={form.piezas}
@@ -417,23 +397,19 @@ export function ProductoModal({
             </div>
           </FormSection>
 
-          <FormSection
-            icon={<IconKit />}
-            title="Kit / Conjunto"
-            description="Relacionar producto como kit o como parte de un kit"
-          >
+          {/* Kit */}
+          <FormSection icon={<IconKit />} title="Kit / Conjunto" description="Relacionar producto como kit o como parte de un kit">
             <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={form.es_kit}
-                    onChange={(e) => set('es_kit', e.target.checked)}
-                    className="h-4 w-4 rounded border-steel-300 text-brand-600 focus:ring-brand-500"
-                  />
-                  <span className="text-xs font-semibold text-steel-700">Este producto es un kit</span>
-                </label>
-              </div>
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.es_kit}
+                  onChange={(e) => set('es_kit', e.target.checked)}
+                  className="h-4 w-4 rounded-[4px] border-hair"
+                  style={{ accentColor: '#B22234' }}
+                />
+                <span className="text-[13px] font-semibold text-ink-2">Este producto es un kit</span>
+              </label>
 
               {form.es_kit && (
                 <KitPartsSection
@@ -444,22 +420,20 @@ export function ProductoModal({
               )}
 
               {!form.es_kit && producto && (
-                <div className="p-3 rounded-lg bg-steel-50 border border-steel-100">
-                  <p className="text-xs text-steel-500">
-                    Este producto es parte del kit: <span className="font-semibold text-steel-700">{getKitNombre(producto.kit_id)}</span>
+                <div className="p-3.5 rounded-[10px] bg-cream-2 border border-hair">
+                  <p className="text-[12px] text-muted-2">
+                    Este producto es parte del kit:{' '}
+                    <span className="font-semibold text-ink-2">{getKitNombre(producto.kit_id)}</span>
                   </p>
                 </div>
               )}
             </div>
           </FormSection>
 
-          <FormSection
-            icon={<IconCurrency />}
-            title="Precios"
-            description="Costos, precio de venta y tipo de cambio"
-          >
+          {/* Precios */}
+          <FormSection icon={<IconCurrency />} title="Precios" description="Costos, precio de venta y tipo de cambio">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Input
+              <WarmInput
                 label="Precio costo (Bs) *"
                 type="number"
                 step="0.01"
@@ -468,7 +442,7 @@ export function ProductoModal({
                 error={errors.precio_costo}
                 readOnly={!!producto}
               />
-              <Input
+              <WarmInput
                 label="Precio venta (Bs)"
                 type="number"
                 step="0.01"
@@ -477,85 +451,86 @@ export function ProductoModal({
                 error={errors.precio_venta}
                 readOnly={!!producto}
               />
-              <Input
+              <WarmInput
                 label="Tipo de cambio (Bs/$)"
                 type="number"
                 step="0.01"
                 value={tipoCambio}
-                onChange={(e) => { setTipoCambio(e.target.value); set('conversionABs', parseFloat(e.target.value) || 6.96); setErrors((er) => ({ ...er, tipo_cambio: undefined })) }}
+                onChange={(e) => {
+                  setTipoCambio(e.target.value)
+                  set('conversionABs', parseFloat(e.target.value) || 6.96)
+                  setErrors((er) => ({ ...er, tipo_cambio: undefined }))
+                }}
                 error={errors.tipo_cambio}
                 hint="Se guarda en el historial de precios"
                 readOnly={!!producto}
               />
             </div>
             {margen !== null && (
-              <div className="mt-3 flex items-center gap-2">
-                <div className="flex items-center gap-1.5 rounded-full bg-green-50 border border-green-100 px-3 py-1">
-                  <svg className="h-3.5 w-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="mt-3.5 flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 rounded-full bg-[#D1FAE5] border border-[rgba(4,120,87,0.25)] px-3 py-1">
+                  <svg className="h-3.5 w-3.5 text-[#047857]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                   </svg>
-                  <span className="text-xs font-semibold text-green-700">Margen {margen}%</span>
+                  <span className="text-xs font-semibold text-[#047857]">Margen {margen}%</span>
                 </div>
-                <div className="flex items-center gap-1.5 rounded-full bg-steel-50 border border-steel-100 px-3 py-1">
-                  <span className="text-xs text-steel-500">Ganancia</span>
-                  <span className="text-xs font-semibold text-steel-700">Bs {ganancia}</span>
+                <div className="flex items-center gap-1.5 rounded-full bg-cream-2 border border-hair px-3 py-1">
+                  <span className="text-xs text-muted">Ganancia</span>
+                  <span className="text-xs font-semibold text-ink-2">Bs {ganancia}</span>
                 </div>
               </div>
             )}
           </FormSection>
 
+          {/* Actualizar precios (solo edición) */}
           {producto && (
-            <div className="rounded-xl border-2 border-dashed border-amber-300 bg-amber-50/50 overflow-hidden">
-              <div className="px-4 py-3 flex items-center gap-3">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
+            <div className="rounded-[14px] border-2 border-dashed border-amber-300 bg-amber-50/50 overflow-hidden">
+              <div className="px-5 py-3.5 flex items-center gap-3">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={actualizarPrecio}
                     onChange={(e) => setActualizarPrecio(e.target.checked)}
-                    className="h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                    className="h-4 w-4 rounded-[4px] border-amber-400"
+                    style={{ accentColor: '#B45309' }}
                   />
-                  <span className="text-xs font-bold text-amber-800">Actualizar precios</span>
+                  <span className="text-[12.5px] font-bold text-amber-800">Actualizar precios</span>
                 </label>
-                <span className="text-[10px] text-amber-600">
-                  Los precios actuales pasarán al historial
-                </span>
+                <span className="text-[11px] text-amber-600">Los precios actuales pasarán al historial</span>
               </div>
               {actualizarPrecio && (
-                <div className="px-4 pb-4 bg-white border-t border-amber-200">
-                  <div className="pt-3 text-[11px] text-amber-700 bg-amber-100/50 rounded-lg px-3 py-2 mb-3">
+                <div className="px-5 pb-5 bg-white border-t border-amber-200">
+                  <div className="pt-3.5 text-[11px] text-amber-700 bg-amber-100/50 rounded-[10px] px-3.5 py-2.5 mb-3.5">
                     <strong>Precio actual:</strong> Costo Bs {form.precio_costo.toFixed(2)} · Venta Bs {form.precio_venta.toFixed(2)} · T.C. {(parseFloat(tipoCambio) || 6.96).toFixed(2)}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <Input
+                    <WarmInput
                       label="Nuevo costo (Bs)"
                       type="number"
                       step="0.01"
                       value={nuevoCosto}
                       onChange={(e) => setNuevoCosto(e.target.value)}
                       placeholder={form.precio_costo.toFixed(2)}
-                      hint="Costo nuevo"
                     />
-                    <Input
+                    <WarmInput
                       label="Nueva venta (Bs)"
                       type="number"
                       step="0.01"
                       value={nuevoVenta}
                       onChange={(e) => setNuevoVenta(e.target.value)}
                       placeholder={form.precio_venta.toFixed(2)}
-                      hint="Precio nuevo"
                     />
-                    <Input
+                    <WarmInput
                       label="Nuevo T.C. (Bs/$)"
                       type="number"
                       step="0.01"
                       value={nuevoTipoCambio}
                       onChange={(e) => setNuevoTipoCambio(e.target.value)}
                       placeholder={tipoCambio}
-                      hint="Tipo de cambio nuevo"
                     />
                   </div>
                   <div className="mt-3">
-                    <Input
+                    <WarmInput
                       label="Nota (opcional)"
                       value={nuevoNota}
                       onChange={(e) => setNuevoNota(e.target.value)}
@@ -582,6 +557,7 @@ export function ProductoModal({
 
           <PreciosEspecialesSection precioVenta={form.precio_venta} />
 
+          {/* Historial de precios */}
           {form.historial_precios.length > 0 && (
             <FormSection
               icon={<IconHistory />}
@@ -591,27 +567,27 @@ export function ProductoModal({
               open={historialOpen}
               onToggle={() => setHistorialOpen((v) => !v)}
             >
-              <div className="overflow-x-auto -mx-4 -mb-4">
+              <div className="overflow-x-auto -mx-5 -mb-5">
                 <table className="w-full text-xs min-w-[400px]">
-                  <thead className="bg-steel-50/60 border-b border-steel-100">
-                    <tr>
-                      <th className="px-4 py-2 text-left font-medium text-steel-500">Fecha</th>
-                      <th className="px-4 py-2 text-right font-medium text-steel-500">Costo (Bs)</th>
-                      <th className="px-4 py-2 text-right font-medium text-steel-500">Venta (Bs)</th>
-                      <th className="px-4 py-2 text-right font-medium text-steel-500">T.C. Bs/$</th>
-                      <th className="px-4 py-2 text-left font-medium text-steel-500">Nota</th>
+                  <thead className="border-b border-hair">
+                    <tr style={{ background: 'rgba(240,237,232,0.7)' }}>
+                      <th className="px-4 py-2.5 text-left text-[10.5px] font-semibold text-muted uppercase tracking-[0.06em]">Fecha</th>
+                      <th className="px-4 py-2.5 text-right text-[10.5px] font-semibold text-muted uppercase tracking-[0.06em]">Costo (Bs)</th>
+                      <th className="px-4 py-2.5 text-right text-[10.5px] font-semibold text-muted uppercase tracking-[0.06em]">Venta (Bs)</th>
+                      <th className="px-4 py-2.5 text-right text-[10.5px] font-semibold text-muted uppercase tracking-[0.06em]">T.C.</th>
+                      <th className="px-4 py-2.5 text-left text-[10.5px] font-semibold text-muted uppercase tracking-[0.06em]">Nota</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-steel-50">
+                  <tbody className="divide-y divide-hair/50">
                     {[...form.historial_precios].reverse().map((h, i) => (
-                      <tr key={i} className={i === 0 ? 'bg-brand-50/40' : 'bg-white'}>
-                        <td className="px-4 py-2.5 text-steel-600 whitespace-nowrap">
+                      <tr key={i} style={{ background: i === 0 ? 'rgba(245,220,223,0.2)' : 'white' }}>
+                        <td className="px-4 py-2.5 text-ink-2 whitespace-nowrap">
                           {new Date(h.fecha).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </td>
-                        <td className="px-4 py-2.5 text-right text-steel-700 tabular-nums">{h.precio_costo.toFixed(2)}</td>
-                        <td className="px-4 py-2.5 text-right font-medium text-steel-900 tabular-nums">{h.precio_venta.toFixed(2)}</td>
-                        <td className="px-4 py-2.5 text-right text-steel-500 tabular-nums">{h.tipo_cambio.toFixed(2)}</td>
-                        <td className="px-4 py-2.5 text-steel-400">{h.nota ?? '—'}</td>
+                        <td className="px-4 py-2.5 text-right text-muted tabular-nums">{h.precio_costo.toFixed(2)}</td>
+                        <td className="px-4 py-2.5 text-right font-semibold text-ink tabular-nums">{h.precio_venta.toFixed(2)}</td>
+                        <td className="px-4 py-2.5 text-right text-muted-2 tabular-nums">{h.tipo_cambio.toFixed(2)}</td>
+                        <td className="px-4 py-2.5 text-muted-2">{h.nota ?? '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -622,117 +598,6 @@ export function ProductoModal({
         </div>
       )}
     </DrawerWrapper>
-  )
-}
-
-/* ── Componente de sección ── */
-
-const COLOR_STYLES: Record<string, { bg: string; text: string; border: string }> = {
-  emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-  blue:    { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200' },
-  amber:   { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200' },
-  purple:  { bg: 'bg-purple-50',  text: 'text-purple-700',  border: 'border-purple-200' },
-  rose:    { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200' },
-  cyan:    { bg: 'bg-cyan-50',    text: 'text-cyan-700',    border: 'border-cyan-200' },
-}
-
-function PreciosEspecialesSection({ precioVenta }: { precioVenta: number }) {
-  const { descuentos } = useConfigStore()
-  const descuentosActivos = descuentos.filter((d) => d.activo)
-
-  if (descuentosActivos.length === 0 || precioVenta <= 0) return null
-
-  return (
-    <section className="rounded-xl border border-steel-100 overflow-hidden">
-      <div className="flex items-center gap-3 px-4 py-3 bg-steel-50/70 border-b border-steel-100">
-        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-white border border-steel-100 text-steel-500 shadow-sm flex-shrink-0">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-steel-700">Precios especiales</p>
-          <p className="text-[11px] text-steel-400 leading-tight">Descuentos automáticos</p>
-        </div>
-      </div>
-      <div className="p-4 bg-white">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {descuentosActivos.map((d) => {
-            const styles = COLOR_STYLES[d.color] || COLOR_STYLES.emerald
-            const precioFinal = calcularPrecioConDescuento(precioVenta, d.porcentaje)
-            return (
-              <div
-                key={d.id}
-                className={clsx('px-3 py-2 rounded-lg border', styles.bg, styles.border)}
-              >
-                <p className={clsx('text-[10px] font-semibold uppercase', styles.text)}>
-                  {d.nombre}
-                </p>
-                <p className="text-xs text-steel-500 line-through">Bs {precioVenta.toFixed(2)}</p>
-                <p className={clsx('text-sm font-bold', styles.text)}>
-                  Bs {precioFinal.toFixed(2)}
-                </p>
-                <p className="text-[10px] text-steel-500">-{d.porcentaje}%</p>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function FormSection({
-  icon,
-  title,
-  description,
-  children,
-  collapsible,
-  open,
-  onToggle,
-}: {
-  icon: React.ReactNode
-  title: string
-  description?: string
-  children: React.ReactNode
-  collapsible?: boolean
-  open?: boolean
-  onToggle?: () => void
-}) {
-  const isOpen = !collapsible || open
-
-  return (
-    <section className="rounded-xl border border-steel-100 overflow-hidden">
-      <div
-        className={clsx(
-          'flex items-center gap-3 px-4 py-3 bg-steel-50/70 border-b border-steel-100',
-          collapsible && 'cursor-pointer select-none hover:bg-steel-100/70 transition-colors',
-          collapsible && !isOpen && 'border-b-0',
-        )}
-        onClick={collapsible ? onToggle : undefined}
-      >
-        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-white border border-steel-100 text-steel-500 shadow-sm flex-shrink-0">
-          {icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-steel-700">{title}</p>
-          {description && <p className="text-[11px] text-steel-400 leading-tight">{description}</p>}
-        </div>
-        {collapsible && (
-          <svg
-            className={clsx('h-4 w-4 text-steel-400 transition-transform flex-shrink-0', isOpen && 'rotate-90')}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        )}
-      </div>
-      {isOpen && (
-        <div className="p-4 bg-white">
-          {children}
-        </div>
-      )}
-    </section>
   )
 }
 
@@ -747,10 +612,7 @@ function KitPartsSection({ productoId, kitId, productos }: { productoId?: string
   const [newCodigo, setNewCodigo] = useState('')
   const [editingParte, setEditingParte] = useState<{ id: string; nombre: string; codigo: string; cantidad: number } | null>(null)
 
-  const relaciones = kitId
-    ? kitRelaciones.filter(r => r.kit_id === kitId)
-    : []
-
+  const relaciones = kitId ? kitRelaciones.filter(r => r.kit_id === kitId) : []
   const partesDelKit = relaciones.map(r => {
     const prod = productos.find(p => p.id === r.producto_id)
     return { ...r, producto: prod }
@@ -759,24 +621,18 @@ function KitPartsSection({ productoId, kitId, productos }: { productoId?: string
   const productosDisponibles = productos.filter(p => {
     if (p.id === productoId) return false
     if (p.es_kit) return false
-    const yaEsParte = relaciones.some(r => r.producto_id === p.id)
-    if (yaEsParte) return false
+    if (relaciones.some(r => r.producto_id === p.id)) return false
     if (!search.trim()) return false
-    const matchSearch = p.nombre.toLowerCase().includes(search.toLowerCase()) ||
+    return p.nombre.toLowerCase().includes(search.toLowerCase()) ||
       p.codigo_universal.toLowerCase().includes(search.toLowerCase())
-    return matchSearch
   })
 
   const handleAddFromSearch = (originalProducto: Producto) => {
     if (!kitId) return
-    const existe = relaciones.some(r => r.producto_id === originalProducto.id)
-    if (existe) return
+    if (relaciones.some(r => r.producto_id === originalProducto.id)) return
     const nuevoProducto: Producto = {
-      ...originalProducto,
-      id: crypto.randomUUID(),
-      stock: 0,
-      kit_id: kitId,
-      cantidad_por_kit: 1,
+      ...originalProducto, id: crypto.randomUUID(),
+      stock: 0, kit_id: kitId, cantidad_por_kit: 1,
     }
     addProducto(nuevoProducto)
     addKitRelacion({ kit_id: kitId, producto_id: nuevoProducto.id, cantidad: 1 })
@@ -789,31 +645,13 @@ function KitPartsSection({ productoId, kitId, productos }: { productoId?: string
     const id = crypto.randomUUID()
     const codigoFinal = newCodigo.trim() || `AUTO-${Date.now()}`
     const nuevoProducto: Producto = {
-      id,
-      codigo_universal: codigoFinal,
-      codigos_alternativos: [],
-      nombre: newNombre.trim(),
-      descripcion: '',
-      categoria: 'Otro',
-      marca: '',
-      vehiculo: '',
-      unidad: 'pieza',
-      stock: 0,
-      stock_minimo: 5,
-      piezas: 1,
-      precio_costo: 0,
-      precio_venta: 0,
-      historial_precios: [],
-      almacen: 'Almacén Central',
-      estante: '',
-      fila: '',
-      columna: '',
-      estado: 'activo',
-      proveedor_id: '',
-      es_kit: false,
-      kit_id: kitId,
-      cantidad_por_kit: 1,
-      creado_en: new Date().toISOString(),
+      id, codigo_universal: codigoFinal, codigos_alternativos: [],
+      nombre: newNombre.trim(), descripcion: '', categoria: 'Otro',
+      marca: '', vehiculo: '', unidad: 'pieza', stock: 0, stock_minimo: 5,
+      piezas: 1, precio_costo: 0, precio_venta: 0, historial_precios: [],
+      almacen: 'Almacén Central', estante: '', fila: '', columna: '',
+      estado: 'activo', proveedor_id: '', es_kit: false, kit_id: kitId,
+      cantidad_por_kit: 1, creado_en: new Date().toISOString(),
       actualizado_en: new Date().toISOString(),
     }
     addProducto(nuevoProducto)
@@ -824,24 +662,18 @@ function KitPartsSection({ productoId, kitId, productos }: { productoId?: string
     setSearchOpen(false)
   }
 
-  const handleRemoveParte = (parteId: string) => {
-    if (!kitId) return
-    removeKitRelacion(kitId, parteId)
-  }
-
+  const handleRemoveParte = (parteId: string) => { if (kitId) removeKitRelacion(kitId, parteId) }
   const handleUpdateCantidad = (parteId: string, cantidad: number) => {
     if (!kitId) return
     removeKitRelacion(kitId, parteId)
     addKitRelacion({ kit_id: kitId, producto_id: parteId, cantidad: Math.max(1, cantidad) })
   }
-
   const handleSaveEdit = () => {
     if (!editingParte || !kitId) return
     const parte = productos.find(p => p.id === editingParte.id)
     if (parte) {
       updateProducto({
-        ...parte,
-        nombre: editingParte.nombre,
+        ...parte, nombre: editingParte.nombre,
         codigo_universal: editingParte.codigo,
         cantidad_por_kit: editingParte.cantidad,
         actualizado_en: new Date().toISOString(),
@@ -850,7 +682,6 @@ function KitPartsSection({ productoId, kitId, productos }: { productoId?: string
     }
     setEditingParte(null)
   }
-
   const openEdit = (parte: typeof partesDelKit[0]) => {
     setEditingParte({
       id: parte.producto_id,
@@ -863,8 +694,10 @@ function KitPartsSection({ productoId, kitId, productos }: { productoId?: string
   if (relaciones.length === 0 && !searchOpen) {
     return (
       <div className="text-center py-4">
-        <p className="text-xs text-steel-400 mb-3">Este kit aún no tiene partes definidas</p>
-        <Button size="sm" variant="secondary" onClick={() => setSearchOpen(true)}>
+        <p className="text-[12px] text-muted-2 mb-3">Este kit aún no tiene partes definidas</p>
+        <Button size="sm" variant="secondary"
+          className="rounded-[8px] !border-hair !text-ink-2 !bg-paper hover:!bg-cream-2"
+          onClick={() => setSearchOpen(true)}>
           Agregar partes al kit
         </Button>
       </div>
@@ -873,41 +706,35 @@ function KitPartsSection({ productoId, kitId, productos }: { productoId?: string
 
   return (
     <div className="space-y-3">
-      <div className="rounded-lg border border-steel-100 divide-y divide-steel-50">
+      <div className="rounded-[10px] border border-hair divide-y divide-hair/50">
         {partesDelKit.map(rel => (
           <div key={rel.producto_id} className="flex items-center gap-3 p-3">
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-steel-700 truncate">
+              <p className="text-[12.5px] font-semibold text-ink-2 truncate">
                 {rel.producto?.nombre ?? 'Producto no encontrado'}
               </p>
-              <p className="text-[10px] text-steel-400">
-                {rel.producto?.codigo_universal ?? '—'}
-              </p>
+              <p className="text-[11px] text-muted-2 font-mono">{rel.producto?.codigo_universal ?? '—'}</p>
             </div>
             <div className="flex items-center gap-2">
-              <Input
+              <input
                 type="number"
                 min={1}
                 value={rel.cantidad}
                 onChange={(e) => handleUpdateCantidad(rel.producto_id, Number(e.target.value))}
-                className="w-16 text-center"
+                className="w-14 h-8 text-center text-[13px] border border-hair rounded-[8px] bg-cream text-ink focus:outline-none focus:border-terra"
               />
-              <span className="text-[10px] text-steel-400">× kit</span>
-              <button
-                onClick={() => openEdit(rel)}
-                className="p-1 rounded text-blue-400 hover:bg-blue-50 hover:text-blue-600"
-                title="Editar"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <span className="text-[11px] text-muted-2">× kit</span>
+              <button onClick={() => openEdit(rel)}
+                className="p-1.5 rounded-[6px] text-muted hover:text-ink hover:bg-cream-2 transition-colors"
+                title="Editar">
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
               </button>
-              <button
-                onClick={() => handleRemoveParte(rel.producto_id)}
-                className="p-1 rounded text-red-400 hover:bg-red-50 hover:text-red-600"
-                title="Eliminar"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <button onClick={() => handleRemoveParte(rel.producto_id)}
+                className="p-1.5 rounded-[6px] text-muted hover:text-terra hover:bg-terra-soft transition-colors"
+                title="Eliminar">
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -917,35 +744,39 @@ function KitPartsSection({ productoId, kitId, productos }: { productoId?: string
       </div>
 
       {editingParte && (
-        <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 space-y-2">
-          <p className="text-xs font-semibold text-blue-700">Editando parte</p>
+        <div className="p-4 rounded-[10px] bg-navy/5 border border-navy/15 space-y-3">
+          <p className="text-[12px] font-semibold text-ink-2">Editando parte</p>
           <div className="grid grid-cols-2 gap-2">
-            <Input
+            <input
               value={editingParte.nombre}
               onChange={(e) => setEditingParte({ ...editingParte, nombre: e.target.value })}
               placeholder="Nombre"
-              className="text-xs"
+              className="h-9 px-3 text-[13px] border border-hair rounded-[8px] bg-cream text-ink focus:outline-none focus:border-terra"
             />
-            <Input
+            <input
               value={editingParte.codigo}
               onChange={(e) => setEditingParte({ ...editingParte, codigo: e.target.value })}
               placeholder="Código"
-              className="text-xs"
+              className="h-9 px-3 text-[13px] border border-hair rounded-[8px] bg-cream text-ink focus:outline-none focus:border-terra"
             />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-blue-600">Cantidad por kit:</span>
-            <Input
+            <span className="text-[12px] text-ink-2">Cantidad por kit:</span>
+            <input
               type="number"
               min={1}
               value={editingParte.cantidad}
               onChange={(e) => setEditingParte({ ...editingParte, cantidad: Math.max(1, Number(e.target.value)) })}
-              className="w-20 text-center text-xs"
+              className="w-20 h-9 text-center text-[13px] border border-hair rounded-[8px] bg-cream text-ink focus:outline-none focus:border-terra"
             />
           </div>
           <div className="flex gap-2 justify-end">
-            <Button size="sm" variant="secondary" onClick={() => setEditingParte(null)}>Cancelar</Button>
-            <Button size="sm" onClick={handleSaveEdit}>Guardar</Button>
+            <Button size="sm" variant="secondary"
+              className="rounded-[8px] !border-hair !text-ink-2 !bg-paper hover:!bg-cream-2"
+              onClick={() => setEditingParte(null)}>Cancelar</Button>
+            <Button size="sm"
+              className="rounded-[8px] !bg-terra hover:!bg-terra-deep !text-white"
+              onClick={handleSaveEdit}>Guardar</Button>
           </div>
         </div>
       )}
@@ -953,25 +784,23 @@ function KitPartsSection({ productoId, kitId, productos }: { productoId?: string
       {searchOpen ? (
         <div className="space-y-2">
           <div className="relative">
-            <Input
+            <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar producto para agregar..."
               autoFocus
+              className="w-full h-[42px] px-3.5 rounded-[10px] border border-hair bg-cream text-[13.5px] text-ink focus:outline-none focus:border-terra placeholder:text-muted-2"
             />
             {search.trim() && productosDisponibles.length === 0 && !creating && (
-              <p className="text-[10px] text-steel-400 mt-1 px-1">No encontrado. Usa el botón de abajo para crear uno nuevo.</p>
+              <p className="text-[11px] text-muted-2 mt-1.5 px-1">No encontrado. Usa el botón de abajo para crear uno nuevo.</p>
             )}
             {productosDisponibles.length > 0 && (
-              <div className="absolute z-10 top-full mt-1 w-full bg-white rounded-xl border border-steel-200 shadow-lg max-h-48 overflow-y-auto">
+              <div className="absolute z-10 top-full mt-1 w-full bg-white rounded-[10px] border border-hair shadow-lg max-h-48 overflow-y-auto">
                 {productosDisponibles.slice(0, 10).map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => handleAddFromSearch(p)}
-                    className="w-full text-left px-3 py-2 hover:bg-steel-50 text-xs"
-                  >
-                    <span className="font-semibold text-steel-700">{p.codigo_universal}</span>
-                    <span className="text-steel-400 ml-2">{p.nombre}</span>
+                  <button key={p.id} onClick={() => handleAddFromSearch(p)}
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-cream-2 text-[12.5px] border-b border-hair/50 last:border-0">
+                    <span className="font-semibold text-ink font-mono">{p.codigo_universal}</span>
+                    <span className="text-muted-2 ml-2">{p.nombre}</span>
                   </button>
                 ))}
               </div>
@@ -979,41 +808,53 @@ function KitPartsSection({ productoId, kitId, productos }: { productoId?: string
           </div>
 
           {creating ? (
-            <div className="space-y-2 p-3 rounded-lg bg-steel-50 border border-steel-100">
-              <p className="text-xs font-semibold text-steel-600">Nueva pieza para el kit</p>
+            <div className="space-y-2.5 p-4 rounded-[10px] bg-cream-2 border border-hair">
+              <p className="text-[12px] font-semibold text-ink-2">Nueva pieza para el kit</p>
               <div className="grid grid-cols-2 gap-2">
-                <Input
+                <input
                   value={newCodigo}
                   onChange={(e) => setNewCodigo(e.target.value)}
                   placeholder="Código (opcional)"
                   autoFocus
+                  className="h-9 px-3 text-[13px] border border-hair rounded-[8px] bg-paper text-ink focus:outline-none focus:border-terra placeholder:text-muted-2"
                 />
-                <Input
+                <input
                   value={newNombre}
                   onChange={(e) => setNewNombre(e.target.value)}
                   placeholder="Nombre *"
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateNew()}
+                  className="h-9 px-3 text-[13px] border border-hair rounded-[8px] bg-paper text-ink focus:outline-none focus:border-terra placeholder:text-muted-2"
                 />
               </div>
               <div className="flex gap-2 justify-end">
-                <Button size="sm" variant="secondary" onClick={() => { setCreating(false); setNewNombre(''); setNewCodigo('') }}>Cancelar</Button>
-                <Button size="sm" onClick={handleCreateNew} disabled={!newNombre.trim()}>Crear</Button>
+                <Button size="sm" variant="secondary"
+                  className="rounded-[8px] !border-hair !text-ink-2 !bg-paper hover:!bg-cream-2"
+                  onClick={() => { setCreating(false); setNewNombre(''); setNewCodigo('') }}>Cancelar</Button>
+                <Button size="sm"
+                  className="rounded-[8px] !bg-terra hover:!bg-terra-deep !text-white"
+                  onClick={handleCreateNew} disabled={!newNombre.trim()}>Crear</Button>
               </div>
             </div>
           ) : (
-            <Button size="sm" variant="secondary" onClick={() => setCreating(true)}>
+            <Button size="sm" variant="secondary"
+              className="rounded-[8px] !border-hair !text-ink-2 !bg-paper hover:!bg-cream-2"
+              onClick={() => setCreating(true)}>
               + Crear pieza nueva
             </Button>
           )}
 
           <div className="flex justify-end mt-2">
-            <Button size="sm" variant="secondary" onClick={() => { setSearchOpen(false); setSearch(''); setCreating(false); setNewNombre(''); setNewCodigo('') }}>
+            <Button size="sm" variant="secondary"
+              className="rounded-[8px] !border-hair !text-ink-2 !bg-paper hover:!bg-cream-2"
+              onClick={() => { setSearchOpen(false); setSearch(''); setCreating(false); setNewNombre(''); setNewCodigo('') }}>
               Cerrar
             </Button>
           </div>
         </div>
       ) : (
-        <Button size="sm" variant="secondary" onClick={() => setSearchOpen(true)}>
+        <Button size="sm" variant="secondary"
+          className="rounded-[8px] !border-hair !text-ink-2 !bg-paper hover:!bg-cream-2"
+          onClick={() => setSearchOpen(true)}>
           + Agregar parte
         </Button>
       )}
@@ -1027,7 +868,7 @@ function getKitNombre(kitId: string | null | undefined): string {
   return productos.find(p => p.id === kitId)?.nombre ?? '—'
 }
 
-/* ── Iconos ── */
+/* ── Icons ── */
 function IconBarcode() {
   return (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1035,7 +876,6 @@ function IconBarcode() {
     </svg>
   )
 }
-
 function IconClipboard() {
   return (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1043,7 +883,6 @@ function IconClipboard() {
     </svg>
   )
 }
-
 function IconBox() {
   return (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1051,7 +890,6 @@ function IconBox() {
     </svg>
   )
 }
-
 function IconCurrency() {
   return (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1059,7 +897,6 @@ function IconCurrency() {
     </svg>
   )
 }
-
 function IconHistory() {
   return (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1067,7 +904,6 @@ function IconHistory() {
     </svg>
   )
 }
-
 function IconKit() {
   return (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

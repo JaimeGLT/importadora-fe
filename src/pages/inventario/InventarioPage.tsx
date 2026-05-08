@@ -11,7 +11,7 @@ import {
   type ColumnMeta,
 } from '@tanstack/react-table'
 import { MainLayout } from '@/components/layout/MainLayout'
-import { ConfirmModal, TablePagination } from '@/components/ui'
+import { ConfirmModal, TablePagination, WarmStockBadge, WarmMetric } from '@/components/ui'
 import type { Producto, ItemPrestamo, Prestamo } from '@/types'
 import { notify } from '@/lib/notify'
 import { ProductoModal } from './ProductoModal'
@@ -117,76 +117,6 @@ function IcoUnits() {
     <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
       <path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
     </svg>
-  )
-}
-
-// ─── Warm metric card ─────────────────────────────────────────────────────────
-
-function WarmMetric({ label, value, unit, icon, sublabel, tone }: {
-  label: string
-  value: string | number
-  unit?: string
-  icon: React.ReactNode
-  sublabel: string
-  tone?: 'warn' | 'crit'
-}) {
-  return (
-    <div className={clsx(
-      'rounded-2xl border border-hair p-7 relative transition-all duration-160 hover:shadow-sm',
-      'bg-white/82',
-      tone === 'crit' && 'border-terra/20',
-      tone === 'warn' && '',
-    )}
-      style={
-        tone === 'crit' ? { background: 'linear-gradient(180deg, #FCEEE8 0%, #FFFDF9 60%)' } :
-        tone === 'warn' ? { background: 'linear-gradient(180deg, #FFF8EE 0%, #FFFDF9 60%)' } :
-        undefined
-      }
-    >
-      <div className="flex items-center justify-between mb-[18px]">
-        <div className="text-[12.5px] text-muted font-medium uppercase tracking-[0.04em]">{label}</div>
-        <div className={clsx(
-          'w-[34px] h-[34px] rounded-[10px] flex items-center justify-center',
-          tone === 'crit' ? 'bg-terra text-white animate-pulse-crit' :
-          tone === 'warn' ? 'bg-[#FEF3C7] text-[#B45309]' :
-          'bg-cream-2 text-ink-2',
-        )}>
-          {icon}
-        </div>
-      </div>
-      <div className="font-serif text-[52px] leading-[1] tracking-[-0.02em] mb-2.5 flex items-baseline gap-1.5 text-ink">
-        {unit === 'Bs.' && <span className="font-sans text-base font-medium text-muted mr-1.5">Bs.</span>}
-        {value}
-        {unit && unit !== 'Bs.' && <span className="font-sans text-base font-medium text-muted">{unit}</span>}
-      </div>
-      <div className="text-[12.5px] text-muted">{sublabel}</div>
-    </div>
-  )
-}
-
-// ─── Warm stock badge ─────────────────────────────────────────────────────────
-
-function WarmStockBadge({ stock, stockMinimo }: { stock: number; stockMinimo: number }) {
-  const sinStock = stock === 0
-  const bajo = stock > 0 && stock <= stockMinimo
-
-  if (sinStock) return (
-    <span className="inline-flex items-center gap-[7px] px-3.5 py-1.5 rounded-full text-[12px] font-bold tracking-[0.04em] whitespace-nowrap border bg-[#FEE2E2] text-[#B22234] border-[rgba(178,34,52,0.3)]">
-      <span className="w-[7px] h-[7px] rounded-full bg-current" style={{ boxShadow: '0 0 0 3px rgba(255,255,255,0.6)' }} />
-      Sin stock
-    </span>
-  )
-  if (bajo) return (
-    <span className="inline-flex items-center gap-[7px] px-3.5 py-1.5 rounded-full text-[12px] font-bold tracking-[0.04em] whitespace-nowrap border bg-[#FEF3C7] text-[#B45309] border-[rgba(180,83,9,0.25)]">
-      <span className="w-[7px] h-[7px] rounded-full bg-current" style={{ boxShadow: '0 0 0 3px rgba(255,255,255,0.6)' }} />
-      Stock bajo
-    </span>
-  )
-  return (
-    <span className="inline-flex items-center gap-[7px] px-3.5 py-1.5 rounded-full text-[12px] font-bold tracking-[0.04em] whitespace-nowrap border bg-[#D1FAE5] text-[#047857] border-[rgba(4,120,87,0.25)]">
-      <span className="w-[7px] h-[7px] rounded-full bg-current" style={{ boxShadow: '0 0 0 3px rgba(255,255,255,0.6)' }} />
-      En stock
-    </span>
   )
 }
 
@@ -312,7 +242,7 @@ function EmptyState({ onNew, searching }: { onNew: () => void; searching: boolea
 function AutopartsWatermark() {
   return (
     <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden" style={{ opacity: 0.05, mixBlendMode: 'multiply' }}>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 2400" preserveAspectRatio="xMidYMid meet"
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 3800" preserveAspectRatio="xMidYMid meet"
            style={{ width: '100%', height: 'auto', display: 'block' }}>
         <g fill="#241E18">
           {/* Car 1 */}
@@ -494,8 +424,189 @@ function AutopartsWatermark() {
             <rect x="0" y="0" width="14" height="10"/>
             <path d="M2 10 L12 10 L7 70 Z"/>
           </g>
+          {/* Car 3 */}
+          <g transform="translate(440,2480)">
+            <path d="M0 90 L0 60 Q0 50 10 50 L120 50 L142 18 Q148 8 160 8 L260 8 Q272 8 280 16 L322 50 L390 50 Q408 50 414 64 L420 90 Z"/>
+            <path d="M168 22 L172 46 L218 46 L218 22 Z M226 22 L226 46 L278 46 L266 26 Q262 22 256 22 Z" fill="#FAF8F5"/>
+            <circle cx="90" cy="94" r="24"/>
+            <circle cx="340" cy="94" r="24"/>
+            <circle cx="90" cy="94" r="12" fill="#FAF8F5"/>
+            <circle cx="340" cy="94" r="12" fill="#FAF8F5"/>
+          </g>
+          {/* Gear 3 */}
+          <g transform="translate(100,2620) rotate(20)">
+            <circle cx="70" cy="70" r="52"/>
+            <rect x="66" y="0" width="8" height="18"/>
+            <rect x="66" y="122" width="8" height="18"/>
+            <rect x="0" y="66" width="18" height="8"/>
+            <rect x="122" y="66" width="18" height="8"/>
+            <rect x="28" y="12" width="8" height="18" transform="rotate(-45 32 21)"/>
+            <rect x="104" y="12" width="8" height="18" transform="rotate(45 108 21)"/>
+            <rect x="28" y="110" width="8" height="18" transform="rotate(45 32 119)"/>
+            <rect x="104" y="110" width="8" height="18" transform="rotate(-45 108 119)"/>
+            <circle cx="70" cy="70" r="28" fill="#FAF8F5"/>
+            <circle cx="70" cy="70" r="8"/>
+          </g>
+          {/* Hex bolt 5 */}
+          <g transform="translate(1340,2560) rotate(33)">
+            <path d="M40 2 L74 22 L74 60 L40 80 L6 60 L6 22 Z"/>
+            <circle cx="40" cy="41" r="12" fill="#FAF8F5"/>
+          </g>
+          {/* Wheel 3 */}
+          <g transform="translate(880,2700)">
+            <circle cx="70" cy="70" r="66"/>
+            <circle cx="70" cy="70" r="42" fill="#FAF8F5"/>
+            <circle cx="70" cy="70" r="12"/>
+            <circle cx="70" cy="28" r="5" fill="#FAF8F5"/>
+            <circle cx="70" cy="112" r="5" fill="#FAF8F5"/>
+            <circle cx="28" cy="70" r="5" fill="#FAF8F5"/>
+            <circle cx="112" cy="70" r="5" fill="#FAF8F5"/>
+            <circle cx="100" cy="40" r="5" fill="#FAF8F5"/>
+            <circle cx="40" cy="100" r="5" fill="#FAF8F5"/>
+            <circle cx="40" cy="40" r="5" fill="#FAF8F5"/>
+            <circle cx="100" cy="100" r="5" fill="#FAF8F5"/>
+          </g>
+          {/* Bolt standing 4 */}
+          <g transform="translate(1460,2740) rotate(-30)">
+            <rect x="8" y="0" width="12" height="10"/>
+            <rect x="2" y="10" width="24" height="8"/>
+            <rect x="4" y="18" width="20" height="32"/>
+            <path d="M4 50 L24 50 L21 88 L7 88 Z"/>
+            <rect x="10" y="88" width="8" height="22"/>
+          </g>
+          {/* Cone 5 */}
+          <g transform="translate(620,2880) rotate(-15)">
+            <rect x="0" y="0" width="14" height="10"/>
+            <path d="M2 10 L12 10 L7 70 Z"/>
+          </g>
+          {/* Steering wheel 2 */}
+          <g transform="translate(1180,2920) rotate(12)">
+            <circle cx="80" cy="80" r="80"/>
+            <circle cx="80" cy="80" r="44" fill="#FAF8F5"/>
+            <circle cx="80" cy="80" r="14"/>
+            <rect x="76" y="4" width="8" height="32" rx="2" fill="#FAF8F5"/>
+            <rect x="76" y="124" width="8" height="32" rx="2" fill="#FAF8F5"/>
+            <rect x="4" y="76" width="32" height="8" rx="2" fill="#FAF8F5"/>
+            <rect x="124" y="76" width="32" height="8" rx="2" fill="#FAF8F5"/>
+          </g>
+          {/* Spring 2 */}
+          <g transform="translate(280,3060) rotate(-8)">
+            <rect x="0" y="0" width="60" height="30"/>
+            <rect x="4" y="32" width="52" height="3" fill="#FAF8F5"/>
+            <rect x="4" y="38" width="52" height="3" fill="#FAF8F5"/>
+            <rect x="4" y="44" width="52" height="3" fill="#FAF8F5"/>
+            <path d="M12 50 L20 100 L40 100 L48 50 Z"/>
+          </g>
+          {/* Truck 3 */}
+          <g transform="translate(760,3100)">
+            <path d="M0 60 L0 40 Q0 32 8 30 L40 22 Q60 4 100 0 L240 0 Q300 4 340 30 L380 38 Q400 40 410 50 L420 60 L420 80 L0 80 Z"/>
+            <path d="M70 22 Q90 8 120 6 L180 6 L180 28 L66 28 Z M196 6 L260 6 Q300 10 326 28 L196 28 Z" fill="#FAF8F5"/>
+            <circle cx="90" cy="84" r="28"/>
+            <circle cx="330" cy="84" r="28"/>
+            <circle cx="90" cy="84" r="14" fill="#FAF8F5"/>
+            <circle cx="330" cy="84" r="14" fill="#FAF8F5"/>
+          </g>
+          {/* Hex bolt 6 */}
+          <g transform="translate(60,3300) rotate(18)">
+            <path d="M40 2 L74 22 L74 60 L40 80 L6 60 L6 22 Z"/>
+            <circle cx="40" cy="41" r="12" fill="#FAF8F5"/>
+          </g>
+          {/* Wheel 4 */}
+          <g transform="translate(480,3380)">
+            <circle cx="70" cy="70" r="66"/>
+            <circle cx="70" cy="70" r="42" fill="#FAF8F5"/>
+            <circle cx="70" cy="70" r="12"/>
+            <circle cx="70" cy="28" r="5" fill="#FAF8F5"/>
+            <circle cx="70" cy="112" r="5" fill="#FAF8F5"/>
+            <circle cx="28" cy="70" r="5" fill="#FAF8F5"/>
+            <circle cx="112" cy="70" r="5" fill="#FAF8F5"/>
+            <circle cx="100" cy="40" r="5" fill="#FAF8F5"/>
+            <circle cx="40" cy="100" r="5" fill="#FAF8F5"/>
+            <circle cx="40" cy="40" r="5" fill="#FAF8F5"/>
+            <circle cx="100" cy="100" r="5" fill="#FAF8F5"/>
+          </g>
+          {/* Gear 4 */}
+          <g transform="translate(1200,3400) rotate(-25)">
+            <circle cx="70" cy="70" r="52"/>
+            <rect x="66" y="0" width="8" height="18"/>
+            <rect x="66" y="122" width="8" height="18"/>
+            <rect x="0" y="66" width="18" height="8"/>
+            <rect x="122" y="66" width="18" height="8"/>
+            <rect x="28" y="12" width="8" height="18" transform="rotate(-45 32 21)"/>
+            <rect x="104" y="12" width="8" height="18" transform="rotate(45 108 21)"/>
+            <rect x="28" y="110" width="8" height="18" transform="rotate(45 32 119)"/>
+            <rect x="104" y="110" width="8" height="18" transform="rotate(-45 108 119)"/>
+            <circle cx="70" cy="70" r="28" fill="#FAF8F5"/>
+            <circle cx="70" cy="70" r="8"/>
+          </g>
+          {/* Cone 6 */}
+          <g transform="translate(940,3560) rotate(22)">
+            <rect x="0" y="0" width="14" height="10"/>
+            <path d="M2 10 L12 10 L7 70 Z"/>
+          </g>
+          {/* Bolt standing 5 */}
+          <g transform="translate(1460,3600) rotate(60)">
+            <rect x="8" y="0" width="12" height="10"/>
+            <rect x="2" y="10" width="24" height="8"/>
+            <rect x="4" y="18" width="20" height="32"/>
+            <path d="M4 50 L24 50 L21 88 L7 88 Z"/>
+            <rect x="10" y="88" width="8" height="22"/>
+          </g>
         </g>
       </svg>
+    </div>
+  )
+}
+
+// ─── Mobile product row ───────────────────────────────────────────────────────
+
+function MobileProductRow({ p, onTap }: { p: Producto; onTap: () => void }) {
+  return (
+    <div
+      className="flex items-center gap-3 px-4 py-3 border-b border-hair last:border-0 active:bg-[#F4EFE6] transition-colors cursor-pointer"
+      onClick={onTap}
+      style={{ WebkitTapHighlightColor: 'transparent' }}
+    >
+      <ProductThumb src={p.imagen} nombre={p.nombre} />
+      <div className="flex-1 min-w-0">
+        <div className="font-mono font-bold text-[13px] text-ink tracking-[0.05em] leading-tight">
+          {p.codigo_universal}
+        </div>
+        <div className="text-[11.5px] text-muted-2 truncate leading-tight mt-0.5">{p.nombre}</div>
+        {p.marca && (
+          <div className="text-[10.5px] text-muted-2 mt-0.5">{p.marca}</div>
+        )}
+      </div>
+      <div className="flex flex-col items-end gap-1.5 shrink-0">
+        <WarmStockBadge stock={p.stock} stockMinimo={p.stock_minimo} />
+        <span className="text-[12px] font-semibold text-ink tabular-nums">
+          Bs. {p.precio_venta.toFixed(2)}
+        </span>
+      </div>
+      <svg className="h-4 w-4 text-muted-2 shrink-0 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+      </svg>
+    </div>
+  )
+}
+
+function MobileSkeletonRows() {
+  return (
+    <div className="divide-y divide-hair">
+      {Array.from({ length: 7 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
+          <div className="h-[38px] w-[38px] rounded-lg bg-cream-2 shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-[13px] w-24 rounded bg-cream-2" />
+            <div className="h-[11px] w-36 rounded bg-hair" />
+          </div>
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <div className="h-6 w-16 rounded-full bg-cream-2" />
+            <div className="h-[11px] w-14 rounded bg-hair" />
+          </div>
+          <div className="h-4 w-4 rounded bg-cream-2 ml-1" />
+        </div>
+      ))}
     </div>
   )
 }
@@ -695,21 +806,16 @@ export function InventarioPage() {
     }),
     colHelper.accessor('nombre', {
       header: 'Código / Producto',
-      size: 280,
+      size: 210,
       meta: { align: 'left' },
       cell: (info) => {
         const p = info.row.original
         return (
           <div>
-            <div className="font-mono font-semibold tracking-[0.04em] text-[13.5px] text-ink leading-[1] mb-1">
+            <div className="font-mono font-bold tracking-[0.06em] text-[14px] text-ink leading-[1] mb-1">
               {p.codigo_universal}
             </div>
-            <div className="text-[12px] text-muted leading-[1.3] truncate max-w-[240px]">{p.nombre}</div>
-            {p.codigos_alternativos.filter(Boolean).length > 0 && (
-              <div className="text-[10px] text-muted-2 font-mono mt-0.5 truncate">
-                {p.codigos_alternativos.filter(Boolean).join(' · ')}
-              </div>
-            )}
+            <div className="text-[11px] text-muted-2 leading-[1.3] truncate max-w-[170px]">{p.nombre}</div>
           </div>
         )
       },
@@ -738,17 +844,14 @@ export function InventarioPage() {
       cell: (info) => {
         const p = info.row.original
         return (
-          <div className="flex flex-col items-end gap-1">
-            <span className="font-semibold text-[13.5px] text-ink tabular-nums">{p.stock.toLocaleString('es-BO')}</span>
-            <span className="text-[11px] text-muted-2">mín. {p.stock_minimo}</span>
-          </div>
+          <span className="font-semibold text-[13.5px] text-ink tabular-nums">{p.stock.toLocaleString('es-BO')}</span>
         )
       },
     }),
     colHelper.display({
       id: 'estado',
       header: 'Estado',
-      size: 130,
+      size: 100,
       meta: { align: 'left' },
       enableSorting: false,
       cell: (info) => {
@@ -785,7 +888,7 @@ export function InventarioPage() {
               {cost.toFixed(2)}
             </div>
             {margen !== null && (
-              <div className="text-[10.5px] text-muted-2 mt-0.5">margen {margen}%</div>
+              <div className="text-[9.5px] text-muted-2 mt-0.5">{margen}%</div>
             )}
           </div>
         )
@@ -863,7 +966,7 @@ export function InventarioPage() {
 
   return (
     <MainLayout>
-      <div className="relative px-14 py-9 pb-20 min-h-screen"
+      <div className="relative px-4 sm:px-8 md:px-14 py-5 md:py-9 pb-10 md:pb-20 min-h-screen"
            style={{ background: 'linear-gradient(180deg, #F4EFE6 0%, #FAF8F5 200px, #FAF8F5 100%)' }}>
 
         <AutopartsWatermark />
@@ -878,7 +981,7 @@ export function InventarioPage() {
             <span className="text-ink">Inventario</span>
           </div>
           <div className="flex items-center gap-3">
-            <div className="h-[38px] px-3.5 border border-hair bg-paper rounded-[10px] flex items-center gap-2 text-[13px] text-ink-2">
+            <div className="hidden sm:flex h-[38px] px-3.5 border border-hair bg-paper rounded-[10px] items-center gap-2 text-[13px] text-ink-2">
               <IcoCal /><span>{dateStr}</span>
             </div>
             <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors relative"
@@ -894,16 +997,16 @@ export function InventarioPage() {
         </div>
 
         {/* ── Header ──────────────────────────────────────────────────── */}
-        <div className="flex items-end justify-between gap-8 mb-10">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-8 mb-7 md:mb-10">
           <div>
-            <h1 className="font-serif text-[72px] leading-[0.95] tracking-[-0.025em] m-0 mb-2.5 text-ink">
+            <h1 className="font-serif text-[44px] md:text-[72px] leading-[0.95] tracking-[-0.025em] m-0 mb-2.5 text-ink">
               Inventario<em className="italic text-terra">.</em>
             </h1>
             <p className="text-base text-muted max-w-[520px]">
               Gestión de repuestos y autopartes — control en tiempo real de existencias, costos en bolivianos y movimientos de almacén.
             </p>
           </div>
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
             <button onClick={() => setImportOpen(true)}
               className="h-[46px] px-[22px] rounded-[12px] text-sm font-semibold flex items-center gap-2 bg-paper text-ink border border-hair hover:border-hair-2 transition-colors">
               <IcoDownload /> <span>Importar</span>
@@ -917,7 +1020,7 @@ export function InventarioPage() {
         </div>
 
         {/* ── Metrics ─────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-4 gap-5 mb-11">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 mb-7 md:mb-11">
           <WarmMetric
             label="Total productos"
             value={kpi.total.toLocaleString('es-BO')}
@@ -951,7 +1054,7 @@ export function InventarioPage() {
              style={{ background: 'rgba(255,255,255,0.86)', backdropFilter: 'blur(2px)' }}>
 
           {/* Toolbar */}
-          <div className="flex items-center gap-3.5 px-7 py-[22px] border-b border-hair">
+          <div className="flex items-center gap-3.5 px-4 md:px-7 py-4 md:py-[22px] border-b border-hair flex-wrap">
             <div>
               <span className="font-serif text-[28px] leading-[1] tracking-[-0.01em] text-ink">Productos</span>
               <span className="text-base text-muted ml-2.5 font-normal">
@@ -959,10 +1062,10 @@ export function InventarioPage() {
               </span>
             </div>
             <div className="ml-auto flex items-center gap-2">
-              <div className="h-10 flex items-center gap-2.5 px-3.5 border border-hair rounded-[10px] bg-cream min-w-[320px] transition-colors focus-within:border-terra focus-within:bg-paper">
+              <div className="h-10 flex items-center gap-2.5 px-3.5 border border-hair rounded-[10px] bg-cream min-w-0 w-full sm:w-auto sm:min-w-[260px] md:min-w-[320px] transition-colors focus-within:border-terra focus-within:bg-paper">
                 <IcoSearch />
                 <input
-                  className="flex-1 bg-transparent border-none outline-none text-sm text-ink placeholder-muted-2"
+                  className="flex-1 min-w-0 bg-transparent border-none outline-none text-sm text-ink placeholder-muted-2"
                   placeholder="Buscar por código, nombre o marca…"
                   value={globalFilter}
                   onChange={e => setGlobalFilter(e.target.value)}
@@ -972,7 +1075,7 @@ export function InventarioPage() {
           </div>
 
           {/* Filter row */}
-          <div className="flex items-center gap-2 px-7 py-3.5 border-b border-hair"
+          <div className="flex items-center gap-2 px-4 md:px-7 py-3 border-b border-hair flex-wrap"
                style={{ background: 'linear-gradient(180deg, #FAF8F5 0%, #FFFFFF 100%)' }}>
             <span className="text-[11px] text-muted uppercase tracking-[0.1em] mr-1">Stock</span>
             {STOCK_FILTERS.map(f => (
@@ -991,91 +1094,108 @@ export function InventarioPage() {
 
           {/* Table */}
           {loading ? (
-            <TableSkeleton />
+            <>
+              <div className="hidden md:block"><TableSkeleton /></div>
+              <div className="md:hidden"><MobileSkeletonRows /></div>
+            </>
           ) : displayProducts.length === 0 ? (
             <EmptyState onNew={handleNew} searching={stockFilter !== 'all'} />
           ) : filteredCount === 0 ? (
             <EmptyState onNew={handleNew} searching={!!globalFilter} />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm table-fixed">
-                <colgroup>
-                  {table.getFlatHeaders().map((h) => (
-                    <col key={h.id} style={{ width: h.column.getSize() }} />
-                  ))}
-                </colgroup>
-                <thead>
-                  {table.getHeaderGroups().map((hg) => (
-                    <tr key={hg.id} className="border-b border-hair"
-                        style={{ background: 'rgba(250,248,245,0.7)' }}>
-                      {hg.headers.map((header) => {
-                        const canSort = header.column.getCanSort()
-                        const sorted  = header.column.getIsSorted()
-                        const align   = (header.column.columnDef.meta as ColumnMeta<Producto, unknown> | undefined)?.align ?? 'left'
-                        return (
-                          <th
-                            key={header.id}
-                            className={clsx(
-                              'px-[22px] py-4 text-[11.5px] font-semibold text-muted uppercase tracking-[0.1em] select-none whitespace-nowrap',
-                              align === 'center' && 'text-center',
-                              align === 'right'  && 'text-right',
-                              align === 'left'   && 'text-left',
-                              canSort && 'cursor-pointer hover:text-ink-2 transition-colors',
-                            )}
-                            onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
-                          >
-                            <span className={clsx(
-                              'inline-flex items-center gap-1',
-                              align === 'center' && 'justify-center w-full',
-                              align === 'right'  && 'justify-end w-full',
-                            )}>
-                              {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                              {canSort && <SortIcon direction={sorted} />}
-                            </span>
-                          </th>
-                        )
-                      })}
-                    </tr>
-                  ))}
-                </thead>
-                <tbody>
-                  {table.getRowModel().rows.map((row, idx) => (
-                    <tr key={row.id}
-                      className="border-b border-hair transition-colors"
-                      style={{
-                        background: idx % 2 === 0
-                          ? 'rgba(255,255,255,0.55)'
-                          : 'rgba(250,250,248,0.45)',
-                      }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(244,239,230,0.8)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = idx % 2 === 0
-                        ? 'rgba(255,255,255,0.55)' : 'rgba(250,250,248,0.45)')}
-                    >
-                      {row.getVisibleCells().map((cell) => {
-                        const align = (cell.column.columnDef.meta as ColumnMeta<Producto, unknown> | undefined)?.align ?? 'left'
-                        return (
-                          <td
-                            key={cell.id}
-                            className={clsx(
-                              'px-[22px] py-3 align-middle text-[13.5px]',
-                              align === 'center' && 'text-center',
-                              align === 'right'  && 'text-right',
-                            )}
-                          >
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              {/* ── Desktop table ── */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm table-fixed">
+                  <colgroup>
+                    {table.getFlatHeaders().map((h) => (
+                      <col key={h.id} style={{ width: h.column.getSize() }} />
+                    ))}
+                  </colgroup>
+                  <thead>
+                    {table.getHeaderGroups().map((hg) => (
+                      <tr key={hg.id} className="border-b border-hair"
+                          style={{ background: 'rgba(250,248,245,0.7)' }}>
+                        {hg.headers.map((header) => {
+                          const canSort = header.column.getCanSort()
+                          const sorted  = header.column.getIsSorted()
+                          const align   = (header.column.columnDef.meta as ColumnMeta<Producto, unknown> | undefined)?.align ?? 'left'
+                          return (
+                            <th
+                              key={header.id}
+                              className={clsx(
+                                'px-[22px] py-4 text-[11.5px] font-semibold text-muted uppercase tracking-[0.1em] select-none whitespace-nowrap',
+                                align === 'center' && 'text-center',
+                                align === 'right'  && 'text-right',
+                                align === 'left'   && 'text-left',
+                                canSort && 'cursor-pointer hover:text-ink-2 transition-colors',
+                              )}
+                              onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                            >
+                              <span className={clsx(
+                                'inline-flex items-center gap-1',
+                                align === 'center' && 'justify-center w-full',
+                                align === 'right'  && 'justify-end w-full',
+                              )}>
+                                {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                                {canSort && <SortIcon direction={sorted} />}
+                              </span>
+                            </th>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                  </thead>
+                  <tbody>
+                    {table.getRowModel().rows.map((row, idx) => (
+                      <tr key={row.id}
+                        className="border-b border-hair transition-colors"
+                        style={{
+                          background: idx % 2 === 0
+                            ? 'rgba(255,255,255,0.55)'
+                            : 'rgba(250,250,248,0.45)',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(244,239,230,0.8)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = idx % 2 === 0
+                          ? 'rgba(255,255,255,0.55)' : 'rgba(250,250,248,0.45)')}
+                      >
+                        {row.getVisibleCells().map((cell) => {
+                          const align = (cell.column.columnDef.meta as ColumnMeta<Producto, unknown> | undefined)?.align ?? 'left'
+                          return (
+                            <td
+                              key={cell.id}
+                              className={clsx(
+                                'px-[22px] py-[7px] align-middle text-[13.5px]',
+                                align === 'center' && 'text-center',
+                                align === 'right'  && 'text-right',
+                              )}
+                            >
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ── Mobile list ── */}
+              <div className="md:hidden">
+                {table.getRowModel().rows.map(row => (
+                  <MobileProductRow
+                    key={row.id}
+                    p={row.original}
+                    onTap={() => handleEdit(row.original)}
+                  />
+                ))}
+              </div>
+            </>
           )}
 
           {/* Footer */}
           {!loading && displayProducts.length > 0 && (
-            <div className="px-7 py-4 border-t border-hair bg-cream flex items-center justify-between">
+            <div className="px-4 md:px-7 py-4 border-t border-hair bg-cream flex items-center justify-between flex-wrap gap-2">
               <span className="text-[12.5px] text-muted">
                 Mostrando {filteredCount} de {displayProducts.length} productos
               </span>
