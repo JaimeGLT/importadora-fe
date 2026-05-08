@@ -19,7 +19,7 @@ import { clsx } from 'clsx'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
 import { PRESTAMOS_QUERY, backendToPrestamo, PrestamosResponse } from '@/lib/queries/prestamos.queries'
-import { PRODUCTOS_LIST_QUERY, backendToProductoSimple } from '@/lib/queries/inventario.queries'
+import { PRODUCTOS_QUERY, backendToProductoSimple } from '@/lib/queries/inventario.queries'
 
 declare module '@tanstack/react-table' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -154,7 +154,7 @@ export function PrestamosPage() {
   }, [])
 
   useEffect(() => {
-    gql(PRODUCTOS_LIST_QUERY).then((res: any) => {
+    gql(PRODUCTOS_QUERY).then((res: any) => {
       setProductos(res.productos.nodes.map(backendToProductoSimple))
     })
   }, [])
@@ -170,7 +170,7 @@ export function PrestamosPage() {
       notify.success('Prestamo creado')
       const res = await gql<PrestamosResponse>(PRESTAMOS_QUERY)
       setPrestamos(res.prestamos.nodes.map(backendToPrestamo))
-      const resProducts: any = await gql(PRODUCTOS_LIST_QUERY)
+      const resProducts: any = await gql(PRODUCTOS_QUERY)
       setProductos(resProducts.productos.nodes.map(backendToProductoSimple))
     } catch (err) {
       notify.error(err instanceof Error ? err.message : 'Error al crear prestamo')
@@ -185,7 +185,7 @@ export function PrestamosPage() {
       notify.success('Prestamo cancelado')
       const res = await gql<PrestamosResponse>(PRESTAMOS_QUERY)
       setPrestamos(res.prestamos.nodes.map(backendToPrestamo))
-      const resProducts: any = await gql(PRODUCTOS_LIST_QUERY)
+      const resProducts: any = await gql(PRODUCTOS_QUERY)
       setProductos(resProducts.productos.nodes.map(backendToProductoSimple))
     } catch (err) {
       notify.error(err instanceof Error ? err.message : 'Error al cancelar prestamo')

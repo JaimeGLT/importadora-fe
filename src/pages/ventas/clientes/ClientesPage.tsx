@@ -1,32 +1,22 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useAuth } from '@/contexts/AuthContext'
-import { useClientesStore } from '@/stores/clientesStore'
+import { useState, useMemo } from 'react'
 import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
 import { Button } from '@/components/ui'
-import { MOCK_CLIENTES } from '@/mock/clientes'
 import type { Cliente } from '@/types'
-import { ClienteFormModal } from './ClienteFormModal'
-import { ClienteHistorialModal } from './ClienteHistorialModal'
 import { notify } from '@/lib/notify'
 import { clsx } from 'clsx'
+import { ClienteFormModal } from './ClienteFormModal'
+import { ClienteHistorialModal } from './ClienteHistorialModal'
 
 export function ClientesPage() {
-  const { isTokenReady } = useAuth()
   const [formOpen, setFormOpen]         = useState(false)
   const [historialOpen, setHistorialOpen] = useState(false)
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null)
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null)
   const [search, setSearch]             = useState('')
   const [filterActivo, setFilterActivo] = useState<'todos' | 'activo' | 'inactivo'>('todos')
+  const [clientes, setClientes] = useState<Cliente[]>([])
 
-  const { clientes, setClientes, addCliente, updateCliente, removeCliente, toggleActivo } = useClientesStore()
-
-  useEffect(() => {
-    if (!isTokenReady) return
-    setClientes(MOCK_CLIENTES)
-  }, [isTokenReady, setClientes])
-
-  const filtered = useMemo(() => {
+const filtered = useMemo(() => {
     return clientes.filter((c) => {
       const q = search.toLowerCase()
       const ciCompleto = c.ci && c.ciComplemento
@@ -57,10 +47,10 @@ export function ClientesPage() {
   const handleSave = (data: Omit<Cliente, 'id' | 'creado_en' | 'actualizado_en' | 'compras'>) => {
     const ahora = new Date().toISOString()
     if (editingCliente) {
-      updateCliente({ ...editingCliente, ...data, actualizado_en: ahora })
+      setClientes(clientes.map(c => c.id === editingCliente.id ? { ...editingCliente, ...data, actualizado_en: ahora } : c))
       notify.success('Cliente actualizado')
     } else {
-      addCliente({ ...data, id: crypto.randomUUID(), compras: [], creado_en: ahora, actualizado_en: ahora })
+      setClientes([{ ...data, id: crypto.randomUUID(), compras: [], creado_en: ahora, actualizado_en: ahora }, ...clientes])
       notify.success('Cliente registrado')
     }
     setFormOpen(false)
@@ -68,8 +58,12 @@ export function ClientesPage() {
   }
 
   const handleDelete = (c: Cliente) => {
-    removeCliente(c.id)
+    setClientes(clientes.filter(cl => cl.id !== c.id))
     notify.success('Cliente eliminado')
+  }
+
+  const handleToggleActivo = (id: string) => {
+    setClientes(clientes.map(c => c.id === id ? { ...c, activo: !c.activo } : c))
   }
 
   const openEdit = (c: Cliente) => { setEditingCliente(c); setFormOpen(true) }
@@ -139,9 +133,7 @@ export function ClientesPage() {
           {filtered.length} cliente{filtered.length !== 1 ? 's' : ''}
         </span>
 
-        {!isTokenReady ? (
-          <ListSkeleton />
-        ) : filtered.length === 0 ? (
+        {filtered.length === 0 ? (
           <EmptyState onNew={openNew} />
         ) : (
           <>
@@ -159,7 +151,7 @@ export function ClientesPage() {
                   <ClienteRow
                     key={c.id}
                     cliente={c}
-                    onToggle={() => toggleActivo(c.id)}
+                    onToggle={() => handleToggleActivo(c.id)}
                     onEdit={() => openEdit(c)}
                     onDelete={() => handleDelete(c)}
                     onHistorial={() => openHistorial(c)}
@@ -173,7 +165,7 @@ export function ClientesPage() {
                 <ClienteCard
                   key={c.id}
                   cliente={c}
-                  onToggle={() => toggleActivo(c.id)}
+                  onToggle={() => handleToggleActivo(c.id)}
                   onEdit={() => openEdit(c)}
                   onDelete={() => handleDelete(c)}
                   onHistorial={() => openHistorial(c)}
@@ -383,19 +375,6 @@ function MetricCard({ label, value, sublabel, bg = '#F5F5F5', valueColor = '#1A1
       <p className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: sublabelColor }}>{label}</p>
       <p className="font-bold leading-none" style={{ fontSize: 28, color: valueColor }}>{value}</p>
       <p className="text-[11px] mt-1.5" style={{ color: sublabelColor }}>{sublabel}</p>
-    </div>
-  )
-}
-
-function ListSkeleton() {
-  return (
-    <div className="flex flex-col gap-2">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="px-5 py-4 rounded-xl animate-pulse" style={{ background: '#FFFFFF', border: '1px solid #E8EDF3' }}>
-          <div className="h-3 w-48 rounded mb-2" style={{ background: '#F1F5F9' }} />
-          <div className="h-2.5 w-32 rounded" style={{ background: '#F1F5F9' }} />
-        </div>
-      ))}
     </div>
   )
 }

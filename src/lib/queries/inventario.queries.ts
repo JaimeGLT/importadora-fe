@@ -1,4 +1,4 @@
-import type { Producto } from '@/types'
+import type { Producto, PiezaKit } from '@/types'
 
 function parseUbicacion(ubicacion: string): { almacen: string; estante: string; fila: string; columna: string } {
   if (!ubicacion) return { almacen: 'Almacén Central', estante: '', fila: '', columna: '' }
@@ -19,66 +19,32 @@ function parseUbicacion(ubicacion: string): { almacen: string; estante: string; 
 }
 
 export const PRODUCTOS_QUERY = `
-  query Productos($first: Int!, $after: String) {
-    productos(first: $first, after: $after) {
+  query Productos($first: Int, $after: String, $where: ProductoFilterInput) {
+    productos(first: $first, after: $after, where: $where) {
       totalCount
-      nodes {
-        id
-        unidad_Medida
-        ubicacion
-        stock_Actual
-        stock_Minimo
-        piezas
-        costo
-        codigo
-        nombre
-        precio
-        codigoAux
-        codigoAux2
-        marca
-        descripcion
-        conversionABs
-      }
       pageInfo {
         hasNextPage
         endCursor
+      }
+      nodes {
+        id
+        codigo
+        codigoAux
+        codigoAux2
+        nombre
+        marca
+        ubicacion
+        stock_Actual
+        stock_Minimo
+        calcularStockKit
+        esKit
+        costo
+        precio
       }
     }
   }
 `
 
-export const PRODUCTOS_LIST_QUERY = `
-  query ProductosList {
-    productos {
-      totalCount
-      nodes {
-        id
-        unidad_Medida
-        ubicacion
-        stock_Actual
-        stock_Minimo
-        piezas
-        costo
-        codigo
-        nombre
-        precio
-        codigoAux
-        codigoAux2
-        marca
-        descripcion
-        historialPrecios {
-          id
-          id_producto
-          fecha
-          costo
-          precio
-          conversionABs
-          nota
-        }
-      }
-    }
-  }
-`
 
 export const PRODUCTO_BY_ID_QUERY = `
   query ProductoById($id: Int!) {
@@ -88,6 +54,7 @@ export const PRODUCTO_BY_ID_QUERY = `
         unidad_Medida
         ubicacion
         stock_Actual
+        stockReservado
         stock_Minimo
         piezas
         costo
@@ -95,6 +62,7 @@ export const PRODUCTO_BY_ID_QUERY = `
         codigo
         nombre
         precio
+        esKit
         historialPrecios {
           id
           id_producto
@@ -104,6 +72,15 @@ export const PRODUCTO_BY_ID_QUERY = `
           conversionABs
           nota
         }
+        piezasKit {
+          id
+          id_Producto
+          codigoUniversal
+          nombre
+          cantidadPorKit
+          stockActual
+          stockReservado
+        }
         codigoAux
         codigoAux2
         marca
@@ -112,6 +89,26 @@ export const PRODUCTO_BY_ID_QUERY = `
     }
   }
 `
+
+interface PiezaKitAPI {
+  id: number
+  id_Producto: number
+  codigoUniversal: string
+  nombre: string
+  cantidadPorKit: number
+  stockActual: number
+  stockReservado: number
+}
+
+interface HistorialPrecioAPI {
+  id: number
+  id_producto: number
+  fecha: string
+  costo: number
+  precio: number
+  conversionABs: number
+  nota: string | null
+}
 
 interface ProductoAPISimple {
   id: string | number
@@ -124,35 +121,33 @@ interface ProductoAPISimple {
   unidad_Medida: string
   ubicacion: string
   stock_Actual: number
+  stockReservado?: number
   stock_Minimo: number
+  calcularStockKit?: number | null
   piezas: number
   costo: number
   precio: number
   conversionABs: number
-  historialPrecios: {
-    id: number
-    id_producto: number
-    fecha: string
-    costo: number
-    precio: number
-    conversionABs: number
-    nota: string | null
-  }[]
+  esKit?: boolean
+  historialPrecios?: HistorialPrecioAPI[]
 }
 
 export interface ProductoAPI extends ProductoAPISimple {
-  conversionABs: number
   historialPrecios: HistorialPrecioAPI[]
+  piezasKit?: PiezaKitAPI[]
 }
 
-interface HistorialPrecioAPI {
-  id: number
-  id_producto: number
-  fecha: string
-  costo: number
-  precio: number
-  conversionABs: number
-  nota: string | null
+function mapPiezasKit(raw: PiezaKitAPI[] | undefined): PiezaKit[] {
+  if (!raw) return []
+  return raw.map((p) => ({
+    id: p.id,
+    id_producto: p.id_Producto,
+    codigo_universal: p.codigoUniversal ?? '',
+    nombre: p.nombre ?? '',
+    cantidad_por_kit: p.cantidadPorKit ?? 1,
+    stock_actual: p.stockActual ?? 0,
+    stock_reservado: p.stockReservado ?? 0,
+  }))
 }
 
 export interface ProductoAPIInput {
@@ -172,7 +167,7 @@ export interface ProductoAPIInput {
   conversionABs: number
 }
 
-export function backendToProductoSimple(p: ProductoAPISimple): Producto {
+function mapProductoBase(p: ProductoAPISimple): Producto {
   return {
     id: String(p.id),
     codigo_universal: p.codigo ?? '',
@@ -183,12 +178,14 @@ export function backendToProductoSimple(p: ProductoAPISimple): Producto {
     marca: p.marca ?? '',
     vehiculo: '',
     unidad: (p.unidad_Medida?.toLowerCase() as Producto['unidad']) ?? 'pieza',
-    stock: p.stock_Actual ?? 0,
+    stock: p.esKit ? (p.calcularStockKit ?? 0) : (p.stock_Actual ?? 0),
+    stock_reservado: p.stockReservado ?? 0,
     stock_minimo: p.stock_Minimo ?? 0,
     piezas: p.piezas ?? 1,
     precio_costo: p.costo ?? 0,
     precio_venta: p.precio ?? 0,
     conversionABs: p.conversionABs ?? 6.96,
+    es_kit: p.esKit ?? false,
     historial_precios: (p.historialPrecios ?? []).map((h) => ({
       fecha: h.fecha,
       precio_costo: h.costo,
@@ -204,36 +201,12 @@ export function backendToProductoSimple(p: ProductoAPISimple): Producto {
   }
 }
 
+export function backendToProductoSimple(p: ProductoAPISimple): Producto {
+  return mapProductoBase(p)
+}
+
 export function backendToProducto(p: ProductoAPI): Producto {
-  return {
-    id: String(p.id),
-    codigo_universal: p.codigo ?? '',
-    codigos_alternativos: [p.codigoAux ?? '', p.codigoAux2 ?? ''],
-    nombre: p.nombre ?? '',
-    descripcion: p.descripcion ?? '',
-    categoria: 'Otro',
-    marca: p.marca ?? '',
-    vehiculo: '',
-    unidad: (p.unidad_Medida?.toLowerCase() as Producto['unidad']) ?? 'pieza',
-    stock: p.stock_Actual ?? 0,
-    stock_minimo: p.stock_Minimo ?? 0,
-    piezas: p.piezas ?? 1,
-    precio_costo: p.costo ?? 0,
-    precio_venta: p.precio ?? 0,
-    conversionABs: p.conversionABs ?? 6.96,
-    historial_precios: (p.historialPrecios ?? []).map((h) => ({
-      fecha: h.fecha,
-      precio_costo: h.costo,
-      precio_venta: h.precio,
-      tipo_cambio: h.conversionABs,
-      nota: h.nota ?? undefined,
-    })),
-    ...parseUbicacion(p.ubicacion ?? ''),
-    estado: 'activo',
-    proveedor_id: '',
-    creado_en: '',
-    actualizado_en: '',
-  }
+  return { ...mapProductoBase(p), piezas_kit: mapPiezasKit(p.piezasKit) }
 }
 
 function dec(n: number): number {
@@ -296,6 +269,28 @@ export function productoToBackendUpdate(
 }
 
 export type ProductoAPIBulkInput = Omit<ProductoAPIInput, 'conversionABs' | 'stock_Actual'> & { cantidad: number; conversionABs: number }
+
+// ─── Kit operation types ───────────────────────────────────────────────────────
+
+export type DtoPiezaKit = {
+  codigoUniversal: string
+  nombre: string
+  cantidadPorKit: number
+}
+
+export type PieceOp =
+  | { type: 'add'; data: DtoPiezaKit }
+  | { type: 'update'; piezaId: number; data: { codigoBase?: string | null; nombre?: string | null; cantidadPorKit: number } }
+  | { type: 'delete'; piezaId: number }
+
+export type KitOpsMode = 'none' | 'convertirKit' | 'convertirRegular' | 'managePieces'
+
+export interface KitOps {
+  mode: KitOpsMode
+  piezas?: DtoPiezaKit[]
+  stockManual?: number | null
+  pieceOps?: PieceOp[]
+}
 
 export function productoToBackendBulk(
   p: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>,

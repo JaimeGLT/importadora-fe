@@ -5,13 +5,14 @@ interface FormSectionProps {
   icon: ReactNode
   title: string
   description?: string
+  extra?: ReactNode
   children: ReactNode
   collapsible?: boolean
   open?: boolean
   onToggle?: () => void
 }
 
-export function FormSection({ icon, title, description, children, collapsible, open, onToggle }: FormSectionProps) {
+export function FormSection({ icon, title, description, extra, children, collapsible, open, onToggle }: FormSectionProps) {
   const isOpen = !collapsible || open
   return (
     <section className="rounded-[14px] border border-hair overflow-hidden">
@@ -31,6 +32,7 @@ export function FormSection({ icon, title, description, children, collapsible, o
           <p className="text-[12.5px] font-semibold text-ink-2">{title}</p>
           {description && <p className="text-[11px] text-muted-2 leading-tight">{description}</p>}
         </div>
+        {extra && <div className="flex-shrink-0">{extra}</div>}
         {collapsible && (
           <svg
             className={clsx('h-4 w-4 text-muted-2 transition-transform flex-shrink-0', isOpen && 'rotate-90')}

@@ -239,14 +239,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             </svg>
           </button>
         </div>
-        <div className="font-serif italic text-[12.5px] text-muted leading-[1.35]">
-          Repuestos para vehículos americanos
-        </div>
-        <div className="mt-2 flex items-center gap-1.5 text-[10px] tracking-[0.16em] uppercase text-muted-2 font-semibold">
-          <span className="w-[5px] h-[5px] rounded-full bg-terra"
-                style={{ boxShadow: '0 0 0 3px #F5DCDF' }} />
-          Cochabamba · Bolivia
-        </div>
       </div>
 
       {/* Nav */}

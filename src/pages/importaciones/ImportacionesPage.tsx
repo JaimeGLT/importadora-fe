@@ -10,7 +10,7 @@ import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import { IMPORTACIONES_QUERY, backendToImportacion } from '@/lib/queries/importaciones.queries'
-import { PRODUCTOS_LIST_QUERY, backendToProductoSimple } from '@/lib/queries/inventario.queries'
+import { PRODUCTOS_QUERY, backendToProductoSimple } from '@/lib/queries/inventario.queries'
 import { api } from '@/lib/api'
 import type { DtoImportacion } from '@/lib/queries/importaciones.queries'
 import {
@@ -191,7 +191,7 @@ export function ImportacionesPage() {
   }
 
   const loadProductos = () => {
-    gql(PRODUCTOS_LIST_QUERY)
+    gql(PRODUCTOS_QUERY)
       .then((res: any) => setProductos(res.productos.nodes.map(backendToProductoSimple)))
       .catch(() => notify.error('Error cargando productos'))
   }

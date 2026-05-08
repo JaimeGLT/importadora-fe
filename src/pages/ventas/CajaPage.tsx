@@ -7,13 +7,11 @@ import { KitVentaParcialModal } from '@/components/ui/KitVentaParcialModal'
 import { notify } from '@/lib/notify'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { useVentasStore } from '@/stores/ventasStore'
-import { useClientesStore } from '@/stores/clientesStore'
 import { useSoundAlert } from '@/hooks/useSoundAlert'
 import { useConfigStore, calcularPrecioConDescuento, calcularPrecioDolarHoy, type DescuentoConfig } from '@/stores/configStore'
 import { gql } from '@/lib/graphql'
-import { PRODUCTOS_LIST_QUERY, backendToProductoSimple, type ProductoAPI } from '@/lib/queries/inventario.queries'
-import { MOCK_CLIENTES } from '@/mock/clientes'
-import type { Producto, OrdenVenta, ItemOrden, MetodoPago, EstadoOrden, Cliente, Compra } from '@/types'
+import { PRODUCTOS_QUERY, backendToProductoSimple, type ProductoAPI } from '@/lib/queries/inventario.queries'
+import type { Producto, OrdenVenta, ItemOrden, MetodoPago, EstadoOrden, Cliente } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -965,10 +963,10 @@ interface BillingData {
   email?: string
 }
 
-function CobroModal({ orden, clientes, clientesStore, onConfirm, onClose }: {
+function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
   orden: OrdenVenta
   clientes: Cliente[]
-  clientesStore: { addCliente: (c: Cliente) => void; addCompra: (id: string, c: Compra) => void }
+  onAddCliente: (c: Cliente) => void
   onConfirm: (metodo: MetodoPago, monto: number, billing: BillingData) => void
   onClose: () => void
 }) {
@@ -1074,7 +1072,7 @@ function CobroModal({ orden, clientes, clientesStore, onConfirm, onClose }: {
         creado_en: now,
         actualizado_en: now,
       }
-      clientesStore.addCliente(newCliente)
+      onAddCliente(newCliente)
     }
 
     const billing: BillingData = {
@@ -1440,7 +1438,6 @@ export function CajaPage() {
   const { user, isTokenReady } = useAuth()
   const { reservarStock, liberarReserva, confirmarSalida, setProductos, venderKit } = useInventarioStore()
   const { ordenes, addOrden, updateOrden } = useVentasStore()
-  const clientesStore = useClientesStore()
   const { playAlertSequence, playBeep } = useSoundAlert()
 
   const [cart, setCart] = useState<Cart>(emptyCart())
@@ -1449,6 +1446,7 @@ export function CajaPage() {
   const emitButtonRef = useRef<HTMLButtonElement>(null)
   const headerBadgeRef = useRef<HTMLButtonElement | null>(null)
   const [loadingProductos, setLoadingProductos] = useState(true)
+  const [clientes, setClientes] = useState<Cliente[]>([])
 
   const [cobroOrden, setCobroOrden] = useState<OrdenVenta | null>(null)
   const [parcialOrden, setParcialOrden] = useState<OrdenVenta | null>(null)
@@ -1468,21 +1466,14 @@ export function CajaPage() {
   const alertedListo = useRef<Set<string>>(new Set())
 
   useEffect(() => {
-    if (!clientesStore._hasHydrated) return
-    if (clientesStore.clientes.length === 0) {
-      clientesStore.setClientes(MOCK_CLIENTES)
-    }
-  }, [clientesStore._hasHydrated])
-
-  useEffect(() => {
     if (!isTokenReady) return
     let cancelled = false
     setLoadingProductos(true)
-    gql<{ productos: { nodes: ProductoAPI[]; totalCount: number } }>(PRODUCTOS_LIST_QUERY)
+    gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTOS_QUERY)
       .then(res => {
         if (cancelled) return
         const prods = res.productos.nodes.map(backendToProductoSimple)
-        setProductos(prods, res.productos.totalCount)
+        setProductos(prods, prods.length)
       })
       .catch(() => {
         if (!cancelled) notify.error('Error cargando productos')
@@ -1762,27 +1753,6 @@ const addToCart = useCallback((producto: Producto) => {
       }
       else if (i.estado === 'faltante') liberarReserva(i.producto_id, i.cantidad_pedida)
     })
-    const clienteId = billing.cliente_id
-    if (clienteId) {
-      const itemsDespachados = cobroOrden.items.filter(ii => ii.estado === 'completo' || ii.estado === 'parcial')
-      const compra: Compra = {
-        id: newId(),
-        orden_id: cobroOrden.id,
-        fecha: now,
-        items: itemsDespachados,
-        total: monto,
-        metodo_pago: metodo,
-        tipoDocumento: billing.tipoDocumento as 'nota_venta' | 'factura',
-        facturaNro: billing.tipoDocumento === 'factura'
-          ? `001-001-${String(Math.floor(Math.random() * 9999999)).padStart(7, '0')}`
-          : undefined,
-        cliente_tipo_id: billing.cliente_tipo_id as 'ci' | 'nit' | 'sin_nit' | undefined,
-        cliente_numero_id: billing.cliente_numero_id,
-        cliente_nombre: billing.cliente_nombre,
-        cliente_nit: billing.cliente_nit,
-      }
-      clientesStore.addCompra(clienteId, compra)
-    }
 
     const facturaNro = billing.tipoDocumento === 'factura'
       ? `001-001-${String(Math.floor(Math.random() * 9999999)).padStart(7, '0')}`
@@ -1900,7 +1870,7 @@ const addToCart = useCallback((producto: Producto) => {
       {parcialOrden && (
         <PickingParcialModal orden={parcialOrden} onPartial={handleEntregarParcial} onCancelar={() => { setCancelarOrden(parcialOrden); setParcialOrden(null) }} onClose={() => setParcialOrden(null)} />
       )}
-      {cobroOrden && <CobroModal orden={cobroOrden} clientes={clientesStore.clientes} clientesStore={clientesStore} onConfirm={handleConfirmarPago} onClose={() => setCobroOrden(null)} />}
+      {cobroOrden && <CobroModal orden={cobroOrden} clientes={clientes} onAddCliente={(c) => setClientes(prev => [c, ...prev])} onConfirm={handleConfirmarPago} onClose={() => setCobroOrden(null)} />}
       {facturaOrden && <FacturaModal orden={facturaOrden} onClose={() => setFacturaOrden(null)} />}
       {cancelarOrden && <CancelarOrdenModal orden={cancelarOrden} onConfirm={handleConfirmarCancelar} onClose={() => setCancelarOrden(null)} />}
       {productoSeleccionado && (

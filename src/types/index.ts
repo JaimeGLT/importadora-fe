@@ -71,6 +71,7 @@ export interface Producto {
   es_kit?: boolean
   kit_id?: string | null
   cantidad_por_kit?: number
+  piezas_kit?: PiezaKit[]
   creado_en: string
   actualizado_en: string
 }
@@ -79,6 +80,16 @@ export interface KitRelacion {
   kit_id: string
   producto_id: string
   cantidad: number
+}
+
+export interface PiezaKit {
+  id: number
+  id_producto: number
+  codigo_universal: string
+  nombre: string
+  cantidad_por_kit: number
+  stock_actual: number
+  stock_reservado: number
 }
 
 export type MonedaProveedor = 'USD' | 'EUR' | 'CNY' | 'GBP' | 'JPY' | 'KRW' | 'BRL' | 'ARS' | 'CLP' | 'PEN'

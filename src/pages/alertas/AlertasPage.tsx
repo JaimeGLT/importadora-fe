@@ -1,10 +1,8 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { clsx } from 'clsx'
-import { useAuth } from '@/contexts/AuthContext'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
-import { MOCK_PRODUCTOS, MOCK_PROVEEDORES } from '@/mock/inventario'
 import { MOCK_RESUMEN_VENTAS } from '@/mock/alertas'
 import type { Producto, Proveedor } from '@/types'
 import type { ResumenVentas } from '@/mock/alertas'
@@ -320,19 +318,10 @@ function EmptySection({ icon, mensaje }: { icon: string; mensaje: string }) {
 // ─── AlertasPage ──────────────────────────────────────────────────────────────
 
 export function AlertasPage() {
-  const { isTokenReady } = useAuth()
-  const { productos: storeProductos, proveedores: storeProveedores, setProductos, setProveedores } = useInventarioStore()
+  const { productos: storeProductos, proveedores: storeProveedores } = useInventarioStore()
 
-  // Seed store with mock data if empty (same pattern as other pages)
-  if (isTokenReady && storeProductos.length === 0) {
-    setProductos(MOCK_PRODUCTOS, MOCK_PRODUCTOS.length)
-  }
-  if (isTokenReady && storeProveedores.length === 0) {
-    setProveedores(MOCK_PROVEEDORES)
-  }
-
-  const productos  = storeProductos.length > 0 ? storeProductos  : MOCK_PRODUCTOS
-  const proveedores = storeProveedores.length > 0 ? storeProveedores : MOCK_PROVEEDORES
+  const productos  = storeProductos
+  const proveedores = storeProveedores
 
   const resumenMap = useMemo(() => {
     const m: Record<string, ResumenVentas> = {}

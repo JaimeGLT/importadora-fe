@@ -171,7 +171,6 @@ export function NuevoPrestamoModal({ open, onClose, onSave, productos }: NuevoPr
   const handleSave = async () => {
     if (!validate()) return
     setSaving(true)
-    await new Promise((r) => setTimeout(r, 300))
     const itemPrestamoList: ItemPrestamo[] = items.map((item) => {
       const p = productos.find((pr) => pr.id === item.producto_id)!
       return {

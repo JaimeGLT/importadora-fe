@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Button, WarmInput, DrawerWrapper, FormSection } from '@/components/ui'
 import type { Producto, HistorialPrecio } from '@/types'
+import type { DtoPiezaKit, KitOps, PieceOp } from '@/lib/queries/inventario.queries'
+import { KitPartsSection } from './KitPartsSection'
 import { useConfigStore, calcularPrecioConDescuento } from '@/stores/configStore'
-import { useInventarioStore } from '@/stores/inventarioStore'
 import { clsx } from 'clsx'
 
 interface ProductoModalProps {
   open: boolean
   onClose: () => void
-  onSave: (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>) => Promise<void>
+  onSave: (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>, kitOps: KitOps) => Promise<void>
   producto: Producto | null
   loading?: boolean
   productosExistentes?: Producto[]
@@ -118,6 +119,10 @@ export function ProductoModal({
   const [nuevoVenta, setNuevoVenta] = useState('')
   const [nuevoTipoCambio, setNuevoTipoCambio] = useState('')
   const [nuevoNota, setNuevoNota] = useState('')
+  // Kit state
+  const [kitPieces, setKitPieces] = useState<DtoPiezaKit[]>([])
+  const [pieceOps, setPieceOps]   = useState<PieceOp[]>([])
+  const [stockManual, setStockManual] = useState('')
 
   const isLoading = loading && producto !== null
 
@@ -141,10 +146,10 @@ export function ProductoModal({
         precio_venta:         producto.precio_venta,
         conversionABs:        tc,
         historial_precios:    producto.historial_precios,
-        almacen: producto.almacen,
-        estante: producto.estante,
-        fila: producto.fila,
-        columna: producto.columna,
+        almacen: [producto.almacen, producto.estante, producto.fila, producto.columna].filter(Boolean).join(' / '),
+        estante: '',
+        fila: '',
+        columna: '',
         estado:               producto.estado,
         proveedor_id:         producto.proveedor_id,
         es_kit:               producto.es_kit ?? false,
@@ -163,6 +168,9 @@ export function ProductoModal({
     setNuevoVenta('')
     setNuevoTipoCambio('')
     setNuevoNota('')
+    setKitPieces([])
+    setPieceOps([])
+    setStockManual('')
   }, [open, producto])
 
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) => {
@@ -215,6 +223,20 @@ export function ProductoModal({
     if (!validate()) return
     setSaving(true)
     try {
+      const wasKit = producto?.es_kit ?? false
+      const isKit  = form.es_kit
+
+      let kitOps: KitOps = { mode: 'none' }
+      if (!producto && isKit) {
+        kitOps = { mode: 'convertirKit', piezas: kitPieces }
+      } else if (producto && !wasKit && isKit) {
+        kitOps = { mode: 'convertirKit', piezas: kitPieces }
+      } else if (producto && wasKit && !isKit) {
+        kitOps = { mode: 'convertirRegular', stockManual: stockManual ? parseInt(stockManual) : null }
+      } else if (producto && wasKit && isKit && pieceOps.length > 0) {
+        kitOps = { mode: 'managePieces', pieceOps }
+      }
+
       const dataToSave = actualizarPrecio && nuevoCosto && nuevoVenta
         ? {
             ...form,
@@ -224,7 +246,7 @@ export function ProductoModal({
             historial_precios: buildHistorial(),
           }
         : { ...form, historial_precios: buildHistorial() }
-      await onSave(dataToSave)
+      await onSave(dataToSave, kitOps)
     } finally {
       setSaving(false)
     }
@@ -347,38 +369,21 @@ export function ProductoModal({
 
           {/* Stock y almacén */}
           <FormSection icon={<IconBox />} title="Stock y almacén" description="Cantidades, unidad de medida y ubicación física">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <WarmInput
-                label="Almacén"
-                value={form.almacen}
-                onChange={(e) => set('almacen', e.target.value)}
-                placeholder="Almacén Central"
-              />
-              <WarmInput
-                label="Estante"
-                value={form.estante}
-                onChange={(e) => set('estante', e.target.value)}
-                placeholder="A"
-              />
-              <WarmInput
-                label="Fila"
-                value={form.fila}
-                onChange={(e) => set('fila', e.target.value)}
-                placeholder="1"
-              />
-              <WarmInput
-                label="Columna"
-                value={form.columna}
-                onChange={(e) => set('columna', e.target.value)}
-                placeholder="1"
-              />
-            </div>
+            <WarmInput
+              label="Ubicación"
+              value={form.almacen}
+              onChange={(e) => set('almacen', e.target.value)}
+              placeholder="Almacén Central"
+              hint="Nombre del almacén o ubicación física del producto"
+            />
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
               <WarmInput
                 label="Stock actual *"
                 type="number"
                 value={form.stock}
                 onChange={(e) => set('stock', Number(e.target.value))}
+                readOnly={!!producto}
+                hint="Stock editable solo desde el módulo de Ajustes"
               />
               <WarmInput
                 label="Stock mínimo"
@@ -398,7 +403,20 @@ export function ProductoModal({
           </FormSection>
 
           {/* Kit */}
-          <FormSection icon={<IconKit />} title="Kit / Conjunto" description="Relacionar producto como kit o como parte de un kit">
+          <FormSection
+            icon={<IconKit />}
+            title="Kit / Conjunto"
+            description="Relacionar producto como kit o como parte de un kit"
+            extra={producto?.es_kit && producto.stock !== undefined ? (
+              <div className="flex items-center gap-1.5 rounded-full bg-navy/10 border border-navy/20 px-2.5 py-1">
+                <svg className="h-3 w-3 text-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                <span className="text-[11px] font-bold text-navy tabular-nums">{producto.stock}</span>
+                <span className="text-[10px] text-navy/70">kits</span>
+              </div>
+            ) : undefined}
+          >
             <div className="space-y-4">
               <label className="flex items-center gap-2.5 cursor-pointer select-none">
                 <input
@@ -411,19 +429,52 @@ export function ProductoModal({
                 <span className="text-[13px] font-semibold text-ink-2">Este producto es un kit</span>
               </label>
 
+              {/* Kit → Regular: warning + stock manual input */}
+              {!form.es_kit && producto?.es_kit && (
+                <div className="rounded-[12px] border-2 border-dashed border-amber-300 bg-amber-50/60 overflow-hidden">
+                  <div className="px-4 py-3 flex items-start gap-2.5">
+                    <svg className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-[12.5px] font-bold text-amber-800">Convertir a producto regular</p>
+                      <p className="text-[11px] text-amber-700 mt-0.5">Las piezas del kit y el stock calculado se eliminarán al guardar.</p>
+                    </div>
+                  </div>
+                  <div className="px-4 pb-4 bg-white/60 border-t border-amber-200">
+                    <div className="pt-3">
+                      <WarmInput
+                        label="Stock manual (opcional)"
+                        type="number"
+                        value={stockManual}
+                        onChange={(e) => setStockManual(e.target.value)}
+                        placeholder="0"
+                        hint="Si no se especifica, el stock queda en 0"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Kit parts management */}
               {form.es_kit && (
                 <KitPartsSection
                   productoId={producto?.id}
-                  kitId={producto?.id}
-                  productos={productosExistentes}
+                  wasKit={producto?.es_kit ?? false}
+                  piezasFromBackend={producto?.piezas_kit}
+                  productosDisponibles={productosExistentes}
+                  localPieces={kitPieces}
+                  onLocalPiecesChange={setKitPieces}
+                  pieceOps={pieceOps}
+                  onPieceOpsChange={setPieceOps}
                 />
               )}
 
-              {!form.es_kit && producto && (
+              {!form.es_kit && !producto?.es_kit && producto?.kit_id && (
                 <div className="p-3.5 rounded-[10px] bg-cream-2 border border-hair">
                   <p className="text-[12px] text-muted-2">
-                    Este producto es parte del kit:{' '}
-                    <span className="font-semibold text-ink-2">{getKitNombre(producto.kit_id)}</span>
+                    Parte del kit:{' '}
+                    <span className="font-semibold text-ink-2">{getKitNombre(producto.kit_id, productosExistentes)}</span>
                   </p>
                 </div>
               )}
@@ -601,271 +652,9 @@ export function ProductoModal({
   )
 }
 
-/* ── Kit Parts Section ── */
-
-function KitPartsSection({ productoId, kitId, productos }: { productoId?: string; kitId?: string; productos: Producto[] }) {
-  const { kitRelaciones, addKitRelacion, removeKitRelacion, addProducto, updateProducto } = useInventarioStore()
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const [creating, setCreating] = useState(false)
-  const [newNombre, setNewNombre] = useState('')
-  const [newCodigo, setNewCodigo] = useState('')
-  const [editingParte, setEditingParte] = useState<{ id: string; nombre: string; codigo: string; cantidad: number } | null>(null)
-
-  const relaciones = kitId ? kitRelaciones.filter(r => r.kit_id === kitId) : []
-  const partesDelKit = relaciones.map(r => {
-    const prod = productos.find(p => p.id === r.producto_id)
-    return { ...r, producto: prod }
-  })
-
-  const productosDisponibles = productos.filter(p => {
-    if (p.id === productoId) return false
-    if (p.es_kit) return false
-    if (relaciones.some(r => r.producto_id === p.id)) return false
-    if (!search.trim()) return false
-    return p.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      p.codigo_universal.toLowerCase().includes(search.toLowerCase())
-  })
-
-  const handleAddFromSearch = (originalProducto: Producto) => {
-    if (!kitId) return
-    if (relaciones.some(r => r.producto_id === originalProducto.id)) return
-    const nuevoProducto: Producto = {
-      ...originalProducto, id: crypto.randomUUID(),
-      stock: 0, kit_id: kitId, cantidad_por_kit: 1,
-    }
-    addProducto(nuevoProducto)
-    addKitRelacion({ kit_id: kitId, producto_id: nuevoProducto.id, cantidad: 1 })
-    setSearch('')
-    setSearchOpen(false)
-  }
-
-  const handleCreateNew = () => {
-    if (!kitId || !newNombre.trim()) return
-    const id = crypto.randomUUID()
-    const codigoFinal = newCodigo.trim() || `AUTO-${Date.now()}`
-    const nuevoProducto: Producto = {
-      id, codigo_universal: codigoFinal, codigos_alternativos: [],
-      nombre: newNombre.trim(), descripcion: '', categoria: 'Otro',
-      marca: '', vehiculo: '', unidad: 'pieza', stock: 0, stock_minimo: 5,
-      piezas: 1, precio_costo: 0, precio_venta: 0, historial_precios: [],
-      almacen: 'Almacén Central', estante: '', fila: '', columna: '',
-      estado: 'activo', proveedor_id: '', es_kit: false, kit_id: kitId,
-      cantidad_por_kit: 1, creado_en: new Date().toISOString(),
-      actualizado_en: new Date().toISOString(),
-    }
-    addProducto(nuevoProducto)
-    addKitRelacion({ kit_id: kitId, producto_id: id, cantidad: 1 })
-    setNewNombre('')
-    setNewCodigo('')
-    setCreating(false)
-    setSearchOpen(false)
-  }
-
-  const handleRemoveParte = (parteId: string) => { if (kitId) removeKitRelacion(kitId, parteId) }
-  const handleUpdateCantidad = (parteId: string, cantidad: number) => {
-    if (!kitId) return
-    removeKitRelacion(kitId, parteId)
-    addKitRelacion({ kit_id: kitId, producto_id: parteId, cantidad: Math.max(1, cantidad) })
-  }
-  const handleSaveEdit = () => {
-    if (!editingParte || !kitId) return
-    const parte = productos.find(p => p.id === editingParte.id)
-    if (parte) {
-      updateProducto({
-        ...parte, nombre: editingParte.nombre,
-        codigo_universal: editingParte.codigo,
-        cantidad_por_kit: editingParte.cantidad,
-        actualizado_en: new Date().toISOString(),
-      })
-      handleUpdateCantidad(editingParte.id, editingParte.cantidad)
-    }
-    setEditingParte(null)
-  }
-  const openEdit = (parte: typeof partesDelKit[0]) => {
-    setEditingParte({
-      id: parte.producto_id,
-      nombre: parte.producto?.nombre ?? '',
-      codigo: parte.producto?.codigo_universal ?? '',
-      cantidad: parte.cantidad,
-    })
-  }
-
-  if (relaciones.length === 0 && !searchOpen) {
-    return (
-      <div className="text-center py-4">
-        <p className="text-[12px] text-muted-2 mb-3">Este kit aún no tiene partes definidas</p>
-        <Button size="sm" variant="secondary"
-          className="rounded-[8px] !border-hair !text-ink-2 !bg-paper hover:!bg-cream-2"
-          onClick={() => setSearchOpen(true)}>
-          Agregar partes al kit
-        </Button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="rounded-[10px] border border-hair divide-y divide-hair/50">
-        {partesDelKit.map(rel => (
-          <div key={rel.producto_id} className="flex items-center gap-3 p-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-[12.5px] font-semibold text-ink-2 truncate">
-                {rel.producto?.nombre ?? 'Producto no encontrado'}
-              </p>
-              <p className="text-[11px] text-muted-2 font-mono">{rel.producto?.codigo_universal ?? '—'}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={1}
-                value={rel.cantidad}
-                onChange={(e) => handleUpdateCantidad(rel.producto_id, Number(e.target.value))}
-                className="w-14 h-8 text-center text-[13px] border border-hair rounded-[8px] bg-cream text-ink focus:outline-none focus:border-terra"
-              />
-              <span className="text-[11px] text-muted-2">× kit</span>
-              <button onClick={() => openEdit(rel)}
-                className="p-1.5 rounded-[6px] text-muted hover:text-ink hover:bg-cream-2 transition-colors"
-                title="Editar">
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </button>
-              <button onClick={() => handleRemoveParte(rel.producto_id)}
-                className="p-1.5 rounded-[6px] text-muted hover:text-terra hover:bg-terra-soft transition-colors"
-                title="Eliminar">
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {editingParte && (
-        <div className="p-4 rounded-[10px] bg-navy/5 border border-navy/15 space-y-3">
-          <p className="text-[12px] font-semibold text-ink-2">Editando parte</p>
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              value={editingParte.nombre}
-              onChange={(e) => setEditingParte({ ...editingParte, nombre: e.target.value })}
-              placeholder="Nombre"
-              className="h-9 px-3 text-[13px] border border-hair rounded-[8px] bg-cream text-ink focus:outline-none focus:border-terra"
-            />
-            <input
-              value={editingParte.codigo}
-              onChange={(e) => setEditingParte({ ...editingParte, codigo: e.target.value })}
-              placeholder="Código"
-              className="h-9 px-3 text-[13px] border border-hair rounded-[8px] bg-cream text-ink focus:outline-none focus:border-terra"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] text-ink-2">Cantidad por kit:</span>
-            <input
-              type="number"
-              min={1}
-              value={editingParte.cantidad}
-              onChange={(e) => setEditingParte({ ...editingParte, cantidad: Math.max(1, Number(e.target.value)) })}
-              className="w-20 h-9 text-center text-[13px] border border-hair rounded-[8px] bg-cream text-ink focus:outline-none focus:border-terra"
-            />
-          </div>
-          <div className="flex gap-2 justify-end">
-            <Button size="sm" variant="secondary"
-              className="rounded-[8px] !border-hair !text-ink-2 !bg-paper hover:!bg-cream-2"
-              onClick={() => setEditingParte(null)}>Cancelar</Button>
-            <Button size="sm"
-              className="rounded-[8px] !bg-terra hover:!bg-terra-deep !text-white"
-              onClick={handleSaveEdit}>Guardar</Button>
-          </div>
-        </div>
-      )}
-
-      {searchOpen ? (
-        <div className="space-y-2">
-          <div className="relative">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar producto para agregar..."
-              autoFocus
-              className="w-full h-[42px] px-3.5 rounded-[10px] border border-hair bg-cream text-[13.5px] text-ink focus:outline-none focus:border-terra placeholder:text-muted-2"
-            />
-            {search.trim() && productosDisponibles.length === 0 && !creating && (
-              <p className="text-[11px] text-muted-2 mt-1.5 px-1">No encontrado. Usa el botón de abajo para crear uno nuevo.</p>
-            )}
-            {productosDisponibles.length > 0 && (
-              <div className="absolute z-10 top-full mt-1 w-full bg-white rounded-[10px] border border-hair shadow-lg max-h-48 overflow-y-auto">
-                {productosDisponibles.slice(0, 10).map(p => (
-                  <button key={p.id} onClick={() => handleAddFromSearch(p)}
-                    className="w-full text-left px-3.5 py-2.5 hover:bg-cream-2 text-[12.5px] border-b border-hair/50 last:border-0">
-                    <span className="font-semibold text-ink font-mono">{p.codigo_universal}</span>
-                    <span className="text-muted-2 ml-2">{p.nombre}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {creating ? (
-            <div className="space-y-2.5 p-4 rounded-[10px] bg-cream-2 border border-hair">
-              <p className="text-[12px] font-semibold text-ink-2">Nueva pieza para el kit</p>
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  value={newCodigo}
-                  onChange={(e) => setNewCodigo(e.target.value)}
-                  placeholder="Código (opcional)"
-                  autoFocus
-                  className="h-9 px-3 text-[13px] border border-hair rounded-[8px] bg-paper text-ink focus:outline-none focus:border-terra placeholder:text-muted-2"
-                />
-                <input
-                  value={newNombre}
-                  onChange={(e) => setNewNombre(e.target.value)}
-                  placeholder="Nombre *"
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreateNew()}
-                  className="h-9 px-3 text-[13px] border border-hair rounded-[8px] bg-paper text-ink focus:outline-none focus:border-terra placeholder:text-muted-2"
-                />
-              </div>
-              <div className="flex gap-2 justify-end">
-                <Button size="sm" variant="secondary"
-                  className="rounded-[8px] !border-hair !text-ink-2 !bg-paper hover:!bg-cream-2"
-                  onClick={() => { setCreating(false); setNewNombre(''); setNewCodigo('') }}>Cancelar</Button>
-                <Button size="sm"
-                  className="rounded-[8px] !bg-terra hover:!bg-terra-deep !text-white"
-                  onClick={handleCreateNew} disabled={!newNombre.trim()}>Crear</Button>
-              </div>
-            </div>
-          ) : (
-            <Button size="sm" variant="secondary"
-              className="rounded-[8px] !border-hair !text-ink-2 !bg-paper hover:!bg-cream-2"
-              onClick={() => setCreating(true)}>
-              + Crear pieza nueva
-            </Button>
-          )}
-
-          <div className="flex justify-end mt-2">
-            <Button size="sm" variant="secondary"
-              className="rounded-[8px] !border-hair !text-ink-2 !bg-paper hover:!bg-cream-2"
-              onClick={() => { setSearchOpen(false); setSearch(''); setCreating(false); setNewNombre(''); setNewCodigo('') }}>
-              Cerrar
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Button size="sm" variant="secondary"
-          className="rounded-[8px] !border-hair !text-ink-2 !bg-paper hover:!bg-cream-2"
-          onClick={() => setSearchOpen(true)}>
-          + Agregar parte
-        </Button>
-      )}
-    </div>
-  )
-}
-
-function getKitNombre(kitId: string | null | undefined): string {
+function getKitNombre(kitId: string | null | undefined, productos: Producto[]): string {
   if (!kitId) return '—'
-  const { productos } = useInventarioStore.getState()
-  return productos.find(p => p.id === kitId)?.nombre ?? '—'
+  return productos.find((p) => p.id === kitId)?.nombre ?? '—'
 }
 
 /* ── Icons ── */

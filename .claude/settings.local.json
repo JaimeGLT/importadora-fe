@@ -15,7 +15,9 @@
       "Bash(curl *)",
       "Bash(node -e ' *)",
       "Bash(./node_modules/.bin/tsc *)",
-      "Bash(./node_modules/.bin/vite build *)"
+      "Bash(./node_modules/.bin/vite build *)",
+      "Bash(node *)",
+      "Bash(git checkout *)"
     ]
   }
 }

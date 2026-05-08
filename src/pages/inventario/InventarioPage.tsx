@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
-  getFilteredRowModel,
   getPaginationRowModel,
   flexRender,
   createColumnHelper,
@@ -12,16 +11,14 @@ import {
 } from '@tanstack/react-table'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { ConfirmModal, TablePagination, WarmStockBadge, WarmMetric } from '@/components/ui'
-import type { Producto, ItemPrestamo, Prestamo } from '@/types'
+import type { Producto } from '@/types'
 import { notify } from '@/lib/notify'
 import { ProductoModal } from './ProductoModal'
 import { ImportarExcelModal, type ImportResult } from './ImportarExcelModal'
 import { EtiquetaModal } from './EtiquetaModal'
-import { NuevoPrestamoModal } from './NuevoPrestamoModal'
-import { usePrestamosStore } from '@/stores/prestamosStore'
+import { AutopartsWatermark } from './AutopartsWatermark'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
-import { MOCK_PRODUCTOS } from '@/mock/inventario'
 import {
   PRODUCTOS_QUERY,
   PRODUCTO_BY_ID_QUERY,
@@ -31,6 +28,7 @@ import {
   productoToBackendUpdate,
   productoToBackendBulk,
   type ProductoAPI,
+  type KitOps,
 } from '@/lib/queries/inventario.queries'
 import { api } from '@/lib/api'
 import { clsx } from 'clsx'
@@ -41,10 +39,6 @@ declare module '@tanstack/react-table' {
     align?: 'left' | 'center' | 'right'
   }
 }
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type StockFilter = 'all' | 'ok' | 'warn' | 'crit'
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -144,9 +138,8 @@ function ProductThumb({ src, nombre }: { src?: string; nombre: string }) {
 
 // ─── Action buttons ───────────────────────────────────────────────────────────
 
-type ActionIcon = 'prestamo' | 'etiqueta' | 'editar' | 'eliminar'
+type ActionIcon = 'etiqueta' | 'editar' | 'eliminar'
 const ACTION_ICONS: Record<ActionIcon, React.ReactNode> = {
-  prestamo: <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>,
   etiqueta: <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>,
   editar:   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
   eliminar: <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
@@ -203,7 +196,7 @@ function TableSkeleton() {
           <div className="h-3 w-20 rounded bg-cream-2" />
           <div className="h-3 w-16 rounded bg-hair" />
           <div className="flex gap-1">
-            {[0,1,2,3].map(j => <div key={j} className="h-7 w-7 rounded-lg bg-cream-2" />)}
+            {[0,1,2].map(j => <div key={j} className="h-7 w-7 rounded-lg bg-cream-2" />)}
           </div>
         </div>
       ))}
@@ -237,335 +230,19 @@ function EmptyState({ onNew, searching }: { onNew: () => void; searching: boolea
   )
 }
 
-// ─── Autoparts watermark ──────────────────────────────────────────────────────
+// ─── Module-level constants ─────────────────────────────────────────────────────
 
-function AutopartsWatermark() {
-  return (
-    <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden" style={{ opacity: 0.05, mixBlendMode: 'multiply' }}>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 3800" preserveAspectRatio="xMidYMid meet"
-           style={{ width: '100%', height: 'auto', display: 'block' }}>
-        <g fill="#241E18">
-          {/* Car 1 */}
-          <g transform="translate(60,240)">
-            <path d="M0 90 L0 60 Q0 50 10 50 L120 50 L142 18 Q148 8 160 8 L260 8 Q272 8 280 16 L322 50 L390 50 Q408 50 414 64 L420 90 Z"/>
-            <path d="M168 22 L172 46 L218 46 L218 22 Z M226 22 L226 46 L278 46 L266 26 Q262 22 256 22 Z" fill="#FAF8F5"/>
-            <circle cx="90" cy="94" r="24"/>
-            <circle cx="340" cy="94" r="24"/>
-            <circle cx="90" cy="94" r="12" fill="#FAF8F5"/>
-            <circle cx="340" cy="94" r="12" fill="#FAF8F5"/>
-          </g>
-          {/* Hex bolt */}
-          <g transform="translate(1380,80)">
-            <path d="M40 2 L74 22 L74 60 L40 80 L6 60 L6 22 Z"/>
-            <circle cx="40" cy="41" r="12" fill="#FAF8F5"/>
-          </g>
-          {/* Wrench/bolt standing */}
-          <g transform="translate(820,80) rotate(-8)">
-            <rect x="8" y="0" width="12" height="10"/>
-            <rect x="2" y="10" width="24" height="8"/>
-            <rect x="4" y="18" width="20" height="32"/>
-            <path d="M4 50 L24 50 L21 88 L7 88 Z"/>
-            <rect x="10" y="88" width="8" height="22"/>
-          </g>
-          {/* Cone */}
-          <g transform="translate(1180,220) rotate(28)">
-            <rect x="0" y="0" width="14" height="10"/>
-            <path d="M2 10 L12 10 L7 70 Z"/>
-          </g>
-          {/* Hex bolt 2 */}
-          <g transform="translate(540,480) rotate(12)">
-            <path d="M40 2 L74 22 L74 60 L40 80 L6 60 L6 22 Z"/>
-            <circle cx="40" cy="41" r="12" fill="#FAF8F5"/>
-          </g>
-          {/* Gear */}
-          <g transform="translate(1280,460) rotate(-10)">
-            <circle cx="70" cy="70" r="52"/>
-            <rect x="66" y="0" width="8" height="18"/>
-            <rect x="66" y="122" width="8" height="18"/>
-            <rect x="0" y="66" width="18" height="8"/>
-            <rect x="122" y="66" width="18" height="8"/>
-            <rect x="28" y="12" width="8" height="18" transform="rotate(-45 32 21)"/>
-            <rect x="104" y="12" width="8" height="18" transform="rotate(45 108 21)"/>
-            <rect x="28" y="110" width="8" height="18" transform="rotate(45 32 119)"/>
-            <rect x="104" y="110" width="8" height="18" transform="rotate(-45 108 119)"/>
-            <circle cx="70" cy="70" r="28" fill="#FAF8F5"/>
-            <circle cx="70" cy="70" r="8"/>
-          </g>
-          {/* Wheel */}
-          <g transform="translate(220,660)">
-            <circle cx="70" cy="70" r="66"/>
-            <circle cx="70" cy="70" r="42" fill="#FAF8F5"/>
-            <circle cx="70" cy="70" r="12"/>
-            <circle cx="70" cy="28" r="5" fill="#FAF8F5"/>
-            <circle cx="70" cy="112" r="5" fill="#FAF8F5"/>
-            <circle cx="28" cy="70" r="5" fill="#FAF8F5"/>
-            <circle cx="112" cy="70" r="5" fill="#FAF8F5"/>
-            <circle cx="100" cy="40" r="5" fill="#FAF8F5"/>
-            <circle cx="40" cy="100" r="5" fill="#FAF8F5"/>
-            <circle cx="40" cy="40" r="5" fill="#FAF8F5"/>
-            <circle cx="100" cy="100" r="5" fill="#FAF8F5"/>
-          </g>
-          {/* Truck */}
-          <g transform="translate(900,820)">
-            <path d="M0 60 L0 40 Q0 32 8 30 L40 22 Q60 4 100 0 L240 0 Q300 4 340 30 L380 38 Q400 40 410 50 L420 60 L420 80 L0 80 Z"/>
-            <path d="M70 22 Q90 8 120 6 L180 6 L180 28 L66 28 Z M196 6 L260 6 Q300 10 326 28 L196 28 Z" fill="#FAF8F5"/>
-            <circle cx="90" cy="84" r="28"/>
-            <circle cx="330" cy="84" r="28"/>
-            <circle cx="90" cy="84" r="14" fill="#FAF8F5"/>
-            <circle cx="330" cy="84" r="14" fill="#FAF8F5"/>
-          </g>
-          {/* Cone 2 */}
-          <g transform="translate(1480,940) rotate(25)">
-            <rect x="0" y="0" width="14" height="10"/>
-            <path d="M2 10 L12 10 L7 70 Z"/>
-          </g>
-          {/* Spring/coil */}
-          <g transform="translate(180,980) rotate(10)">
-            <rect x="0" y="0" width="60" height="30"/>
-            <rect x="4" y="32" width="52" height="3" fill="#FAF8F5"/>
-            <rect x="4" y="38" width="52" height="3" fill="#FAF8F5"/>
-            <rect x="4" y="44" width="52" height="3" fill="#FAF8F5"/>
-            <path d="M12 50 L20 100 L40 100 L48 50 Z"/>
-          </g>
-          {/* Bolt standing 2 */}
-          <g transform="translate(700,1140) rotate(18)">
-            <rect x="8" y="0" width="12" height="10"/>
-            <rect x="2" y="10" width="24" height="8"/>
-            <rect x="4" y="18" width="20" height="32"/>
-            <path d="M4 50 L24 50 L21 88 L7 88 Z"/>
-            <rect x="10" y="88" width="8" height="22"/>
-          </g>
-          {/* Wheel 2 */}
-          <g transform="translate(1340,1240)">
-            <circle cx="70" cy="70" r="66"/>
-            <circle cx="70" cy="70" r="42" fill="#FAF8F5"/>
-            <circle cx="70" cy="70" r="12"/>
-            <circle cx="70" cy="28" r="5" fill="#FAF8F5"/>
-            <circle cx="70" cy="112" r="5" fill="#FAF8F5"/>
-            <circle cx="28" cy="70" r="5" fill="#FAF8F5"/>
-            <circle cx="112" cy="70" r="5" fill="#FAF8F5"/>
-            <circle cx="100" cy="40" r="5" fill="#FAF8F5"/>
-            <circle cx="40" cy="100" r="5" fill="#FAF8F5"/>
-            <circle cx="40" cy="40" r="5" fill="#FAF8F5"/>
-            <circle cx="100" cy="100" r="5" fill="#FAF8F5"/>
-          </g>
-          {/* Small car */}
-          <g transform="translate(520,1340)">
-            <path d="M0 70 L0 52 Q0 44 8 42 L60 32 Q92 8 140 4 L240 4 Q280 10 310 34 L360 42 Q372 44 372 52 L372 70 Z"/>
-            <path d="M70 28 Q92 12 130 10 L180 10 L180 34 L66 34 Z M192 10 L240 10 Q280 16 310 34 L192 34 Z" fill="#FAF8F5"/>
-            <circle cx="80" cy="74" r="24"/>
-            <circle cx="292" cy="74" r="24"/>
-            <circle cx="80" cy="74" r="12" fill="#FAF8F5"/>
-            <circle cx="292" cy="74" r="12" fill="#FAF8F5"/>
-          </g>
-          {/* Steering wheel */}
-          <g transform="translate(180,1500) rotate(-8)">
-            <circle cx="80" cy="80" r="80"/>
-            <circle cx="80" cy="80" r="44" fill="#FAF8F5"/>
-            <circle cx="80" cy="80" r="14"/>
-            <rect x="76" y="4" width="8" height="32" rx="2" fill="#FAF8F5"/>
-            <rect x="76" y="124" width="8" height="32" rx="2" fill="#FAF8F5"/>
-            <rect x="4" y="76" width="32" height="8" rx="2" fill="#FAF8F5"/>
-            <rect x="124" y="76" width="32" height="8" rx="2" fill="#FAF8F5"/>
-          </g>
-          {/* Hex bolt 3 */}
-          <g transform="translate(1040,1480) rotate(-20)">
-            <path d="M40 2 L74 22 L74 60 L40 80 L6 60 L6 22 Z"/>
-            <circle cx="40" cy="41" r="12" fill="#FAF8F5"/>
-          </g>
-          {/* Cone 3 */}
-          <g transform="translate(420,1700) rotate(30)">
-            <rect x="0" y="0" width="14" height="10"/>
-            <path d="M2 10 L12 10 L7 70 Z"/>
-          </g>
-          {/* Gear 2 */}
-          <g transform="translate(940,1700)">
-            <circle cx="70" cy="70" r="52"/>
-            <rect x="66" y="0" width="8" height="18"/>
-            <rect x="66" y="122" width="8" height="18"/>
-            <rect x="0" y="66" width="18" height="8"/>
-            <rect x="122" y="66" width="18" height="8"/>
-            <rect x="28" y="12" width="8" height="18" transform="rotate(-45 32 21)"/>
-            <rect x="104" y="12" width="8" height="18" transform="rotate(45 108 21)"/>
-            <rect x="28" y="110" width="8" height="18" transform="rotate(45 32 119)"/>
-            <rect x="104" y="110" width="8" height="18" transform="rotate(-45 108 119)"/>
-            <circle cx="70" cy="70" r="28" fill="#FAF8F5"/>
-            <circle cx="70" cy="70" r="8"/>
-          </g>
-          {/* Connector/hose */}
-          <g transform="translate(540,1820) rotate(15)">
-            <path d="M0 18 Q0 0 18 0 L40 0 Q58 0 58 18 L58 28 L120 28 L120 8 L160 8 L160 48 L120 48 L120 28 L58 28 L58 38 Q58 56 40 56 L18 56 Q0 56 0 38 Z"/>
-          </g>
-          {/* Large truck 2 */}
-          <g transform="translate(1080,1980)">
-            <path d="M0 80 L0 50 Q0 40 12 40 L150 40 L180 -10 Q188 -28 210 -28 L380 -28 Q398 -28 410 -16 L470 40 L590 40 Q620 40 630 60 L640 80 Z"/>
-            <path d="M220 -8 L230 36 L308 36 L308 -8 Z M318 -8 L318 36 L398 36 L380 -2 Q375 -8 365 -8 Z" fill="#FAF8F5"/>
-            <circle cx="110" cy="88" r="38"/>
-            <circle cx="510" cy="88" r="38"/>
-            <circle cx="110" cy="88" r="18" fill="#FAF8F5"/>
-            <circle cx="510" cy="88" r="18" fill="#FAF8F5"/>
-            <rect x="438" y="52" width="26" height="8" rx="2"/>
-          </g>
-          {/* Bolt standing 3 */}
-          <g transform="translate(60,2080) rotate(90)">
-            <rect x="8" y="0" width="12" height="10"/>
-            <rect x="2" y="10" width="24" height="8"/>
-            <rect x="4" y="18" width="20" height="32"/>
-            <path d="M4 50 L24 50 L21 88 L7 88 Z"/>
-            <rect x="10" y="88" width="8" height="22"/>
-          </g>
-          {/* Hex bolt 4 */}
-          <g transform="translate(800,2200) rotate(-12)">
-            <path d="M40 2 L74 22 L74 60 L40 80 L6 60 L6 22 Z"/>
-            <circle cx="40" cy="41" r="12" fill="#FAF8F5"/>
-          </g>
-          {/* Cone 4 */}
-          <g transform="translate(280,2240) rotate(45)">
-            <rect x="0" y="0" width="14" height="10"/>
-            <path d="M2 10 L12 10 L7 70 Z"/>
-          </g>
-          {/* Car 3 */}
-          <g transform="translate(440,2480)">
-            <path d="M0 90 L0 60 Q0 50 10 50 L120 50 L142 18 Q148 8 160 8 L260 8 Q272 8 280 16 L322 50 L390 50 Q408 50 414 64 L420 90 Z"/>
-            <path d="M168 22 L172 46 L218 46 L218 22 Z M226 22 L226 46 L278 46 L266 26 Q262 22 256 22 Z" fill="#FAF8F5"/>
-            <circle cx="90" cy="94" r="24"/>
-            <circle cx="340" cy="94" r="24"/>
-            <circle cx="90" cy="94" r="12" fill="#FAF8F5"/>
-            <circle cx="340" cy="94" r="12" fill="#FAF8F5"/>
-          </g>
-          {/* Gear 3 */}
-          <g transform="translate(100,2620) rotate(20)">
-            <circle cx="70" cy="70" r="52"/>
-            <rect x="66" y="0" width="8" height="18"/>
-            <rect x="66" y="122" width="8" height="18"/>
-            <rect x="0" y="66" width="18" height="8"/>
-            <rect x="122" y="66" width="18" height="8"/>
-            <rect x="28" y="12" width="8" height="18" transform="rotate(-45 32 21)"/>
-            <rect x="104" y="12" width="8" height="18" transform="rotate(45 108 21)"/>
-            <rect x="28" y="110" width="8" height="18" transform="rotate(45 32 119)"/>
-            <rect x="104" y="110" width="8" height="18" transform="rotate(-45 108 119)"/>
-            <circle cx="70" cy="70" r="28" fill="#FAF8F5"/>
-            <circle cx="70" cy="70" r="8"/>
-          </g>
-          {/* Hex bolt 5 */}
-          <g transform="translate(1340,2560) rotate(33)">
-            <path d="M40 2 L74 22 L74 60 L40 80 L6 60 L6 22 Z"/>
-            <circle cx="40" cy="41" r="12" fill="#FAF8F5"/>
-          </g>
-          {/* Wheel 3 */}
-          <g transform="translate(880,2700)">
-            <circle cx="70" cy="70" r="66"/>
-            <circle cx="70" cy="70" r="42" fill="#FAF8F5"/>
-            <circle cx="70" cy="70" r="12"/>
-            <circle cx="70" cy="28" r="5" fill="#FAF8F5"/>
-            <circle cx="70" cy="112" r="5" fill="#FAF8F5"/>
-            <circle cx="28" cy="70" r="5" fill="#FAF8F5"/>
-            <circle cx="112" cy="70" r="5" fill="#FAF8F5"/>
-            <circle cx="100" cy="40" r="5" fill="#FAF8F5"/>
-            <circle cx="40" cy="100" r="5" fill="#FAF8F5"/>
-            <circle cx="40" cy="40" r="5" fill="#FAF8F5"/>
-            <circle cx="100" cy="100" r="5" fill="#FAF8F5"/>
-          </g>
-          {/* Bolt standing 4 */}
-          <g transform="translate(1460,2740) rotate(-30)">
-            <rect x="8" y="0" width="12" height="10"/>
-            <rect x="2" y="10" width="24" height="8"/>
-            <rect x="4" y="18" width="20" height="32"/>
-            <path d="M4 50 L24 50 L21 88 L7 88 Z"/>
-            <rect x="10" y="88" width="8" height="22"/>
-          </g>
-          {/* Cone 5 */}
-          <g transform="translate(620,2880) rotate(-15)">
-            <rect x="0" y="0" width="14" height="10"/>
-            <path d="M2 10 L12 10 L7 70 Z"/>
-          </g>
-          {/* Steering wheel 2 */}
-          <g transform="translate(1180,2920) rotate(12)">
-            <circle cx="80" cy="80" r="80"/>
-            <circle cx="80" cy="80" r="44" fill="#FAF8F5"/>
-            <circle cx="80" cy="80" r="14"/>
-            <rect x="76" y="4" width="8" height="32" rx="2" fill="#FAF8F5"/>
-            <rect x="76" y="124" width="8" height="32" rx="2" fill="#FAF8F5"/>
-            <rect x="4" y="76" width="32" height="8" rx="2" fill="#FAF8F5"/>
-            <rect x="124" y="76" width="32" height="8" rx="2" fill="#FAF8F5"/>
-          </g>
-          {/* Spring 2 */}
-          <g transform="translate(280,3060) rotate(-8)">
-            <rect x="0" y="0" width="60" height="30"/>
-            <rect x="4" y="32" width="52" height="3" fill="#FAF8F5"/>
-            <rect x="4" y="38" width="52" height="3" fill="#FAF8F5"/>
-            <rect x="4" y="44" width="52" height="3" fill="#FAF8F5"/>
-            <path d="M12 50 L20 100 L40 100 L48 50 Z"/>
-          </g>
-          {/* Truck 3 */}
-          <g transform="translate(760,3100)">
-            <path d="M0 60 L0 40 Q0 32 8 30 L40 22 Q60 4 100 0 L240 0 Q300 4 340 30 L380 38 Q400 40 410 50 L420 60 L420 80 L0 80 Z"/>
-            <path d="M70 22 Q90 8 120 6 L180 6 L180 28 L66 28 Z M196 6 L260 6 Q300 10 326 28 L196 28 Z" fill="#FAF8F5"/>
-            <circle cx="90" cy="84" r="28"/>
-            <circle cx="330" cy="84" r="28"/>
-            <circle cx="90" cy="84" r="14" fill="#FAF8F5"/>
-            <circle cx="330" cy="84" r="14" fill="#FAF8F5"/>
-          </g>
-          {/* Hex bolt 6 */}
-          <g transform="translate(60,3300) rotate(18)">
-            <path d="M40 2 L74 22 L74 60 L40 80 L6 60 L6 22 Z"/>
-            <circle cx="40" cy="41" r="12" fill="#FAF8F5"/>
-          </g>
-          {/* Wheel 4 */}
-          <g transform="translate(480,3380)">
-            <circle cx="70" cy="70" r="66"/>
-            <circle cx="70" cy="70" r="42" fill="#FAF8F5"/>
-            <circle cx="70" cy="70" r="12"/>
-            <circle cx="70" cy="28" r="5" fill="#FAF8F5"/>
-            <circle cx="70" cy="112" r="5" fill="#FAF8F5"/>
-            <circle cx="28" cy="70" r="5" fill="#FAF8F5"/>
-            <circle cx="112" cy="70" r="5" fill="#FAF8F5"/>
-            <circle cx="100" cy="40" r="5" fill="#FAF8F5"/>
-            <circle cx="40" cy="100" r="5" fill="#FAF8F5"/>
-            <circle cx="40" cy="40" r="5" fill="#FAF8F5"/>
-            <circle cx="100" cy="100" r="5" fill="#FAF8F5"/>
-          </g>
-          {/* Gear 4 */}
-          <g transform="translate(1200,3400) rotate(-25)">
-            <circle cx="70" cy="70" r="52"/>
-            <rect x="66" y="0" width="8" height="18"/>
-            <rect x="66" y="122" width="8" height="18"/>
-            <rect x="0" y="66" width="18" height="8"/>
-            <rect x="122" y="66" width="18" height="8"/>
-            <rect x="28" y="12" width="8" height="18" transform="rotate(-45 32 21)"/>
-            <rect x="104" y="12" width="8" height="18" transform="rotate(45 108 21)"/>
-            <rect x="28" y="110" width="8" height="18" transform="rotate(45 32 119)"/>
-            <rect x="104" y="110" width="8" height="18" transform="rotate(-45 108 119)"/>
-            <circle cx="70" cy="70" r="28" fill="#FAF8F5"/>
-            <circle cx="70" cy="70" r="8"/>
-          </g>
-          {/* Cone 6 */}
-          <g transform="translate(940,3560) rotate(22)">
-            <rect x="0" y="0" width="14" height="10"/>
-            <path d="M2 10 L12 10 L7 70 Z"/>
-          </g>
-          {/* Bolt standing 5 */}
-          <g transform="translate(1460,3600) rotate(60)">
-            <rect x="8" y="0" width="12" height="10"/>
-            <rect x="2" y="10" width="24" height="8"/>
-            <rect x="4" y="18" width="20" height="32"/>
-            <path d="M4 50 L24 50 L21 88 L7 88 Z"/>
-            <rect x="10" y="88" width="8" height="22"/>
-          </g>
-        </g>
-      </svg>
-    </div>
-  )
-}
+const fmtBs = (n: number) =>
+  n.toLocaleString('es-BO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 
 // ─── Mobile product row ───────────────────────────────────────────────────────
 
 function MobileProductRow({ p, onTap }: { p: Producto; onTap: () => void }) {
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3 border-b border-hair last:border-0 active:bg-[#F4EFE6] transition-colors cursor-pointer"
+      className={clsx('flex items-center gap-3 px-4 py-3 border-b border-hair last:border-0 active:bg-[#F4EFE6] transition-colors cursor-pointer', p.es_kit && 'border-l-[3px] border-l-blue-400')}
       onClick={onTap}
-      style={{ WebkitTapHighlightColor: 'transparent' }}
+style={{ WebkitTapHighlightColor: 'transparent' }}
     >
       <ProductThumb src={p.imagen} nombre={p.nombre} />
       <div className="flex-1 min-w-0">
@@ -622,19 +299,20 @@ export function InventarioPage() {
   const [modalOpen, setModalOpen]               = useState(false)
   const [importOpen, setImportOpen]             = useState(false)
   const [etiquetaProducto, setEtiquetaProducto] = useState<Producto | null>(null)
-  const [prestamoProducto, setPrestamoProducto] = useState<Producto | null>(null)
   const [editingProducto, setEditingProducto]   = useState<Producto | null>(null)
   const [confirmDelete, setConfirmDelete]       = useState<Producto | null>(null)
   const [deleting, setDeleting]                 = useState(false)
   const [loading, setLoading]                   = useState(true)
   const [loadingModal, setLoadingModal]         = useState(false)
-  const [allProducts, setAllProducts]           = useState<Producto[]>([])
-  const [stockFilter, setStockFilter]           = useState<StockFilter>('all')
+  const [products, setProducts]                 = useState<Producto[]>([])
+  const [totalCount, setTotalCount]             = useState(0)
+  const [hasNextPage, setHasNextPage]           = useState(false)
+  const [endCursor, setEndCursor]               = useState<string | null>(null)
+  const [searchTerm, setSearchTerm]             = useState('')
+  const [searching, setSearching]             = useState(false)
+  const searchDebounce                          = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const [sorting, setSorting]           = useState<SortingState>([])
-  const [globalFilter, setGlobalFilter] = useState('')
-
-  const { addPrestamo } = usePrestamosStore()
+  const [sorting, setSorting] = useState<SortingState>([])
 
   const dateStr = useMemo(() => {
     return new Date().toLocaleDateString('es-BO', {
@@ -643,59 +321,51 @@ export function InventarioPage() {
   }, [])
 
   // ── Load products ──────────────────────────────────────────────────────────
-  const fetchProducts = (after: string | null, acc: ProductoAPI[]): Promise<ProductoAPI[]> => {
-    return gql<{ productos: { nodes: ProductoAPI[]; pageInfo: { hasNextPage: boolean; endCursor: string } } }>(
-      PRODUCTOS_QUERY, { first: 50, after }
-    ).then(res => {
-      const { nodes, pageInfo } = res.productos
-      const all = [...acc, ...nodes]
-      if (pageInfo?.hasNextPage && pageInfo.endCursor) return fetchProducts(pageInfo.endCursor, all)
-      return all
-    })
+  const loadProducts = (q?: string, cursor?: string | null) => {
+    setLoading(true)
+    const where = q?.trim() ? {
+      or: [
+        { codigo:      { contains: q } },
+        { codigoAux:   { contains: q } },
+        { codigoAux2:  { contains: q } },
+        { nombre:      { contains: q } },
+        { descripcion: { contains: q } },
+        { marca:       { contains: q } },
+      ],
+    } : undefined
+    gql<{ productos: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: ProductoAPI[] } }>(
+      PRODUCTOS_QUERY,
+      { first: 25, after: cursor, where }
+    )
+      .then(res => {
+        const { totalCount, pageInfo, nodes } = res.productos
+        setProducts(prev => cursor ? [...prev, ...nodes.map(backendToProductoSimple)] : nodes.map(backendToProductoSimple))
+        setTotalCount(totalCount)
+        setHasNextPage(pageInfo.hasNextPage)
+        setEndCursor(pageInfo.endCursor)
+      })
+      .catch(() => notify.error('Error cargando productos'))
+      .finally(() => { setLoading(false); setSearching(false) })
   }
 
-  const loadProducts = () => {
-    let cancelled = false
-    setLoading(true)
-    fetchProducts(null, [])
-      .then((raw) => {
-        if (cancelled) return
-        const backend = raw.map(backendToProductoSimple)
-        const mockKitYpiezas = MOCK_PRODUCTOS.filter(p => p.es_kit || p.kit_id)
-        setAllProducts(backend.length > 0 ? [...backend, ...mockKitYpiezas] : MOCK_PRODUCTOS as typeof backend)
-      })
-      .catch(() => { if (!cancelled) notify.error('Error cargando productos') })
-      .finally(() => { if (!cancelled) setLoading(false) })
+  const handleSearch = (value: string) => {
+    setSearchTerm(value)
+    if (searchDebounce.current) clearTimeout(searchDebounce.current)
+    searchDebounce.current = setTimeout(() => {
+      setSearching(true)
+      setProducts([])
+      setEndCursor(null)
+      loadProducts(value)
+    }, 350)
   }
 
   useEffect(() => {
     if (!isTokenReady) return
-    let cancelled = false
-    setLoading(true)
-    fetchProducts(null, [])
-      .then((raw) => {
-        if (cancelled) return
-        const backend = raw.map(backendToProductoSimple)
-        const mockKitYpiezas = MOCK_PRODUCTOS.filter(p => p.es_kit || p.kit_id)
-        setAllProducts(backend.length > 0 ? [...backend, ...mockKitYpiezas] : MOCK_PRODUCTOS as typeof backend)
-      })
-      .catch(() => { if (!cancelled) notify.error('Error cargando productos') })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
+    loadProducts()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTokenReady])
 
-  // ── Stock filter ───────────────────────────────────────────────────────────
-  const displayProducts = useMemo(() => {
-    if (stockFilter === 'all') return allProducts
-    return allProducts.filter(p => {
-      const sinStock = p.stock === 0
-      const bajo = p.stock > 0 && p.stock <= p.stock_minimo
-      if (stockFilter === 'crit') return sinStock
-      if (stockFilter === 'warn') return bajo
-      if (stockFilter === 'ok')   return !sinStock && !bajo
-      return true
-    })
-  }, [allProducts, stockFilter])
+  const displayProducts = products
 
   // ── Mutations ──────────────────────────────────────────────────────────────
   const handleEdit = (p: Producto) => {
@@ -703,15 +373,13 @@ export function InventarioPage() {
     setLoadingModal(true)
     setModalOpen(true)
     gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTO_BY_ID_QUERY, { id: Number(p.id) })
-      .then((res) => {
-        if (res.productos?.nodes?.[0]) setEditingProducto(backendToProducto(res.productos.nodes[0]))
-      })
+      .then(res => { if (res.productos?.nodes?.[0]) setEditingProducto(backendToProducto(res.productos.nodes[0])) })
       .catch(() => notify.error('Error cargando producto'))
       .finally(() => setLoadingModal(false))
   }
   const handleNew  = () => { setEditingProducto(null); setModalOpen(true) }
 
-  const handleSave = async (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>) => {
+  const handleSave = async (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>, kitOps: KitOps) => {
     const hasPriceChange = editingProducto &&
       (data.precio_costo !== editingProducto.precio_costo ||
        data.precio_venta !== editingProducto.precio_venta ||
@@ -729,7 +397,18 @@ export function InventarioPage() {
         }
         await api.post(`/Producto/CambiarPrecio/${editingProducto.id}`, pricePayload)
       }
-      setAllProducts((prev) => prev.map((p) => p.id === editingProducto.id ? { ...p, ...data } : p))
+      if (kitOps.mode === 'convertirKit') {
+        await api.post(`/Producto/ConvertirKit/${editingProducto.id}`, { piezas: kitOps.piezas ?? [] })
+      } else if (kitOps.mode === 'convertirRegular') {
+        await api.post(`/Producto/ConvertirRegular/${editingProducto.id}`, { stockManual: kitOps.stockManual ?? null })
+      } else if (kitOps.mode === 'managePieces' && kitOps.pieceOps?.length) {
+        for (const op of kitOps.pieceOps) {
+          if (op.type === 'add') await api.post(`/Producto/AgregarPieza/${editingProducto.id}`, op.data)
+          else if (op.type === 'update') await api.put(`/Piezakit/${op.piezaId}`, op.data)
+          else if (op.type === 'delete') await api.delete(`/Piezakit/${op.piezaId}`)
+        }
+      }
+      setProducts((prev) => prev.map((p) => p.id === editingProducto.id ? { ...p, ...data } : p))
       notify.success('Producto actualizado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
     } else {
       const createPayload = productoToBackend(data)
@@ -738,23 +417,6 @@ export function InventarioPage() {
       notify.success('Producto creado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
     }
     setModalOpen(false)
-  }
-
-  const handleNuevoPrestamo = (items: ItemPrestamo[], prestado_a: string, fecha: string, notas: string) => {
-    const nuevo: Prestamo = {
-      id: crypto.randomUUID(), items, prestado_a, fecha, notas,
-      estado: 'activo', creado_en: new Date().toISOString(),
-    }
-    addPrestamo(nuevo)
-    setAllProducts((prev) => {
-      return prev.map((p) => {
-        const item = items.find((i) => i.producto_id === p.id)
-        if (!item) return p
-        return { ...p, stock: p.stock - item.cantidad }
-      })
-    })
-    notify.success('Préstamo registrado')
-    setPrestamoProducto(null)
   }
 
   const handleImport = async (results: ImportResult[]) => {
@@ -774,7 +436,7 @@ export function InventarioPage() {
     setDeleting(true)
     try {
       await api.delete(`/Producto/${confirmDelete.id}`)
-      setAllProducts((prev) => prev.filter((p) => p.id !== confirmDelete.id))
+      setProducts((prev) => prev.filter((p) => p.id !== confirmDelete.id))
       notify.success('Producto eliminado', { description: confirmDelete.nombre })
     } catch {
       notify.error('Error al eliminar producto')
@@ -786,11 +448,11 @@ export function InventarioPage() {
 
   // ── KPIs ───────────────────────────────────────────────────────────────────
   const kpi = useMemo(() => ({
-    total:         allProducts.length,
-    totalUnidades: allProducts.reduce((s, p) => s + p.stock, 0),
-    totalValor:    allProducts.reduce((s, p) => s + p.precio_costo * p.stock, 0),
-    stockBajo:     allProducts.filter((p) => p.stock <= p.stock_minimo).length,
-  }), [allProducts])
+    total:         totalCount || products.length,
+    totalUnidades: products.reduce((s, p) => s + p.stock, 0),
+    totalValor:    products.reduce((s, p) => s + p.precio_costo * p.stock, 0),
+    stockBajo:     products.filter((p) => p.stock <= p.stock_minimo).length,
+  }), [products, totalCount])
 
   // ── Columns ────────────────────────────────────────────────────────────────
   const columns = useMemo(() => [
@@ -902,10 +564,8 @@ export function InventarioPage() {
       enableSorting: false,
       cell: (info) => {
         const p = info.row.original
-        const sinStock = p.stock === 0
         return (
           <div className="flex justify-end gap-0.5">
-            <ActionBtn icon="prestamo" onClick={() => setPrestamoProducto(p)} disabled={sinStock} title="Préstamo" />
             <ActionBtn icon="etiqueta" onClick={() => setEtiquetaProducto(p)} title="Etiqueta" />
             <ActionBtn icon="editar"   onClick={() => handleEdit(p)} title="Editar" />
             <ActionBtn icon="eliminar" onClick={() => setConfirmDelete(p)} danger title="Eliminar" />
@@ -916,53 +576,24 @@ export function InventarioPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [])
 
-  // ── Global filter fn ───────────────────────────────────────────────────────
-  const globalFilterFn = (row: { original: Producto }, _columnId: string, filterValue: string): boolean => {
-    const p = row.original
-    const search = filterValue.toLowerCase().trim()
-    if (!search) return true
-    const fields = [
-      p.codigo_universal,
-      p.codigos_alternativos[0] ?? '',
-      p.codigos_alternativos[1] ?? '',
-      p.nombre, p.marca, p.descripcion,
-    ]
-    return fields.some(field => field.toLowerCase().includes(search))
-  }
-
   // ── TanStack Table ─────────────────────────────────────────────────────────
   const table = useReactTable({
     data: displayProducts,
     columns,
-    state: { sorting, globalFilter },
+    state: { sorting },
     onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    globalFilterFn,
     initialState: { pagination: { pageSize: 25, pageIndex: 0 } },
   })
 
   useEffect(() => {
     table.setPageIndex(0)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [globalFilter, stockFilter])
-
-  const filteredCount = table.getFilteredRowModel().rows.length
+  }, [searchTerm])
 
   // ── Render ─────────────────────────────────────────────────────────────────
-
-  const fmtBs = (n: number) =>
-    n.toLocaleString('es-BO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-
-  const STOCK_FILTERS: { k: StockFilter; l: string }[] = [
-    { k: 'all',  l: 'Todos'    },
-    { k: 'ok',   l: 'En stock' },
-    { k: 'warn', l: 'Bajo'     },
-    { k: 'crit', l: 'Crítico'  },
-  ]
 
   return (
     <MainLayout>
@@ -1058,7 +689,7 @@ export function InventarioPage() {
             <div>
               <span className="font-serif text-[28px] leading-[1] tracking-[-0.01em] text-ink">Productos</span>
               <span className="text-base text-muted ml-2.5 font-normal">
-                {globalFilter ? `${filteredCount} de ${displayProducts.length}` : displayProducts.length}
+                {totalCount > 0 ? totalCount : displayProducts.length}
               </span>
             </div>
             <div className="ml-auto flex items-center gap-2">
@@ -1067,41 +698,24 @@ export function InventarioPage() {
                 <input
                   className="flex-1 min-w-0 bg-transparent border-none outline-none text-sm text-ink placeholder-muted-2"
                   placeholder="Buscar por código, nombre o marca…"
-                  value={globalFilter}
-                  onChange={e => setGlobalFilter(e.target.value)}
+                  value={searchTerm}
+                  onChange={e => handleSearch(e.target.value)}
                 />
               </div>
             </div>
           </div>
 
           {/* Filter row */}
-          <div className="flex items-center gap-2 px-4 md:px-7 py-3 border-b border-hair flex-wrap"
-               style={{ background: 'linear-gradient(180deg, #FAF8F5 0%, #FFFFFF 100%)' }}>
-            <span className="text-[11px] text-muted uppercase tracking-[0.1em] mr-1">Stock</span>
-            {STOCK_FILTERS.map(f => (
-              <button key={f.k}
-                onClick={() => setStockFilter(f.k)}
-                className={clsx(
-                  'h-10 px-3.5 border rounded-[10px] flex items-center text-[13px] transition-colors duration-120',
-                  stockFilter === f.k
-                    ? 'bg-ink text-cream border-ink'
-                    : 'bg-paper text-ink-2 border-hair hover:border-hair-2',
-                )}>
-                {f.l}
-              </button>
-            ))}
-          </div>
+          {/* Stock filter buttons removed */}
 
           {/* Table */}
-          {loading ? (
+          {(loading || searching) ? (
             <>
               <div className="hidden md:block"><TableSkeleton /></div>
               <div className="md:hidden"><MobileSkeletonRows /></div>
             </>
           ) : displayProducts.length === 0 ? (
-            <EmptyState onNew={handleNew} searching={stockFilter !== 'all'} />
-          ) : filteredCount === 0 ? (
-            <EmptyState onNew={handleNew} searching={!!globalFilter} />
+            <EmptyState onNew={handleNew} searching={!!searchTerm} />
           ) : (
             <>
               {/* ── Desktop table ── */}
@@ -1154,6 +768,7 @@ export function InventarioPage() {
                           background: idx % 2 === 0
                             ? 'rgba(255,255,255,0.55)'
                             : 'rgba(250,250,248,0.45)',
+                          ...(row.original.es_kit ? { borderLeft: '3px solid #60A5FA' } : {}),
                         }}
                         onMouseEnter={e => (e.currentTarget.style.background = 'rgba(244,239,230,0.8)')}
                         onMouseLeave={e => (e.currentTarget.style.background = idx % 2 === 0
@@ -1195,11 +810,22 @@ export function InventarioPage() {
 
           {/* Footer */}
           {!loading && displayProducts.length > 0 && (
-            <div className="px-4 md:px-7 py-4 border-t border-hair bg-cream flex items-center justify-between flex-wrap gap-2">
+            <div className="px-4 md:px-7 py-4 border-t border-hair bg-cream flex flex-col sm:flex-row items-center justify-between gap-3">
               <span className="text-[12.5px] text-muted">
-                Mostrando {filteredCount} de {displayProducts.length} productos
+                Mostrando {displayProducts.length} de {totalCount} productos
               </span>
-              <TablePagination table={table} totalRows={filteredCount} />
+              <div className="flex items-center gap-3">
+                {hasNextPage && (
+                  <button
+                    onClick={() => loadProducts(searchTerm, endCursor)}
+                    disabled={loading}
+                    className="h-9 px-4 rounded-[10px] text-[13px] font-semibold bg-paper border border-hair text-ink hover:border-ink transition-colors disabled:opacity-50"
+                  >
+                    {loading ? 'Cargando...' : 'Cargar más'}
+                  </button>
+                )}
+                <TablePagination table={table} totalRows={displayProducts.length} />
+              </div>
             </div>
           )}
         </div>
@@ -1208,12 +834,6 @@ export function InventarioPage() {
       </div>
 
       {/* ── Modals ──────────────────────────────────────────────────────── */}
-      <NuevoPrestamoModal
-        open={!!prestamoProducto}
-        onClose={() => setPrestamoProducto(null)}
-        onSave={handleNuevoPrestamo}
-        productos={allProducts}
-      />
       <EtiquetaModal
         open={!!etiquetaProducto}
         onClose={() => setEtiquetaProducto(null)}
@@ -1223,7 +843,7 @@ export function InventarioPage() {
         open={importOpen}
         onClose={() => setImportOpen(false)}
         onImport={handleImport}
-        productosExistentes={allProducts}
+        productosExistentes={products}
       />
       <ProductoModal
         open={modalOpen}
@@ -1231,7 +851,7 @@ export function InventarioPage() {
         onSave={handleSave}
         producto={editingProducto}
         loading={loadingModal}
-        productosExistentes={allProducts}
+        productosExistentes={products}
       />
       <ConfirmModal
         open={!!confirmDelete}

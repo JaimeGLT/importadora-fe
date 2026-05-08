@@ -4,7 +4,6 @@ import { clsx } from 'clsx'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
 import { Badge } from '@/components/ui'
-import { MOCK_PRODUCTOS } from '@/mock/inventario'
 import { MOCK_IMPORTACIONES } from '@/mock/importaciones'
 import { MOCK_RESUMEN_VENTAS } from '@/mock/alertas'
 import {
@@ -1117,10 +1116,9 @@ function Estacionalidad() {
 
 export function ReportesPage() {
   const { report } = useParams<{ report: string }>()
-  const { productos: storeProductos, setProductos } = useInventarioStore()
+  const { productos } = useInventarioStore()
 
-  if (storeProductos.length === 0) setProductos(MOCK_PRODUCTOS, MOCK_PRODUCTOS.length)
-  const productos = storeProductos.length > 0 ? storeProductos : MOCK_PRODUCTOS
+  const productosData = productos
 
   const resumenMap = useMemo(() => {
     const m: Record<string, ResumenVentas> = {}
@@ -1130,15 +1128,15 @@ export function ReportesPage() {
 
   const content = (() => {
     switch (report) {
-      case 'rentabilidad':   return <Rentabilidad  productos={productos} resumenMap={resumenMap} />
+      case 'rentabilidad':   return <Rentabilidad  productos={productosData} resumenMap={resumenMap} />
       case 'landed-cost':    return <LandedCost />
-      case 'rotacion':       return <Rotacion      productos={productos} resumenMap={resumenMap} />
+      case 'rotacion':       return <Rotacion      productos={productosData} resumenMap={resumenMap} />
       case 'cxc':            return <CuentasCobrar />
       case 'transito':       return <Transito />
-      case 'quiebre':        return <QuiebreStock  productos={productos} resumenMap={resumenMap} />
+      case 'quiebre':        return <QuiebreStock  productos={productosData} resumenMap={resumenMap} />
       case 'proveedores':    return <Proveedores />
-      case 'stock-muerto':   return <StockMuerto   productos={productos} resumenMap={resumenMap} />
-      case 'vehiculos':      return <PorVehiculo   productos={productos} resumenMap={resumenMap} />
+      case 'stock-muerto':   return <StockMuerto   productos={productosData} resumenMap={resumenMap} />
+      case 'vehiculos':      return <PorVehiculo   productos={productosData} resumenMap={resumenMap} />
       case 'clientes-fuga':  return <ClientesFuga />
       case 'estacionalidad': return <Estacionalidad />
       default:               return <Navigate to="/reportes/rentabilidad" replace />

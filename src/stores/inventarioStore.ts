@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import type { Producto, Proveedor, Filters, KitRelacion } from '@/types'
-import { MOCK_PRODUCTOS } from '@/mock/inventario'
 
 interface InventarioState {
   productos: Producto[]
@@ -54,14 +53,7 @@ export const useInventarioStore = create<InventarioState>()((set, get) => ({
   importOpen: false,
   kitRelaciones: [],
 
-  setProductos: (productos, total) => {
-    const mockKits = MOCK_PRODUCTOS.filter(p => p.es_kit || p.kit_id)
-    set({ productos: [...productos, ...mockKits], total: total + mockKits.length })
-    const mockKitRelaciones: KitRelacion[] = MOCK_PRODUCTOS
-      .filter(p => p.kit_id != null)
-      .map(p => ({ kit_id: p.kit_id!, producto_id: p.id, cantidad: p.cantidad_por_kit ?? 1 }))
-    set(state => ({ kitRelaciones: [...state.kitRelaciones, ...mockKitRelaciones.filter(ml => !state.kitRelaciones.some(existing => existing.kit_id === ml.kit_id && existing.producto_id === ml.producto_id))] }))
-  },
+  setProductos: (productos, total) => set({ productos, total }),
   setProveedores: (proveedores) => set({ proveedores }),
   setFilters: (filters) =>
     set((state) => ({ filters: { ...state.filters, ...filters, page: 1 } })),

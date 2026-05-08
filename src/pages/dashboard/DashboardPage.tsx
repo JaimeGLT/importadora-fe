@@ -1,11 +1,14 @@
-import { useMemo, useState, useRef } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
-import { MOCK_PRODUCTOS } from '@/mock/inventario'
 import { MOCK_RESUMEN_VENTAS } from '@/mock/alertas'
 import { MOCK_VENTAS_DIARIAS } from '@/mock/reportes'
 import { MOCK_IMPORTACIONES } from '@/mock/importaciones'
 import { MOCK_ORDENES } from '@/mock/ventas'
+import { useAuth } from '@/contexts/AuthContext'
+import { gql } from '@/lib/graphql'
+import { PRODUCTOS_QUERY, backendToProductoSimple, type ProductoAPI } from '@/lib/queries/inventario.queries'
+import type { Producto } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -233,6 +236,16 @@ function StatPill({ label, value, up }: { label: string; value: string; up: bool
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function DashboardPage() {
+  const { isTokenReady } = useAuth()
+  const [productos, setProductos] = useState<Producto[]>([])
+
+  useEffect(() => {
+    if (!isTokenReady) return
+    gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTOS_QUERY, { first: 9999, after: null })
+      .then(res => setProductos(res.productos.nodes.map(backendToProductoSimple)))
+      .catch(() => {})
+  }, [isTokenReady])
+
   const {
     ventasHoy, ventasMes, ventasHoyPrev, ventasMesPrev,
     ordenesActivas, importacionesTransito,
@@ -262,15 +275,15 @@ export function DashboardPage() {
     ).length
     const importacionesActivas = MOCK_IMPORTACIONES.filter(i => i.estado !== 'recibida')
 
-    const stockCritico       = MOCK_PRODUCTOS.filter(p => p.stock <= p.stock_minimo && p.estado === 'activo')
-    const valorInventario    = MOCK_PRODUCTOS.reduce((s, p) => s + p.stock * p.precio_costo, 0)
-    const valorInventarioUSD = MOCK_PRODUCTOS.reduce((s, p) => s + p.stock * (p.precio_costo / 6.96), 0)
+    const stockCritico       = productos.filter(p => p.stock <= p.stock_minimo && p.estado === 'activo')
+    const valorInventario    = productos.reduce((s, p) => s + p.stock * p.precio_costo, 0)
+    const valorInventarioUSD = productos.reduce((s, p) => s + p.stock * (p.precio_costo / 6.96), 0)
 
     const top5productos = [...MOCK_RESUMEN_VENTAS]
       .sort((a, b) => b.unidades_7d - a.unidades_7d)
       .slice(0, 5)
       .map(r => {
-        const prod = MOCK_PRODUCTOS.find(p => p.id === r.producto_id)
+        const prod = productos.find(p => p.id === r.producto_id)
         return {
           nombre:   prod?.nombre          ?? r.producto_id,
           codigo:   prod?.codigo_universal ?? '',
@@ -281,7 +294,7 @@ export function DashboardPage() {
 
     const sinMovimiento = MOCK_RESUMEN_VENTAS
       .filter(r => r.unidades_30d === 0)
-      .map(r => MOCK_PRODUCTOS.find(p => p.id === r.producto_id))
+      .map(r => productos.find(p => p.id === r.producto_id))
       .filter(Boolean)
 
     return {
@@ -291,7 +304,7 @@ export function DashboardPage() {
       top5productos, sparkline14d, chartDates,
       sinMovimiento, importacionesActivas,
     }
-  }, [])
+  }, [productos])
 
   const deltaDia: { val: string; up: boolean } | null = ventasHoyPrev > 0
     ? { val: `${Math.abs(((ventasHoy - ventasHoyPrev) / ventasHoyPrev) * 100).toFixed(0)}%`, up: ventasHoy >= ventasHoyPrev }
@@ -546,12 +559,12 @@ export function DashboardPage() {
               <p className="text-sm text-steel-400 mt-1.5 tabular-nums">{fmtBs(valorInventario)}</p>
               <div className="mt-6 pt-5 border-t border-steel-800 grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-2xl font-black tabular-nums">{MOCK_PRODUCTOS.length}</p>
+                  <p className="text-2xl font-black tabular-nums">{productos.length}</p>
                   <p className="text-[10px] text-steel-500 font-semibold uppercase tracking-wide mt-0.5">Productos</p>
                 </div>
                 <div>
                   <p className="text-2xl font-black tabular-nums">
-                    {MOCK_PRODUCTOS.reduce((s, p) => s + p.stock, 0).toLocaleString()}
+                    {productos.reduce((s, p) => s + p.stock, 0).toLocaleString()}
                   </p>
                   <p className="text-[10px] text-steel-500 font-semibold uppercase tracking-wide mt-0.5">Unidades</p>
                 </div>
