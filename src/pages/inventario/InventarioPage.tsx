@@ -398,21 +398,24 @@ export function InventarioPage() {
         await api.post(`/Producto/CambiarPrecio/${editingProducto.id}`, pricePayload)
       }
       if (kitOps.mode === 'convertirKit') {
-        await api.post(`/Producto/ConvertirKit/${editingProducto.id}`, { piezas: kitOps.piezas ?? [] })
+        await api.put(`/Producto/ConvertirKit/${editingProducto.id}`, { piezas: kitOps.piezas ?? [] })
       } else if (kitOps.mode === 'convertirRegular') {
-        await api.post(`/Producto/ConvertirRegular/${editingProducto.id}`, { stockManual: kitOps.stockManual ?? null })
+        await api.put(`/Producto/ConvertirRegular/${editingProducto.id}`, { stockManual: kitOps.stockManual ?? null })
       } else if (kitOps.mode === 'managePieces' && kitOps.pieceOps?.length) {
         for (const op of kitOps.pieceOps) {
-          if (op.type === 'add') await api.post(`/Producto/AgregarPieza/${editingProducto.id}`, op.data)
-          else if (op.type === 'update') await api.put(`/Piezakit/${op.piezaId}`, op.data)
-          else if (op.type === 'delete') await api.delete(`/Piezakit/${op.piezaId}`)
+          if (op.type === 'add') await api.post(`/Producto/${editingProducto.id}/Piezas`, op.data)
+          else if (op.type === 'update') await api.put(`/Producto/${editingProducto.id}/Piezas/${op.piezaId}`, op.data)
+          else if (op.type === 'delete') await api.delete(`/Producto/${editingProducto.id}/Piezas/${op.piezaId}`)
         }
       }
       setProducts((prev) => prev.map((p) => p.id === editingProducto.id ? { ...p, ...data } : p))
       notify.success('Producto actualizado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
     } else {
       const createPayload = productoToBackend(data)
-      await api.post('/Producto', createPayload)
+      const res = await api.post<{ id: number }>('/Producto', createPayload)
+      if (kitOps.mode === 'convertirKit' && kitOps.piezas?.length) {
+        await api.put(`/Producto/ConvertirKit/${res.id}`, { piezas: kitOps.piezas })
+      }
       loadProducts()
       notify.success('Producto creado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
     }

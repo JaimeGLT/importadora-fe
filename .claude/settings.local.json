@@ -17,7 +17,9 @@
       "Bash(./node_modules/.bin/tsc *)",
       "Bash(./node_modules/.bin/vite build *)",
       "Bash(node *)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\jaime\\\\Desktop\\\\UsaImportadora\" -Recurse -Filter \"*OrdenVenta*\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -ExpandProperty FullName)"
     ]
   }
 }

@@ -44,8 +44,8 @@ export interface OrdenItemAPI {
 
 export interface OrdenVentaAPI {
   id: number
-  id_Cajero: number
-  id_Almacenero: number | null
+  id_Cajero: string
+  id_Almacenero: string | null
   id_Cliente: number | null
   id_Caja: number
   estado: string
@@ -53,6 +53,8 @@ export interface OrdenVentaAPI {
   fechaCompletada: string | null
   notaCancelacion: string | null
   numero?: string
+  cajero: { id: string; nombre: string; apellido: string } | null
+  almacenero: { id: string; nombre: string; apellido: string } | null
   cliente: { id: number; nombre: string; apellido: string; telefono: string } | null
   items: OrdenItemAPI[]
 }
@@ -72,6 +74,16 @@ export const MIS_ORDENES_QUERY = `
         fecha
         fechaCompletada
         notaCancelacion
+        cajero {
+          id
+          nombre
+          apellido
+        }
+        almacenero {
+          id
+          nombre
+          apellido
+        }
         cliente {
           id
           nombre
@@ -137,6 +149,83 @@ export const ORDENES_PENDIENTES_QUERY = `
         fecha
         fechaCompletada
         notaCancelacion
+        cajero {
+          id
+          nombre
+          apellido
+        }
+        almacenero {
+          id
+          nombre
+          apellido
+        }
+        cliente {
+          id
+          nombre
+          apellido
+          telefono
+        }
+        items {
+          id
+          id_Orden
+          id_Producto
+          cantidad
+          esParcial
+          estado
+          notaIncompleto
+          precioUnitario
+          id_Descuento
+          montoDescuento
+          producto {
+            id
+            codigo
+            nombre
+            marca
+            ubicacion
+            stock_Actual
+            stock_Minimo
+            precio
+            esKit
+            stockReservado
+          }
+          piezas {
+            id
+            id_Item
+            id_Pieza
+            cantidad
+            precioUnitario
+            confirmado
+            notaIncompleto
+          }
+        }
+      }
+    }
+  }
+`
+
+export const MIS_ORDENES_ALMACEN_QUERY = `
+  query MisOrdenesAlmacen {
+    misOrdenesAlmacen {
+      nodes {
+        id
+        id_Cajero
+        id_Almacenero
+        id_Cliente
+        id_Caja
+        estado
+        fecha
+        fechaCompletada
+        notaCancelacion
+        cajero {
+          id
+          nombre
+          apellido
+        }
+        almacenero {
+          id
+          nombre
+          apellido
+        }
         cliente {
           id
           nombre
@@ -194,6 +283,16 @@ export const TODAS_ORDENES_QUERY = `
         fecha
         fechaCompletada
         notaCancelacion
+        cajero {
+          id
+          nombre
+          apellido
+        }
+        almacenero {
+          id
+          nombre
+          apellido
+        }
         cliente {
           id
           nombre
@@ -291,13 +390,21 @@ export function backendToOrdenVenta(api: OrdenVentaAPI): OrdenVenta {
     ? `${api.cliente.nombre} ${api.cliente.apellido}`.trim()
     : undefined
 
+  const cajeroNombre = api.cajero
+    ? `${api.cajero.nombre} ${api.cajero.apellido}`.trim()
+    : ''
+  const almaceneroNombre = api.almacenero
+    ? `${api.almacenero.nombre} ${api.almacenero.apellido}`.trim()
+    : undefined
+
   return {
     id: String(api.id),
     numero: api.numero ?? `#${api.id}`,
     tipo: 'venta',
     cajero_id: String(api.id_Cajero),
-    cajero_nombre: '',
+    cajero_nombre: cajeroNombre,
     almacenero_id: api.id_Almacenero != null ? String(api.id_Almacenero) : undefined,
+    almacenero_nombre: almaceneroNombre,
     cliente_id: api.id_Cliente != null ? String(api.id_Cliente) : undefined,
     cliente_nombre: clienteNombre,
     items,

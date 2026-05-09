@@ -14,7 +14,7 @@ import type { OrdenVenta, EstadoOrden } from '@/types'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
 import { useVentasHub } from '@/hooks/useVentasHub'
-import { ORDENES_PENDIENTES_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
+import { ORDENES_PENDIENTES_QUERY, MIS_ORDENES_ALMACEN_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ function OrderCard({
 }) {
   const mins = Math.floor((Date.now() - new Date(orden.creado_en).getTime()) / 60_000)
   const isLate = mins >= ALERT_MINS && orden.estado === 'pendiente_almacenero'
-  const esMia = orden.almacenero_id === userId
+  const esMia = !!orden.almacenero_id && orden.almacenero_id.toLowerCase() === userId.toLowerCase()
   const tomadaPorOtro = !!orden.almacenero_id && !esMia
   const status = STATUS_CONFIG[orden.estado]
 
@@ -310,13 +310,11 @@ function PickingView({
   orden,
   onMarcarListo,
   onVolver,
-  onCancelar,
   onFaltantes,
 }: {
   orden: OrdenVenta
   onMarcarListo: () => void
   onVolver: () => void
-  onCancelar: () => void
   onFaltantes: () => void
 }) {
   const productos = useInventarioStore(s => s.productos)
@@ -448,12 +446,6 @@ function PickingView({
         </div>
         <div className="flex gap-2 mt-3">
           <button
-            onClick={onCancelar}
-            className="px-4 py-2.5 rounded-xl text-sm font-bold text-red-600 hover:bg-red-50 border border-red-200 transition-all"
-          >
-            Cancelar orden
-          </button>
-          <button
             onClick={onFaltantes}
             className="px-4 py-2.5 rounded-xl text-sm font-bold text-amber-600 hover:bg-amber-50 border border-amber-200 transition-all"
           >
@@ -488,8 +480,19 @@ export function AlmacenPage() {
 
   const loadOrdenes = useCallback(async () => {
     try {
-      const data = await gql<{ ordenesPendientes: { nodes: OrdenVentaAPI[] } }>(ORDENES_PENDIENTES_QUERY)
-      setOrdenes((data.ordenesPendientes?.nodes ?? []).map(backendToOrdenVenta))
+      const [dataPendientes, dataMias] = await Promise.all([
+        gql<{ ordenesPendientes: { nodes: OrdenVentaAPI[] } }>(ORDENES_PENDIENTES_QUERY),
+        gql<{ misOrdenesAlmacen: { nodes: OrdenVentaAPI[] } }>(MIS_ORDENES_ALMACEN_QUERY),
+      ])
+      const pendientes = (dataPendientes.ordenesPendientes?.nodes ?? []).map(backendToOrdenVenta)
+      const mias = (dataMias.misOrdenesAlmacen?.nodes ?? [])
+        .map(backendToOrdenVenta)
+        .filter(o => o.estado !== 'completada' && o.estado !== 'cancelada')
+      const merged = [...mias]
+      pendientes.forEach(p => {
+        if (!merged.some(m => m.id === p.id)) merged.push(p)
+      })
+      setOrdenes(merged)
     } catch {
       notify.error('Error cargando órdenes')
     }
@@ -566,11 +569,13 @@ export function AlmacenPage() {
 
   const handleTomar = async (orden: OrdenVenta) => {
     try {
-      await api.post(`/OrdenVenta/${orden.id}/Aceptar`, null)
-      await loadOrdenes()
+      if (orden.estado === 'pendiente_almacenero') {
+        await api.post(`/OrdenVenta/${orden.id}/Aceptar`, null)
+        await loadOrdenes()
+        playBeep({ frequency: 1000, duration: 80 })
+        notify.success(`Orden ${orden.numero} tomada`)
+      }
       setPickingOrdenId(orden.id)
-      playBeep({ frequency: 1000, duration: 80 })
-      notify.success(`Orden ${orden.numero} tomada`)
     } catch (e) {
       notify.error(e instanceof Error ? e.message : 'Error al tomar orden')
     }
@@ -597,14 +602,14 @@ export function AlmacenPage() {
     const todosReportados = itemIds.length >= nonFaltanteCount
     try {
       for (const itemId of itemIds) {
-        await api.post(`/OrdenVenta/${faltantesOrden.id}/Items/${itemId}/Incompleto`, null)
+        await api.post(`/OrdenVenta/${faltantesOrden.id}/Items/${itemId}/Incompleto`, {})
       }
       if (todosReportados) {
-        await api.post(`/OrdenVenta/${faltantesOrden.id}/Cancelar`, null)
+        await api.post(`/OrdenVenta/${faltantesOrden.id}/Lista`, null)
         await loadOrdenes()
         setFaltantesOrden(null)
         setPickingOrdenId(null)
-        notify.warning('Todos los productos son faltantes — orden cancelada')
+        notify.warning('Todos los productos son faltantes — orden enviada al cajero')
       } else {
         await loadOrdenes()
         setFaltantesOrden(null)
@@ -612,16 +617,6 @@ export function AlmacenPage() {
       }
     } catch (e) {
       notify.error(e instanceof Error ? e.message : 'Error al reportar faltantes')
-    }
-  }
-
-  const handleCancelarOrden = async (ordenId: string) => {
-    try {
-      await api.post(`/OrdenVenta/${ordenId}/Cancelar`, null)
-      await loadOrdenes()
-      setPickingOrdenId(null)
-    } catch (e) {
-      notify.error(e instanceof Error ? e.message : 'Error al cancelar orden')
     }
   }
 
@@ -647,7 +642,6 @@ export function AlmacenPage() {
               orden={pickingOrden}
               onMarcarListo={handleMarcarListo}
               onVolver={() => setPickingOrdenId(null)}
-              onCancelar={() => handleCancelarOrden(pickingOrden.id)}
               onFaltantes={() => setFaltantesOrden(pickingOrden)}
             />
           </div>
