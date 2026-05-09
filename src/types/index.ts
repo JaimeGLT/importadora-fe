@@ -308,18 +308,26 @@ export interface Caja {
 
 export interface Cliente {
   id: number
-  nombre: string
+  nombre?: string
   apellido: string
-  telefono: string
+  telefono?: string
+  ci?: string
+  ciComplemento?: string
+  nit?: string
+  email?: string
+  activo?: boolean
+  compras?: unknown[]
   creado_en?: string
   actualizado_en?: string
 }
 
 export interface ClienteAPI {
   id: number
-  nombre: string
+  nombre?: string
   apellido: string
-  telefono: string
+  telefono?: string
+  nit?: string
+  email?: string
 }
 
 // ─── Ventas ───────────────────────────────────────────────────────────────────
@@ -391,4 +399,31 @@ export interface Marca {
   id: string
   nombre: string
   creado_en: string
+}
+
+// ─── Config ────────────────────────────────────────────────────────────────────
+
+export interface DescuentoConfig {
+  id: string
+  nombre: string
+  porcentaje: number
+  color: string
+  activo: boolean
+}
+
+export interface MargenGanancia {
+  id: number
+  valor: number
+  fecha: string
+}
+
+export interface ConfigVenta {
+  id: number
+  modoVenta: 'PrecioImportacion' | 'PrecioDolarDia' | 'Ambos'
+}
+
+export interface TipoCambio {
+  id: number
+  precioDolar: number
+  fecha: string
 }

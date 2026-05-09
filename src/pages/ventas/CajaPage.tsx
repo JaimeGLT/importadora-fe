@@ -28,8 +28,6 @@ const fmtTimeSince = (iso: string) => {
   return `${mins} min`
 }
 
-const newId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-
 const ESTADO_ORDEN_CONFIG: Record<string, { label: string; cls: string; dot: string }> = {
   pendiente:      { label: 'Pendiente',     cls: 'bg-amber-100 text-amber-700', dot: 'bg-amber-400' },
   en_preparacion: { label: 'Preparando',    cls: 'bg-blue-100 text-blue-700', dot: 'bg-blue-400' },
@@ -958,7 +956,7 @@ type TipoIdBilling = 'ci' | 'nit' | 'sin_nit'
 
 interface BillingData {
   tipoDocumento: 'nota_venta' | 'factura'
-  cliente_id?: string
+  cliente_id?: string | number
   cliente_tipo_id?: TipoIdBilling
   cliente_numero_id?: string
   cliente_nombre?: string
@@ -992,7 +990,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
   // Client search
   const [clienteSearch, setClienteSearch] = useState('')
   const [clienteSelected, setClienteSelected] = useState<Cliente | null>(
-    orden.cliente_id ? clientes.find(c => c.id === orden.cliente_id) ?? null : null
+    orden.cliente_id ? clientes.find(c => c.id === Number(orden.cliente_id)) ?? null : null
   )
   const [showClienteDropdown, setShowClienteDropdown] = useState(false)
 
@@ -1062,7 +1060,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
       // Create quick client
       const now = new Date().toISOString()
       newCliente = {
-        id: newId(),
+        id: -Date.now(),
         ci: billingTipo === 'ci' ? billingNumeroId : undefined,
         ciComplemento: billingTipo === 'ci' ? (billingComplemento || undefined) : undefined,
         nit: billingTipo === 'nit' ? billingNumeroId : (billingTipo === 'sin_nit' ? '99001' : undefined),
@@ -1797,7 +1795,7 @@ const addToCart = useCallback(async (producto: Producto) => {
 
   type BillingDataFromCobro = {
     tipoDocumento: 'nota_venta' | 'factura'
-    cliente_id?: string
+    cliente_id?: string | number
     cliente_tipo_id?: string
     cliente_numero_id?: string
     cliente_nombre?: string
@@ -1815,7 +1813,7 @@ const addToCart = useCallback(async (producto: Producto) => {
       monto_recibido: monto,
       pagado_en: now,
       tipoDocumento: billing.tipoDocumento as 'nota_venta' | 'factura',
-      cliente_id: billing.cliente_id,
+      cliente_id: billing.cliente_id != null ? String(billing.cliente_id) : undefined,
       cliente_tipo_id: billing.cliente_tipo_id as 'ci' | 'nit' | 'sin_nit' | undefined,
       cliente_numero_id: billing.cliente_numero_id,
       cliente_nombre: billing.cliente_nombre,
