@@ -26,7 +26,8 @@ const groups: NavGroup[] = [
       </svg>
     ),
     items: [
-      { label: 'Productos',  to: '/inventario',           roles: ['admin'] },
+      { label: 'Productos',  to: '/inventario',            roles: ['admin'] },
+      { label: 'Ajustes',    to: '/inventario/ajustes',   roles: ['admin', 'almacenero'] },
       { label: 'Préstamos',  to: '/inventario/prestamos', roles: ['admin', 'cajero'] },
     ],
   },
@@ -112,10 +113,10 @@ const groups: NavGroup[] = [
 function SidebarWatermark() {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-none"
-         style={{ opacity: 0.04, mixBlendMode: 'multiply' }}>
+         style={{ opacity: 0.055, mixBlendMode: 'screen' }}>
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 248 900" preserveAspectRatio="xMidYMax meet"
            style={{ width: '100%', height: '100%', display: 'block' }}>
-        <g fill="#241E18">
+        <g fill="#FFFFFF">
           {/* Gear top-right */}
           <g transform="translate(148,80) rotate(15)">
             <circle cx="50" cy="50" r="38"/>
@@ -127,27 +128,27 @@ function SidebarWatermark() {
             <rect x="74" y="9" width="6" height="14" transform="rotate(45 77 16)"/>
             <rect x="20" y="77" width="6" height="14" transform="rotate(45 23 84)"/>
             <rect x="74" y="77" width="6" height="14" transform="rotate(-45 77 84)"/>
-            <circle cx="50" cy="50" r="20" fill="#FAF8F5"/>
+            <circle cx="50" cy="50" r="20" fill="#1F1C17"/>
             <circle cx="50" cy="50" r="6"/>
           </g>
           {/* Wheel center */}
           <g transform="translate(14,320)">
             <circle cx="52" cy="52" r="50"/>
-            <circle cx="52" cy="52" r="32" fill="#FAF8F5"/>
+            <circle cx="52" cy="52" r="32" fill="#1F1C17"/>
             <circle cx="52" cy="52" r="9"/>
-            <circle cx="52" cy="10" r="4" fill="#FAF8F5"/>
-            <circle cx="52" cy="94" r="4" fill="#FAF8F5"/>
-            <circle cx="10" cy="52" r="4" fill="#FAF8F5"/>
-            <circle cx="94" cy="52" r="4" fill="#FAF8F5"/>
-            <circle cx="80" cy="24" r="4" fill="#FAF8F5"/>
-            <circle cx="24" cy="80" r="4" fill="#FAF8F5"/>
-            <circle cx="24" cy="24" r="4" fill="#FAF8F5"/>
-            <circle cx="80" cy="80" r="4" fill="#FAF8F5"/>
+            <circle cx="52" cy="10" r="4" fill="#1F1C17"/>
+            <circle cx="52" cy="94" r="4" fill="#1F1C17"/>
+            <circle cx="10" cy="52" r="4" fill="#1F1C17"/>
+            <circle cx="94" cy="52" r="4" fill="#1F1C17"/>
+            <circle cx="80" cy="24" r="4" fill="#1F1C17"/>
+            <circle cx="24" cy="80" r="4" fill="#1F1C17"/>
+            <circle cx="24" cy="24" r="4" fill="#1F1C17"/>
+            <circle cx="80" cy="80" r="4" fill="#1F1C17"/>
           </g>
           {/* Hex bolt */}
           <g transform="translate(172,490) rotate(-20)">
             <path d="M30 2 L56 16 L56 44 L30 58 L4 44 L4 16 Z"/>
-            <circle cx="30" cy="30" r="9" fill="#FAF8F5"/>
+            <circle cx="30" cy="30" r="9" fill="#1F1C17"/>
           </g>
           {/* Cone */}
           <g transform="translate(28,620) rotate(10)">
@@ -203,7 +204,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   return (
     <aside className={clsx(
       'flex flex-col w-[248px] shrink-0',
-      'bg-[#F0EDE8] border-r border-[#E1DBCF]',
+      'bg-[#1F1C17] border-r border-white/[0.06]',
       'fixed inset-y-0 left-0 z-50 h-full transition-transform duration-300 ease-in-out',
       'md:sticky md:top-1 md:translate-x-0 md:h-screen',
       open ? 'translate-x-0' : '-translate-x-full',
@@ -213,25 +214,25 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       <div className="relative z-[1] flex flex-col flex-1 min-h-0">
 
       {/* Brand */}
-      <div className="px-[18px] pt-8 pb-5 border-b border-hair">
+      <div className="px-[18px] pt-8 pb-5 border-b border-white/[0.06]">
         <div className="flex items-center gap-3 mb-3">
           {/* Brand mark */}
           <div className="relative w-[46px] h-[46px] rounded-[10px] bg-navy flex flex-col items-center justify-center shrink-0 overflow-hidden"
-               style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08), 0 1px 2px rgba(0,40,104,0.25)' }}>
+               style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12), 0 2px 8px rgba(0,0,0,0.4)' }}>
             <span className="relative z-10 text-white text-sm font-black tracking-[0.08em] mt-0.5">USA</span>
             <div className="absolute bottom-0 left-0 right-0 h-2"
                  style={{ background: 'repeating-linear-gradient(to bottom, #B22234 0px, #B22234 1.4px, #FFFFFF 1.4px, #FFFFFF 2.8px)', opacity: 0.92 }} />
           </div>
           <div>
-            <div className="font-serif text-2xl leading-none tracking-[-0.015em] text-ink">
-              USA <em className="italic text-terra not-italic">Autopartes</em>
+            <div className="font-serif text-2xl leading-none tracking-[-0.015em] text-white/90">
+              USA <em className="italic not-italic" style={{ color: '#E8A0AA' }}>Autopartes</em>
             </div>
           </div>
 
           {/* Close button mobile */}
           <button
             onClick={onClose}
-            className="md:hidden ml-auto p-1.5 rounded-lg text-muted hover:text-ink hover:bg-hair transition-colors"
+            className="md:hidden ml-auto p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/[0.08] transition-colors"
             aria-label="Cerrar menú"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -245,7 +246,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       <nav className="flex-1 px-[18px] py-4 overflow-y-auto space-y-0.5">
 
         {/* Dashboard */}
-        <div className="text-[10.5px] tracking-[0.14em] uppercase text-muted-2 px-3 pt-3.5 pb-2 font-medium">
+        <div className="text-[10.5px] tracking-[0.14em] uppercase text-white/30 px-3 pt-3.5 pb-2 font-medium">
           Principal
         </div>
         <NavLink
@@ -255,8 +256,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             clsx(
               'w-full flex items-center gap-3 px-3 py-[10px] rounded-[10px] text-sm font-medium transition-colors duration-120',
               isActive
-                ? 'bg-ink text-cream'
-                : 'text-ink-2 hover:bg-ink/[0.04]',
+                ? 'bg-terra text-white'
+                : 'text-white/60 hover:bg-white/[0.07] hover:text-white/90',
             )
           }
         >
@@ -267,7 +268,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           <span>Dashboard</span>
         </NavLink>
 
-        <div className="text-[10.5px] tracking-[0.14em] uppercase text-muted-2 px-3 pt-3.5 pb-2 font-medium">
+        <div className="text-[10.5px] tracking-[0.14em] uppercase text-white/30 px-3 pt-3.5 pb-2 font-medium">
           Operaciones
         </div>
 
@@ -289,8 +290,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                   clsx(
                     'w-full flex items-center gap-3 px-3 py-[10px] rounded-[10px] text-sm font-medium transition-colors duration-120',
                     isActive
-                      ? 'bg-ink text-cream'
-                      : 'text-ink-2 hover:bg-ink/[0.04]',
+                      ? 'bg-terra text-white'
+                      : 'text-white/60 hover:bg-white/[0.07] hover:text-white/90',
                   )
                 }
               >
@@ -307,8 +308,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 className={clsx(
                   'w-full flex items-center gap-3 px-3 py-[10px] rounded-[10px] text-sm font-medium transition-colors duration-120 text-left',
                   groupActive && !isExpanded
-                    ? 'bg-ink text-cream'
-                    : 'text-ink-2 hover:bg-ink/[0.04]',
+                    ? 'bg-terra text-white'
+                    : 'text-white/60 hover:bg-white/[0.07] hover:text-white/90',
                 )}
               >
                 {group.icon}
@@ -336,8 +337,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                         clsx(
                           'flex items-center gap-2 px-3 py-2 rounded-[10px] text-[13.5px] transition-colors duration-120',
                           isActive
-                            ? 'bg-ink text-cream font-medium'
-                            : 'text-ink-2 hover:bg-ink/[0.04]',
+                            ? 'bg-terra/[0.18] text-[#F2B8BF] font-semibold'
+                            : 'text-white/50 hover:bg-white/[0.06] hover:text-white/80',
                         )
                       }
                     >
@@ -351,7 +352,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           )
         })}
 
-        <div className="text-[10.5px] tracking-[0.14em] uppercase text-muted-2 px-3 pt-3.5 pb-2 font-medium">
+        <div className="text-[10.5px] tracking-[0.14em] uppercase text-white/30 px-3 pt-3.5 pb-2 font-medium">
           General
         </div>
 
@@ -368,8 +369,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 className={clsx(
                   'w-full flex items-center gap-3 px-3 py-[10px] rounded-[10px] text-sm font-medium transition-colors duration-120 text-left',
                   groupActive && !isExpanded
-                    ? 'bg-ink text-cream'
-                    : 'text-ink-2 hover:bg-ink/[0.04]',
+                    ? 'bg-terra text-white'
+                    : 'text-white/60 hover:bg-white/[0.07] hover:text-white/90',
                 )}
               >
                 {group.icon}
@@ -397,8 +398,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                         clsx(
                           'flex items-center gap-2 px-3 py-2 rounded-[10px] text-[13.5px] transition-colors duration-120',
                           isActive
-                            ? 'bg-ink text-cream font-medium'
-                            : 'text-ink-2 hover:bg-ink/[0.04]',
+                            ? 'bg-terra/[0.18] text-[#F2B8BF] font-semibold'
+                            : 'text-white/50 hover:bg-white/[0.06] hover:text-white/80',
                         )
                       }
                     >
@@ -414,24 +415,24 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       </nav>
 
       {/* User footer */}
-      <div className="px-[18px] py-4 border-t border-hair shrink-0">
+      <div className="px-[18px] py-4 border-t border-white/[0.06] shrink-0">
         <div className="flex items-center gap-3 px-1.5 py-2">
           <div
-            className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[13px] font-semibold shrink-0 border-2 border-cream-2"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[13px] font-semibold shrink-0"
             style={{
               background: 'linear-gradient(135deg, #B22234 0%, #8C1A28 100%)',
-              boxShadow: '0 0 0 1px #E8E1D6',
+              boxShadow: '0 0 0 2px rgba(255,255,255,0.1)',
             }}
           >
             {initials}
           </div>
           <div className="flex-1 overflow-hidden">
-            <p className="text-[13.5px] font-semibold text-ink leading-[1.2] truncate">{user?.nombre ?? '—'}</p>
-            <p className="text-[11.5px] text-muted capitalize">{user?.rol ?? ''}</p>
+            <p className="text-[13.5px] font-semibold text-white/85 leading-[1.2] truncate">{user?.nombre ?? '—'}</p>
+            <p className="text-[11.5px] text-white/35 capitalize">{user?.rol ?? ''}</p>
           </div>
           <button
             onClick={() => { void logout().then(() => navigate('/login')) }}
-            className="p-1.5 rounded-lg text-muted hover:text-ink hover:bg-hair transition-colors shrink-0"
+            className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/[0.08] transition-colors shrink-0"
             title="Cerrar sesión"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -18,6 +18,7 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
 
 let refreshFn: (() => Promise<boolean>) | null = null
 let logoutFn: (() => Promise<void>) | null = null
+let refreshPromise: Promise<boolean> | null = null
 
 export function setAuthCallbacks(refresh: () => Promise<boolean>, logout: () => Promise<void>) {
   refreshFn = refresh
@@ -27,6 +28,7 @@ export function setAuthCallbacks(refresh: () => Promise<boolean>, logout: () => 
 export function clearAuthCallbacks() {
   refreshFn = null
   logoutFn = null
+  refreshPromise = null
 }
 
 async function requestWithInterceptor<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -43,7 +45,11 @@ async function requestWithInterceptor<T>(path: string, options: RequestOptions =
   })
 
   if (response.status === 401 && !_retry && refreshFn) {
-    const refreshed = await refreshFn()
+    // Deduplicate concurrent refresh calls — one POST to /Auth/refresh, not N
+    if (!refreshPromise) {
+      refreshPromise = refreshFn().finally(() => { refreshPromise = null })
+    }
+    const refreshed = await refreshPromise
     if (refreshed) {
       return requestWithInterceptor<T>(path, { ...options, _retry: true })
     }

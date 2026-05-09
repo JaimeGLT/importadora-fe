@@ -156,6 +156,8 @@ function OrderCard({
 
 // ─── FaltantesModal ─────────────────────────────────────────────────────────
 
+type PiezaFaltante = { itemId: string; piezaId: number }
+
 function FaltantesModal({
   orden,
   open,
@@ -165,38 +167,52 @@ function FaltantesModal({
   orden: OrdenVenta
   open: boolean
   onClose: () => void
-  onConfirm: (itemIds: string[]) => void
+  onConfirm: (itemIds: string[], piezasFaltantes: PiezaFaltante[]) => void
 }) {
-  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
+  const [selItems, setSelItems] = useState<Set<string>>(new Set())
+  const [selPiezas, setSelPiezas] = useState<Set<string>>(new Set()) // key: `${itemId}-${piezaId}`
   const [confirmando, setConfirmando] = useState(false)
 
-  const handleToggle = (id: string) => {
-    setSeleccionados(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+  const totalSel = selItems.size + selPiezas.size
+
+  const toggleItem = (id: string) =>
+    setSelItems(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+
+  const togglePieza = (itemId: string, piezaId: number) => {
+    const key = `${itemId}-${piezaId}`
+    setSelPiezas(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n })
   }
 
   const handleConfirm = async () => {
-    if (seleccionados.size === 0) {
-      notify.warning('Selecciona al menos un producto faltante')
-      return
-    }
+    if (totalSel === 0) { notify.warning('Selecciona al menos un faltante'); return }
     setConfirmando(true)
-    await onConfirm([...seleccionados])
+    const piezasFaltantes: PiezaFaltante[] = [...selPiezas].map(key => {
+      const [itemId, piezaId] = key.split('-')
+      return { itemId, piezaId: Number(piezaId) }
+    })
+    await onConfirm([...selItems], piezasFaltantes)
     setConfirmando(false)
-    setSeleccionados(new Set())
+    setSelItems(new Set())
+    setSelPiezas(new Set())
   }
 
   const handleClose = () => {
-    setSeleccionados(new Set())
+    setSelItems(new Set())
+    setSelPiezas(new Set())
     onClose()
   }
 
-  const faltantesCount = orden.items.filter(i => i.estado === 'faltante').length
-  const disponiblesCount = orden.items.filter(i => i.estado !== 'faltante').length
+  const itemsDisponibles = orden.items.filter(i => i.estado !== 'faltante')
+  const itemsFaltantes   = orden.items.filter(i => i.estado === 'faltante')
+
+  function CheckBox({ checked }: { checked: boolean }) {
+    return (
+      <div className={clsx('h-5 w-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all',
+        checked ? 'bg-red-500 border-red-500' : 'border-steel-200')}>
+        {checked && <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+      </div>
+    )
+  }
 
   return (
     <Modal
@@ -206,81 +222,92 @@ function FaltantesModal({
       size="md"
       footer={
         <>
-          <Button variant="secondary" onClick={handleClose} disabled={confirmando}>
-            Cancelar
-          </Button>
-          <Button
-            variant="danger"
-            onClick={handleConfirm}
-            loading={confirmando}
-            disabled={seleccionados.size === 0}
-          >
-            Reportar {seleccionados.size > 0 ? `(${seleccionados.size})` : ''}
+          <Button variant="secondary" onClick={handleClose} disabled={confirmando}>Cancelar</Button>
+          <Button variant="danger" onClick={handleConfirm} loading={confirmando} disabled={totalSel === 0}>
+            Reportar {totalSel > 0 ? `(${totalSel})` : ''}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
         <p className="text-xs text-steel-500">
-          Marca los productos que no encontraste físicamente. El stock reservado será liberado y el cajero recibirá una notificación sonora.
+          Marca los productos o piezas que no encontraste. El stock reservado será liberado.
         </p>
 
-        {disponiblesCount > 0 && (
+        {itemsDisponibles.length > 0 && (
           <div>
             <p className="text-[10px] font-bold text-steel-400 uppercase tracking-wide mb-2">
-              Productos disponibles ({disponiblesCount})
+              Disponibles ({itemsDisponibles.length})
             </p>
             <div className="space-y-1.5">
-              {orden.items.filter(i => i.estado !== 'faltante').map(item => (
-                <div
-                  key={item.id}
-                  onClick={() => handleToggle(item.id)}
-                  className={clsx(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all',
-                    seleccionados.has(item.id)
-                      ? 'bg-red-50 border-red-200'
-                      : 'bg-white border-steel-100 hover:border-red-100'
-                  )}
-                >
-                  <div className={clsx(
-                    'h-5 w-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all',
-                    seleccionados.has(item.id)
-                      ? 'bg-red-500 border-red-500'
-                      : 'border-steel-200'
-                  )}>
-                    {seleccionados.has(item.id) && (
-                      <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-steel-800 truncate">{item.producto_nombre}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[11px] font-mono text-steel-400 bg-steel-50 px-1.5 py-0.5 rounded">{item.producto_codigo}</span>
-                      {item.kit_id && <span className="text-[10px] text-indigo-500 font-medium">parte de kit</span>}
-                      {(item.producto_almacen || item.producto_estante) && (
-                        <span className="text-[11px] text-steel-400">
-                          📦 {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}
-                          {item.producto_fila ? ` / ${item.producto_fila}` : ''}{item.producto_columna ? ` / ${item.producto_columna}` : ''}
-                        </span>
-                      )}
+              {itemsDisponibles.map(item => {
+                if (item.es_parcial && item.piezas_orden?.length) {
+                  return (
+                    <div key={item.id} className="rounded-xl border border-steel-100 bg-white overflow-hidden">
+                      <div className="px-3 py-2 bg-indigo-50 border-b border-indigo-100">
+                        <p className="text-xs font-bold text-indigo-700">{item.producto_nombre}</p>
+                        <p className="text-[10px] text-indigo-500">Kit parcial — selecciona las piezas faltantes</p>
+                      </div>
+                      <div className="divide-y divide-steel-100">
+                        {item.piezas_orden.map(p => {
+                          const key = `${item.id}-${p.id}`
+                          const checked = selPiezas.has(key)
+                          return (
+                            <div
+                              key={p.id}
+                              onClick={() => togglePieza(item.id, p.id)}
+                              className={clsx('flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors',
+                                checked ? 'bg-red-50' : 'hover:bg-steel-50')}
+                            >
+                              <CheckBox checked={checked} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-steel-800 truncate">{p.nombre}</p>
+                                <span className="text-[11px] font-mono text-steel-400">{p.codigo}</span>
+                              </div>
+                              <span className="text-sm font-bold text-steel-600 shrink-0">×{p.cantidad}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
+                  )
+                }
+                const checked = selItems.has(item.id)
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => toggleItem(item.id)}
+                    className={clsx('flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all',
+                      checked ? 'bg-red-50 border-red-200' : 'bg-white border-steel-100 hover:border-red-100')}
+                  >
+                    <CheckBox checked={checked} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-steel-800 truncate">{item.producto_nombre}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[11px] font-mono text-steel-400 bg-steel-50 px-1.5 py-0.5 rounded">{item.producto_codigo}</span>
+                        {(item.producto_almacen || item.producto_estante) && (
+                          <span className="text-[11px] text-steel-400">
+                            📦 {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}
+                            {item.producto_fila ? ` / ${item.producto_fila}` : ''}{item.producto_columna ? ` / ${item.producto_columna}` : ''}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold text-steel-600 shrink-0">×{item.cantidad_pedida}</span>
                   </div>
-                  <span className="text-sm font-bold text-steel-600 shrink-0">×{item.cantidad_pedida}</span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
 
-        {faltantesCount > 0 && (
+        {itemsFaltantes.length > 0 && (
           <div>
             <p className="text-[10px] font-bold text-red-400 uppercase tracking-wide mb-2">
-              Ya reportados ({faltantesCount})
+              Ya reportados ({itemsFaltantes.length})
             </p>
             <div className="space-y-1">
-              {orden.items.filter(i => i.estado === 'faltante').map(item => (
+              {itemsFaltantes.map(item => (
                 <div key={item.id} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-red-50 border border-red-100 opacity-60">
                   <svg className="h-4 w-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -365,15 +392,25 @@ function PickingView({
         <div className="space-y-3 pb-2">
           {/* Items que no son parte de kit */}
           {itemsSinKit.map(item => (
-            <div key={item.id} className="rounded-xl border border-steel-100 bg-white p-4">
-              <div className="flex items-start gap-3">
+            <div key={item.id} className="rounded-xl border border-steel-100 bg-white overflow-hidden">
+              <div className="flex items-start gap-3 p-4">
                 <div className="h-10 w-10 rounded-xl bg-steel-50 border border-steel-100 flex items-center justify-center shrink-0">
                   <svg className="h-5 w-5 text-steel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-steel-800 leading-tight">{item.producto_nombre}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-semibold text-steel-800 leading-tight">{item.producto_nombre}</p>
+                    {item.es_parcial && (
+                      <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">Kit parcial</span>
+                    )}
+                  </div>
+                  {item.es_parcial && (
+                    <p className="text-[11px] text-indigo-500 mt-0.5 font-medium">
+                      0 kits completos · {item.piezas_orden?.reduce((s, p) => s + p.cantidad, 0) ?? 0} pieza(s) sueltas
+                    </p>
+                  )}
                   <div className="flex flex-wrap items-center gap-2 mt-1">
                     <span className="text-[11px] font-mono text-steel-400 bg-steel-50 px-1.5 py-0.5 rounded">
                       {item.producto_codigo}
@@ -389,6 +426,17 @@ function PickingView({
                   <p className="text-lg font-black text-steel-800">×{item.cantidad_pedida}</p>
                 </div>
               </div>
+              {item.es_parcial && item.piezas_orden && item.piezas_orden.length > 0 && (
+                <div className="border-t border-steel-100 bg-steel-50 divide-y divide-steel-100">
+                  {item.piezas_orden.map(p => (
+                    <div key={p.id_pieza} className="flex items-center gap-2 px-4 py-2">
+                      <span className="text-[10px] font-mono text-steel-400 bg-white px-1 py-0.5 rounded border border-steel-200 shrink-0">{p.codigo}</span>
+                      <span className="text-xs text-steel-700 flex-1 min-w-0 truncate">{p.nombre}</span>
+                      <span className="text-xs font-bold text-steel-800 shrink-0">×{p.cantidad}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
 
@@ -596,14 +644,20 @@ export function AlmacenPage() {
     }
   }
 
-  const handleFaltantesConfirm = async (itemIds: string[]) => {
+  const handleFaltantesConfirm = async (itemIds: string[], piezasFaltantes: PiezaFaltante[]) => {
     if (!faltantesOrden) return
-    const nonFaltanteCount = faltantesOrden.items.filter(i => i.estado !== 'faltante').length
-    const todosReportados = itemIds.length >= nonFaltanteCount
     try {
       for (const itemId of itemIds) {
         await api.post(`/OrdenVenta/${faltantesOrden.id}/Items/${itemId}/Incompleto`, {})
       }
+      for (const { itemId, piezaId } of piezasFaltantes) {
+        await api.post(`/OrdenVenta/${faltantesOrden.id}/Items/${itemId}/Piezas/${piezaId}/Incompleto`, {})
+      }
+      const totalReportado = itemIds.length + piezasFaltantes.length
+      const totalDisponible = faltantesOrden.items
+        .filter(i => i.estado !== 'faltante')
+        .reduce((sum, i) => sum + (i.es_parcial && i.piezas_orden?.length ? i.piezas_orden.length : 1), 0)
+      const todosReportados = totalReportado >= totalDisponible
       if (todosReportados) {
         await api.post(`/OrdenVenta/${faltantesOrden.id}/Lista`, null)
         await loadOrdenes()
@@ -613,7 +667,7 @@ export function AlmacenPage() {
       } else {
         await loadOrdenes()
         setFaltantesOrden(null)
-        notify.warning(`${itemIds.length} producto(s) reportado(s) como faltante(s)`)
+        notify.warning(`${totalReportado} faltante(s) reportado(s)`)
       }
     } catch (e) {
       notify.error(e instanceof Error ? e.message : 'Error al reportar faltantes')

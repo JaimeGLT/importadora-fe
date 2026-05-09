@@ -24,6 +24,7 @@ export interface OrdenItemPiezaAPI {
   precioUnitario: number
   confirmado: boolean
   notaIncompleto: string | null
+  pieza?: { nombre: string; codigoUniversal: string } | null
 }
 
 export interface OrdenItemAPI {
@@ -121,6 +122,7 @@ export const MIS_ORDENES_QUERY = `
             esKit
             stockReservado
           }
+          esParcial
           piezas {
             id
             id_Item
@@ -129,6 +131,10 @@ export const MIS_ORDENES_QUERY = `
             precioUnitario
             confirmado
             notaIncompleto
+            pieza {
+              nombre
+              codigoUniversal
+            }
           }
         }
       }
@@ -188,6 +194,7 @@ export const ORDENES_PENDIENTES_QUERY = `
             esKit
             stockReservado
           }
+          esParcial
           piezas {
             id
             id_Item
@@ -196,6 +203,10 @@ export const ORDENES_PENDIENTES_QUERY = `
             precioUnitario
             confirmado
             notaIncompleto
+            pieza {
+              nombre
+              codigoUniversal
+            }
           }
         }
       }
@@ -255,6 +266,7 @@ export const MIS_ORDENES_ALMACEN_QUERY = `
             esKit
             stockReservado
           }
+          esParcial
           piezas {
             id
             id_Item
@@ -263,6 +275,10 @@ export const MIS_ORDENES_ALMACEN_QUERY = `
             precioUnitario
             confirmado
             notaIncompleto
+            pieza {
+              nombre
+              codigoUniversal
+            }
           }
         }
       }
@@ -321,6 +337,7 @@ export const TODAS_ORDENES_QUERY = `
             esKit
             stockReservado
           }
+          esParcial
           piezas {
             id
             id_Item
@@ -329,6 +346,10 @@ export const TODAS_ORDENES_QUERY = `
             precioUnitario
             confirmado
             notaIncompleto
+            pieza {
+              nombre
+              codigoUniversal
+            }
           }
         }
       }
@@ -379,6 +400,16 @@ function backendToItemOrden(api: OrdenItemAPI): ItemOrden {
     subtotal: api.precioUnitario * api.cantidad,
     estado,
     nota: api.notaIncompleto ?? undefined,
+    es_parcial: api.esParcial,
+    piezas_orden: api.esParcial && api.piezas?.length
+      ? api.piezas.map(p => ({
+          id: p.id,
+          id_pieza: p.id_Pieza,
+          nombre: p.pieza?.nombre ?? `Pieza #${p.id_Pieza}`,
+          codigo: p.pieza?.codigoUniversal ?? '',
+          cantidad: p.cantidad,
+        }))
+      : undefined,
   }
 }
 

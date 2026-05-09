@@ -5,6 +5,7 @@ import { LoginPage } from '@/pages/auth/LoginPage'
 import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { InventarioPage } from '@/pages/inventario/InventarioPage'
 import { PrestamosPage } from '@/pages/inventario/PrestamosPage'
+import { AjustesPage } from '@/pages/inventario/AjustesPage'
 import { ImportacionesPage } from '@/pages/importaciones/ImportacionesPage'
 import { ProveedoresPage } from '@/pages/importaciones/proveedores/ProveedoresPage'
 import { MarcasPage as MarcasPageImportaciones } from '@/pages/importaciones/marcas/MarcasPage'
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="/reportes/kits" element={<ReportesKitsPage />} />
           <Route path="/inventario" element={<InventarioPage />} />
           <Route path="/inventario/prestamos" element={<PrestamosPage />} />
+          <Route path="/inventario/ajustes" element={<AjustesPage />} />
           <Route path="/importaciones" element={<ImportacionesPage />} />
           <Route path="/importaciones/proveedores" element={<ProveedoresPage />} />
           <Route path="/importaciones/marcas" element={<MarcasPageImportaciones />} />

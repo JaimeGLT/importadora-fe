@@ -385,41 +385,49 @@ export function InventarioPage() {
        data.precio_venta !== editingProducto.precio_venta ||
        data.conversionABs !== editingProducto.conversionABs)
 
-    if (editingProducto) {
-      const updatePayload = productoToBackendUpdate(data)
-      await api.put(`/Producto/${editingProducto.id}`, updatePayload)
-      if (hasPriceChange) {
-        const pricePayload = {
-          costo: data.precio_costo,
-          precio: data.precio_venta,
-          conversionABs: data.conversionABs,
-          nota: data.historial_precios[data.historial_precios.length - 1]?.nota ?? '',
+    try {
+      if (editingProducto) {
+        const updatePayload = productoToBackendUpdate(data)
+        await api.put(`/Producto/${editingProducto.id}`, updatePayload)
+        if (hasPriceChange) {
+          const pricePayload = {
+            costo: data.precio_costo,
+            precio: data.precio_venta,
+            conversionABs: data.conversionABs,
+            nota: data.historial_precios[data.historial_precios.length - 1]?.nota ?? '',
+          }
+          await api.post(`/Producto/CambiarPrecio/${editingProducto.id}`, pricePayload)
         }
-        await api.post(`/Producto/CambiarPrecio/${editingProducto.id}`, pricePayload)
-      }
-      if (kitOps.mode === 'convertirKit') {
-        await api.put(`/Producto/ConvertirKit/${editingProducto.id}`, { piezas: kitOps.piezas ?? [] })
-      } else if (kitOps.mode === 'convertirRegular') {
-        await api.put(`/Producto/ConvertirRegular/${editingProducto.id}`, { stockManual: kitOps.stockManual ?? null })
-      } else if (kitOps.mode === 'managePieces' && kitOps.pieceOps?.length) {
-        for (const op of kitOps.pieceOps) {
-          if (op.type === 'add') await api.post(`/Producto/${editingProducto.id}/Piezas`, op.data)
-          else if (op.type === 'update') await api.put(`/Producto/${editingProducto.id}/Piezas/${op.piezaId}`, op.data)
-          else if (op.type === 'delete') await api.delete(`/Producto/${editingProducto.id}/Piezas/${op.piezaId}`)
+        if (kitOps.mode === 'convertirKit') {
+          await api.put(`/Producto/ConvertirKit/${editingProducto.id}`, { piezas: kitOps.piezas ?? [] })
+        } else if (kitOps.mode === 'convertirRegular') {
+          await api.put(`/Producto/ConvertirRegular/${editingProducto.id}`, { stockManual: kitOps.stockManual ?? null })
+        } else if (kitOps.mode === 'managePieces' && kitOps.pieceOps?.length) {
+          for (const op of kitOps.pieceOps) {
+            if (op.type === 'add') await api.post(`/Producto/${editingProducto.id}/Piezas`, op.data)
+            else if (op.type === 'update') await api.put(`/Producto/${editingProducto.id}/Piezas/${op.piezaId}`, op.data)
+            else if (op.type === 'delete') await api.delete(`/Producto/${editingProducto.id}/Piezas/${op.piezaId}`)
+          }
         }
+        if (kitOps.mode !== 'none') {
+          loadProducts(searchTerm)
+        } else {
+          setProducts((prev) => prev.map((p) => p.id === editingProducto.id ? { ...p, ...data } : p))
+        }
+        notify.success('Producto actualizado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
+      } else {
+        const createPayload = productoToBackend(data)
+        const res = await api.post<{ id: number }>('/Producto', createPayload)
+        if (kitOps.mode === 'convertirKit' && kitOps.piezas?.length) {
+          await api.put(`/Producto/ConvertirKit/${res.id}`, { piezas: kitOps.piezas })
+        }
+        loadProducts()
+        notify.success('Producto creado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
       }
-      setProducts((prev) => prev.map((p) => p.id === editingProducto.id ? { ...p, ...data } : p))
-      notify.success('Producto actualizado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
-    } else {
-      const createPayload = productoToBackend(data)
-      const res = await api.post<{ id: number }>('/Producto', createPayload)
-      if (kitOps.mode === 'convertirKit' && kitOps.piezas?.length) {
-        await api.put(`/Producto/ConvertirKit/${res.id}`, { piezas: kitOps.piezas })
-      }
-      loadProducts()
-      notify.success('Producto creado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
+      setModalOpen(false)
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al guardar producto')
     }
-    setModalOpen(false)
   }
 
   const handleImport = async (results: ImportResult[]) => {

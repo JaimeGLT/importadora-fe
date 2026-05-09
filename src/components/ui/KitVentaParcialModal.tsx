@@ -24,7 +24,7 @@ export function KitVentaParcialModal({ open, onClose, kit, onConfirm }: KitVenta
 
   const piezasKit = useMemo(() =>
     (kit.piezas_kit ?? []).map(p => ({
-      producto_id: String(p.id_producto),
+      producto_id: String(p.id),
       nombre: p.nombre,
       codigo: p.codigo_universal,
       stock: Math.max(0, p.stock_actual - p.stock_reservado),

@@ -342,6 +342,14 @@ export type TipoOrden = 'venta' | 'reserva'
 export type EstadoItemOrden = 'pendiente' | 'completo' | 'parcial' | 'faltante'
 export type MetodoPago = 'efectivo' | 'tarjeta' | 'qr'
 
+export interface PiezaOrden {
+  id: number
+  id_pieza: number
+  nombre: string
+  codigo: string
+  cantidad: number
+}
+
 export interface ItemOrden {
   id: string
   producto_id: string
@@ -360,6 +368,8 @@ export interface ItemOrden {
   nota?: string
   diferencia_kit?: number
   kit_id?: string
+  es_parcial?: boolean
+  piezas_orden?: PiezaOrden[]
 }
 
 export type TipoDocumento = 'nota_venta' | 'factura'

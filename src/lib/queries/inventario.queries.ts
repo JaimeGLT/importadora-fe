@@ -54,6 +54,7 @@ export const PRODUCTO_BY_ID_QUERY = `
         unidad_Medida
         ubicacion
         stock_Actual
+        calcularStockKit
         stockReservado
         stock_Minimo
         piezas

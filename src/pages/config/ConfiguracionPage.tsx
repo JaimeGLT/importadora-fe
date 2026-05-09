@@ -381,7 +381,7 @@ export function ConfiguracionPage() {
   const handleSaveDescuento = async (data: Omit<DescuentoConfig, 'id'>) => {
     try {
       if (editingDescuento) {
-        await api.post(`/Descuento/${editingDescuento.id}`, {
+        await api.put(`/Descuento/${editingDescuento.id}`, {
           nombre: data.nombre,
           cantDescuento: data.porcentaje,
           color: data.color,

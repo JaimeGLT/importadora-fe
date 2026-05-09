@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button, Input } from '@/components/ui'
 import { notify } from '@/lib/notify'
 import { useConfigStore } from '@/stores/configStore'
 import { TipoCambioModal } from '@/components/ui/TipoCambioModal'
+import { api } from '@/lib/api'
 import type { Usuario } from '@/types'
 
 const ROLE_HOME: Record<string, string> = {
@@ -20,7 +21,7 @@ const QUICK_USERS = [
 ]
 
 export function LoginPage() {
-  const { login, user } = useAuth()
+  const { login, user, isTokenReady } = useAuth()
   const navigate = useNavigate()
   const { setTipoCambio, setTipoCambioHabilitado, setTipoCambioFechaRecordatorio, tipoCambioFechaRecordatorio } = useConfigStore()
   const [email, setEmail]       = useState('')
@@ -28,6 +29,10 @@ export function LoginPage() {
   const [loading, setLoading]   = useState(false)
   const [showTipoCambio, setShowTipoCambio] = useState(false)
   const [tipoCambioApi, setTipoCambioApi] = useState(0)
+
+  if (isTokenReady && user) {
+    return <Navigate to={ROLE_HOME[user.rol] ?? '/inventario'} replace />
+  }
 
   const fetchTipoCambio = async () => {
     try {
@@ -64,11 +69,16 @@ export function LoginPage() {
     }
   }
 
-  const handleTipoCambioAccept = () => {
+  const handleTipoCambioAccept = async () => {
     setTipoCambio(tipoCambioApi)
     setTipoCambioHabilitado(true)
     setTipoCambioFechaRecordatorio(new Date().toISOString().split('T')[0])
     setShowTipoCambio(false)
+    try {
+      await api.post('/TipoCambio', { precioDolar: tipoCambioApi })
+    } catch {
+      // non-blocking — store already updated
+    }
     if (user) {
       void navigate(ROLE_HOME[user.rol] ?? '/inventario')
     }

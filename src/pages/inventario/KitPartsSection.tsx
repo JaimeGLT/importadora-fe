@@ -1,13 +1,14 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { Producto, PiezaKit } from '@/types'
 import type { DtoPiezaKit, PieceOp } from '@/lib/queries/inventario.queries'
+import { PRODUCTOS_QUERY, backendToProductoSimple } from '@/lib/queries/inventario.queries'
+import { gql } from '@/lib/graphql'
 import { clsx } from 'clsx'
 
 interface KitPartsSectionProps {
   productoId?: string
   wasKit: boolean
   piezasFromBackend?: PiezaKit[]
-  productosDisponibles: Producto[]
   localPieces: DtoPiezaKit[]
   onLocalPiecesChange: (p: DtoPiezaKit[]) => void
   pieceOps: PieceOp[]
@@ -29,7 +30,6 @@ export function KitPartsSection({
   productoId,
   wasKit,
   piezasFromBackend,
-  productosDisponibles,
   localPieces,
   onLocalPiecesChange,
   pieceOps,
@@ -42,6 +42,30 @@ export function KitPartsSection({
   const [newCantidad, setNewCantidad] = useState(1)
   const [pending, setPending] = useState<{ codigo: string; nombre: string } | null>(null)
   const [pendingQty, setPendingQty] = useState(1)
+  const [searchResults, setSearchResults] = useState<Producto[]>([])
+  const [searching, setSearching] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (!q.trim()) { setSearchResults([]); setSearchError(null); return }
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      setSearching(true)
+      setSearchError(null)
+      gql<{ productos: { nodes: Parameters<typeof backendToProductoSimple>[0][] } }>(
+        PRODUCTOS_QUERY,
+        { first: 10, where: { or: [{ codigo: { contains: q } }, { codigoAux: { contains: q } }, { codigoAux2: { contains: q } }, { nombre: { contains: q } }, { marca: { contains: q } }, { descripcion: { contains: q } }] } },
+      )
+        .then(res => setSearchResults(res.productos.nodes.map(backendToProductoSimple)))
+        .catch((err: unknown) => {
+          console.error('[KitSearch]', err)
+          setSearchError(err instanceof Error ? err.message : 'Error al buscar')
+        })
+        .finally(() => setSearching(false))
+    }, 300)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [q])
 
   // ── Compute display list ─────────────────────────────────────────────────────
 
@@ -141,15 +165,9 @@ export function KitPartsSection({
   // ── Search results ───────────────────────────────────────────────────────────
 
   const existingCodes = new Set(displayParts.map((d) => d.codigo))
-  const searchResults = productosDisponibles
-    .filter((p) => {
-      if (p.es_kit || p.id === productoId) return false
-      if (existingCodes.has(p.codigo_universal)) return false
-      const s = q.toLowerCase().trim()
-      if (!s) return false
-      return p.codigo_universal.toLowerCase().includes(s) || p.nombre.toLowerCase().includes(s)
-    })
-    .slice(0, 8)
+  const filteredResults = searchResults.filter(
+    (p) => !p.es_kit && p.id !== productoId && !existingCodes.has(p.codigo_universal)
+  )
 
   const resetCreate = () => { setMode('idle'); setNewCodigo(''); setNewNombre(''); setNewCantidad(1) }
 
@@ -250,10 +268,14 @@ export function KitPartsSection({
           <div className="max-h-[180px] overflow-y-auto">
             {!q.trim() ? (
               <div className="px-4 py-3 text-[12px] text-muted-2">Escribe para buscar…</div>
-            ) : searchResults.length === 0 ? (
+            ) : searching ? (
+              <div className="px-4 py-3 text-[12px] text-muted-2">Buscando…</div>
+            ) : searchError ? (
+              <div className="px-4 py-3 text-[12px] text-red-500">Error: {searchError}</div>
+            ) : filteredResults.length === 0 ? (
               <div className="px-4 py-3 text-[12px] text-muted-2">Sin resultados — usa "Nueva pieza".</div>
             ) : (
-              searchResults.map((p) => (
+              filteredResults.map((p) => (
                 <button key={p.id} type="button"
                   onClick={() => { setPending({ codigo: p.codigo_universal, nombre: p.nombre }); setPendingQty(1) }}
                   className={clsx(

@@ -2,6 +2,7 @@ const GQL_URL = import.meta.env.VITE_GQL_URL ?? 'https://usaautopartesapi2026040
 
 let refreshFn: (() => Promise<boolean>) | null = null
 let logoutFn: (() => Promise<void>) | null = null
+let refreshPromise: Promise<boolean> | null = null
 
 export async function gql<T = unknown>(
   query: string,
@@ -16,7 +17,10 @@ export async function gql<T = unknown>(
   })
 
   if (response.status === 401 && !retry && refreshFn) {
-    const refreshed = await refreshFn()
+    if (!refreshPromise) {
+      refreshPromise = refreshFn().finally(() => { refreshPromise = null })
+    }
+    const refreshed = await refreshPromise
     if (refreshed) {
       return gql<T>(query, variables, true)
     }
@@ -44,4 +48,5 @@ export function initGqlCallbacks(refresh: () => Promise<boolean>, logout: () => 
 export function clearGqlCallbacks() {
   refreshFn = null
   logoutFn = null
+  refreshPromise = null
 }

@@ -1,12 +1,66 @@
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
+import { Navigate } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
 import { Sidebar } from './Sidebar'
+import { gql } from '@/lib/graphql'
+import { useConfigStore } from '@/stores/configStore'
+import { DESCUENTOS_QUERY, CONFIG_VENTA_QUERY, TIPO_CAMBIO_QUERY, backendToDescuento, type DescuentoAPI, type ConfigVentaAPI, type TipoCambioAPI } from '@/lib/queries/config.queries'
+import type { ModoPrecioCajero } from '@/stores/configStore'
+
+let _configLoaded = false
 
 interface MainLayoutProps {
   children: ReactNode
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
+  const { isAuthenticated, isTokenReady } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { setDescuentos, setModoPrecioCajero, setTipoCambio, setTipoCambioHabilitado } = useConfigStore()
+
+  useEffect(() => {
+    if (!isTokenReady || !isAuthenticated || _configLoaded) return
+    _configLoaded = true
+
+    gql<{ descuento: { nodes: DescuentoAPI[] } }>(DESCUENTOS_QUERY)
+      .then(r => setDescuentos(r.descuento.nodes.map(backendToDescuento)))
+      .catch(() => {})
+
+    gql<{ configVenta: ConfigVentaAPI[] }>(CONFIG_VENTA_QUERY)
+      .then(r => {
+        const cfg = r.configVenta[0]
+        if (!cfg) return
+        const mapa: Record<string, ModoPrecioCajero> = {
+          Ambos: 'ambos',
+          PrecioDolarDia: 'solo_dolar_hoy',
+          PrecioImportacion: 'solo_importacion',
+        }
+        setModoPrecioCajero(mapa[cfg.modoVenta] ?? 'solo_importacion')
+      })
+      .catch(() => {})
+
+    gql<{ tipoCambio: TipoCambioAPI }>(TIPO_CAMBIO_QUERY)
+      .then(r => {
+        const valor = r.tipoCambio?.precioDolar ?? 0
+        if (valor > 0) {
+          setTipoCambio(valor)
+          setTipoCambioHabilitado(true)
+        }
+      })
+      .catch(() => {})
+  }, [isTokenReady, isAuthenticated, setDescuentos, setModoPrecioCajero, setTipoCambio, setTipoCambioHabilitado])
+
+  if (!isTokenReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-cream">
+        <div className="h-8 w-8 rounded-full border-2 border-hair border-t-terra animate-spin" />
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
 
   return (
     <div className="flex min-h-screen bg-cream pt-1">

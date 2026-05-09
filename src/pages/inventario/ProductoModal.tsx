@@ -462,7 +462,7 @@ export function ProductoModal({
                   productoId={producto?.id}
                   wasKit={producto?.es_kit ?? false}
                   piezasFromBackend={producto?.piezas_kit}
-                  productosDisponibles={productosExistentes}
+
                   localPieces={kitPieces}
                   onLocalPiecesChange={setKitPieces}
                   pieceOps={pieceOps}
