@@ -413,11 +413,12 @@ export function AjustesPage() {
       let cursor: string | null = null
       let hasNext = true
       while (hasNext) {
-        const data = await gql<{ productos: { nodes: ProductoAPI[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } } }>(
+        type PPage = { productos: { nodes: ProductoAPI[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } } }
+        const data: PPage = await gql<PPage>(
           PRODUCTOS_QUERY,
           { first: 50, after: cursor, where: { activo: { eq: true } } },
         )
-        const page = data.productos
+        const page: PPage['productos'] = data.productos
         all.push(...(page?.nodes ?? []))
         hasNext = page?.pageInfo?.hasNextPage ?? false
         cursor = page?.pageInfo?.endCursor ?? null
