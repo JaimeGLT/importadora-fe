@@ -169,7 +169,7 @@ function AjusteModal({
     setSaving(true)
     try {
       const res = await api.post<{ cantidadNueva: number }>(`/AjusteStock/${producto.id}`, {
-        nuevaCantidad: nuevoStock,
+        delta: delta,
         motivo: motivoFinal,
         nota: nota.trim(),
       })
@@ -193,7 +193,7 @@ function AjusteModal({
       for (const pa of piezasConCambio) {
         const d = parseInt(pa.deltaStr, 10)
         await api.post(`/AjusteStock/${producto.id}/Piezas/${pa.pieza.id}`, {
-          nuevaCantidad: pa.pieza.stock_actual + d,
+          delta: d,
           motivo: motivoPiezasFinal,
           nota: notaPiezas.trim(),
         })

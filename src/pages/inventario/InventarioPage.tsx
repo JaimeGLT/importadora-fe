@@ -388,6 +388,7 @@ export function InventarioPage() {
     try {
       if (editingProducto) {
         const updatePayload = productoToBackendUpdate(data)
+        console.log(`[PUT /Producto/${editingProducto.id}]`, JSON.stringify(updatePayload))
         await api.put(`/Producto/${editingProducto.id}`, updatePayload)
         if (hasPriceChange) {
           const pricePayload = {
@@ -396,17 +397,27 @@ export function InventarioPage() {
             conversionABs: data.conversionABs,
             nota: data.historial_precios[data.historial_precios.length - 1]?.nota ?? '',
           }
+          console.log(`[POST /Producto/CambiarPrecio/${editingProducto.id}]`, JSON.stringify(pricePayload))
           await api.post(`/Producto/CambiarPrecio/${editingProducto.id}`, pricePayload)
         }
         if (kitOps.mode === 'convertirKit') {
+          console.log(`[PUT /Producto/ConvertirKit/${editingProducto.id}]`, JSON.stringify({ piezas: kitOps.piezas ?? [] }))
           await api.put(`/Producto/ConvertirKit/${editingProducto.id}`, { piezas: kitOps.piezas ?? [] })
         } else if (kitOps.mode === 'convertirRegular') {
+          console.log(`[PUT /Producto/ConvertirRegular/${editingProducto.id}]`, JSON.stringify({ stockManual: kitOps.stockManual ?? null }))
           await api.put(`/Producto/ConvertirRegular/${editingProducto.id}`, { stockManual: kitOps.stockManual ?? null })
         } else if (kitOps.mode === 'managePieces' && kitOps.pieceOps?.length) {
           for (const op of kitOps.pieceOps) {
-            if (op.type === 'add') await api.post(`/Producto/${editingProducto.id}/Piezas`, op.data)
-            else if (op.type === 'update') await api.put(`/Producto/${editingProducto.id}/Piezas/${op.piezaId}`, op.data)
-            else if (op.type === 'delete') await api.delete(`/Producto/${editingProducto.id}/Piezas/${op.piezaId}`)
+            if (op.type === 'add') {
+              console.log(`[POST /Producto/${editingProducto.id}/Piezas]`, JSON.stringify({ piezas: [op.data] }))
+              await api.post(`/Producto/${editingProducto.id}/Piezas`, { piezas: [op.data] })
+            } else if (op.type === 'update') {
+              console.log(`[PUT /Producto/${editingProducto.id}/Piezas/${op.piezaId}]`, JSON.stringify(op.data))
+              await api.put(`/Producto/${editingProducto.id}/Piezas/${op.piezaId}`, op.data)
+            } else if (op.type === 'delete') {
+              console.log(`[DELETE /Producto/${editingProducto.id}/Piezas/${op.piezaId}]`)
+              await api.delete(`/Producto/${editingProducto.id}/Piezas/${op.piezaId}`)
+            }
           }
         }
         if (kitOps.mode !== 'none') {

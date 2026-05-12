@@ -3,7 +3,7 @@ import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { Button, Input, Modal } from '@/components/ui'
-import { KitVentaParcialModal } from '@/components/ui/KitVentaParcialModal'
+import { KitSeleccionModal, type KitSeleccionResult } from '@/components/ui/KitVentaParcialModal'
 import { notify } from '@/lib/notify'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { useVentasStore } from '@/stores/ventasStore'
@@ -323,7 +323,7 @@ function SelectPriceModal({
 
 // ─── ProductSearch ─────────────────────────────────────────────────────────────
 
-function ProductSearch({ onSelectProducto, onSelectKitParcial, loading }: { onSelectProducto: (producto: Producto) => void; onSelectKitParcial: (producto: Producto) => void; loading?: boolean }) {
+function ProductSearch({ onSelectProducto, loading }: { onSelectProducto: (producto: Producto) => void; loading?: boolean }) {
   const productos = useInventarioStore(s => s.productos)
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -424,41 +424,18 @@ function ProductSearch({ onSelectProducto, onSelectKitParcial, loading }: { onSe
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    {p.es_kit ? (
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                        <button
-                          onClick={() => onSelectKitParcial(p)}
-                          title="Seleccionar piezas"
-                          className="h-7 px-2 rounded-lg flex items-center gap-1 text-[10px] font-bold bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-all"
-                        >
-                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                          Piezas
-                        </button>
-                        <button
-                          onClick={() => onSelectProducto(p)}
-                          title="Kit completo"
-                          disabled={disp === 0}
-                          className={clsx('h-7 w-7 rounded-lg flex items-center justify-center transition-all', disp === 0 ? 'bg-steel-100 text-steel-300 cursor-not-allowed' : 'bg-brand-600 text-white hover:bg-brand-700')}
-                        >
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                          </svg>
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => onSelectProducto(p)}
-                        disabled={disp === 0}
-                        className={clsx('h-7 w-7 rounded-lg flex items-center justify-center transition-all', disp === 0 ? 'bg-steel-100 text-steel-300 cursor-not-allowed' : 'bg-brand-600 text-white hover:bg-brand-700 opacity-0 group-hover:opacity-100')}
-                      >
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                        </svg>
-                      </button>
-                    )}
+                    <button
+                      onClick={() => onSelectProducto(p)}
+                      disabled={!p.es_kit && disp === 0}
+                      className={clsx(
+                        'h-7 w-7 rounded-lg flex items-center justify-center transition-all opacity-0 group-hover:opacity-100',
+                        !p.es_kit && disp === 0 ? 'bg-steel-100 text-steel-300 cursor-not-allowed' : 'bg-brand-600 text-white hover:bg-brand-700'
+                      )}
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               )
@@ -1480,7 +1457,8 @@ export function CajaPage() {
   const [facturaOrden, setFacturaOrden] = useState<OrdenVenta | null>(null)
   const [cancelarOrden, setCancelarOrden] = useState<OrdenVenta | null>(null)
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null)
-  const [kitParcialSeleccionado, setKitParcialSeleccionado] = useState<Producto | null>(null)
+  const [kitSeleccionado, setKitSeleccionado] = useState<Producto | null>(null)
+  const [kitCompletoQty, setKitCompletoQty] = useState(1)
 
   const descuentos = useConfigStore(s => s.descuentos)
   const productos = useInventarioStore(s => s.productos)
@@ -1567,20 +1545,24 @@ export function CajaPage() {
     }
   }, [misOrdenes, playAlertSequence])
 
-  const addKitParcial = useCallback(async (producto: Producto) => {
+  const addKitSeleccion = useCallback(async (producto: Producto) => {
     try {
       const data = await gql<{ productos: { nodes: ProductoAPI[] } }>(
         PRODUCTO_BY_ID_QUERY,
         { id: Number(producto.id) },
       )
       const node = data.productos?.nodes?.[0]
-      setKitParcialSeleccionado(node ? backendToProducto(node) : producto)
+      setKitSeleccionado(node ? backendToProducto(node) : producto)
     } catch {
-      setKitParcialSeleccionado(producto)
+      setKitSeleccionado(producto)
     }
   }, [])
 
   const addToCart = useCallback((producto: Producto) => {
+    if (producto.es_kit) {
+      addKitSeleccion(producto)
+      return
+    }
     setCart(prev => {
       const existingIdx = prev.items.findIndex(i => i.producto_id === producto.id)
       if (existingIdx >= 0) {
@@ -1595,10 +1577,11 @@ export function CajaPage() {
       setProductoSeleccionado(producto)
       return prev
     })
-  }, [])
+  }, [addKitSeleccion])
 
   const handleSelectPrice = useCallback((precio: number, descuento_id?: string, descuento_nombre?: string, descuento_porcentaje?: number) => {
     if (!productoSeleccionado) return
+    const qty = productoSeleccionado.es_kit ? kitCompletoQty : 1
     setCart(prev => {
       const existing = prev.items.findIndex(i => i.producto_id === productoSeleccionado.id)
       if (existing >= 0) {
@@ -1615,7 +1598,7 @@ export function CajaPage() {
         producto_fila: productoSeleccionado.fila,
         producto_columna: productoSeleccionado.columna,
         producto_imagen: productoSeleccionado.imagen,
-        cantidad: 1,
+        cantidad: qty,
         precio_unitario: precio,
         precio_base: productoSeleccionado.precio_venta,
         descuento_id,
@@ -1624,16 +1607,15 @@ export function CajaPage() {
       }] }
     })
     setProductoSeleccionado(null)
+    setKitCompletoQty(1)
     playBeep({ frequency: 600, duration: 60 })
     notify.success('Producto agregado')
-  }, [productoSeleccionado, playBeep])
+  }, [productoSeleccionado, kitCompletoQty, playBeep])
 
-  const handleKitParcialConfirm = useCallback((
-    piezas: { producto_id: string; nombre: string; codigo: string; cantidad: number; cantidad_por_kit: number }[],
-    precioTotal: number,
-    diferencia: number
+  const agregarPiezasAlCarrito = useCallback((
+    piezas: { producto_id: string; nombre: string; codigo: string; cantidad: number }[],
+    kitId: string,
   ) => {
-    const kitId = kitParcialSeleccionado?.id
     setCart(prev => {
       const newItems: CartItem[] = piezas.map(p => ({
         producto_id: p.producto_id,
@@ -1644,17 +1626,39 @@ export function CajaPage() {
         producto_fila: '',
         producto_columna: '',
         cantidad: p.cantidad,
-        precio_unitario: precioTotal / p.cantidad,
-        precio_base: kitParcialSeleccionado?.precio_venta ?? 0,
-        diferencia_kit: diferencia,
+        precio_unitario: 0,
+        precio_base: 0,
         kit_id: kitId,
       }))
       return { ...prev, items: [...prev.items, ...newItems] }
     })
-    setKitParcialSeleccionado(null)
-    playBeep({ frequency: 600, duration: 60 })
-    notify.success(`${piezas.length} pieza(s) de kit agregada(s)`)
-  }, [kitParcialSeleccionado, playBeep])
+  }, [])
+
+  const handleKitSeleccion = useCallback((result: KitSeleccionResult) => {
+    if (!kitSeleccionado) return
+
+    if (result.tipo === 'kit_completo') {
+      setKitCompletoQty(result.cantidad)
+      setProductoSeleccionado(kitSeleccionado)
+      setKitSeleccionado(null)
+      return
+    }
+
+    if (result.tipo === 'piezas_sueltas') {
+      agregarPiezasAlCarrito(result.piezas, kitSeleccionado.id)
+      setKitSeleccionado(null)
+      playBeep({ frequency: 600, duration: 60 })
+      notify.success(`${result.piezas.length} pieza(s) agregada(s)`)
+      return
+    }
+
+    // tipo === 'ambos': agregar piezas al carrito Y abrir selección de precio para el kit
+    agregarPiezasAlCarrito(result.piezas, kitSeleccionado.id)
+    setKitCompletoQty(result.cantidad_kit)
+    setProductoSeleccionado(kitSeleccionado)
+    setKitSeleccionado(null)
+    notify.success(`${result.piezas.length} pieza(s) agregada(s) · seleccioná precio del kit`)
+  }, [kitSeleccionado, playBeep, agregarPiezasAlCarrito])
 
   const handleEditPrice = useCallback((producto_id: string) => {
     const producto = productos.find(p => p.id === producto_id)
@@ -1902,7 +1906,7 @@ export function CajaPage() {
         <div className="flex-1 overflow-hidden flex flex-col p-4 gap-4">
           <div className="flex-1 grid grid-cols-[1fr_380px] gap-4 overflow-hidden min-h-0">
             <div className="bg-white rounded-2xl border border-steel-100 shadow-sm overflow-hidden flex flex-col">
-              <ProductSearch onSelectProducto={addToCart} onSelectKitParcial={addKitParcial} loading={loadingProductos} />
+              <ProductSearch onSelectProducto={addToCart} loading={loadingProductos} />
             </div>
             <div className="bg-white rounded-2xl border border-steel-100 shadow-sm overflow-hidden flex flex-col">
               <CartPanel
@@ -1957,12 +1961,12 @@ export function CajaPage() {
           onClose={() => setProductoSeleccionado(null)}
         />
       )}
-      {kitParcialSeleccionado && (
-        <KitVentaParcialModal
-          open={!!kitParcialSeleccionado}
-          onClose={() => setKitParcialSeleccionado(null)}
-          kit={kitParcialSeleccionado}
-          onConfirm={handleKitParcialConfirm}
+      {kitSeleccionado && (
+        <KitSeleccionModal
+          open={!!kitSeleccionado}
+          onClose={() => setKitSeleccionado(null)}
+          kit={kitSeleccionado}
+          onConfirm={handleKitSeleccion}
         />
       )}
     </MainLayout>

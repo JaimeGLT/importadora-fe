@@ -237,6 +237,13 @@ export function ProductoModal({
         kitOps = { mode: 'managePieces', pieceOps }
       }
 
+      console.log('[Modal.handleSave] producto_id=%s wasKit=%s isKit=%s pieceOps=%d kitOps_mode=%s',
+        producto?.id, wasKit, isKit, pieceOps.length, kitOps.mode)
+      if (kitOps.mode === 'convertirKit')
+        console.log('[Modal.handleSave] convertirKit piezas:', kitPieces)
+      if (kitOps.mode === 'managePieces')
+        console.log('[Modal.handleSave] managePieces ops:', JSON.stringify(pieceOps))
+
       const dataToSave = actualizarPrecio && nuevoCosto && nuevoVenta
         ? {
             ...form,
@@ -407,13 +414,23 @@ export function ProductoModal({
             icon={<IconKit />}
             title="Kit / Conjunto"
             description="Relacionar producto como kit o como parte de un kit"
-            extra={producto?.es_kit && producto.stock !== undefined ? (
-              <div className="flex items-center gap-1.5 rounded-full bg-navy/10 border border-navy/20 px-2.5 py-1">
-                <svg className="h-3 w-3 text-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-                <span className="text-[11px] font-bold text-navy tabular-nums">{producto.stock}</span>
-                <span className="text-[10px] text-navy/70">kits</span>
+            extra={producto?.es_kit ? (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="flex items-center gap-1.5 rounded-full bg-navy/10 border border-navy/20 px-2.5 py-1">
+                  <svg className="h-3 w-3 text-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                  <span className="text-[11px] font-bold text-navy tabular-nums">{producto.stock}</span>
+                  <span className="text-[10px] text-navy/70">kits completos</span>
+                </div>
+                {(producto.piezas_kit?.length ?? 0) > 0 && (
+                  <div className="flex items-center gap-1 rounded-full bg-cream-2 border border-hair px-2.5 py-1">
+                    <span className="text-[11px] font-semibold text-muted-2 tabular-nums">
+                      {producto.piezas_kit!.reduce((s, p) => s + p.stock_actual, 0)}
+                    </span>
+                    <span className="text-[10px] text-muted-2">piezas en bodega</span>
+                  </div>
+                )}
               </div>
             ) : undefined}
           >
