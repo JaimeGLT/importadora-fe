@@ -13,7 +13,7 @@ import { MainLayout } from '@/components/layout/MainLayout'
 import { ConfirmModal, TablePagination, WarmStockBadge, WarmMetric } from '@/components/ui'
 import type { Producto } from '@/types'
 import { notify } from '@/lib/notify'
-import { ProductoModal } from './ProductoModal'
+import { ProductoModal, type PriceUpdate } from './ProductoModal'
 import { ImportarExcelModal, type ImportResult } from './ImportarExcelModal'
 import { EtiquetaModal } from './EtiquetaModal'
 import { AutopartsWatermark } from './AutopartsWatermark'
@@ -379,26 +379,15 @@ export function InventarioPage() {
   }
   const handleNew  = () => { setEditingProducto(null); setModalOpen(true) }
 
-  const handleSave = async (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>, kitOps: KitOps) => {
-    const hasPriceChange = editingProducto &&
-      (data.precio_costo !== editingProducto.precio_costo ||
-       data.precio_venta !== editingProducto.precio_venta ||
-       data.conversionABs !== editingProducto.conversionABs)
-
+  const handleSave = async (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>, kitOps: KitOps, priceUpdate?: PriceUpdate) => {
     try {
       if (editingProducto) {
         const updatePayload = productoToBackendUpdate(data)
         console.log(`[PUT /Producto/${editingProducto.id}]`, JSON.stringify(updatePayload))
         await api.put(`/Producto/${editingProducto.id}`, updatePayload)
-        if (hasPriceChange) {
-          const pricePayload = {
-            costo: data.precio_costo,
-            precio: data.precio_venta,
-            conversionABs: data.conversionABs,
-            nota: data.historial_precios[data.historial_precios.length - 1]?.nota ?? '',
-          }
-          console.log(`[POST /Producto/CambiarPrecio/${editingProducto.id}]`, JSON.stringify(pricePayload))
-          await api.post(`/Producto/CambiarPrecio/${editingProducto.id}`, pricePayload)
+        if (priceUpdate) {
+          console.log(`[POST /Producto/CambiarPrecio/${editingProducto.id}]`, JSON.stringify(priceUpdate))
+          await api.post(`/Producto/CambiarPrecio/${editingProducto.id}`, priceUpdate)
         }
         if (kitOps.mode === 'convertirKit') {
           console.log(`[PUT /Producto/ConvertirKit/${editingProducto.id}]`, JSON.stringify({ piezas: kitOps.piezas ?? [] }))
@@ -420,7 +409,7 @@ export function InventarioPage() {
             }
           }
         }
-        if (kitOps.mode !== 'none') {
+        if (kitOps.mode !== 'none' || priceUpdate) {
           loadProducts(searchTerm)
         } else {
           setProducts((prev) => prev.map((p) => p.id === editingProducto.id ? { ...p, ...data } : p))

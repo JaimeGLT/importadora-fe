@@ -6,10 +6,17 @@ import { KitPartsSection } from './KitPartsSection'
 import { useConfigStore, calcularPrecioConDescuento } from '@/stores/configStore'
 import { clsx } from 'clsx'
 
+export interface PriceUpdate {
+  costo: number | null
+  precio: number | null
+  conversionABs: number | null
+  nota: string
+}
+
 interface ProductoModalProps {
   open: boolean
   onClose: () => void
-  onSave: (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>, kitOps: KitOps) => Promise<void>
+  onSave: (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>, kitOps: KitOps, priceUpdate?: PriceUpdate) => Promise<void>
   producto: Producto | null
   loading?: boolean
   productosExistentes?: Producto[]
@@ -203,14 +210,14 @@ export function ProductoModal({
 
   const buildHistorial = (): HistorialPrecio[] => {
     const tc = parseFloat(tipoCambio) || 6.96
-    if (actualizarPrecio && nuevoCosto && nuevoVenta) {
-      const nuevoTc = parseFloat(nuevoTipoCambio) || tc
+    if (actualizarPrecio && (nuevoCosto || nuevoVenta || nuevoTipoCambio)) {
+      const nuevoTc = parseFloat(nuevoTipoCambio) || form.conversionABs || tc
       return [
         ...form.historial_precios,
         {
           fecha: new Date().toISOString(),
-          precio_costo: form.precio_costo,
-          precio_venta: form.precio_venta,
+          precio_costo: parseFloat(nuevoCosto) || form.precio_costo,
+          precio_venta: parseFloat(nuevoVenta) || form.precio_venta,
           tipo_cambio: nuevoTc,
           nota: nuevoNota || undefined,
         },
@@ -244,16 +251,19 @@ export function ProductoModal({
       if (kitOps.mode === 'managePieces')
         console.log('[Modal.handleSave] managePieces ops:', JSON.stringify(pieceOps))
 
-      const dataToSave = actualizarPrecio && nuevoCosto && nuevoVenta
+      const dataToSave = { ...form, historial_precios: buildHistorial() }
+
+      const hasAnyPrice = nuevoCosto || nuevoVenta || nuevoTipoCambio
+      const priceUpdate: PriceUpdate | undefined = actualizarPrecio && hasAnyPrice
         ? {
-            ...form,
-            precio_costo: parseFloat(nuevoCosto) || form.precio_costo,
-            precio_venta: parseFloat(nuevoVenta) || form.precio_venta,
-            conversionABs: parseFloat(nuevoTipoCambio) || parseFloat(tipoCambio) || 6.96,
-            historial_precios: buildHistorial(),
+            costo:         parseFloat(nuevoCosto)     || null,
+            precio:        parseFloat(nuevoVenta)      || null,
+            conversionABs: parseFloat(nuevoTipoCambio) || null,
+            nota:          nuevoNota,
           }
-        : { ...form, historial_precios: buildHistorial() }
-      await onSave(dataToSave, kitOps)
+        : undefined
+
+      await onSave(dataToSave, kitOps, priceUpdate)
     } finally {
       setSaving(false)
     }
