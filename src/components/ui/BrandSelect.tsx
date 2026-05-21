@@ -26,7 +26,7 @@ export function BrandSelect({ value, onChange, label, placeholder = 'Seleccionar
     )
   }, [marcas, search])
 
-  const selectedMarca = marcas.find((m) => m.id === value)
+  const selectedMarca = marcas.find((m) => m.nombre === value)
 
   const handleCreate = () => {
     const nombre = newName.trim()
@@ -39,7 +39,7 @@ export function BrandSelect({ value, onChange, label, placeholder = 'Seleccionar
     setTimeout(() => {
       addMarca(nombre)
       const nueva = marcas.find((m) => m.nombre.toLowerCase() === nombre.toLowerCase())
-      onChange(nueva?.id ?? value)
+      onChange(nombre)
       setNewName('')
       setCreateOpen(false)
       setSaving(false)
@@ -84,13 +84,13 @@ export function BrandSelect({ value, onChange, label, placeholder = 'Seleccionar
                     key={m.id}
                     type="button"
                     onMouseDown={() => {
-                      onChange(m.id)
+                      onChange(m.nombre)
                       setSearch('')
                       setShowDropdown(false)
                     }}
                     className={clsx(
                       'w-full text-left px-3 py-2 text-sm hover:bg-brand-50 transition-colors',
-                      m.id === value ? 'bg-brand-50 text-brand-700 font-medium' : 'text-steel-700',
+                      m.nombre === value ? 'bg-brand-50 text-brand-700 font-medium' : 'text-steel-700',
                     )}
                   >
                     {m.nombre}
