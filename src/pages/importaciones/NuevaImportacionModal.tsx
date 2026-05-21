@@ -1,9 +1,11 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import type * as XLSXType from 'xlsx'
 import { Modal, Button, Input, Select, ExcelColumnMapper, BrandSelect } from '@/components/ui'
 import type { Importacion, ItemImportacion, Producto, Proveedor } from '@/types'
 import { clsx } from 'clsx'
 import { notify } from '@/lib/notify'
+import { gql } from '@/lib/graphql'
+import { MARGEN_GANANCIA_QUERY, type MargenGananciaAPI } from '@/lib/queries/config.queries'
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
@@ -58,7 +60,7 @@ interface DatosForm {
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-const MARGEN_DEFECTO = 1.30
+const MARGEN_FALLBACK = 1.30
 
 const SYSTEM_FIELDS: SystemField[] = [
   { key: 'codigo_universal', label: 'Código universal',     required: true,  hint: 'Código principal del producto' },
@@ -136,6 +138,7 @@ function calcItems(
   productos: Producto[],
   piezasMapeado: boolean,
   marcaDefault: string,
+  margenBd: number,
 ): DraftItem[] {
   const total_fob_bs = rawItems.reduce(
     (s, i) => s + i.precio_fob_usd * datos.tipo_cambio * i.cantidad, 0,
@@ -155,7 +158,7 @@ function calcItems(
 
     const costo_unitario_total_bs = costo_unitario_fob_bs + costo_unitario_adicional_bs
 
-    const precio_venta_sugerido = Math.ceil(costo_unitario_total_bs * MARGEN_DEFECTO * 100) / 100
+    const precio_venta_sugerido = Math.ceil(costo_unitario_total_bs * margenBd * 100) / 100
 
     const precio_venta_final =
       raw.precio_venta_manual > 0 ? raw.precio_venta_manual : precio_venta_sugerido
@@ -262,6 +265,13 @@ export function NuevaImportacionModal({
 }: Props) {
   // ── Estado ────────────────────────────────────────────────────────────────
   const [step, setStep] = useState<ImportStep>('upload')
+  const [margenBd, setMargenBd] = useState<number>(MARGEN_FALLBACK)
+
+  useEffect(() => {
+    gql<{ margenGanancia: MargenGananciaAPI }>(MARGEN_GANANCIA_QUERY)
+      .then(r => { if (r.margenGanancia?.valor) setMargenBd(r.margenGanancia.valor) })
+      .catch(() => {})
+  }, [])
 
   // Excel
   const [columns, setColumns]   = useState<string[]>([])
@@ -398,7 +408,7 @@ export function NuevaImportacionModal({
       transporte_interno_bs: parseNumeric(datos.transporte_interno_bs),
     }
     const piezasMapeado = (mappings['piezas']?.columns.length ?? 0) > 0
-    setItems(calcItems(rawItems, d, productos, piezasMapeado, datos.marca_id))
+    setItems(calcItems(rawItems, d, productos, piezasMapeado, datos.marca_id, margenBd))
     setStep('preview')
   }
 

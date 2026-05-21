@@ -372,6 +372,15 @@ export interface ItemOrden {
   piezas_orden?: PiezaOrden[]
 }
 
+export interface AgregarItemOrdenResponse {
+  id: number
+  id_Producto: number
+  cantidad: number
+  precioUnitario: number
+  estado: string
+  producto: { id: number; codigo: string; nombre: string; ubicacion: string }
+}
+
 export type TipoDocumento = 'nota_venta' | 'factura'
 
 export interface OrdenVenta {

@@ -4,9 +4,10 @@ import { useVentasStore } from '@/stores/ventasStore'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
 import { Button, Input } from '@/components/ui'
-import type { ItemOrden } from '@/types'
+import type { ItemOrden, Producto, AgregarItemOrdenResponse } from '@/types'
 import { playConfirmBeep } from '@/lib/sounds'
 import { notify } from '@/lib/notify'
+import { api } from '@/lib/api'
 import { clsx } from 'clsx'
 
 // ─── LineSelectionModal ───────────────────────────────────────────────────────
@@ -70,7 +71,6 @@ function LineSelectionModal({
                       )}
                     </div>
                     <p className="text-[11px] font-mono text-steel-400 mt-0.5">{item.producto_codigo}</p>
-
                     {isKit && kitPadre && (
                       <div className="mt-1.5 px-2 py-1.5 rounded-lg bg-steel-50 border border-steel-100">
                         <p className="text-[10px] font-semibold text-steel-500 mb-1">Kit: {kitPadre.nombre}</p>
@@ -81,7 +81,6 @@ function LineSelectionModal({
                         </p>
                       </div>
                     )}
-
                     {!isKit && (
                       <p className="text-xs text-steel-500 mt-1">
                         Precio: Bs {item.precio_unitario.toFixed(2)} c/u
@@ -104,53 +103,265 @@ function LineSelectionModal({
   )
 }
 
-// ─── KitPrecioModal ───────────────────────────────────────────────────────────
+// ─── ScanConfirmModal ─────────────────────────────────────────────────────────
 
-function KitPrecioModal({
+function ScanConfirmModal({
   item,
   onConfirm,
   onCancel,
+  loading,
 }: {
   item: ItemOrden
-  onConfirm: (precio: number) => void
+  onConfirm: (precio?: number) => void
   onCancel: () => void
+  loading: boolean
 }) {
   const [precio, setPrecio] = useState('')
-  const productos = useInventarioStore(s => s.productos)
-  const kitPadre = item.kit_id ? productos.find(p => p.id === item.kit_id) : null
+  const isKit = !!item.kit_id
+  const isParcial = !!item.es_parcial
+  const precioValido = !isKit || (parseFloat(precio) > 0)
+  const ubicacion = [item.producto_almacen, item.producto_estante, item.producto_fila, item.producto_columna]
+    .filter(Boolean).join(' › ')
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+      if (e.key === 'Enter' && !loading && precioValido && !isParcial) {
+        onConfirm(isKit ? parseFloat(precio) : undefined)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [loading, precioValido, isParcial, precio, isKit, onConfirm, onCancel])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative z-10 w-full max-w-sm bg-white rounded-xl shadow-xl p-5">
-        <h3 className="text-base font-bold text-steel-900 mb-1">Precio del kit</h3>
-        <p className="text-xs text-steel-400 mb-4">
-          {kitPadre?.nombre ?? 'Kit'} — {item.producto_codigo}
-        </p>
-        {item.diferencia_kit !== undefined && (
-          <div className="mb-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-100">
-            <p className="text-[11px] font-semibold text-amber-700">Diferencia kit: Bs {item.diferencia_kit.toFixed(2)}</p>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !loading && onCancel()} />
+      <div className="relative z-10 w-full max-w-sm bg-white rounded-xl shadow-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-steel-100">
+          <div className="flex items-center gap-2 mb-0.5">
+            <h3 className="text-sm font-bold text-steel-900">Confirmar despacho</h3>
+            {isKit && (
+              <span className={clsx(
+                'text-[10px] font-bold px-1.5 py-0.5 rounded',
+                isParcial ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'
+              )}>
+                {isParcial ? 'Kit Parcial' : 'Kit'}
+              </span>
+            )}
           </div>
-        )}
-        <Input
-          label="Precio total del kit (Bs)"
-          type="number"
-          step="0.01"
-          min="0"
-          placeholder="0.00"
-          value={precio}
-          onChange={e => setPrecio(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && precio) onConfirm(parseFloat(precio)) }}
-          autoFocus
-        />
-        <div className="flex gap-2 mt-4">
-          <Button variant="secondary" className="flex-1" onClick={onCancel}>Cancelar</Button>
+          <p className="text-xs text-steel-400">{item.producto_codigo}</p>
+        </div>
+
+        <div className="p-5 space-y-3">
+          <div>
+            <p className="text-base font-bold text-steel-900">{item.producto_nombre}</p>
+            {ubicacion && (
+              <p className="text-xs text-steel-400 mt-0.5">{ubicacion}</p>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-steel-50 border border-steel-100">
+            <span className="text-xs text-steel-500">Cantidad pedida</span>
+            <span className="text-sm font-black text-steel-800">× {item.cantidad_pedida}</span>
+          </div>
+
+          {isParcial && (
+            <div className="px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200">
+              <p className="text-xs font-semibold text-amber-700">Ítem parcial — confirma las piezas individualmente desde el sistema.</p>
+            </div>
+          )}
+
+          {isKit && !isParcial && (
+            <Input
+              label="Precio total del kit (Bs)"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value={precio}
+              onChange={e => setPrecio(e.target.value)}
+              autoFocus
+            />
+          )}
+
+          {!isKit && (
+            <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-steel-50 border border-steel-100">
+              <span className="text-xs text-steel-500">Precio unitario</span>
+              <span className="text-sm font-bold text-steel-800">Bs {item.precio_unitario.toFixed(2)}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="px-5 pb-5 flex gap-2">
+          <Button variant="secondary" className="flex-1" onClick={onCancel} disabled={loading}>
+            Cancelar
+          </Button>
           <Button
             className="flex-1"
-            onClick={() => onConfirm(parseFloat(precio))}
-            disabled={!precio || parseFloat(precio) <= 0}
+            onClick={() => onConfirm(isKit ? parseFloat(precio) : undefined)}
+            disabled={loading || !precioValido || isParcial}
           >
-            Confirmar
+            {loading ? 'Confirmando…' : 'Confirmar'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── ScanNotInOrderModal ──────────────────────────────────────────────────────
+
+function ScanNotInOrderModal({
+  code,
+  producto,
+  onAgregar,
+  onDescartar,
+  loading,
+}: {
+  code: string
+  producto: Producto | null
+  onAgregar: (cantidad: number) => void
+  onDescartar: () => void
+  loading: boolean
+}) {
+  const [cantidad, setCantidad] = useState('1')
+  const stockDisponible = producto ? producto.stock - (producto.stock_reservado ?? 0) : 0
+  const cantidadNum = parseInt(cantidad) || 0
+  const puedeAgregar = producto && !producto.es_kit && cantidadNum >= 1 && cantidadNum <= stockDisponible
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onDescartar()
+      if (e.key === 'Enter' && puedeAgregar && !loading) onAgregar(cantidadNum)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [puedeAgregar, loading, cantidadNum, onAgregar, onDescartar])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !loading && onDescartar()} />
+      <div className="relative z-10 w-full max-w-sm bg-white rounded-xl shadow-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-steel-100">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+              <svg className="h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-steel-900">Código no está en esta orden</h3>
+              <p className="text-[11px] font-mono text-steel-400">{code}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-3">
+          {!producto ? (
+            <div className="px-3 py-2.5 rounded-lg bg-steel-50 border border-steel-100">
+              <p className="text-sm text-steel-500">Código no reconocido en el inventario.</p>
+            </div>
+          ) : (
+            <>
+              <div>
+                <p className="text-sm font-bold text-steel-900">{producto.nombre}</p>
+                <p className="text-xs font-mono text-steel-400 mt-0.5">{producto.codigo_universal}</p>
+              </div>
+
+              <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-steel-50 border border-steel-100">
+                <span className="text-xs text-steel-500">Stock disponible</span>
+                <span className={clsx(
+                  'text-sm font-bold',
+                  stockDisponible > 0 ? 'text-steel-800' : 'text-red-600'
+                )}>
+                  {stockDisponible} uds.
+                </span>
+              </div>
+
+              {producto.es_kit && (
+                <div className="px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200">
+                  <p className="text-xs font-semibold text-amber-700">Los kits no pueden agregarse de último momento. Contacte al almacenero.</p>
+                </div>
+              )}
+
+              {!producto.es_kit && stockDisponible > 0 && (
+                <Input
+                  label="Cantidad a agregar"
+                  type="number"
+                  min="1"
+                  max={stockDisponible}
+                  value={cantidad}
+                  onChange={e => setCantidad(e.target.value)}
+                  autoFocus
+                />
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="px-5 pb-5 flex gap-2">
+          <Button variant="secondary" className="flex-1" onClick={onDescartar} disabled={loading}>
+            Descartar
+          </Button>
+          {producto && !producto.es_kit && stockDisponible > 0 && (
+            <Button
+              className="flex-1"
+              onClick={() => onAgregar(cantidadNum)}
+              disabled={loading || !puedeAgregar}
+            >
+              {loading ? 'Agregando…' : 'Agregar al pedido'}
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── TipoPagoModal ────────────────────────────────────────────────────────────
+
+function TipoPagoModal({
+  total,
+  onSeleccionar,
+  onCancelar,
+  loading,
+}: {
+  total: number
+  onSeleccionar: (tipoPago: string) => void
+  onCancelar: () => void
+  loading: boolean
+}) {
+  const opciones = [
+    { key: 'Efectivo', label: 'Efectivo', icon: '💵' },
+    { key: 'QR', label: 'QR', icon: '📱' },
+    { key: 'Tarjeta', label: 'Tarjeta', icon: '💳' },
+  ]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !loading && onCancelar()} />
+      <div className="relative z-10 w-full max-w-sm bg-white rounded-xl shadow-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-steel-100">
+          <h3 className="text-sm font-bold text-steel-900">Método de pago</h3>
+          <p className="text-xs text-steel-400 mt-0.5">Total: Bs {total.toFixed(2)}</p>
+        </div>
+        <div className="p-4 space-y-2">
+          {opciones.map(op => (
+            <button
+              key={op.key}
+              onClick={() => onSeleccionar(op.key)}
+              disabled={loading}
+              className="w-full flex items-center gap-3 p-3 rounded-xl border border-steel-100 hover:border-brand-300 hover:bg-brand-50/50 transition-all disabled:opacity-50"
+            >
+              <span className="text-xl">{op.icon}</span>
+              <span className="text-sm font-semibold text-steel-800">{op.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="px-4 pb-4">
+          <Button variant="secondary" className="w-full" onClick={onCancelar} disabled={loading}>
+            Cancelar
           </Button>
         </div>
       </div>
@@ -162,13 +373,17 @@ function KitPrecioModal({
 
 export function EscaneoPage() {
   const { } = useAuth()
-  const { ordenes, updateOrden } = useVentasStore()
-  const { productos, confirmarSalida } = useInventarioStore()
+  const { ordenes, updateOrden, addItemToOrden } = useVentasStore()
+  const { productos } = useInventarioStore()
   const [selectedOrdenId, setSelectedOrdenId] = useState<string | null>(null)
-  const [scannedItemIds, setScannedItemIds] = useState<Set<string>>(new Set())
-  const [precioLibre, setPrecioLibre] = useState<Record<string, number>>({})
-  const [pendingKitItem, setPendingKitItem] = useState<ItemOrden | null>(null)
+  const [confirmedItemIds, setConfirmedItemIds] = useState<Set<string>>(new Set())
+  const [pendingConfirmItem, setPendingConfirmItem] = useState<ItemOrden | null>(null)
+  const [pendingNotInOrderCode, setPendingNotInOrderCode] = useState<string | null>(null)
   const [selectMultipleMatches, setSelectMultipleMatches] = useState<ItemOrden[]>([])
+  const [confirmLoading, setConfirmLoading] = useState(false)
+  const [agregarLoading, setAgregarLoading] = useState(false)
+  const [showPagoModal, setShowPagoModal] = useState(false)
+  const [completarLoading, setCompletarLoading] = useState(false)
   const scanInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -185,87 +400,133 @@ export function EscaneoPage() {
     [selectedOrden],
   )
 
-  const scannedCount = useMemo(
-    () => itemsParaEscanear.filter(i => scannedItemIds.has(i.id)).length,
-    [itemsParaEscanear, scannedItemIds]
+  const confirmedCount = useMemo(
+    () => itemsParaEscanear.filter(i => confirmedItemIds.has(i.id)).length,
+    [itemsParaEscanear, confirmedItemIds]
   )
-  const allScanned = itemsParaEscanear.length > 0 && scannedCount === itemsParaEscanear.length
+  const allConfirmed = itemsParaEscanear.length > 0 && confirmedCount === itemsParaEscanear.length
+
+  const notInOrderProducto = useMemo<Producto | null>(() => {
+    if (!pendingNotInOrderCode) return null
+    const code = pendingNotInOrderCode.toLowerCase()
+    return productos.find(p =>
+      p.codigo_universal.toLowerCase() === code ||
+      p.codigos_alternativos.some(c => c.toLowerCase() === code)
+    ) ?? null
+  }, [pendingNotInOrderCode, productos])
 
   const handleScan = (code: string) => {
     if (!selectedOrden) return
+    // Guard: ignore scan if any modal is open
+    if (pendingConfirmItem || pendingNotInOrderCode !== null || selectMultipleMatches.length > 0) return
+
     const codeLower = code.toLowerCase().trim()
     const matched = itemsParaEscanear.filter(
       (i) =>
         i.producto_codigo.toLowerCase() === codeLower ||
         i.producto_id.toLowerCase() === codeLower,
     )
-    if (matched.length === 0) {
-      notify.error('Código no encontrado en esta orden')
-      return
-    }
+
     if (matched.length > 1) {
       setSelectMultipleMatches(matched)
       return
     }
-    const item = matched[0]
-    if (scannedItemIds.has(item.id)) {
-      notify.warning('Este ítem ya fue escaneado')
+
+    if (matched.length === 1) {
+      const item = matched[0]
+      if (confirmedItemIds.has(item.id)) {
+        notify.warning('Este ítem ya fue confirmado')
+        return
+      }
+      setPendingConfirmItem(item)
       return
     }
-    const producto = productos.find((p) => p.id === item.producto_id)
-    if (producto?.es_kit) {
-      setPendingKitItem(item)
-    } else {
-      setScannedItemIds(prev => new Set([...prev, item.id]))
-      playConfirmBeep()
-    }
+
+    // Not found in order
+    setPendingNotInOrderCode(code)
   }
 
   const handleSelectMatch = (item: ItemOrden) => {
     setSelectMultipleMatches([])
-    if (scannedItemIds.has(item.id)) {
-      notify.warning('Este ítem ya fue escaneado')
+    if (confirmedItemIds.has(item.id)) {
+      notify.warning('Este ítem ya fue confirmado')
       return
     }
-    const producto = productos.find(p => p.id === item.producto_id)
-    if (producto?.es_kit) {
-      setPendingKitItem(item)
-    } else {
-      setScannedItemIds(prev => new Set([...prev, item.id]))
+    setPendingConfirmItem(item)
+  }
+
+  const handleConfirmScan = async (precio?: number) => {
+    if (!pendingConfirmItem || !selectedOrden) return
+    const item = pendingConfirmItem
+    setConfirmLoading(true)
+    try {
+      const body = item.kit_id && precio !== undefined ? { precioUnitario: precio } : undefined
+      await api.post(`/OrdenVenta/${selectedOrden.id}/Items/${item.id}/Confirmar`, body)
+      setConfirmedItemIds(prev => new Set([...prev, item.id]))
       playConfirmBeep()
+      notify.success(`${item.producto_nombre} confirmado`)
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al confirmar')
+    } finally {
+      setConfirmLoading(false)
+      setPendingConfirmItem(null)
+      scanInputRef.current?.focus()
     }
   }
 
-  const handleKitPrecioConfirm = (precio: number) => {
-    if (!pendingKitItem) return
-    const itemId = pendingKitItem.id
-    setScannedItemIds(prev => new Set([...prev, itemId]))
-    setPrecioLibre(prev => ({ ...prev, [itemId]: precio }))
-    setPendingKitItem(null)
+  const handleAgregarItem = async (cantidad: number) => {
+    if (!pendingNotInOrderCode || !selectedOrden || !notInOrderProducto) return
+    setAgregarLoading(true)
+    try {
+      const res = await api.post<AgregarItemOrdenResponse>(
+        `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
+        { Id_Producto: parseInt(notInOrderProducto.id), Cantidad: cantidad }
+      )
+      const newItem: ItemOrden = {
+        id: String(res.id),
+        producto_id: String(res.id_Producto),
+        producto_codigo: res.producto.codigo,
+        producto_nombre: res.producto.nombre,
+        producto_almacen: notInOrderProducto.almacen,
+        producto_estante: notInOrderProducto.estante,
+        producto_fila: notInOrderProducto.fila,
+        producto_columna: notInOrderProducto.columna,
+        cantidad_pedida: res.cantidad,
+        precio_unitario: res.precioUnitario,
+        subtotal: res.precioUnitario * res.cantidad,
+        estado: 'pendiente',
+      }
+      addItemToOrden(selectedOrden.id, newItem)
+      notify.info(`${newItem.producto_nombre} agregado a la orden`)
+      setPendingNotInOrderCode(null)
+      setPendingConfirmItem(newItem)
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al agregar')
+    } finally {
+      setAgregarLoading(false)
+    }
   }
 
-  const handleConfirmarVenta = () => {
+  const handleCompletarVenta = async (tipoPago: string) => {
     if (!selectedOrden) return
-    const ordenId = selectedOrden.id
-    itemsParaEscanear.forEach((item) => {
-      confirmarSalida(item.producto_id, item.cantidad_pedida)
-    })
-    const itemsFinales = selectedOrden.items.map((i) => {
-      if (i.estado === 'faltante') return i
-      const precioFinal = i.kit_id ? (precioLibre[i.id] ?? i.precio_unitario) : i.precio_unitario
-      return { ...i, precio_escaneo: precioFinal, precio_unitario: precioFinal }
-    })
-    updateOrden(ordenId, { estado: 'completada', items: itemsFinales })
-    notify.success('Venta completada')
-    setSelectedOrdenId(null)
-    setScannedItemIds(new Set())
-    setPrecioLibre({})
+    setCompletarLoading(true)
+    try {
+      await api.post(`/OrdenVenta/${selectedOrden.id}/Completar`, { TipoPago: tipoPago })
+      updateOrden(selectedOrden.id, { estado: 'completada' })
+      notify.success('Venta completada')
+      setSelectedOrdenId(null)
+      setConfirmedItemIds(new Set())
+      setShowPagoModal(false)
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al completar la venta')
+    } finally {
+      setCompletarLoading(false)
+    }
   }
 
   const ordenesDisponibles = ordenes.filter((o) => o.estado === 'listo_para_escaneo')
 
-  const isItemScanned = (item: ItemOrden) =>
-    scannedItemIds.has(item.id) || (item.kit_id && precioLibre[item.id] !== undefined)
+  const isItemConfirmed = (item: ItemOrden) => confirmedItemIds.has(item.id)
 
   return (
     <MainLayout>
@@ -293,8 +554,9 @@ export function EscaneoPage() {
                   key={orden.id}
                   onClick={() => {
                     setSelectedOrdenId(orden.id)
-                    setScannedItemIds(new Set())
-                    setPrecioLibre({})
+                    setConfirmedItemIds(new Set())
+                    setPendingConfirmItem(null)
+                    setPendingNotInOrderCode(null)
                   }}
                   className={clsx(
                     'w-full text-left p-4 rounded-xl border transition-all',
@@ -329,21 +591,21 @@ export function EscaneoPage() {
                   <div>
                     <h2 className="text-base font-bold text-steel-900">{selectedOrden.numero}</h2>
                     <p className="text-xs text-steel-400">
-                      {itemsParaEscanear.length} ítems · {scannedCount}/{itemsParaEscanear.length} escaneados
+                      {itemsParaEscanear.length} ítems · {confirmedCount}/{itemsParaEscanear.length} confirmados
                     </p>
                   </div>
                   <div className="flex gap-2">
                     {itemsParaEscanear.map((item, idx) => {
-                      const scanned = isItemScanned(item)
+                      const confirmed = isItemConfirmed(item)
                       return (
                         <div
                           key={item.id}
                           className={clsx(
                             'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold',
-                            scanned ? 'bg-emerald-100 text-emerald-700' : 'bg-steel-100 text-steel-400',
+                            confirmed ? 'bg-emerald-100 text-emerald-700' : 'bg-steel-100 text-steel-400',
                           )}
                         >
-                          {scanned ? '✓' : idx + 1}
+                          {confirmed ? '✓' : idx + 1}
                         </div>
                       )
                     })}
@@ -377,14 +639,14 @@ export function EscaneoPage() {
                   {itemsParaEscanear.map((item) => {
                     const isKit = !!item.kit_id
                     const isParcialKit = isKit && item.diferencia_kit !== undefined
-                    const scanned = isItemScanned(item)
+                    const confirmed = isItemConfirmed(item)
 
                     return (
                       <div
                         key={item.id}
                         className={clsx(
                           'rounded-xl border p-4 transition-all',
-                          scanned
+                          confirmed
                             ? 'border-emerald-200 bg-emerald-50/50'
                             : isKit
                             ? 'border-amber-200 bg-amber-50/50'
@@ -405,12 +667,12 @@ export function EscaneoPage() {
                               )}
                             </div>
                             <p className="text-xs text-steel-400 font-mono mt-0.5">{item.producto_codigo}</p>
-                            {!isKit && !scanned && (
+                            {!isKit && !confirmed && (
                               <p className="text-sm font-semibold text-steel-600 mt-1">
                                 Bs {(item.precio_unitario * item.cantidad_pedida).toFixed(2)}
                               </p>
                             )}
-                            {isKit && !scanned && (
+                            {isKit && !confirmed && (
                               <p className="text-xs text-steel-500 mt-1">
                                 {isParcialKit
                                   ? `Diferencia: Bs ${item.diferencia_kit?.toFixed(2)}`
@@ -421,9 +683,9 @@ export function EscaneoPage() {
                           <div className="text-right shrink-0">
                             <span className={clsx(
                               'inline-block px-2.5 py-1 rounded-lg text-xs font-bold',
-                              scanned ? 'bg-emerald-100 text-emerald-700' : 'bg-steel-100 text-steel-500',
+                              confirmed ? 'bg-emerald-100 text-emerald-700' : 'bg-steel-100 text-steel-500',
                             )}>
-                              {scanned ? '✓ Escaneado' : `× ${item.cantidad_pedida}`}
+                              {confirmed ? '✓ Confirmado' : `× ${item.cantidad_pedida}`}
                             </span>
                           </div>
                         </div>
@@ -437,10 +699,12 @@ export function EscaneoPage() {
                   <Button
                     className="w-full"
                     size="lg"
-                    onClick={handleConfirmarVenta}
-                    disabled={!allScanned}
+                    onClick={() => setShowPagoModal(true)}
+                    disabled={!allConfirmed}
                   >
-                    {allScanned ? `Confirmar y completar venta — Bs ${selectedOrden.total.toFixed(2)}` : `Escanea todos los ítems (${scannedCount}/${itemsParaEscanear.length})`}
+                    {allConfirmed
+                      ? `Completar venta — Bs ${selectedOrden.total.toFixed(2)}`
+                      : `Confirma todos los ítems (${confirmedCount}/${itemsParaEscanear.length})`}
                   </Button>
                 </div>
               </>
@@ -449,21 +713,48 @@ export function EscaneoPage() {
         </div>
       </PageContainer>
 
-      {/* Multi-match selection modal */}
       {selectMultipleMatches.length > 0 && (
         <LineSelectionModal
           matches={selectMultipleMatches}
           onSelect={handleSelectMatch}
-          onClose={() => setSelectMultipleMatches([])}
+          onClose={() => {
+            setSelectMultipleMatches([])
+            scanInputRef.current?.focus()
+          }}
         />
       )}
 
-      {/* Kit precio modal */}
-      {pendingKitItem && (
-        <KitPrecioModal
-          item={pendingKitItem}
-          onConfirm={handleKitPrecioConfirm}
-          onCancel={() => setPendingKitItem(null)}
+      {pendingConfirmItem && (
+        <ScanConfirmModal
+          item={pendingConfirmItem}
+          onConfirm={handleConfirmScan}
+          onCancel={() => {
+            setPendingConfirmItem(null)
+            scanInputRef.current?.focus()
+          }}
+          loading={confirmLoading}
+        />
+      )}
+
+      {pendingNotInOrderCode !== null && (
+        <ScanNotInOrderModal
+          code={pendingNotInOrderCode}
+          producto={notInOrderProducto}
+          onAgregar={handleAgregarItem}
+          onDescartar={() => {
+            setPendingNotInOrderCode(null)
+            scanInputRef.current?.focus()
+          }}
+          loading={agregarLoading}
+        />
+      )}
+
+      {showPagoModal && selectedOrden && (
+        <TipoPagoModal
+          total={selectedOrden.total}
+          onSeleccionar={handleCompletarVenta}
+          onCancelar={() => setShowPagoModal(false)}
+          loading={completarLoading}
         />
       )}
     </MainLayout>

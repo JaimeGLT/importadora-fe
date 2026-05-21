@@ -78,12 +78,11 @@ export function backendToDescuento(n: DescuentoAPI): DescuentoConfig {
   }
 }
 
-export type ModoPrecioCajero = 'PrecioImportacion' | 'PrecioDolarDia' | 'Ambos'
+export type ModoPrecioCajero = 'PrecioImportacion' | 'PrecioDolarDia'
 
 export const MODO_PRECIO_LABELS: Record<ModoPrecioCajero, string> = {
   PrecioImportacion: 'Importación',
   PrecioDolarDia: 'Dólar hoy',
-  Ambos: 'Ambos',
 }
 
 export const COLOR_OPTIONS = ['emerald', 'blue', 'amber', 'purple', 'rose', 'cyan'] as const

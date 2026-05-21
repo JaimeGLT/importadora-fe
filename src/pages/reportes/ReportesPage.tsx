@@ -1,18 +1,28 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useParams, Navigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
 import { Badge } from '@/components/ui'
-import { MOCK_IMPORTACIONES } from '@/mock/importaciones'
-import { MOCK_RESUMEN_VENTAS } from '@/mock/alertas'
+import { useAuth } from '@/contexts/AuthContext'
+import { gql } from '@/lib/graphql'
+import { IMPORTACIONES_QUERY, backendToImportacion } from '@/lib/queries/importaciones.queries'
 import {
-  MOCK_CUENTAS_COBRAR,
-  MOCK_PROVEEDORES_CUMPLIMIENTO,
-  MOCK_CLIENTES_CAIDA,
-  MOCK_ESTACIONALIDAD,
-} from '@/mock/reportes'
-import type { Producto } from '@/types'
+  ORDENES_REPORTE_QUERY,
+  PROVEEDORES_REPORTE_QUERY,
+  backendToProveedorReporte,
+  buildResumenMap,
+  buildClientesFugaData,
+  buildEstacionalidadData,
+} from '@/lib/queries/reportes.queries'
+import type {
+  ProveedorReporteData,
+  ClienteCaidaData,
+  EstacionalidadRefData,
+  OrdenReporteAPI,
+} from '@/lib/queries/reportes.queries'
+import { MOCK_CUENTAS_COBRAR } from '@/mock/reportes'
+import type { Producto, Importacion } from '@/types'
 import type { ResumenVentas } from '@/mock/alertas'
 
 // ─── Format helpers ───────────────────────────────────────────────────────────
@@ -179,7 +189,7 @@ function Rentabilidad({ productos, resumenMap }: { productos: Producto[]; resume
 
   return (
     <ReportShell
-      title="Rentabilidad por referencia"
+      title="¿Cuánto gana cada producto?"
       kpis={<>
         <Kpi label="Contribución mensual total" value={fmtBs(totalContrib)} sub="Margen bruto real" color="green" />
         <Kpi label="Mejor margen" value={`${mejorMargen.toFixed(1)}%`} sub={rows[0]?.p.nombre.split(' ').slice(0,2).join(' ')} color="brand" />
@@ -246,10 +256,11 @@ function Rentabilidad({ productos, resumenMap }: { productos: Producto[]; resume
 
 // ─── 2. Costo real de importación (Landed Cost) ───────────────────────────────
 
-function LandedCost() {
+function LandedCost({ importaciones: importacionesProp }: { importaciones: Importacion[] }) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const importaciones = useMemo(() =>
-    [...MOCK_IMPORTACIONES].sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime()), [])
+    [...importacionesProp].sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime()),
+    [importacionesProp])
 
   const totalInvertido = importaciones.reduce((s, i) => {
     return s + i.fob_total_usd * i.tipo_cambio + i.flete_usd * i.tipo_cambio + i.aduana_bs + i.transporte_interno_bs
@@ -272,7 +283,7 @@ function LandedCost() {
 
   return (
     <ReportShell
-      title="Costo real de importación — Landed Cost"
+      title="Cuánto cuesta cada importación"
       kpis={<>
         <Kpi label="Total importado (histórico)" value={fmtBs(totalInvertido)} color="brand" />
         <Kpi label="FOB promedio" value={`${pFob.toFixed(0)}%`} sub="Del costo total" />
@@ -450,7 +461,7 @@ function Rotacion({ productos, resumenMap }: { productos: Producto[]; resumenMap
 
   return (
     <ReportShell
-      title="Rotación de inventario"
+      title="¿Qué tan rápido se vende?"
       kpis={<>
         <Kpi label="Rotación alta (≤30 días)" value={`${fastCount} refs`} color="green" />
         <Kpi label="Días promedio de stock"   value={`${Math.round(avgDias)} días`} />
@@ -548,7 +559,7 @@ function CuentasCobrar() {
 
   return (
     <ReportShell
-      title="Cuentas por cobrar"
+      title="Clientes que me deben"
       kpis={<>
         <Kpi label="Cartera total"         value={fmtBs(total)}   color="brand" />
         <Kpi label="Al día"                value={fmtBs(alDia)}   color="green" sub={`${((alDia/total)*100).toFixed(0)}% del total`} />
@@ -599,17 +610,18 @@ function CuentasCobrar() {
 
 // ─── 5. Pedidos en tránsito ───────────────────────────────────────────────────
 
-function Transito() {
+function Transito({ importaciones }: { importaciones: Importacion[] }) {
   const todos = useMemo(() =>
-    [...MOCK_IMPORTACIONES].sort((a, b) =>
-      new Date(a.fecha_estimada_llegada).getTime() - new Date(b.fecha_estimada_llegada).getTime()), [])
+    [...importaciones].sort((a, b) =>
+      new Date(a.fecha_estimada_llegada).getTime() - new Date(b.fecha_estimada_llegada).getTime()),
+    [importaciones])
   const pendientes = todos.filter(i => i.estado === 'en_transito' || i.estado === 'en_aduana')
   const totalPendiente = pendientes.reduce((s, i) =>
     s + i.fob_total_usd * i.tipo_cambio + i.flete_usd * i.tipo_cambio + i.aduana_bs + i.transporte_interno_bs, 0)
 
   return (
     <ReportShell
-      title="Pedidos en tránsito"
+      title="Compras en camino"
       kpis={<>
         <Kpi label="Importaciones activas" value={`${pendientes.length}`} color="brand" />
         <Kpi label="Valor total en camino" value={fmtBs(totalPendiente)} color="amber" />
@@ -734,7 +746,7 @@ function QuiebreStock({ productos, resumenMap }: { productos: Producto[]; resume
 
   return (
     <ReportShell
-      title="Quiebre de stock proyectado"
+      title="Productos por agotarse"
       kpis={<>
         <Kpi label="Críticos (0–30 días)"  value={`${criticos.length} refs`}  color={criticos.length  > 0 ? 'red'    : 'neutral'} />
         <Kpi label="Atención (31–60 días)" value={`${atencion.length} refs`}  color={atencion.length  > 0 ? 'amber'  : 'neutral'} />
@@ -789,83 +801,57 @@ function QuiebreStock({ productos, resumenMap }: { productos: Producto[]; resume
 
 // ─── 7. Proveedores: cumplimiento y calidad ───────────────────────────────────
 
-function Proveedores() {
-  const sorted = [...MOCK_PROVEEDORES_CUMPLIMIENTO].sort((a, b) =>
-    (b.pedidos_a_tiempo / b.pedidos_total) - (a.pedidos_a_tiempo / a.pedidos_total))
-
-  const mejor   = sorted[0]
-  const peor    = sorted[sorted.length - 1]
-  const avgDef  = sorted.reduce((s, p) => s + p.defectos_pct, 0) / sorted.length
+function Proveedores({ proveedores }: { proveedores: ProveedorReporteData[] }) {
+  const sorted      = [...proveedores].sort((a, b) => b.total - a.total)
+  const activos     = sorted.filter(p => p.activo)
+  const totalGasto  = sorted.reduce((s, p) => s + p.total, 0)
+  const totalImps   = sorted.reduce((s, p) => s + p.canImportaciones, 0)
+  const top         = sorted[0]
 
   return (
     <ReportShell
-      title="Proveedores — cumplimiento y calidad"
+      title="¿Cómo están mis proveedores?"
       kpis={<>
-        <Kpi label="Mejor cumplimiento" value={mejor ? `${((mejor.pedidos_a_tiempo/mejor.pedidos_total)*100).toFixed(0)}%` : '—'}
-          sub={mejor?.nombre.split(' ')[0]} color="green" />
-        <Kpi label="Peor cumplimiento"  value={peor  ? `${((peor.pedidos_a_tiempo/peor.pedidos_total)*100).toFixed(0)}%` : '—'}
-          sub={peor?.nombre.split(' ')[0]}  color="red" />
-        <Kpi label="Defectos promedio"  value={`${avgDef.toFixed(1)}%`} sub="Tasa de defectos" color={avgDef > 1 ? 'amber' : 'neutral'} />
-        <Kpi label="Gasto total"        value={fmtBs(sorted.reduce((s,p) => s + p.monto_total_bs, 0))} sub="Todos los proveedores" />
+        <Kpi label="Proveedores activos"  value={`${activos.length}`} color="green" sub={`de ${sorted.length} en total`} />
+        <Kpi label="Total invertido"      value={fmtBs(totalGasto)} color="brand" sub="Todas las importaciones" />
+        <Kpi label="Mayor proveedor"      value={top?.nombre.split(' ').slice(0,2).join(' ') ?? '—'} sub={top ? fmtBs(top.total) : ''} />
+        <Kpi label="Importaciones totales" value={`${totalImps}`} sub="Pedidos realizados" />
       </>}
     >
-      {/* Scorecard visual */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {sorted.map(p => {
-          const pct      = (p.pedidos_a_tiempo / p.pedidos_total) * 100
-          const quality  = pct >= 95 ? 'excellent' : pct >= 80 ? 'good' : 'poor'
-          const defOk    = p.defectos_pct <= 0.5
-          return (
-            <div key={p.id} className={clsx('bg-white rounded-xl border shadow-sm p-5',
-              quality === 'excellent' ? 'border-emerald-200' : quality === 'good' ? 'border-amber-200' : 'border-red-200')}>
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <p className="text-sm font-bold text-steel-900 leading-snug">{p.nombre}</p>
-                  <p className="text-xs text-steel-400">{PAIS_FLAG[p.pais] ?? '🌍'} {p.pais}</p>
-                </div>
-                <span className={clsx('text-lg font-black tabular-nums',
-                  quality === 'excellent' ? 'text-emerald-600' : quality === 'good' ? 'text-amber-600' : 'text-red-600')}>
-                  {pct.toFixed(0)}%
-                </span>
+        {sorted.map(p => (
+          <div key={p.id} className={clsx('bg-white rounded-xl border shadow-sm p-5',
+            p.activo ? 'border-steel-200' : 'border-steel-100 opacity-70')}>
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <p className="text-sm font-bold text-steel-900 leading-snug">{p.nombre}</p>
+                <p className="text-xs text-steel-400">{PAIS_FLAG[p.pais] ?? '🌍'} {p.pais}</p>
               </div>
+              <span className={clsx('text-xs font-semibold px-2 py-0.5 rounded-full',
+                p.activo ? 'bg-emerald-100 text-emerald-700' : 'bg-steel-100 text-steel-500')}>
+                {p.activo ? 'Activo' : 'Inactivo'}
+              </span>
+            </div>
 
-              {/* Cumplimiento bar */}
-              <div className="mb-3">
-                <div className="flex justify-between text-xs text-steel-400 mb-1">
-                  <span>Pedidos a tiempo</span>
-                  <span>{p.pedidos_a_tiempo}/{p.pedidos_total}</span>
-                </div>
-                <div className="h-2 bg-steel-100 rounded-full overflow-hidden">
-                  <div
-                    className={clsx('h-full rounded-full',
-                      quality === 'excellent' ? 'bg-emerald-500' : quality === 'good' ? 'bg-amber-400' : 'bg-red-400')}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
+            <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+              <div className="bg-steel-50 rounded-lg p-2">
+                <p className="text-steel-400 mb-0.5">Pedidos realizados</p>
+                <p className="font-bold text-steel-800">{p.canImportaciones}</p>
               </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-steel-50 rounded-lg p-2">
-                  <p className="text-steel-400 mb-0.5">Retraso prom.</p>
-                  <p className={clsx('font-bold', p.dias_retraso_promedio === 0 ? 'text-emerald-600' : p.dias_retraso_promedio <= 3 ? 'text-amber-600' : 'text-red-600')}>
-                    {p.dias_retraso_promedio === 0 ? 'Ninguno' : `${p.dias_retraso_promedio.toFixed(1)} días`}
-                  </p>
-                </div>
-                <div className={clsx('rounded-lg p-2', defOk ? 'bg-steel-50' : 'bg-red-50')}>
-                  <p className="text-steel-400 mb-0.5">Defectos</p>
-                  <p className={clsx('font-bold', defOk ? 'text-emerald-600' : 'text-red-600')}>
-                    {p.defectos_pct.toFixed(1)}%
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-3 pt-3 border-t border-steel-100 flex items-center justify-between">
-                <span className="text-xs text-steel-400">Gasto total</span>
-                <span className="text-xs font-bold text-steel-900">{fmtBs(p.monto_total_bs)}</span>
+              <div className="bg-steel-50 rounded-lg p-2">
+                <p className="text-steel-400 mb-0.5">Tiempo de entrega</p>
+                <p className="font-bold text-steel-800">
+                  {p.tiempoReposicion > 0 ? `${p.tiempoReposicion} días` : '—'}
+                </p>
               </div>
             </div>
-          )
-        })}
+
+            <div className="pt-3 border-t border-steel-100 flex items-center justify-between">
+              <span className="text-xs text-steel-400">Total invertido</span>
+              <span className="text-xs font-bold text-steel-900">{fmtBs(p.total)}</span>
+            </div>
+          </div>
+        ))}
       </div>
     </ReportShell>
   )
@@ -893,7 +879,7 @@ function StockMuerto({ productos, resumenMap }: { productos: Producto[]; resumen
 
   return (
     <ReportShell
-      title="Antigüedad de inventario — stock muerto"
+      title="Productos sin movimiento"
       kpis={<>
         <Kpi label="Capital inmovilizado"   value={fmtBs(total)}        color="red" />
         <Kpi label="Productos sin rotación" value={`${muerto.length}`}  color={muerto.length > 0 ? 'amber' : 'neutral'} />
@@ -946,7 +932,7 @@ function PorVehiculo({ productos, resumenMap }: { productos: Producto[]; resumen
 
   return (
     <ReportShell
-      title="Partes más vendidas por marca / modelo"
+      title="¿Qué se vende más por vehículo?"
       kpis={<>
         <Kpi label="Vehículo top"       value={topGrupo?.vehiculo ?? '—'} sub={`${topGrupo?.uds30 ?? 0} uds/mes`} color="brand" />
         <Kpi label="Total unidades/mes" value={`${totalUds}`} />
@@ -992,23 +978,36 @@ function PorVehiculo({ productos, resumenMap }: { productos: Producto[]; resumen
 
 // ─── 10. Clientes en fuga ─────────────────────────────────────────────────────
 
-function ClientesFuga() {
-  const perdida = MOCK_CLIENTES_CAIDA.reduce((s, c) => s + (c.compras_30d_anterior_bs - c.compras_30d_actual_bs), 0)
+function ClientesFuga({ clientes }: { clientes: ClienteCaidaData[] }) {
+  const perdida = clientes.reduce((s, c) => s + (c.compras_30d_anterior_bs - c.compras_30d_actual_bs), 0)
+
+  if (clientes.length === 0) {
+    return (
+      <ReportShell title="Clientes que compraron menos" kpis={
+        <Kpi label="Clientes con caída" value="0" color="green" sub="Sin caídas detectadas" />
+      }>
+        <div className="bg-white rounded-xl border border-steel-200 p-10 text-center">
+          <p className="text-3xl mb-3">🎉</p>
+          <p className="text-sm font-medium text-steel-600">Sin clientes con caída de compras en los últimos 60 días</p>
+        </div>
+      </ReportShell>
+    )
+  }
 
   return (
     <ReportShell
-      title="Clientes con caída de compras"
+      title="Clientes que compraron menos"
       kpis={<>
-        <Kpi label="Clientes en fuga"     value={`${MOCK_CLIENTES_CAIDA.length}`} color="red" />
-        <Kpi label="Ingresos perdidos/mes" value={fmtBs(perdida)} color="red" sub="vs. mes anterior" />
-        <Kpi label="Mayor caída"           value={`-${MOCK_CLIENTES_CAIDA[0].pct_caida.toFixed(0)}%`}
-          sub={MOCK_CLIENTES_CAIDA[0].nombre.split(' ').slice(0,2).join(' ')} color="red" />
-        <Kpi label="Última compra más lejana" value={new Date(MOCK_CLIENTES_CAIDA[0].ultima_compra)
-          .toLocaleDateString('es-BO', { day: 'numeric', month: 'short' })} sub={MOCK_CLIENTES_CAIDA[0].nombre.split(' ')[0]} />
+        <Kpi label="Clientes con caída"    value={`${clientes.length}`} color="red" />
+        <Kpi label="Ventas perdidas / mes" value={fmtBs(perdida)} color="red" sub="vs. mes anterior" />
+        <Kpi label="Mayor caída"           value={`-${clientes[0].pct_caida.toFixed(0)}%`}
+          sub={clientes[0].nombre.split(' ').slice(0,2).join(' ')} color="red" />
+        <Kpi label="Última compra más lejana" value={new Date(clientes[0].ultima_compra)
+          .toLocaleDateString('es-BO', { day: 'numeric', month: 'short' })} sub={clientes[0].nombre.split(' ')[0]} />
       </>}
     >
       <div className="space-y-4">
-        {MOCK_CLIENTES_CAIDA.map(c => {
+        {clientes.map(c => {
           const perdidaC = c.compras_30d_anterior_bs - c.compras_30d_actual_bs
           const pct      = (c.compras_30d_actual_bs / c.compras_30d_anterior_bs) * 100
           const severity = c.pct_caida >= 70 ? 'high' : c.pct_caida >= 55 ? 'mid' : 'low'
@@ -1070,21 +1069,41 @@ function ClientesFuga() {
 
 // ─── 11. Estacionalidad ───────────────────────────────────────────────────────
 
-function Estacionalidad() {
+function Estacionalidad({ estacionalidad }: { estacionalidad: EstacionalidadRefData[] }) {
   const currentMonth = new Date().getMonth()
+
+  if (estacionalidad.length === 0) {
+    return (
+      <ReportShell title="¿Cuándo se vende más cada producto?" kpis={
+        <Kpi label="Productos analizados" value="0" sub="Sin datos de ventas aún" />
+      }>
+        <div className="bg-white rounded-xl border border-steel-200 p-10 text-center">
+          <p className="text-3xl mb-3">📅</p>
+          <p className="text-sm font-medium text-steel-600">Se necesitan ventas del último año para mostrar este reporte</p>
+        </div>
+      </ReportShell>
+    )
+  }
+
+  const allPeaks = estacionalidad.flatMap(r => r.ventas).reduce((acc, v) => {
+    acc[v.mes] = (acc[v.mes] ?? 0) + v.unidades
+    return acc
+  }, {} as Record<string, number>)
+  const peakMes = Object.entries(allPeaks).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—'
+  const valleyMes = Object.entries(allPeaks).sort((a, b) => a[1] - b[1])[0]?.[0] ?? '—'
 
   return (
     <ReportShell
-      title="Estacionalidad por referencia"
+      title="¿Cuándo se vende más cada producto?"
       kpis={<>
-        <Kpi label="Referencias analizadas" value={`${MOCK_ESTACIONALIDAD.length}`} />
+        <Kpi label="Productos analizados" value={`${estacionalidad.length}`} />
         <Kpi label="Mes actual" value={['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][currentMonth]} color="brand" />
-        <Kpi label="Pico general" value="May–Sep" sub="Temporada alta autopartes" color="amber" />
-        <Kpi label="Valle general" value="Feb–Mar" sub="Temporada baja" />
+        <Kpi label="Mes con más ventas" value={peakMes} color="amber" />
+        <Kpi label="Mes con menos ventas" value={valleyMes} />
       </>}
     >
       <div className="grid gap-5 sm:grid-cols-2">
-        {MOCK_ESTACIONALIDAD.map(ref => {
+        {estacionalidad.map(ref => {
           const total   = ref.ventas.reduce((s, v) => s + v.unidades, 0)
           const peak    = ref.ventas.reduce((best, v) => v.unidades > best.unidades ? v : best, ref.ventas[0])
           const valley  = ref.ventas.reduce((worst, v) => v.unidades < worst.unidades ? v : worst, ref.ventas[0])
@@ -1117,28 +1136,77 @@ function Estacionalidad() {
 export function ReportesPage() {
   const { report } = useParams<{ report: string }>()
   const { productos } = useInventarioStore()
+  const { isTokenReady } = useAuth()
 
-  const productosData = productos
+  const [importaciones, setImportaciones]     = useState<Importacion[]>([])
+  const [resumenMap, setResumenMap]           = useState<Record<string, ResumenVentas>>({})
+  const [proveedoresData, setProveedoresData] = useState<ProveedorReporteData[]>([])
+  const [clientesFuga, setClientesFuga]       = useState<ClienteCaidaData[]>([])
+  const [estacionalidad, setEstacionalidad]   = useState<EstacionalidadRefData[]>([])
+  const [loading, setLoading]                 = useState(true)
 
-  const resumenMap = useMemo(() => {
-    const m: Record<string, ResumenVentas> = {}
-    MOCK_RESUMEN_VENTAS.forEach(r => { m[r.producto_id] = r })
-    return m
-  }, [])
+  useEffect(() => {
+    if (!isTokenReady) return
+
+    async function loadData() {
+      setLoading(true)
+      try {
+        const [impRes, provRes, ordenesRes] = await Promise.all([
+          gql<{ importacion: { nodes: unknown[] } }>(IMPORTACIONES_QUERY),
+          gql<{ proveedores: { nodes: unknown[] } }>(PROVEEDORES_REPORTE_QUERY),
+          gql<{ todasOrdenes: { nodes: OrdenReporteAPI[] } }>(ORDENES_REPORTE_QUERY),
+        ])
+
+        setImportaciones(
+          (impRes.importacion?.nodes ?? []).map((n) => backendToImportacion(n as Parameters<typeof backendToImportacion>[0]))
+        )
+        setProveedoresData(
+          (provRes.proveedores?.nodes ?? []).map((n) => backendToProveedorReporte(n as Parameters<typeof backendToProveedorReporte>[0]))
+        )
+
+        const ordenes = ordenesRes.todasOrdenes?.nodes ?? []
+        setResumenMap(buildResumenMap(ordenes))
+        setClientesFuga(buildClientesFugaData(ordenes))
+        setEstacionalidad(buildEstacionalidadData(ordenes))
+      } catch (err) {
+        console.error('Error cargando datos de reportes:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [isTokenReady])
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <PageContainer>
+          <div className="flex items-center justify-center h-64">
+            <div className="space-y-3 w-full max-w-sm">
+              {[1,2,3].map(i => (
+                <div key={i} className="h-16 bg-steel-100 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          </div>
+        </PageContainer>
+      </MainLayout>
+    )
+  }
 
   const content = (() => {
     switch (report) {
-      case 'rentabilidad':   return <Rentabilidad  productos={productosData} resumenMap={resumenMap} />
-      case 'landed-cost':    return <LandedCost />
-      case 'rotacion':       return <Rotacion      productos={productosData} resumenMap={resumenMap} />
+      case 'rentabilidad':   return <Rentabilidad  productos={productos} resumenMap={resumenMap} />
+      case 'landed-cost':    return <LandedCost importaciones={importaciones} />
+      case 'rotacion':       return <Rotacion      productos={productos} resumenMap={resumenMap} />
       case 'cxc':            return <CuentasCobrar />
-      case 'transito':       return <Transito />
-      case 'quiebre':        return <QuiebreStock  productos={productosData} resumenMap={resumenMap} />
-      case 'proveedores':    return <Proveedores />
-      case 'stock-muerto':   return <StockMuerto   productos={productosData} resumenMap={resumenMap} />
-      case 'vehiculos':      return <PorVehiculo   productos={productosData} resumenMap={resumenMap} />
-      case 'clientes-fuga':  return <ClientesFuga />
-      case 'estacionalidad': return <Estacionalidad />
+      case 'transito':       return <Transito importaciones={importaciones} />
+      case 'quiebre':        return <QuiebreStock  productos={productos} resumenMap={resumenMap} />
+      case 'proveedores':    return <Proveedores proveedores={proveedoresData} />
+      case 'stock-muerto':   return <StockMuerto   productos={productos} resumenMap={resumenMap} />
+      case 'vehiculos':      return <PorVehiculo   productos={productos} resumenMap={resumenMap} />
+      case 'clientes-fuga':  return <ClientesFuga clientes={clientesFuga} />
+      case 'estacionalidad': return <Estacionalidad estacionalidad={estacionalidad} />
       default:               return <Navigate to="/reportes/rentabilidad" replace />
     }
   })()

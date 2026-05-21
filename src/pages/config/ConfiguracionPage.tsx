@@ -294,6 +294,9 @@ export function ConfiguracionPage() {
   const [modoEditando, setModoEditando] = useState(false)
   const [dolarBinance, setDolarBinance] = useState<{ compra: number; venta: number; fecha: string } | null>(null)
   const [confirmDolar, setConfirmDolar] = useState<number | null>(null)
+  const [confirmMargenOpen, setConfirmMargenOpen] = useState(false)
+  const [margenNuevo, setMargenNuevo] = useState<number | null>(null)
+  const [savingMargen, setSavingMargen] = useState(false)
 
   const dateStr = useMemo(() => {
     return new Date().toLocaleDateString('es-BO', {
@@ -306,7 +309,7 @@ export function ConfiguracionPage() {
     Promise.all([
       gql<{ descuento: { nodes: DescuentoAPI[] } }>(DESCUENTOS_QUERY).then(r => r.descuento.nodes),
       gql<{ margenGanancia: MargenGananciaAPI }>(MARGEN_GANANCIA_QUERY).then(r => r.margenGanancia),
-      gql<{ configVenta: ConfigVentaAPI[] }>(CONFIG_VENTA_QUERY).then(r => r.configVenta[0]),
+      gql<{ configVenta: ConfigVentaAPI | null }>(CONFIG_VENTA_QUERY).then(r => r.configVenta),
       gql<{ tipoCambio: TipoCambioAPI }>(TIPO_CAMBIO_QUERY).then(r => r.tipoCambio),
     ])
       .then(([descuentosData, margenData, configData, tipoCambioData]) => {
@@ -341,22 +344,31 @@ export function ConfiguracionPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTokenReady])
 
-  const handleMargenGuardar = async () => {
+  const handleMargenGuardar = () => {
     const parsed = parseFloat(margenInput)
     if (isNaN(parsed) || parsed < 0 || parsed > 500) {
       notify.error('Margen inválido (0-500%)')
       setMargenInput(((margenValor - 1) * 100).toFixed(0))
       return
     }
-    const nuevoMargen = 1 + parsed / 100
+    setMargenNuevo(1 + parsed / 100)
+    setConfirmMargenOpen(true)
+  }
+
+  const handleMargenConfirmar = async () => {
+    if (margenNuevo === null) return
+    setSavingMargen(true)
     try {
-      await api.post('/MargenGanancia', { valor: nuevoMargen })
-      setMargenValor(nuevoMargen)
+      const res = await api.post<{ productosActualizados: number }>('/MargenGanancia', { valor: margenNuevo })
+      setMargenValor(margenNuevo)
       setMargenEditando(false)
-      notify.success('Margen actualizado')
+      setConfirmMargenOpen(false)
+      setMargenNuevo(null)
+      notify.success(`Margen actualizado — ${res.productosActualizados} productos recalculados`)
     } catch (err) {
       notify.error((err as Error).message || 'Error al guardar margen')
-      setMargenInput(((margenValor - 1) * 100).toFixed(0))
+    } finally {
+      setSavingMargen(false)
     }
   }
 
@@ -616,7 +628,7 @@ export function ConfiguracionPage() {
                   )}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  {(['PrecioImportacion', 'PrecioDolarDia', 'Ambos'] as ModoPrecioCajero[]).map(modo => (
+                  {(['PrecioImportacion', 'PrecioDolarDia'] as ModoPrecioCajero[]).map(modo => (
                     <button
                       key={modo}
                       onClick={() => modoEditando ? handleModoCambio(modo) : undefined}
@@ -740,6 +752,87 @@ export function ConfiguracionPage() {
           message={`¿Eliminar "${deleteConfirm?.nombre}"? Esta acción no se puede deshacer.`}
           loading={deleting}
         />
+
+        {/* ── Confirmar margen ──────────────────────────────────────── */}
+        <Modal
+          open={confirmMargenOpen}
+          onClose={() => { if (!savingMargen) { setConfirmMargenOpen(false); setMargenNuevo(null) } }}
+          title="Actualizar margen de ganancia"
+        >
+          <div className="pt-1 space-y-4">
+            {margenNuevo !== null && (
+              <>
+                <div className="flex items-center justify-center gap-4 py-3">
+                  <div className="text-center">
+                    <p className="text-[10px] text-steel-400 uppercase tracking-widest mb-1">Actual</p>
+                    <p className="text-3xl font-black text-steel-500">{((margenValor - 1) * 100).toFixed(0)}%</p>
+                  </div>
+                  <svg className="w-6 h-6 text-steel-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                  <div className="text-center">
+                    <p className="text-[10px] text-emerald-500 uppercase tracking-widest mb-1">Nuevo</p>
+                    <p className="text-3xl font-black text-emerald-600">{((margenNuevo - 1) * 100).toFixed(0)}%</p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-2">
+                  <p className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Fórmula aplicada</p>
+                  <p className="text-sm font-mono text-emerald-800">
+                    precio = último costo en Bs × {margenNuevo.toFixed(4)}
+                  </p>
+                </div>
+
+                <ul className="space-y-2 text-sm text-steel-600">
+                  <li className="flex items-start gap-2">
+                    <svg className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Se recalcularán los precios de <strong>todos los productos activos</strong>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <svg className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Se usará el <strong>último costo en Bs</strong> del historial de cada producto (internación incluida)
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <svg className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Se creará un nuevo registro en el <strong>historial de precios</strong> de cada producto
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <svg className="w-4 h-4 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                    </svg>
+                    Esta acción <strong>no se puede deshacer</strong>
+                  </li>
+                </ul>
+              </>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                type="button"
+                variant="secondary"
+                className="flex-1"
+                onClick={() => { setConfirmMargenOpen(false); setMargenNuevo(null) }}
+                disabled={savingMargen}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                className="flex-1"
+                onClick={() => void handleMargenConfirmar()}
+                disabled={savingMargen}
+              >
+                {savingMargen ? 'Actualizando…' : 'Confirmar'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
 
         <ConfirmModal
           open={confirmDolar !== null}

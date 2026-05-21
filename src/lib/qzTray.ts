@@ -8,6 +8,24 @@ export interface QZConnectionStatus {
 }
 
 let connectionReady = false
+let securityConfigured = false
+
+function configureQZSecurity() {
+  if (securityConfigured) return
+  qz.security.setCertificatePromise(
+    (_resolve: (cert: string) => void, reject: (err: unknown) => void) => {
+      try { _resolve('') } catch (e) { reject(e) }
+    },
+  )
+  qz.security.setSignatureAlgorithm('SHA512')
+  qz.security.setSignaturePromise((toSign: string) => {
+    void toSign
+    return (_resolve: (sig: string) => void, reject: (err: unknown) => void) => {
+      try { _resolve('') } catch (e) { reject(e) }
+    }
+  })
+  securityConfigured = true
+}
 
 export async function connectQZTray(): Promise<QZConnectionStatus> {
   if (connectionReady && qz.websocket.isActive()) {
@@ -15,6 +33,7 @@ export async function connectQZTray(): Promise<QZConnectionStatus> {
   }
 
   try {
+    configureQZSecurity()
     await qz.websocket.connect()
     connectionReady = true
     return { connected: true, version: qz.VERSION, availablePrinters: [] }
@@ -39,6 +58,7 @@ export async function disconnectQZTray(): Promise<void> {
 export async function getAvailablePrinters(): Promise<string[]> {
   try {
     if (!qz.websocket.isActive()) {
+      configureQZSecurity()
       await qz.websocket.connect()
     }
     const printers = await qz.printers.find()
@@ -51,6 +71,7 @@ export async function getAvailablePrinters(): Promise<string[]> {
 export async function findPrinterByName(name: string): Promise<string | null> {
   try {
     if (!qz.websocket.isActive()) {
+      configureQZSecurity()
       await qz.websocket.connect()
     }
     const allPrinters = await qz.printers.find()
@@ -67,6 +88,7 @@ export async function printZPL(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     if (!qz.websocket.isActive()) {
+      configureQZSecurity()
       await qz.websocket.connect()
     }
 

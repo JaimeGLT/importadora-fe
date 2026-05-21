@@ -69,6 +69,15 @@ interface BackendImportacion {
 
 import type { Importacion, EstadoImportacion } from '@/types'
 
+function normalizeEstadoImportacion(raw: string): EstadoImportacion {
+  const s = raw.toLowerCase().replace(/[\s_]/g, '')
+  if (s.includes('transito') || s.includes('tránsito')) return 'en_transito'
+  if (s.includes('aduana'))                               return 'en_aduana'
+  if (s.includes('recibida') || s.includes('completada')) return 'recibida'
+  if (s.includes('cancelada'))                            return 'cancelada'
+  return 'en_transito'
+}
+
 export function backendToImportacion(b: BackendImportacion): Importacion {
   const firstDetalle = b.detalles[0]
   return {
@@ -78,7 +87,7 @@ export function backendToImportacion(b: BackendImportacion): Importacion {
     origen: b.proveedor.pais,
     fecha_creacion: b.fecha,
     fecha_estimada_llegada: b.fecha,
-    estado: 'en_transito' as EstadoImportacion,
+    estado: normalizeEstadoImportacion(b.estado),
     fob_total_usd: b.total,
     flete_usd: b.f_Internacional,
     aduana_bs: b.aduana_Arancel,

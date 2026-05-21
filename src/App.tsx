@@ -20,6 +20,7 @@ import { UsuariosPage } from '@/pages/sistema/usuarios/UsuariosPage'
 import { MarcasPage } from '@/pages/sistema/marcas/MarcasPage'
 import { ClientesPage } from '@/pages/ventas/clientes/ClientesPage'
 import { EscaneoPage } from '@/pages/ventas/escaneo/EscaneoPage'
+import { FacturaExtractorPage } from '@/pages/importaciones/FacturaExtractorPage'
 
 function RootRedirect() {
   return <Navigate to="/dashboard" replace />
@@ -57,6 +58,7 @@ export default function App() {
           <Route path="/importaciones" element={<ImportacionesPage />} />
           <Route path="/importaciones/proveedores" element={<ProveedoresPage />} />
           <Route path="/importaciones/marcas" element={<MarcasPageImportaciones />} />
+          <Route path="/importaciones/extractor" element={<FacturaExtractorPage />} />
           <Route path="/caja" element={<CajaDiariaPage />} />
           <Route path="/ventas/caja" element={<CajaPage />} />
           <Route path="/ventas/almacen" element={<AlmacenPage />} />

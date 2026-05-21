@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { OrdenVenta } from '@/types'
+import type { OrdenVenta, ItemOrden } from '@/types'
 import { useConfigStore } from './configStore'
 
 interface VentasState {
@@ -7,6 +7,7 @@ interface VentasState {
   setOrdenes: (ordenes: OrdenVenta[]) => void
   addOrden: (orden: OrdenVenta) => void
   updateOrden: (id: string, data: Partial<OrdenVenta>) => void
+  addItemToOrden: (ordenId: string, item: ItemOrden) => void
   marcarItemFaltante: (ordenId: string, itemId: string, cantidad: number) => void
   cancelarOrdenYLiberarStock: (id: string) => void
 }
@@ -29,6 +30,15 @@ export const useVentasStore = create<VentasState>()((set, get) => ({
     set((s) => ({
       ordenes: s.ordenes.map((o) =>
         o.id === id ? { ...o, ...data, actualizado_en: new Date().toISOString() } : o,
+      ),
+    }))
+    broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })
+  },
+
+  addItemToOrden: (ordenId, item) => {
+    set((s) => ({
+      ordenes: s.ordenes.map((o) =>
+        o.id === ordenId ? { ...o, items: [...o.items, item] } : o,
       ),
     }))
     broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })

@@ -52,6 +52,12 @@ async function generarBarcodePNG(value: string): Promise<string> {
       font:         'Arial, sans-serif',
       textMargin:   3,
     })
+    // Set viewBox so the SVG scales correctly when loaded as an image
+    const svgW = parseFloat(svgEl.getAttribute('width') || '300')
+    const svgH = parseFloat(svgEl.getAttribute('height') || '72')
+    svgEl.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`)
+    svgEl.setAttribute('width', '300')
+    svgEl.setAttribute('height', '72')
   } catch {
     return ''
   }
@@ -88,17 +94,21 @@ async function generarBarcodePNG(value: string): Promise<string> {
 async function generarPDF(
   items: { producto: LabelData; copias: number }[],
 ): Promise<Blob> {
-  const PAGE_W_MM = 90
-  const PAGE_H_MM = 20
-  const PAGE_W_PT = mmToPt(PAGE_W_MM)
-  const PAGE_H_PT = mmToPt(PAGE_H_MM)
+  // One page per label (30mm × 20mm). Thermal driver configured for individual
+  // label size prints one label per page without browser/driver scaling issues.
   const LABEL_W_MM = 30
+  const LABEL_H_MM = 20
+  const LABEL_W_PT = mmToPt(LABEL_W_MM)
+  const LABEL_H_PT = mmToPt(LABEL_H_MM)
 
   const pdf = new jsPDF({
     orientation: 'landscape',
     unit: 'pt',
-    format: [PAGE_W_PT, PAGE_H_PT],
+    format: [LABEL_W_PT, LABEL_H_PT],
   })
+
+  const xCenter = mmToPt(LABEL_W_MM / 2)
+  let firstPage = true
 
   for (const item of items) {
     const pngBase64 = await generarBarcodePNG(item.producto.codigo_universal)
@@ -110,33 +120,32 @@ async function generarPDF(
       : ''
 
     for (let c = 0; c < item.copias; c++) {
-      pdf.addPage([PAGE_W_PT, PAGE_H_PT])
+      if (firstPage) {
+        firstPage = false
+      } else {
+        pdf.addPage([LABEL_W_PT, LABEL_H_PT])
+      }
 
-      for (let col = 0; col < 3; col++) {
-        const xBase = mmToPt(col * LABEL_W_MM)
-        const xCenter = xBase + mmToPt(LABEL_W_MM / 2)
+      pdf.setFontSize(5)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(EMPRESA_NOMBRE, xCenter, mmToPt(1.8), { align: 'center' })
 
-        pdf.setFontSize(5)
-        pdf.setFont('helvetica', 'bold')
-        pdf.text(EMPRESA_NOMBRE, xCenter, mmToPt(1.8), { align: 'center' })
+      if (pngBase64) {
+        const barcodeW = mmToPt(LABEL_W_MM - 2)
+        const barcodeH = mmToPt(12)
+        try {
+          pdf.addImage(pngBase64, 'PNG', mmToPt(1), mmToPt(3.5), barcodeW, barcodeH)
+        } catch { /* skip if image fails */ }
+      }
 
-        if (pngBase64) {
-          const barcodeW = mmToPt(LABEL_W_MM - 2)
-          const barcodeH = mmToPt(12)
-          try {
-            pdf.addImage(pngBase64, 'PNG', xBase + mmToPt(1), mmToPt(3.5), barcodeW, barcodeH)
-          } catch { /* skip if image fails */ }
-        }
+      pdf.setFontSize(4.5)
+      pdf.setFont('courier', 'bold')
+      pdf.text(item.producto.codigo_universal, xCenter, mmToPt(17.2), { align: 'center' })
 
-        pdf.setFontSize(4.5)
-        pdf.setFont('courier', 'bold')
-        pdf.text(item.producto.codigo_universal, xCenter, mmToPt(17.2), { align: 'center' })
-
-        if (fechaFormateada) {
-          pdf.setFontSize(3.5)
-          pdf.setFont('helvetica', 'normal')
-          pdf.text(fechaFormateada, xCenter, mmToPt(19), { align: 'center' })
-        }
+      if (fechaFormateada) {
+        pdf.setFontSize(3.5)
+        pdf.setFont('helvetica', 'normal')
+        pdf.text(fechaFormateada, xCenter, mmToPt(19), { align: 'center' })
       }
     }
   }

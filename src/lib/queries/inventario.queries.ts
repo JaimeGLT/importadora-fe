@@ -40,6 +40,7 @@ export const PRODUCTOS_QUERY = `
         esKit
         costo
         precio
+        conversionABs
       }
     }
   }
@@ -297,7 +298,7 @@ export function productoToBackendBulk(
   p: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>,
 ): ProductoAPIBulkInput {
   const costo = dec(p.precio_costo > 0 ? p.precio_costo : 0.01)
-  const precio = dec(p.precio_venta > 0 ? p.precio_venta : costo)
+  const precio = dec(p.precio_venta > 0 ? p.precio_venta : 0)
   return {
     codigo: p.codigo_universal,
     codigoAux: p.codigos_alternativos[0] ?? '',

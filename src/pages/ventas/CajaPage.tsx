@@ -8,11 +8,16 @@ import { notify } from '@/lib/notify'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { useVentasStore } from '@/stores/ventasStore'
 import { useSoundAlert } from '@/hooks/useSoundAlert'
-import { useConfigStore, calcularPrecioConDescuento, calcularPrecioDolarHoy, type DescuentoConfig } from '@/stores/configStore'
+import { calcularPrecioConDescuento, calcularPrecioDolarHoy, type DescuentoConfig } from '@/stores/configStore'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
 import { PRODUCTOS_QUERY, PRODUCTO_BY_ID_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI } from '@/lib/queries/inventario.queries'
 import { MIS_ORDENES_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
+import {
+  DESCUENTOS_QUERY, MARGEN_GANANCIA_QUERY, CONFIG_VENTA_QUERY, TIPO_CAMBIO_QUERY,
+  backendToDescuento,
+  type DescuentoAPI, type MargenGananciaAPI, type ConfigVentaAPI, type TipoCambioAPI,
+} from '@/lib/queries/config.queries'
 import { useVentasHub } from '@/hooks/useVentasHub'
 import type { Producto, OrdenVenta, MetodoPago, Cliente } from '@/types'
 
@@ -193,6 +198,10 @@ function PrecioCard({
 function SelectPriceModal({
   producto,
   descuentos,
+  modoPrecioCajero,
+  tipoCambioHoy,
+  margenGanancia,
+  tipoCambioHabilitado,
   onSelect,
   onAddAnother,
   isEdit,
@@ -200,26 +209,26 @@ function SelectPriceModal({
 }: {
   producto: Producto
   descuentos: DescuentoConfig[]
+  modoPrecioCajero: string
+  tipoCambioHoy: number
+  margenGanancia: number
+  tipoCambioHabilitado: boolean
   onSelect: (precio: number, descuento_id?: string, descuento_nombre?: string, descuento_porcentaje?: number) => void
   onAddAnother?: (precio: number, descuento_id?: string, descuento_nombre?: string, descuento_porcentaje?: number) => void
   isEdit?: boolean
   onClose: () => void
 }) {
   const activeDescuentos = descuentos.filter(d => d.activo)
-  const { modoPrecioCajero, tipoCambioHoy, margenGanancia, tipoCambioHabilitado } = useConfigStore()
-  const [activeTab, setActiveTab] = useState<'importacion' | 'dolar'>('importacion')
 
-  const precioBase = producto.precio_venta
-  const allCodes = [producto.codigo_universal, ...producto.codigos_alternativos.filter(Boolean)]
+  const precioImportacion = producto.precio_venta
   const precioDolarHoy = producto.conversionABs && producto.conversionABs > 0
     ? calcularPrecioDolarHoy(producto.precio_costo, producto.conversionABs, tipoCambioHoy, margenGanancia)
     : 0
 
-  const showBoth = modoPrecioCajero === 'ambos' && tipoCambioHabilitado
-  const showOnlyDolar = modoPrecioCajero === 'solo_dolar_hoy' && tipoCambioHabilitado
+  const usarDolar = modoPrecioCajero === 'PrecioDolarDia' && tipoCambioHabilitado && precioDolarHoy > 0
+  const precioADisplay = usarDolar ? precioDolarHoy : precioImportacion
 
-  const precioImportacion = precioBase
-  const precioADisplay = showBoth ? (activeTab === 'importacion' ? precioImportacion : precioDolarHoy) : (showOnlyDolar ? precioDolarHoy : precioImportacion)
+  const allCodes = [producto.codigo_universal, ...producto.codigos_alternativos.filter(Boolean)]
 
   const handleSelect = (precio: number, descuento?: DescuentoConfig) => {
     if (isEdit && onAddAnother) {
@@ -257,29 +266,6 @@ function SelectPriceModal({
             {producto.marca && <p className="text-[10px] text-steel-400 mt-0.5">{producto.marca}</p>}
           </div>
         </div>
-
-        {showBoth && (
-          <div className="flex gap-1 bg-steel-100 rounded-xl p-1">
-            <button
-              onClick={() => setActiveTab('importacion')}
-              className={clsx(
-                'flex-1 py-2 text-xs font-bold rounded-lg transition-all',
-                activeTab === 'importacion' ? 'bg-white text-steel-800 shadow-sm' : 'text-steel-500 hover:text-steel-700'
-              )}
-            >
-              Importación
-            </button>
-            <button
-              onClick={() => setActiveTab('dolar')}
-              className={clsx(
-                'flex-1 py-2 text-xs font-bold rounded-lg transition-all',
-                activeTab === 'dolar' ? 'bg-white text-steel-800 shadow-sm' : 'text-steel-500 hover:text-steel-700'
-              )}
-            >
-              Dólar hoy
-            </button>
-          </div>
-        )}
 
         <div className="space-y-1.5">
           <p className="text-[10px] font-bold text-steel-400 uppercase tracking-widest px-1">Precios disponibles</p>
@@ -1460,7 +1446,12 @@ export function CajaPage() {
   const [kitSeleccionado, setKitSeleccionado] = useState<Producto | null>(null)
   const [kitCompletoQty, setKitCompletoQty] = useState(1)
 
-  const descuentos = useConfigStore(s => s.descuentos)
+  const [descuentos, setDescuentos] = useState<DescuentoConfig[]>([])
+  const [modoPrecioCajero, setModoPrecioCajero] = useState('PrecioImportacion')
+  const [tipoCambioHoy, setTipoCambioHoy] = useState(0)
+  const [margenGanancia, setMargenGanancia] = useState(1.20)
+  const [tipoCambioHabilitado, setTipoCambioHabilitado] = useState(false)
+
   const productos = useInventarioStore(s => s.productos)
 
   const misOrdenes = useMemo(() => ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada' && o.tipo !== 'reserva'), [ordenes])
@@ -1474,7 +1465,7 @@ export function CajaPage() {
     if (!isTokenReady) return
     let cancelled = false
     setLoadingProductos(true)
-    gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTOS_QUERY)
+    gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTOS_QUERY, { first: 5000 })
       .then(res => {
         if (cancelled) return
         const prods = res.productos.nodes.map(backendToProductoSimple)
@@ -1488,6 +1479,24 @@ export function CajaPage() {
       })
     return () => { cancelled = true }
   }, [isTokenReady, setProductos])
+
+  useEffect(() => {
+    if (!isTokenReady) return
+    Promise.all([
+      gql<{ descuento: { nodes: DescuentoAPI[] } }>(DESCUENTOS_QUERY).then(r => r.descuento.nodes),
+      gql<{ margenGanancia: MargenGananciaAPI }>(MARGEN_GANANCIA_QUERY).then(r => r.margenGanancia),
+      gql<{ configVenta: ConfigVentaAPI | null }>(CONFIG_VENTA_QUERY).then(r => r.configVenta),
+      gql<{ tipoCambio: TipoCambioAPI }>(TIPO_CAMBIO_QUERY).then(r => r.tipoCambio),
+    ]).then(([desc, margen, config, tipoCambio]) => {
+      setDescuentos(desc.map(backendToDescuento))
+      if (margen) setMargenGanancia(margen.valor)
+      if (config) setModoPrecioCajero(config.modoVenta)
+      if (tipoCambio) {
+        setTipoCambioHoy(tipoCambio.precioDolar)
+        setTipoCambioHabilitado(tipoCambio.precioDolar > 0)
+      }
+    }).catch(() => {})
+  }, [isTokenReady])
 
   const joinGrupoRef = useRef<(g: string) => Promise<void>>(() => Promise.resolve())
 
@@ -1955,6 +1964,10 @@ export function CajaPage() {
         <SelectPriceModal
           producto={productoSeleccionado}
           descuentos={descuentos}
+          modoPrecioCajero={modoPrecioCajero}
+          tipoCambioHoy={tipoCambioHoy}
+          margenGanancia={margenGanancia}
+          tipoCambioHabilitado={tipoCambioHabilitado}
           onSelect={handleSelectPrice}
           onAddAnother={handleAddWithPrice}
           isEdit={cart.items.some(i => i.producto_id === productoSeleccionado.id)}
