@@ -7,7 +7,7 @@ import { useConfigStore } from '@/stores/configStore'
 import { DESCUENTOS_QUERY, CONFIG_VENTA_QUERY, TIPO_CAMBIO_QUERY, backendToDescuento, type DescuentoAPI, type ConfigVentaAPI, type TipoCambioAPI } from '@/lib/queries/config.queries'
 import type { ModoPrecioCajero } from '@/stores/configStore'
 
-let _configLoaded = false
+let _configLoaded = false 
 
 interface MainLayoutProps {
   children: ReactNode
