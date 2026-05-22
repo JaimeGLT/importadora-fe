@@ -4,6 +4,8 @@ import { Modal, Button, ExcelColumnMapper } from '@/components/ui'
 import { imprimirLote } from '@/lib/printLabel'
 import type { Producto } from '@/types'
 import { clsx } from 'clsx'
+import { api } from '@/lib/api'
+import { useMarcasStore } from '@/stores/marcasStore'
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
@@ -199,7 +201,22 @@ interface ImportarExcelModalProps {
   productosExistentes: Producto[]
 }
 
+async function resolveMarcaId(
+  nombre: string,
+  marcas: { id: number; nombre: string }[],
+  addMarca: (m: { id: number; nombre: string; creado_en: string }) => void,
+): Promise<number | null> {
+  if (!nombre.trim()) return null
+  const norm = nombre.trim().toLowerCase()
+  const existing = marcas.find((m) => m.nombre.toLowerCase() === norm)
+  if (existing) return existing.id
+  const res = await api.post<{ id: number; nombre: string }>('/marca', { nombre: nombre.trim() })
+  addMarca({ id: res.id, nombre: res.nombre, creado_en: new Date().toISOString() })
+  return res.id
+}
+
 export function ImportarExcelModal({ open, onClose, onImport, productosExistentes }: ImportarExcelModalProps) {
+  const { marcas, addMarca } = useMarcasStore()
   const [step, setStep]               = useState<Step>('upload')
   const [excelCols, setExcelCols]     = useState<string[]>([])
   const [rawRows, setRawRows]         = useState<Record<string, unknown>[]>([])
@@ -209,6 +226,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
   const [, setPreviewActions] = useState<Record<string, ImportAction>>({})
   const [tipoCambio, setTipoCambio]   = useState('6.96')
   const [usarTipoCambioGlobal, setUsarTipoCambioGlobal] = useState(true)
+  const [stockMode, setStockMode] = useState<'reemplazar' | 'sumar'>('reemplazar')
   const [dragOver, setDragOver]       = useState(false)
   const [importing, setImporting]     = useState(false)
   const [importados, setImportados]   = useState<ProductoImportado[]>([])
@@ -345,9 +363,13 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
           : tcFromExcel > 0 ? tcFromExcel : 6.96
 
         if (action === 'update' && existing) {
+          const stockParaEnviar = stockMode === 'reemplazar'
+            ? p.stock - (existing.stock ?? 0)
+            : p.stock
           return {
             data: {
               ...p,
+              stock: stockParaEnviar,
               conversionABs: usarTipoCambioGlobal ? tc : (tcFromExcel > 0 ? tcFromExcel : 6.96),
               piezas: columnaPiezasMapeada ? p.piezas : existing.piezas ?? 1,
               historial_precios: [
@@ -377,6 +399,17 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
           action: 'create' as ImportAction,
         }
       })
+
+    const marcaCache = new Map<string, number | null>()
+    for (const result of results) {
+      const nombreMarca = ((result.data as unknown as { marca?: string }).marca ?? '').trim()
+      if (!nombreMarca) continue
+      const norm = nombreMarca.toLowerCase()
+      if (!marcaCache.has(norm)) {
+        marcaCache.set(norm, await resolveMarcaId(nombreMarca, marcas, addMarca))
+      }
+      result.data.marcaId = marcaCache.get(norm) ?? null
+    }
 
     await onImport(results)
 
@@ -691,6 +724,33 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
               )}
             </div>
           )}
+
+          {/* Stock mode toggle */}
+          <div className="mb-4 flex items-center justify-between gap-4 px-4 py-3 bg-steel-50 border border-steel-100 rounded-xl">
+            <div>
+              <p className="text-sm font-semibold text-steel-700">
+                {stockMode === 'reemplazar' ? 'Reemplazar stock existente' : 'Sumar al stock existente'}
+              </p>
+              <p className="text-xs text-steel-400 mt-0.5">
+                {stockMode === 'reemplazar'
+                  ? 'El stock del Excel reemplaza al valor actual en BD (migración / ajuste)'
+                  : 'El stock del Excel se suma al actual en BD (carga de stock adicional)'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStockMode((m) => m === 'reemplazar' ? 'sumar' : 'reemplazar')}
+              className={clsx(
+                'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
+                stockMode === 'sumar' ? 'bg-brand-600' : 'bg-steel-300',
+              )}
+            >
+              <span className={clsx(
+                'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform',
+                stockMode === 'sumar' ? 'translate-x-5' : 'translate-x-0',
+              )} />
+            </button>
+          </div>
 
           <div className="flex flex-wrap gap-3 mb-4">
             <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">

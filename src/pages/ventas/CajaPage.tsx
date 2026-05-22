@@ -5,7 +5,6 @@ import { MainLayout } from '@/components/layout/MainLayout'
 import { Button, Input, Modal } from '@/components/ui'
 import { KitSeleccionModal, type KitSeleccionResult } from '@/components/ui/KitVentaParcialModal'
 import { notify } from '@/lib/notify'
-import { useInventarioStore } from '@/stores/inventarioStore'
 import { useVentasStore } from '@/stores/ventasStore'
 import { useSoundAlert } from '@/hooks/useSoundAlert'
 import { calcularPrecioConDescuento, calcularPrecioDolarHoy, type DescuentoConfig } from '@/stores/configStore'
@@ -263,7 +262,6 @@ function SelectPriceModal({
               ))}
             </div>
             <p className="text-sm font-medium text-steel-700 truncate">{producto.nombre}</p>
-            {producto.marca && <p className="text-[10px] text-steel-400 mt-0.5">{producto.marca}</p>}
           </div>
         </div>
 
@@ -309,26 +307,41 @@ function SelectPriceModal({
 
 // ─── ProductSearch ─────────────────────────────────────────────────────────────
 
-function ProductSearch({ onSelectProducto, loading }: { onSelectProducto: (producto: Producto) => void; loading?: boolean }) {
-  const productos = useInventarioStore(s => s.productos)
+function ProductSearch({ onSelectProducto }: { onSelectProducto: (producto: Producto) => void }) {
+  const { isTokenReady } = useAuth()
   const [query, setQuery] = useState('')
+  const [resultados, setResultados] = useState<Producto[]>([])
+  const [loading, setLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
-  const resultados = useMemo(() => {
-    if (!query.trim()) return []
-    const q = query.toLowerCase()
-    return productos
-      .filter(p =>
-        p.estado !== 'descontinuado' &&
-        (p.codigo_universal.toLowerCase().includes(q) ||
-          p.nombre.toLowerCase().includes(q) ||
-          p.marca.toLowerCase().includes(q) ||
-          p.codigos_alternativos.some(c => c.toLowerCase().includes(q)))
-      )
-      .slice(0, 10)
-  }, [query, productos])
+  useEffect(() => {
+    if (!query.trim() || !isTokenReady) { setResultados([]); return }
+    const q = query.trim()
+    const timer = setTimeout(async () => {
+      setLoading(true)
+      try {
+        const res = await gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTOS_QUERY, {
+          first: 10,
+          where: {
+            or: [
+              { nombre: { contains: q } },
+              { codigo: { contains: q } },
+              { codigoAux: { contains: q } },
+              { codigoAux2: { contains: q } },
+            ],
+          },
+        })
+        setResultados((res.productos?.nodes ?? []).map(backendToProductoSimple))
+      } catch {
+        setResultados([])
+      } finally {
+        setLoading(false)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [query, isTokenReady])
 
   const stockDisponible = (p: Producto) => Math.max(0, p.stock - (p.stock_reservado ?? 0))
 
@@ -401,9 +414,16 @@ function ProductSearch({ onSelectProducto, loading }: { onSelectProducto: (produ
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="font-mono text-sm font-black text-brand-600 bg-brand-50 px-2 py-0.5 rounded">{p.codigo_universal}</span>
+                      {p.es_kit && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-black bg-violet-100 text-violet-700 border border-violet-200">
+                          <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                          </svg>
+                          KIT
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm font-medium text-steel-600 truncate">{p.nombre}</p>
-                    {p.marca && <p className="text-[10px] text-steel-400 mt-0.5">{p.marca}</p>}
                     <div className="flex items-center gap-3 mt-1">
                       <span className={`text-[11px] font-semibold ${stockCls}`}>{disp} disponibles</span>
                       {p.almacen && <span className="text-[11px] text-steel-400">📦 {p.almacen} {p.estante} {p.fila} {p.columna}</span>}
@@ -556,11 +576,10 @@ function CartItem({
 
 // ─── CartPanel ────────────────────────────────────────────────────────────────
 
-function CartPanel({ cart, onQtyChange, onRemoveItem, onNotaChange, onEmitir, onEditPrice, emitButtonRef, onTipoChange, onClienteChange }: { cart: Cart; onQtyChange: (itemIdx: number, delta: number) => void; onRemoveItem: (itemIdx: number) => void; onNotaChange: (nota: string) => void; onEmitir: () => void; onEditPrice: (producto_id: string) => void; emitButtonRef?: (el: HTMLButtonElement | null) => void; onTipoChange: (tipo: 'venta' | 'reserva') => void; onClienteChange: (nombre: string) => void }) {
-  const productos = useInventarioStore(s => s.productos)
+function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChange, onEmitir, onEditPrice, emitButtonRef, onTipoChange, onClienteChange }: { cart: Cart; productosCache: Record<string, Producto>; onQtyChange: (itemIdx: number, delta: number) => void; onRemoveItem: (itemIdx: number) => void; onNotaChange: (nota: string) => void; onEmitir: () => void; onEditPrice: (producto_id: string) => void; emitButtonRef?: (el: HTMLButtonElement | null) => void; onTipoChange: (tipo: 'venta' | 'reserva') => void; onClienteChange: (nombre: string) => void }) {
   const stockDisponible = (id: string) => {
-    const p = productos.find(x => x.id === id)
-    return p ? Math.max(0, p.stock - (p.stock_reservado ?? 0)) : 0
+    const p = productosCache[id]
+    return p ? Math.max(0, p.stock - (p.stock_reservado ?? 0)) : Infinity
   }
   const total = cart.items.reduce((s, i) => s + i.precio_unitario * i.cantidad, 0)
 
@@ -1426,7 +1445,6 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
 
 export function CajaPage() {
   const { user, isTokenReady } = useAuth()
-  const { setProductos } = useInventarioStore()
   const { ordenes, setOrdenes, updateOrden } = useVentasStore()
   const { playAlertSequence, playBeep } = useSoundAlert()
 
@@ -1435,7 +1453,7 @@ export function CajaPage() {
   const [flyingBall, setFlyingBall] = useState<{ from: DOMRect | null; items: number } | null>(null)
   const emitButtonRef = useRef<HTMLButtonElement>(null)
   const headerBadgeRef = useRef<HTMLButtonElement | null>(null)
-  const [loadingProductos, setLoadingProductos] = useState(true)
+  const [productosCache, setProductosCache] = useState<Record<string, Producto>>({})
   const [clientes, setClientes] = useState<Cliente[]>([])
 
   const [cobroOrden, setCobroOrden] = useState<OrdenVenta | null>(null)
@@ -1452,33 +1470,12 @@ export function CajaPage() {
   const [margenGanancia, setMargenGanancia] = useState(1.20)
   const [tipoCambioHabilitado, setTipoCambioHabilitado] = useState(false)
 
-  const productos = useInventarioStore(s => s.productos)
-
   const misOrdenes = useMemo(() => ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada' && o.tipo !== 'reserva'), [ordenes])
   const reservaciones = useMemo(() => ordenes.filter(o => o.tipo === 'reserva' && o.estado !== 'cancelada'), [ordenes])
   const canceladas = useMemo(() => ordenes.filter(o => o.estado === 'cancelada'), [ordenes])
   const listosCount = misOrdenes.filter(o => o.estado === 'completada').length
   const alertedFaltantes = useRef<Set<string>>(new Set())
   const alertedListo = useRef<Set<string>>(new Set())
-
-  useEffect(() => {
-    if (!isTokenReady) return
-    let cancelled = false
-    setLoadingProductos(true)
-    gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTOS_QUERY, { first: 5000 })
-      .then(res => {
-        if (cancelled) return
-        const prods = res.productos.nodes.map(backendToProductoSimple)
-        setProductos(prods, prods.length)
-      })
-      .catch(() => {
-        if (!cancelled) notify.error('Error cargando productos')
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingProductos(false)
-      })
-    return () => { cancelled = true }
-  }, [isTokenReady, setProductos])
 
   useEffect(() => {
     if (!isTokenReady) return
@@ -1568,6 +1565,7 @@ export function CajaPage() {
   }, [])
 
   const addToCart = useCallback((producto: Producto) => {
+    setProductosCache(prev => ({ ...prev, [producto.id]: producto }))
     if (producto.es_kit) {
       addKitSeleccion(producto)
       return
@@ -1670,9 +1668,9 @@ export function CajaPage() {
   }, [kitSeleccionado, playBeep, agregarPiezasAlCarrito])
 
   const handleEditPrice = useCallback((producto_id: string) => {
-    const producto = productos.find(p => p.id === producto_id)
+    const producto = productosCache[producto_id]
     if (producto) setProductoSeleccionado(producto)
-  }, [productos])
+  }, [productosCache])
 
   const handleAddWithPrice = useCallback((precio: number, descuento_id?: string, descuento_nombre?: string, descuento_porcentaje?: number) => {
     if (!productoSeleccionado) return
@@ -1915,11 +1913,12 @@ export function CajaPage() {
         <div className="flex-1 overflow-hidden flex flex-col p-4 gap-4">
           <div className="flex-1 grid grid-cols-[1fr_380px] gap-4 overflow-hidden min-h-0">
             <div className="bg-white rounded-2xl border border-steel-100 shadow-sm overflow-hidden flex flex-col">
-              <ProductSearch onSelectProducto={addToCart} loading={loadingProductos} />
+              <ProductSearch onSelectProducto={addToCart} />
             </div>
             <div className="bg-white rounded-2xl border border-steel-100 shadow-sm overflow-hidden flex flex-col">
               <CartPanel
                 cart={cart}
+                productosCache={productosCache}
                 onQtyChange={handleQtyChange}
                 onRemoveItem={handleRemoveItem}
                 onNotaChange={handleNotaChange}

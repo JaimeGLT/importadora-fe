@@ -16,8 +16,8 @@ export function FacturaExtractorPage() {
 
   function seleccionarArchivo(file: File) {
     const ext = file.name.split('.').pop()?.toLowerCase()
-    if (ext !== 'xlsx' && ext !== 'xls') {
-      toast.error('Solo se aceptan archivos .xlsx o .xls')
+    if (ext !== 'xlsx' && ext !== 'xls' && ext !== 'pdf') {
+      toast.error('Solo se aceptan archivos .xlsx, .xls o .pdf')
       return
     }
     setArchivo(file)
@@ -91,7 +91,7 @@ export function FacturaExtractorPage() {
       <PageContainer>
         <PageHeader
           title="Extractor IA de facturas"
-          description="Subí el Excel del proveedor y la IA extrae los productos en un archivo limpio listo para importar."
+          description="Subí la factura del proveedor (Excel o PDF) y la IA extrae los productos en un archivo limpio listo para importar."
         />
 
         <div className="mt-8 max-w-2xl">
@@ -114,7 +114,7 @@ export function FacturaExtractorPage() {
             <input
               ref={inputRef}
               type="file"
-              accept=".xlsx,.xls"
+              accept=".xlsx,.xls,.pdf"
               className="hidden"
               onChange={onInputChange}
             />
@@ -149,7 +149,7 @@ export function FacturaExtractorPage() {
                   <p className="text-sm font-medium text-ink">
                     {dragging ? 'Soltá el archivo aquí' : 'Arrastrá o hacé click para subir'}
                   </p>
-                  <p className="text-xs text-steel-400 mt-0.5">Solo archivos .xlsx o .xls</p>
+                  <p className="text-xs text-steel-400 mt-0.5">Archivos .xlsx, .xls o .pdf</p>
                 </div>
               </>
             )}
@@ -206,7 +206,7 @@ export function FacturaExtractorPage() {
           <div className="mt-8 rounded-xl border border-hair bg-white p-5 space-y-2">
             <p className="text-xs font-semibold text-ink uppercase tracking-wide">¿Cómo funciona?</p>
             <ol className="space-y-1.5 text-sm text-steel-500 list-decimal list-inside">
-              <li>Subí el Excel original del proveedor (cualquier idioma o formato)</li>
+              <li>Subí el Excel o PDF original del proveedor (cualquier idioma o formato)</li>
               <li>La IA detecta automáticamente los encabezados y filas de productos</li>
               <li>Se genera un Excel limpio con columnas uniformes y precios normalizados</li>
               <li>El archivo se descarga automáticamente</li>

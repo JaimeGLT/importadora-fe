@@ -53,7 +53,7 @@ export function backendToImportacionSimple(b: {
     codigoAux2: string
     nombre: string
     descripcion: string
-    marca: string
+    marca: { id: number; nombre: string } | null
     unidad_Medida: string
     ubicacion: string
     stock_Actual: number
@@ -153,7 +153,10 @@ export const PROVEEDOR_IMPORTACIONES_QUERY = `
           codigoAux2
           nombre
           descripcion
-          marca
+          marca {
+            id
+            nombre
+          }
           unidad_Medida
           ubicacion
           stock_Actual

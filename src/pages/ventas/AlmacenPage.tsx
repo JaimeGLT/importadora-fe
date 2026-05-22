@@ -604,8 +604,8 @@ export function AlmacenPage() {
   )
 
   const filteredOrdenes = useMemo(() => {
-    if (tab === 'todos') return activeOrdenes
-    return activeOrdenes.filter(o => o.estado === tab)
+    const base = tab === 'todos' ? activeOrdenes : activeOrdenes.filter(o => o.estado === tab)
+    return [...base].sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime())
   }, [activeOrdenes, tab])
 
   const counts = useMemo(() => ({

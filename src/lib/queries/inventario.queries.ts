@@ -35,6 +35,7 @@ export const PRODUCTOS_QUERY = `
         marcaId
         ubicacion
         stock_Actual
+        stockReservado
         stock_Minimo
         calcularStockKit
         esKit
@@ -131,6 +132,7 @@ interface ProductoAPISimple {
   precio: number
   conversionABs: number
   esKit?: boolean
+  imagen?: string | null
   historialPrecios?: HistorialPrecioAPI[]
 }
 
@@ -188,6 +190,7 @@ function mapProductoBase(p: ProductoAPISimple): Producto {
     precio_venta: p.precio ?? 0,
     conversionABs: p.conversionABs ?? 6.96,
     es_kit: p.esKit ?? false,
+    imagen: p.imagen ?? undefined,
     historial_precios: (p.historialPrecios ?? []).map((h) => ({
       fecha: h.fecha,
       precio_costo: h.costo,

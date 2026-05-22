@@ -6,7 +6,7 @@ export interface OrdenItemProductoAPI {
   id: number
   codigo: string
   nombre: string
-  marca: string
+  marca: { id: number; nombre: string } | null
   ubicacion: string
   stock_Actual: number
   stock_Minimo: number
@@ -113,7 +113,10 @@ export const MIS_ORDENES_QUERY = `
             id
             codigo
             nombre
-            marca
+            marca {
+              id
+              nombre
+            }
             ubicacion
             stock_Actual
             stock_Minimo
@@ -186,7 +189,10 @@ export const ORDENES_PENDIENTES_QUERY = `
             id
             codigo
             nombre
-            marca
+            marca {
+              id
+              nombre
+            }
             ubicacion
             stock_Actual
             stock_Minimo
@@ -258,7 +264,10 @@ export const MIS_ORDENES_ALMACEN_QUERY = `
             id
             codigo
             nombre
-            marca
+            marca {
+              id
+              nombre
+            }
             ubicacion
             stock_Actual
             stock_Minimo
@@ -330,7 +339,10 @@ export const TODAS_ORDENES_QUERY = `
             id
             codigo
             nombre
-            marca
+            marca {
+              id
+              nombre
+            }
             ubicacion
             stock_Actual
             precio
