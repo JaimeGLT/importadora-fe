@@ -55,7 +55,7 @@ interface DatosForm {
   flete_usd: string
   aduana_bs: string
   transporte_interno_bs: string
-  marca_id: string
+  marca_id: number | null
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -68,7 +68,6 @@ const SYSTEM_FIELDS: SystemField[] = [
   { key: 'codigo_alt2',      label: 'Código alternativo 2', required: false },
   { key: 'nombre',           label: 'Nombre',               required: false },
   { key: 'descripcion',      label: 'Descripción',          required: false },
-  { key: 'marca',            label: 'Marca',                required: false },
   { key: 'stock',            label: 'Cantidad',              required: true,  hint: 'Unidades que ingresan al lote' },
   { key: 'stock_minimo',     label: 'Stock mínimo',         required: false },
   { key: 'piezas',           label: 'Piezas por unidad',    required: false },
@@ -137,7 +136,7 @@ function calcItems(
   datos: { tipo_cambio: number; flete_usd: number; aduana_bs: number; transporte_interno_bs: number },
   productos: Producto[],
   piezasMapeado: boolean,
-  marcaDefault: string,
+  marcaDefault: number | null,
   margenBd: number,
 ): DraftItem[] {
   const total_fob_bs = rawItems.reduce(
@@ -166,8 +165,9 @@ function calcItems(
     const allCodes = [raw.codigo_universal, ...raw.codigos_adicionales].map((c) => c.toLowerCase())
     const match = productos.find(
       (p) =>
-        allCodes.includes(p.codigo_universal.toLowerCase()) ||
-        p.codigos_alternativos.some((c) => allCodes.includes(c.toLowerCase())),
+        (allCodes.includes(p.codigo_universal.toLowerCase()) ||
+         p.codigos_alternativos.some((c) => allCodes.includes(c.toLowerCase()))) &&
+        (p.marcaId ?? null) === (marcaDefault ?? null),
     )
 
     return {
@@ -175,7 +175,7 @@ function calcItems(
       codigo_proveedor:     raw.codigo_universal,
       codigos_adicionales:  raw.codigos_adicionales,
       nombre:               raw.nombre,
-      marca:                marcaDefault || raw.marca,
+      marcaId:              marcaDefault ?? null,
       descripcion:          raw.descripcion,
       ubicacion:            raw.ubicacion,
       precio_fob_usd:       raw.precio_fob_usd,
@@ -292,7 +292,7 @@ export function NuevaImportacionModal({
     flete_usd: '',
     aduana_bs: '',
     transporte_interno_bs: '',
-    marca_id: '',
+    marca_id: null,
   })
 
   // Items calculados
@@ -308,7 +308,7 @@ export function NuevaImportacionModal({
     setStep('upload')
     setColumns([]); setRows([]); setMappings({}); setFileName('')
     setRawItems([])
-    setDatos({ proveedor_id: '', fecha_estimada_llegada: '', tipo_cambio: '6.96', flete_usd: '', aduana_bs: '', transporte_interno_bs: '', marca_id: '' })
+    setDatos({ proveedor_id: '', fecha_estimada_llegada: '', tipo_cambio: '6.96', flete_usd: '', aduana_bs: '', transporte_interno_bs: '', marca_id: null })
     setItems([])
     setSaving(false)
   }, [])
@@ -954,7 +954,6 @@ function StepPreview({
                         {item.codigo_proveedor}
                       </p>
                       <p className="text-[12px] text-steel-700 mt-0.5 leading-tight">{item.nombre}</p>
-                      {item.marca && <p className="text-[10px] text-steel-400">{item.marca}</p>}
                     </td>
 
                     <td className="px-3 py-2.5 text-right tabular-nums">

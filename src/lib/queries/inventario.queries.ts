@@ -32,7 +32,7 @@ export const PRODUCTOS_QUERY = `
         codigoAux
         codigoAux2
         nombre
-        marca
+        marcaId
         ubicacion
         stock_Actual
         stock_Minimo
@@ -85,7 +85,7 @@ export const PRODUCTO_BY_ID_QUERY = `
         }
         codigoAux
         codigoAux2
-        marca
+        marcaId
         descripcion
       }
     }
@@ -118,7 +118,7 @@ interface ProductoAPISimple {
   codigoAux: string
   codigoAux2: string
   nombre: string
-  marca: string
+  marcaId?: number | null
   descripcion: string
   unidad_Medida: string
   ubicacion: string
@@ -157,7 +157,7 @@ export interface ProductoAPIInput {
   codigoAux: string
   codigoAux2: string
   nombre: string
-  marca: string
+  marcaId?: number | null
   descripcion: string
   unidad_Medida: string
   ubicacion: string
@@ -177,7 +177,7 @@ function mapProductoBase(p: ProductoAPISimple): Producto {
     nombre: p.nombre ?? '',
     descripcion: p.descripcion ?? '',
     categoria: 'Otro',
-    marca: p.marca ?? '',
+    marcaId: p.marcaId ?? null,
     vehiculo: '',
     unidad: (p.unidad_Medida?.toLowerCase() as Producto['unidad']) ?? 'pieza',
     stock: p.esKit ? (p.calcularStockKit ?? 0) : (p.stock_Actual ?? 0),
@@ -225,7 +225,7 @@ export function productoToBackend(
     codigoAux: p.codigos_alternativos[0] ?? '',
     codigoAux2: p.codigos_alternativos[1] ?? '',
     nombre: p.nombre,
-    marca: p.marca,
+    marcaId: p.marcaId ?? null,
     descripcion: p.descripcion,
     unidad_Medida: p.unidad,
     ubicacion: [p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / '),
@@ -247,7 +247,7 @@ export interface ProductoAPIUpdate {
   codigoAux?: string
   codigoAux2?: string
   descripcion?: string
-  marca?: string
+  marcaId?: number | null
   ubicacion?: string
   unidad_Medida?: string
 }
@@ -264,7 +264,7 @@ export function productoToBackendUpdate(
     codigoAux: p.codigos_alternativos[0] ?? '',
     codigoAux2: p.codigos_alternativos[1] ?? '',
     descripcion: p.descripcion,
-    marca: p.marca,
+    marcaId: p.marcaId ?? null,
     ubicacion: [p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / '),
     unidad_Medida: p.unidad,
   }
@@ -304,7 +304,7 @@ export function productoToBackendBulk(
     codigoAux: p.codigos_alternativos[0] ?? '',
     codigoAux2: p.codigos_alternativos[1] ?? '',
     nombre: p.nombre,
-    marca: p.marca,
+    marcaId: p.marcaId ?? null,
     descripcion: p.descripcion,
     unidad_Medida: p.unidad,
     ubicacion: [p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / '),

@@ -111,7 +111,10 @@ async function generarPDF(
   let firstPage = true
 
   for (const item of items) {
-    const pngBase64 = await generarBarcodePNG(item.producto.codigo_universal)
+    const codigoBarras = item.producto.marca
+      ? `${item.producto.codigo_universal}-${item.producto.marca}`
+      : item.producto.codigo_universal
+    const pngBase64 = await generarBarcodePNG(codigoBarras)
 
     const fechaFormateada = item.producto.fecha_importacion
       ? formatearFecha(item.producto.fecha_importacion)
@@ -140,7 +143,7 @@ async function generarPDF(
 
       pdf.setFontSize(4.5)
       pdf.setFont('courier', 'bold')
-      pdf.text(item.producto.codigo_universal, xCenter, mmToPt(17.2), { align: 'center' })
+      pdf.text(codigoBarras, xCenter, mmToPt(17.2), { align: 'center' })
 
       if (fechaFormateada) {
         pdf.setFontSize(3.5)

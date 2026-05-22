@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button, WarmInput, DrawerWrapper, FormSection } from '@/components/ui'
+import { BrandSelect } from '@/components/ui/BrandSelect'
 import type { Producto, HistorialPrecio } from '@/types'
 import type { DtoPiezaKit, KitOps, PieceOp } from '@/lib/queries/inventario.queries'
 import { KitPartsSection } from './KitPartsSection'
@@ -30,7 +31,7 @@ const EMPTY: FormData = {
   nombre: '',
   descripcion: '',
   categoria: 'Otro',
-  marca: '',
+  marcaId: null,
   vehiculo: '',
   unidad: 'pieza',
   stock: 0,
@@ -143,7 +144,7 @@ export function ProductoModal({
         nombre:               producto.nombre,
         descripcion:          producto.descripcion,
         categoria:            producto.categoria,
-        marca:                producto.marca,
+        marcaId:              producto.marcaId ?? null,
         vehiculo:             producto.vehiculo,
         unidad:               producto.unidad,
         stock:                producto.stock,
@@ -368,12 +369,11 @@ export function ProductoModal({
           {/* Descripción */}
           <FormSection icon={<IconClipboard />} title="Descripción" description="Marca y detalle del producto">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <WarmInput
+              <BrandSelect
                 label="Marca"
-                value={form.marca}
-                onChange={(e) => set('marca', e.target.value)}
-                error={errors.marca}
-                placeholder="Bosch / NGK / OEM…"
+                value={form.marcaId ?? null}
+                onChange={(id) => set('marcaId', id)}
+                placeholder="Seleccionar marca…"
               />
               <WarmInput
                 label="Descripción adicional"

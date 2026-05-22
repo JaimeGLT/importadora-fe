@@ -30,6 +30,8 @@ import {
   type ProductoAPI,
   type KitOps,
 } from '@/lib/queries/inventario.queries'
+import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
+import type { Marca } from '@/types'
 import { api } from '@/lib/api'
 import { clsx } from 'clsx'
 
@@ -235,9 +237,14 @@ function EmptyState({ onNew, searching }: { onNew: () => void; searching: boolea
 const fmtBs = (n: number) =>
   n.toLocaleString('es-BO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 
+function getMarcaNombre(marcaId: number | null | undefined, marcas: Marca[]): string {
+  if (!marcaId) return ''
+  return marcas.find((m) => m.id === marcaId)?.nombre ?? ''
+}
+
 // ─── Mobile product row ───────────────────────────────────────────────────────
 
-function MobileProductRow({ p, onTap }: { p: Producto; onTap: () => void }) {
+function MobileProductRow({ p, marcaNombre, onTap }: { p: Producto; marcaNombre: string; onTap: () => void }) {
   return (
     <div
       className={clsx('flex items-center gap-3 px-4 py-3 border-b border-hair last:border-0 active:bg-[#F4EFE6] transition-colors cursor-pointer', p.es_kit && 'border-l-[3px] border-l-blue-400')}
@@ -250,8 +257,8 @@ style={{ WebkitTapHighlightColor: 'transparent' }}
           {p.codigo_universal}
         </div>
         <div className="text-[11.5px] text-muted-2 truncate leading-tight mt-0.5">{p.nombre}</div>
-        {p.marca && (
-          <div className="text-[10.5px] text-muted-2 mt-0.5">{p.marca}</div>
+        {marcaNombre && (
+          <div className="text-[10.5px] text-muted-2 mt-0.5">{marcaNombre}</div>
         )}
       </div>
       <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -305,6 +312,7 @@ export function InventarioPage() {
   const [loading, setLoading]                   = useState(true)
   const [loadingModal, setLoadingModal]         = useState(false)
   const [products, setProducts]                 = useState<Producto[]>([])
+  const [marcas, setMarcas]                     = useState<Marca[]>([])
   const [totalCount, setTotalCount]             = useState(0)
   const [hasNextPage, setHasNextPage]           = useState(false)
   const [endCursor, setEndCursor]               = useState<string | null>(null)
@@ -330,7 +338,6 @@ export function InventarioPage() {
         { codigoAux2:  { contains: q } },
         { nombre:      { contains: q } },
         { descripcion: { contains: q } },
-        { marca:       { contains: q } },
       ],
     } : undefined
     gql<{ productos: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: ProductoAPI[] } }>(
@@ -359,9 +366,16 @@ export function InventarioPage() {
     }, 350)
   }
 
+  const loadMarcas = () => {
+    gql<{ marca: { nodes: { id: number; nombre: string }[] } }>(MARCAS_QUERY)
+      .then((data) => setMarcas(data.marca.nodes.map(backendToMarca)))
+      .catch(() => {})
+  }
+
   useEffect(() => {
     if (!isTokenReady) return
     loadProducts()
+    loadMarcas()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTokenReady])
 
@@ -409,11 +423,8 @@ export function InventarioPage() {
             }
           }
         }
-        if (kitOps.mode !== 'none' || priceUpdate) {
-          loadProducts(searchTerm)
-        } else {
-          setProducts((prev) => prev.map((p) => p.id === editingProducto.id ? { ...p, ...data } : p))
-        }
+        loadProducts(searchTerm)
+        loadMarcas()
         notify.success('Producto actualizado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
       } else {
         const createPayload = productoToBackend(data)
@@ -422,6 +433,7 @@ export function InventarioPage() {
           await api.put(`/Producto/ConvertirKit/${res.id}`, { piezas: kitOps.piezas })
         }
         loadProducts()
+        loadMarcas()
         notify.success('Producto creado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
       }
       setModalOpen(false)
@@ -493,17 +505,19 @@ export function InventarioPage() {
         )
       },
     }),
-    colHelper.accessor('marca', {
+    colHelper.display({
+      id: 'marca',
       header: 'Marca / Ubic.',
       size: 150,
       meta: { align: 'left' },
       cell: (info) => {
         const p = info.row.original
+        const nombre = getMarcaNombre(p.marcaId, marcas)
         return (
           <div>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-terra shrink-0" />
-              <span className="text-[13.5px] font-medium text-ink-2">{p.marca || '—'}</span>
+              <span className="text-[13.5px] font-medium text-ink-2">{nombre || '—'}</span>
             </div>
             <p className="text-[10px] text-muted-2 font-mono mt-0.5">{p.almacen} {p.estante} {p.fila} {p.columna}</p>
           </div>
@@ -585,7 +599,7 @@ export function InventarioPage() {
       },
     }),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [])
+  ], [marcas])
 
   // ── TanStack Table ─────────────────────────────────────────────────────────
   const table = useReactTable({
@@ -812,6 +826,7 @@ export function InventarioPage() {
                   <MobileProductRow
                     key={row.id}
                     p={row.original}
+                    marcaNombre={getMarcaNombre(row.original.marcaId, marcas)}
                     onTap={() => handleEdit(row.original)}
                   />
                 ))}
@@ -849,6 +864,7 @@ export function InventarioPage() {
         open={!!etiquetaProducto}
         onClose={() => setEtiquetaProducto(null)}
         producto={etiquetaProducto}
+        marcaNombre={etiquetaProducto ? getMarcaNombre(etiquetaProducto.marcaId, marcas) : ''}
       />
       <ImportarExcelModal
         open={importOpen}

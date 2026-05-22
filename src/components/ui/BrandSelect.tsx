@@ -1,23 +1,32 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Modal, Button, Input } from '@/components/ui'
 import { useMarcasStore } from '@/stores/marcasStore'
 import { notify } from '@/lib/notify'
+import { api } from '@/lib/api'
+import { gql } from '@/lib/graphql'
+import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
 import { clsx } from 'clsx'
 
 interface BrandSelectProps {
-  value: string
-  onChange: (id: string) => void
+  value: number | null
+  onChange: (id: number | null) => void
   label?: string
   placeholder?: string
 }
 
 export function BrandSelect({ value, onChange, label, placeholder = 'Seleccionar marca…' }: BrandSelectProps) {
-  const { marcas, addMarca } = useMarcasStore()
+  const { marcas, setMarcas, addMarca } = useMarcasStore()
   const [search, setSearch] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [newName, setNewName] = useState('')
   const [saving, setSaving] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
+
+  useEffect(() => {
+    gql<{ marca: { nodes: { id: number; nombre: string }[] } }>(MARCAS_QUERY)
+      .then((data) => setMarcas(data.marca.nodes.map(backendToMarca)))
+      .catch(() => {})
+  }, [])
 
   const filtered = useMemo(() => {
     if (!search.trim()) return marcas
@@ -26,27 +35,27 @@ export function BrandSelect({ value, onChange, label, placeholder = 'Seleccionar
     )
   }, [marcas, search])
 
-  const selectedMarca = marcas.find((m) => m.nombre === value)
+  const selectedMarca = marcas.find((m) => m.id === value)
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     const nombre = newName.trim()
     if (!nombre) { notify.error('Ingresa un nombre'); return }
-    if (marcas.some((m) => m.nombre.toLowerCase() === nombre.toLowerCase())) {
-      notify.error('Ya existe una marca con ese nombre')
-      return
-    }
     setSaving(true)
-    setTimeout(() => {
-      addMarca(nombre)
-      const nueva = marcas.find((m) => m.nombre.toLowerCase() === nombre.toLowerCase())
-      onChange(nombre)
+    try {
+      const res = await api.post<{ id: number; nombre: string }>('/marca', { nombre })
+      const nueva = backendToMarca({ id: res.id, nombre: res.nombre })
+      addMarca(nueva)
+      onChange(nueva.id)
       setNewName('')
       setCreateOpen(false)
-      setSaving(false)
       setShowDropdown(false)
       setSearch('')
       notify.success('Marca creada')
-    }, 300)
+    } catch {
+      notify.error('Error al crear la marca')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -61,7 +70,7 @@ export function BrandSelect({ value, onChange, label, placeholder = 'Seleccionar
             value={selectedMarca ? selectedMarca.nombre : search}
             onChange={(e) => {
               setSearch(e.target.value)
-              onChange('')
+              onChange(null)
               setShowDropdown(true)
             }}
             onFocus={() => setShowDropdown(true)}
@@ -84,13 +93,13 @@ export function BrandSelect({ value, onChange, label, placeholder = 'Seleccionar
                     key={m.id}
                     type="button"
                     onMouseDown={() => {
-                      onChange(m.nombre)
+                      onChange(m.id)
                       setSearch('')
                       setShowDropdown(false)
                     }}
                     className={clsx(
                       'w-full text-left px-3 py-2 text-sm hover:bg-brand-50 transition-colors',
-                      m.nombre === value ? 'bg-brand-50 text-brand-700 font-medium' : 'text-steel-700',
+                      m.id === value ? 'bg-brand-50 text-brand-700 font-medium' : 'text-steel-700',
                     )}
                   >
                     {m.nombre}

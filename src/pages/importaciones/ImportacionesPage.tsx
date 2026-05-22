@@ -222,7 +222,7 @@ export function ImportacionesPage() {
         codigoAux: it.codigos_adicionales[0] ?? '',
         codigoAux2: it.codigos_adicionales[1] ?? '',
         nombre: it.nombre,
-        marca: it.marca ?? '',
+        marcaId: it.marcaId ?? null,
         descripcion: it.descripcion ?? '',
         unidad_Medida: it.unidad ?? 'unidad',
         ubicacion: it.ubicacion ?? 'Almacén Central',

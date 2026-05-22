@@ -39,7 +39,7 @@ function buildLabel(data: ZPLLabelData): string {
     // Company name — centered
     `^FO0,4^FB${LABEL_W_DOTS},1,,C,0^A0N,15,15^FDUSAImportadora^FS`,
     // Barcode — starts at X=4, Y=22; height 50 dots (~6mm); human-readable below
-    `^FO4,22^BY1,2,50^BCN,,Y,N,N^FD${data.codigo_universal}^FS`,
+    `^FO4,22^BY1,2,50^BCN,,Y,N,N^FD${data.marca ? `${data.codigo_universal}-${data.marca}` : data.codigo_universal}^FS`,
     // Date — centered near bottom
     ...(fecha ? [`^FO0,130^FB${LABEL_W_DOTS},1,,C,0^A0N,12,12^FD${fecha}^FS`] : []),
     `^XZ`,

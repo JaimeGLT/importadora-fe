@@ -21,9 +21,10 @@ interface EtiquetaModalProps {
   open: boolean
   onClose: () => void
   producto: Producto | null
+  marcaNombre?: string
 }
 
-function EtiquetaSimulada({ codigo, fecha }: { codigo: string; fecha: string }) {
+function EtiquetaSimulada({ codigo, fecha }: { codigo: string; fecha: string; }) {
   const svgRef = useRef<SVGSVGElement>(null)
 
   useEffect(() => {
@@ -58,7 +59,7 @@ function EtiquetaSimulada({ codigo, fecha }: { codigo: string; fecha: string }) 
   )
 }
 
-export function EtiquetaModal({ open, onClose, producto }: EtiquetaModalProps) {
+export function EtiquetaModal({ open, onClose, producto, marcaNombre = '' }: EtiquetaModalProps) {
   const [copias, setCopias] = useState(1)
   const [printing, setPrinting] = useState(false)
   const [qzConnected, setQzConnected] = useState(false)
@@ -93,13 +94,14 @@ export function EtiquetaModal({ open, onClose, producto }: EtiquetaModalProps) {
     setPrinting(true)
     setQzError(null)
 
+    const labelData = { ...producto, marca: marcaNombre }
     if (printMode === 'zpl' && selectedPrinter) {
-      const result = await imprimirLoteZPL([{ producto, copias }], selectedPrinter)
+      const result = await imprimirLoteZPL([{ producto: labelData, copias }], selectedPrinter)
       if (!result.success && result.error) {
         setQzError(result.error)
       }
     } else {
-      await imprimirLote([{ producto, copias }])
+      await imprimirLote([{ producto: labelData, copias }])
     }
 
     setPrinting(false)
@@ -108,6 +110,9 @@ export function EtiquetaModal({ open, onClose, producto }: EtiquetaModalProps) {
   if (!producto) return null
 
   const fechaLabel = producto.creado_en ? formatearFecha(producto.creado_en) : ''
+  const codigoBarras = marcaNombre
+    ? `${producto.codigo_universal}-${marcaNombre}`
+    : producto.codigo_universal
 
   return (
     <Modal
@@ -203,9 +208,9 @@ export function EtiquetaModal({ open, onClose, producto }: EtiquetaModalProps) {
         <p className="text-xs text-steel-400 mb-1">Vista previa (90 × 20 mm — 3 etiquetas por fila)</p>
 
         <div className="flex gap-px">
-          <EtiquetaSimulada codigo={producto.codigo_universal} fecha={fechaLabel} />
-          <EtiquetaSimulada codigo={producto.codigo_universal} fecha={fechaLabel} />
-          <EtiquetaSimulada codigo={producto.codigo_universal} fecha={fechaLabel} />
+          <EtiquetaSimulada codigo={codigoBarras} fecha={fechaLabel} />
+          <EtiquetaSimulada codigo={codigoBarras} fecha={fechaLabel} />
+          <EtiquetaSimulada codigo={codigoBarras} fecha={fechaLabel} />
         </div>
 
         <div className="flex gap-px opacity-40">
@@ -227,7 +232,7 @@ export function EtiquetaModal({ open, onClose, producto }: EtiquetaModalProps) {
         </div>
 
         <p className="text-[10px] text-steel-400 text-center">
-          3 etiquetas por fila · código OEM: <span className="font-mono">{producto.codigo_universal}</span>
+          3 etiquetas por fila · código OEM: <span className="font-mono">{codigoBarras}</span>
         </p>
       </div>
 

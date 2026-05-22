@@ -3,7 +3,7 @@ export interface DtoProductoImportacion {
   codigoAux: string
   codigoAux2: string
   nombre: string
-  marca: string
+  marcaId?: number | null
   descripcion: string
   unidad_Medida: string
   ubicacion: string
@@ -33,7 +33,7 @@ interface BackendDetalle {
   codigoAux2: string
   nombre: string
   descripcion: string
-  marca: string
+  marcaId?: number | null
   unidad_Medida: string
   ubicacion: string
   stock_Actual: number
@@ -99,7 +99,7 @@ export function backendToImportacion(b: BackendImportacion): Importacion {
       codigos_adicionales: [d.codigoAux, d.codigoAux2].filter(Boolean),
       nombre: d.nombre,
       descripcion: d.descripcion ?? '',
-      marca: d.marca ?? '',
+      marcaId: d.marcaId ?? null,
       unidad: (d.unidad_Medida as Importacion['items'][0]['unidad']) ?? 'pieza',
       ubicacion: d.ubicacion ?? 'Almacén Central',
       precio_fob_usd: 0,
@@ -147,7 +147,7 @@ export const IMPORTACIONES_QUERY = `
           codigoAux2
           nombre
           descripcion
-          marca
+          marcaId
           unidad_Medida
           ubicacion
           stock_Actual

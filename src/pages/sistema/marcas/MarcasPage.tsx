@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useMarcasStore } from '@/stores/marcasStore'
 import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
@@ -6,16 +6,27 @@ import { Button, Input, ConfirmModal } from '@/components/ui'
 import type { Marca } from '@/types'
 import { notify } from '@/lib/notify'
 import { clsx } from 'clsx'
+import { api } from '@/lib/api'
+import { gql } from '@/lib/graphql'
+import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
 
 export function MarcasPage() {
   const { user } = useAuth()
-  const { marcas, addMarca, updateMarca, removeMarca } = useMarcasStore()
+  const { isTokenReady } = useAuth()
+  const { marcas, setMarcas, addMarca, updateMarca, removeMarca } = useMarcasStore()
   const [search, setSearch] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [editingMarca, setEditingMarca] = useState<Marca | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Marca | null>(null)
   const [formNombre, setFormNombre] = useState('')
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!isTokenReady) return
+    gql<{ marca: { nodes: { id: number; nombre: string }[] } }>(MARCAS_QUERY)
+      .then((data) => setMarcas(data.marca.nodes.map(backendToMarca)))
+      .catch(() => notify.error('Error al cargar marcas'))
+  }, [isTokenReady])
 
   const filtered = useMemo(() => {
     if (!search.trim()) return marcas
@@ -36,34 +47,41 @@ export function MarcasPage() {
     setFormOpen(true)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const nombre = formNombre.trim()
     if (!nombre) { notify.error('Ingresa un nombre'); return }
-    if (marcas.some((m) => m.id !== editingMarca?.id && m.nombre.toLowerCase() === nombre.toLowerCase())) {
-      notify.error('Ya existe una marca con ese nombre')
-      return
-    }
     setSaving(true)
-    setTimeout(() => {
+    try {
       if (editingMarca) {
+        await api.put(`/marca/${editingMarca.id}`, { nombre })
         updateMarca(editingMarca.id, nombre)
         notify.success('Marca actualizada')
       } else {
-        addMarca(nombre)
+        const res = await api.post<{ id: number; nombre: string }>('/marca', { nombre })
+        addMarca(backendToMarca({ id: res.id, nombre: res.nombre }))
         notify.success('Marca creada')
       }
       setFormOpen(false)
       setEditingMarca(null)
       setFormNombre('')
+    } catch {
+      notify.error('Error al guardar la marca')
+    } finally {
       setSaving(false)
-    }, 300)
+    }
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteTarget) return
-    removeMarca(deleteTarget.id)
-    notify.success('Marca eliminada')
-    setDeleteTarget(null)
+    try {
+      await api.delete(`/marca/${deleteTarget.id}`)
+      removeMarca(deleteTarget.id)
+      notify.success('Marca eliminada')
+    } catch {
+      notify.error('Error al eliminar la marca')
+    } finally {
+      setDeleteTarget(null)
+    }
   }
 
   if (user?.rol !== 'admin') {

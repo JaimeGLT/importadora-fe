@@ -4,10 +4,21 @@ export interface DtoMarca {
   nombre: string
 }
 
-export function backendToMarca(b: { id: number; nombre: string; creado_en: string }): Marca {
+export const MARCAS_QUERY = `
+  query Marcas {
+    marca(order: { nombre: ASC }) {
+      nodes {
+        id
+        nombre
+      }
+    }
+  }
+`
+
+export function backendToMarca(b: { id: number; nombre: string; creado_en?: string }): Marca {
   return {
-    id: String(b.id),
+    id: b.id,
     nombre: b.nombre,
-    creado_en: b.creado_en,
+    creado_en: b.creado_en ?? '',
   }
 }
