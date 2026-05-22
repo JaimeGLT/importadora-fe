@@ -6,6 +6,7 @@ import { clsx } from 'clsx'
 import { notify } from '@/lib/notify'
 import { gql } from '@/lib/graphql'
 import { MARGEN_GANANCIA_QUERY, type MargenGananciaAPI } from '@/lib/queries/config.queries'
+import { useMarcasStore } from '@/stores/marcasStore'
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
@@ -21,6 +22,7 @@ interface SystemField {
   label: string
   required: boolean
   hint?: string
+  maxColumns?: number
 }
 
 type FieldMappings = Partial<Record<ImportField, { columns: string[]; separator: string }>>
@@ -63,17 +65,13 @@ interface DatosForm {
 const MARGEN_FALLBACK = 1.30
 
 const SYSTEM_FIELDS: SystemField[] = [
-  { key: 'codigo_universal', label: 'Código universal',     required: true,  hint: 'Código principal del producto' },
+  { key: 'codigo_universal', label: 'Código universal',     required: true,  hint: 'Código principal del producto', maxColumns: 1 },
   { key: 'codigo_alt1',      label: 'Código alternativo 1', required: false, hint: 'Código secundario (caja / proveedor)' },
   { key: 'codigo_alt2',      label: 'Código alternativo 2', required: false },
   { key: 'nombre',           label: 'Nombre',               required: false },
   { key: 'descripcion',      label: 'Descripción',          required: false },
   { key: 'stock',            label: 'Cantidad',              required: true,  hint: 'Unidades que ingresan al lote' },
-  { key: 'stock_minimo',     label: 'Stock mínimo',         required: false },
-  { key: 'piezas',           label: 'Piezas por unidad',    required: false },
   { key: 'precio_costo',     label: 'Precio FOB (USD)',      required: true,  hint: 'Precio unitario al proveedor en dólares' },
-  { key: 'precio_venta',     label: 'Precio venta (Bs)',    required: false, hint: 'Opcional — sobreescribe el calculado' },
-  { key: 'ubicacion',        label: 'Ubicación en almacén', required: false },
 ]
 
 const STEP_LABELS: Record<ImportStep, string> = {
@@ -124,7 +122,7 @@ function buildRawItems(rows: Record<string, unknown>[], mappings: FieldMappings)
       precio_fob_usd: parseNumeric(getRaw('precio_costo')),   // precio_costo del Excel = FOB en USD
       cantidad:       Math.round(parseNumeric(getRaw('stock'))),  // stock del Excel = cantidad del lote
       piezas:         parseNumeric(getRaw('piezas')) || undefined,
-      stock_minimo:   Math.round(parseNumeric(getRaw('stock_minimo'))) || 5,
+      stock_minimo:   Math.round(parseNumeric(getRaw('stock_minimo'))) || 15,
       precio_venta_manual: parseNumeric(getRaw('precio_venta')),
       ubicacion:     get('ubicacion') || 'Almacén Central',
     }
@@ -776,6 +774,7 @@ function StepDatos({
         />
       </div>
 
+
       {/* Marca global */}
       <BrandSelect
         value={datos.marca_id}
@@ -855,6 +854,7 @@ function StepPreview({
   onPrecioEleccion: (index: number, usarNuevo: boolean) => void
   productos: Producto[]
 }) {
+  const { marcas } = useMarcasStore()
   const fobTotal   = items.reduce((s, i) => s + i.precio_fob_usd * i.cantidad, 0)
   const nuevos     = items.filter((i) => i.es_nuevo).length
   const existentes = items.filter((i) => !i.es_nuevo).length
@@ -916,8 +916,8 @@ function StepPreview({
           <thead>
             <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E8EDF3' }}>
               <th className="px-3 py-2.5 text-left font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Producto</th>
+              <th className="px-3 py-2.5 text-left font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Marca</th>
               <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Unidades</th>
-              <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Piezas/ud.</th>
               <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Stock mín.</th>
               <th className="px-3 py-2.5 text-left font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Ubicación</th>
               <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Costo unit. Bs</th>
@@ -956,13 +956,15 @@ function StepPreview({
                       <p className="text-[12px] text-steel-700 mt-0.5 leading-tight">{item.nombre}</p>
                     </td>
 
-                    <td className="px-3 py-2.5 text-right tabular-nums">
-                      <span className="text-[13px] font-semibold text-steel-700">{item.cantidad}</span>
-                      <p className="text-[10px] text-steel-400">uds.</p>
+                    <td className="px-3 py-2.5">
+                      <span className="text-[11px] text-steel-500">
+                        {item.marcaId ? (marcas.find((m) => m.id === item.marcaId)?.nombre ?? '—') : '—'}
+                      </span>
                     </td>
 
                     <td className="px-3 py-2.5 text-right tabular-nums">
-                      <span className="text-[12px] font-medium text-steel-700">{item.piezas ?? 1}</span>
+                      <span className="text-[13px] font-semibold text-steel-700">{item.cantidad}</span>
+                      <p className="text-[10px] text-steel-400">uds.</p>
                     </td>
 
                     <td className="px-3 py-2.5 text-right tabular-nums">

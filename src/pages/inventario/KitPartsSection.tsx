@@ -55,7 +55,7 @@ export function KitPartsSection({
       setSearchError(null)
       gql<{ productos: { nodes: Parameters<typeof backendToProductoSimple>[0][] } }>(
         PRODUCTOS_QUERY,
-        { first: 10, where: { or: [{ codigo: { contains: q } }, { codigoAux: { contains: q } }, { codigoAux2: { contains: q } }, { nombre: { contains: q } }, { marca: { contains: q } }, { descripcion: { contains: q } }] } },
+        { first: 10, where: { or: [{ codigo: { contains: q } }, { codigoAux: { contains: q } }, { codigoAux2: { contains: q } }, { nombre: { contains: q } }, { marca: { nombre: { contains: q } } }, { descripcion: { contains: q } }] } },
       )
         .then(res => setSearchResults(res.productos.nodes.map(backendToProductoSimple)))
         .catch((err: unknown) => {

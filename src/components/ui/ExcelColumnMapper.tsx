@@ -5,6 +5,7 @@ export interface MapperField {
   label: string
   required: boolean
   hint?: string
+  maxColumns?: number
 }
 
 export interface ColumnMapping {
@@ -119,7 +120,7 @@ export function ExcelColumnMapper({
                 )}
 
                 {/* Dropdown para agregar columna */}
-                {availableCols.length > 0 && (
+                {availableCols.length > 0 && (mapping?.columns.length ?? 0) < (field.maxColumns ?? Infinity) && (
                   <select
                     value=""
                     onChange={(e) => { if (e.target.value) onAddColumn(field.key, e.target.value) }}
