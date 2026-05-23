@@ -55,7 +55,8 @@ export function ProveedoresPage() {
       { id: Number(proveedorId) },
     )
       .then((res) => {
-        setHistorialImportaciones(res.importacion.nodes.map(backendToImportacionSimple))
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setHistorialImportaciones(res.importacion.nodes.map((b: any) => backendToImportacionSimple(b)))
       })
       .catch(() => notify.error('Error cargando historial'))
       .finally(() => setHistorialLoading(false))
@@ -486,7 +487,7 @@ interface MetricCardProps {
   badgeIcon: string
 }
 
-function MetricCard({ label, value, sublabel, iconClass, gradFrom, gradTo, badgeBg, badgeColor, badgeText, badgeIcon }: MetricCardProps) {
+function MetricCard({ label, value, sublabel: _sublabel, iconClass, gradFrom, gradTo, badgeBg, badgeColor, badgeText, badgeIcon }: MetricCardProps) {
   return (
     <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200">
       <div

@@ -84,7 +84,7 @@ interface CajaMetricCardProps {
 }
 
 function CajaMetricCard({
-  label, value, sublabel, iconClass, gradFrom, gradTo,
+  label, value, sublabel: _sublabel, iconClass, gradFrom, gradTo,
   badgeBg, badgeColor, badgeText, badgeIcon, highlight, highlightColor,
 }: CajaMetricCardProps) {
   return (
@@ -633,7 +633,7 @@ export function CajaDiariaPage() {
                     { label: 'Total ingresos', value: resumenCierre.totalIngresos, from: '#059669', to: '#4eddc4', textColor: '#059669' },
                     { label: 'Total egresos', value: resumenCierre.totalEgresos, from: '#dc2626', to: '#ff9090', textColor: '#dc2626' },
                     { label: 'Efectivo esperado', value: resumenCierre.efectivoEsperado, from: '#0284c7', to: '#60a5fa', textColor: '#1e1b2e' },
-                  ].map(({ label, value, from, to, textColor }) => (
+                  ].map(({ label, value, from: _from, to: _to, textColor }) => (
                     <div key={label} className="bg-[#f1f5f9] rounded-xl p-4 border-[1.5px] border-[#e2e8f0]">
                       <p className="text-[11px] font-bold text-[#9996b0] uppercase tracking-wide mb-2">{label}</p>
                       <p className="font-black text-xl leading-none" style={{ color: textColor, fontFamily: 'Nunito, sans-serif' }}>

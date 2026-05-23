@@ -12,13 +12,14 @@ let securityConfigured = false
 
 function configureQZSecurity() {
   if (securityConfigured) return
-  qz.security.setCertificatePromise(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ;(qz as any).security.setCertificatePromise(
     (_resolve: (cert: string) => void, reject: (err: unknown) => void) => {
       try { _resolve('') } catch (e) { reject(e) }
     },
   )
-  qz.security.setSignatureAlgorithm('SHA512')
-  qz.security.setSignaturePromise((toSign: string) => {
+  ;(qz as any).security.setSignatureAlgorithm('SHA512')
+  ;(qz as any).security.setSignaturePromise((toSign: string) => {
     void toSign
     return (_resolve: (sig: string) => void, reject: (err: unknown) => void) => {
       try { _resolve('') } catch (e) { reject(e) }

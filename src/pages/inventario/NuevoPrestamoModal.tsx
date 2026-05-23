@@ -278,7 +278,7 @@ export function NuevoPrestamoModal({ open, onClose, onSave, productos }: NuevoPr
                       filterOption={(option, inputValue) => {
                         const pr = option.data.producto
                         const q = inputValue.toLowerCase()
-                        return (
+                        return !!(
                           pr.codigo_universal.toLowerCase().includes(q) ||
                           pr.codigos_alternativos[0]?.toLowerCase().includes(q) ||
                           pr.codigos_alternativos[1]?.toLowerCase().includes(q) ||

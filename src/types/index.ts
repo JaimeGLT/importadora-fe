@@ -51,6 +51,7 @@ export interface Producto {
   descripcion: string
   categoria: CategoriaProducto
   marcaId?: number | null
+  marca?: string
   vehiculo: string                // compatibilidad libre: "Toyota Corolla 2018-2023"
   unidad: UnidadProducto
   stock: number
@@ -186,6 +187,7 @@ export interface ItemImportacion {
   codigos_adicionales: string[]     // [0] = Alt 1, [1] = Alt 2
   nombre: string
   marcaId?: number | null
+  marca?: string
   descripcion?: string
   unidad?: UnidadProducto           // pieza, juego, par…
   ubicacion?: string                // Almacén Central

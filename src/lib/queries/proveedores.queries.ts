@@ -84,7 +84,7 @@ export function backendToImportacionSimple(b: {
       codigos_adicionales: [d.codigoAux, d.codigoAux2].filter(Boolean),
       nombre: d.nombre,
       descripcion: d.descripcion ?? '',
-      marca: d.marca ?? '',
+      marca: typeof d.marca === 'string' ? d.marca : (d.marca?.nombre ?? ''),
       unidad: (d.unidad_Medida as ItemImportacion['unidad']) ?? 'pieza',
       ubicacion: d.ubicacion ?? 'Almacén Central',
       precio_fob_usd: 0,

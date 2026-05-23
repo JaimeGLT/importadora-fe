@@ -468,7 +468,8 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
     const items = importados
       .filter((p) => labelConfig[p.codigo_universal]?.selected)
       .map((p) => ({
-        producto: p,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        producto: p as any,
         copias: labelConfig[p.codigo_universal]?.copias ?? 1,
       }))
     await imprimirLote(items)

@@ -739,7 +739,7 @@ function PickingView({
 
 export function AlmacenPage() {
   const { user, isTokenReady } = useAuth()
-  const { ordenes, updateOrden, setOrdenes, addItemToOrden, removeItemFromOrden, updateItemQtyInOrden, markItemListoEnOrden } = useVentasStore()
+  const { ordenes, updateOrden, setOrdenes, removeItemFromOrden, updateItemQtyInOrden, markItemListoEnOrden } = useVentasStore()
   const { playBeep, playAlertSequence } = useSoundAlert()
   useVentasAlerts()
 

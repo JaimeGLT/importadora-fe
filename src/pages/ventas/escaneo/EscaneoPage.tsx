@@ -309,56 +309,6 @@ function ScanNotInOrderModal({
   )
 }
 
-// ─── TipoPagoModal ────────────────────────────────────────────────────────────
-
-function TipoPagoModal({
-  total,
-  onSeleccionar,
-  onCancelar,
-  loading,
-}: {
-  total: number
-  onSeleccionar: (tipoPago: string) => void
-  onCancelar: () => void
-  loading: boolean
-}) {
-  const opciones = [
-    { key: 'Efectivo', label: 'Efectivo', icon: '💵' },
-    { key: 'QR', label: 'QR', icon: '📱' },
-    { key: 'Tarjeta', label: 'Tarjeta', icon: '💳' },
-  ]
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !loading && onCancelar()} />
-      <div className="relative z-10 w-full max-w-sm bg-white rounded-xl shadow-xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-steel-100">
-          <h3 className="text-sm font-bold text-steel-900">Método de pago</h3>
-          <p className="text-xs text-steel-400 mt-0.5">Total: Bs {total.toFixed(2)}</p>
-        </div>
-        <div className="p-4 space-y-2">
-          {opciones.map(op => (
-            <button
-              key={op.key}
-              onClick={() => onSeleccionar(op.key)}
-              disabled={loading}
-              className="w-full flex items-center gap-3 p-3 rounded-xl border border-steel-100 hover:border-brand-300 hover:bg-brand-50/50 transition-all disabled:opacity-50"
-            >
-              <span className="text-xl">{op.icon}</span>
-              <span className="text-sm font-semibold text-steel-800">{op.label}</span>
-            </button>
-          ))}
-        </div>
-        <div className="px-4 pb-4">
-          <Button variant="secondary" className="w-full" onClick={onCancelar} disabled={loading}>
-            Cancelar
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── AgregarProductoModal ─────────────────────────────────────────────────────
 
 function AgregarProductoModal({
@@ -568,16 +518,16 @@ export function EscaneoPage() {
   }, [pendingNotInOrderCode, isTokenReady])
 
   const { joinGrupo } = useVentasHub({
-    onItemListoParaScaneo: useCallback((p) => {
+    onItemListoParaScaneo: useCallback((p: { ordenId: number; itemId: number }) => {
       if (selectedOrdenId === String(p.ordenId)) {
         markItemListoEnOrden(String(p.ordenId), String(p.itemId))
         notify.success('Producto listo para escanear', { description: 'El almacenero ya trajo el producto' })
       }
     }, [selectedOrdenId, markItemListoEnOrden]),
-    onOrdenConFaltantes: useCallback((p) => {
+    onOrdenConFaltantes: useCallback((p: { ordenId: number }) => {
       updateOrden(String(p.ordenId), { estado: 'con_faltantes' })
     }, [updateOrden]),
-    onOrdenLista: useCallback((p) => {
+    onOrdenLista: useCallback((p: { id: number }) => {
       if (selectedOrdenId === String(p.id)) {
         updateOrden(String(p.id), { estado: 'listo_para_escaneo' })
         notify.success('Almacenero listo', { description: 'Ya puedes continuar escaneando' })

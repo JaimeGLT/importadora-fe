@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import type * as XLSXType from 'xlsx'
-import { Modal, Button, Input, Select, ExcelColumnMapper, BrandSelect, ProveedorSelect } from '@/components/ui'
+import { Modal, Button, Input, ExcelColumnMapper, BrandSelect, ProveedorSelect } from '@/components/ui'
 import type { Importacion, ItemImportacion, Producto, Proveedor } from '@/types'
 import { clsx } from 'clsx'
 import { notify } from '@/lib/notify'

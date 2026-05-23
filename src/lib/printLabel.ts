@@ -16,11 +16,7 @@ export interface LabelData {
 
 const EMPRESA_NOMBRE = 'USAImportadora'
 
-const MM_TO_PT = 2.83465
 
-function mmToPt(mm: number): number {
-  return mm * MM_TO_PT
-}
 
 function formatearFecha(iso: string): string {
   if (!iso) return ''
