@@ -336,11 +336,18 @@ export type EstadoOrden =
   | 'pendiente_almacenero'
   | 'en_preparacion'
   | 'listo_para_escaneo'
+  | 'con_faltantes'
+  | 'esperando_pago'
   | 'completada'
   | 'cancelada'
 export type TipoOrden = 'venta' | 'reserva'
-export type EstadoItemOrden = 'pendiente' | 'completo' | 'parcial' | 'faltante'
+export type EstadoItemOrden = 'pendiente' | 'completo' | 'parcial' | 'faltante' | 'listo_almacenero'
 export type MetodoPago = 'efectivo' | 'tarjeta' | 'qr'
+
+export interface PagoOrden {
+  tipoPago: MetodoPago
+  monto: number
+}
 
 export interface PiezaOrden {
   id: number

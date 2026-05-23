@@ -18,7 +18,7 @@ import {
   type DescuentoAPI, type MargenGananciaAPI, type ConfigVentaAPI, type TipoCambioAPI,
 } from '@/lib/queries/config.queries'
 import { useVentasHub } from '@/hooks/useVentasHub'
-import type { Producto, OrdenVenta, MetodoPago, Cliente } from '@/types'
+import type { Producto, OrdenVenta, MetodoPago, Cliente, PagoOrden } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -33,11 +33,12 @@ const fmtTimeSince = (iso: string) => {
 }
 
 const ESTADO_ORDEN_CONFIG: Record<string, { label: string; cls: string; dot: string }> = {
-  pendiente:      { label: 'Pendiente',     cls: 'bg-amber-100 text-amber-700', dot: 'bg-amber-400' },
-  en_preparacion: { label: 'Preparando',    cls: 'bg-blue-100 text-blue-700', dot: 'bg-blue-400' },
-  listo:          { label: 'Listo',         cls: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-400' },
-  pagado:         { label: 'Pagado',        cls: 'bg-steel-100 text-steel-500', dot: 'bg-steel-400' },
-  cancelado:      { label: 'Cancelado',     cls: 'bg-red-100 text-red-500', dot: 'bg-red-400' },
+  pendiente_almacenero: { label: 'Pendiente',      cls: 'bg-amber-100 text-amber-700', dot: 'bg-amber-400' },
+  en_preparacion:       { label: 'Preparando',     cls: 'bg-blue-100 text-blue-700', dot: 'bg-blue-400' },
+  listo_para_escaneo:   { label: 'Escaneando',     cls: 'bg-indigo-100 text-indigo-700', dot: 'bg-indigo-400' },
+  con_faltantes:        { label: 'Con faltantes',  cls: 'bg-orange-100 text-orange-700', dot: 'bg-orange-400' },
+  esperando_pago:       { label: 'Listo para cobrar', cls: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-400' },
+  cancelada:            { label: 'Cancelada',      cls: 'bg-red-100 text-red-500', dot: 'bg-red-400' },
 }
 
 // ─── Cart types ───────────────────────────────────────────────────────────────
@@ -686,8 +687,8 @@ function OrdersModal({
 }) {
   const [showCanceladas, setShowCanceladas] = useState(false)
   const [tab, setTab] = useState<'ordenes' | 'reservas'>('ordenes')
-  const listos = ordenes.filter(o => o.estado === 'listo_para_escaneo')
-  const otras = ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada')
+  const listos = ordenes.filter(o => o.estado === 'esperando_pago')
+  const otras = ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada' && o.estado !== 'esperando_pago')
 
   return (
     <Modal open={open} onClose={onClose} title="Órdenes activas" size="lg">
@@ -976,7 +977,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
   orden: OrdenVenta
   clientes: Cliente[]
   onAddCliente: (c: Cliente) => void
-  onConfirm: (metodo: MetodoPago, monto: number, billing: BillingData) => void
+  onConfirm: (pagos: PagoOrden[], monto_recibido: number, billing: BillingData) => void
   onClose: () => void
 }) {
 
@@ -986,6 +987,11 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
 
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
   const [montoStr, setMontoStr] = useState(totalReal.toFixed(2))
+  const [pagoMixto, setPagoMixto] = useState(false)
+  const [metodo2, setMetodo2] = useState<MetodoPago>('tarjeta')
+  const [monto2Str, setMonto2Str] = useState('')
+  const monto2 = parseFloat(monto2Str.replace(',', '.')) || 0
+  const monto1Mixto = totalReal - monto2
   const [requiereFactura, setRequiereFactura] = useState(false)
 
   // Billing fields
@@ -1084,6 +1090,11 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
       onAddCliente(newCliente)
     }
 
+    if (pagoMixto) {
+      if (monto2 <= 0 || monto2 >= totalReal) { notify.error('Monto del segundo método inválido'); return }
+      if (metodo === metodo2) { notify.error('Los dos métodos deben ser distintos'); return }
+    }
+
     const billing: BillingData = {
       tipoDocumento: requiereFactura ? 'factura' : 'nota_venta',
       cliente_id: (newCliente ?? clienteSelected)?.id,
@@ -1093,7 +1104,15 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
       cliente_nit: requiereFactura ? (billingTipo === 'nit' ? billingNumeroId : undefined) : undefined,
       email: requiereFactura ? (billingEmail.trim() || undefined) : undefined,
     }
-    onConfirm(metodo, isNaN(m) ? totalReal : m, billing)
+
+    const pagos: PagoOrden[] = pagoMixto
+      ? [
+          { tipoPago: metodo, monto: monto1Mixto },
+          { tipoPago: metodo2, monto: monto2 },
+        ]
+      : [{ tipoPago: metodo, monto: totalReal }]
+
+    onConfirm(pagos, isNaN(m) ? totalReal : m, billing)
   }
 
   const METODOS: { value: MetodoPago; label: string; icon: React.ReactNode }[] = [
@@ -1322,17 +1341,57 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
         )}
 
         <div>
-          <p className="text-xs font-bold text-steel-500 uppercase tracking-widest mb-2">Método de pago</p>
-          <div className="grid grid-cols-3 gap-2">
-            {METODOS.map(m => (
-              <button key={m.value} onClick={() => setMetodo(m.value)} className={clsx('py-3 rounded-xl border-2 text-sm font-bold transition-all flex flex-col items-center gap-1', metodo === m.value ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-steel-100 text-steel-500 hover:border-steel-300')}>
-                {m.icon}
-                {m.label}
-              </button>
-            ))}
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-bold text-steel-500 uppercase tracking-widest">Método de pago</p>
+            <button
+              onClick={() => setPagoMixto(v => !v)}
+              className={clsx('text-[11px] font-bold px-2 py-1 rounded-lg border transition-all', pagoMixto ? 'bg-brand-50 border-brand-300 text-brand-700' : 'bg-steel-50 border-steel-200 text-steel-500 hover:border-steel-300')}
+            >
+              {pagoMixto ? 'Pago mixto ✓' : 'Pago mixto'}
+            </button>
           </div>
+          {!pagoMixto ? (
+            <div className="grid grid-cols-3 gap-2">
+              {METODOS.map(m => (
+                <button key={m.value} onClick={() => setMetodo(m.value)} className={clsx('py-3 rounded-xl border-2 text-sm font-bold transition-all flex flex-col items-center gap-1', metodo === m.value ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-steel-100 text-steel-500 hover:border-steel-300')}>
+                  {m.icon}
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 grid grid-cols-3 gap-1">
+                  {METODOS.map(m => (
+                    <button key={m.value} onClick={() => setMetodo(m.value)} className={clsx('py-2 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center gap-0.5', metodo === m.value ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-steel-100 text-steel-500 hover:border-steel-300')}>
+                      {m.icon}
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="w-28 shrink-0">
+                  <p className="text-xs text-steel-400 mb-1">Bs {monto1Mixto > 0 ? monto1Mixto.toFixed(2) : '—'}</p>
+                  <p className="text-[10px] text-steel-300">Resto automático</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 grid grid-cols-3 gap-1">
+                  {METODOS.map(m => (
+                    <button key={m.value} onClick={() => setMetodo2(m.value)} className={clsx('py-2 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center gap-0.5', metodo2 === m.value ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-steel-100 text-steel-500 hover:border-steel-300')}>
+                      {m.icon}
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="w-28 shrink-0">
+                  <Input type="number" step="0.50" min="0.01" max={totalReal - 0.01} value={monto2Str} onChange={e => setMonto2Str(e.target.value)} placeholder="0.00" />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-        {metodo === 'efectivo' && (
+        {!pagoMixto && metodo === 'efectivo' && (
           <div>
             <label className="block text-xs font-bold text-steel-500 uppercase tracking-widest mb-1.5">Monto recibido (Bs)</label>
             <Input type="number" min={totalReal} step="0.50" value={montoStr} onChange={e => setMontoStr(e.target.value)} autoFocus />
@@ -1473,7 +1532,7 @@ export function CajaPage() {
   const misOrdenes = useMemo(() => ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada' && o.tipo !== 'reserva'), [ordenes])
   const reservaciones = useMemo(() => ordenes.filter(o => o.tipo === 'reserva' && o.estado !== 'cancelada'), [ordenes])
   const canceladas = useMemo(() => ordenes.filter(o => o.estado === 'cancelada'), [ordenes])
-  const listosCount = misOrdenes.filter(o => o.estado === 'completada').length
+  const listosCount = misOrdenes.filter(o => o.estado === 'esperando_pago').length
   const alertedFaltantes = useRef<Set<string>>(new Set())
   const alertedListo = useRef<Set<string>>(new Set())
 
@@ -1530,6 +1589,11 @@ export function CajaPage() {
     onOrdenCancelada: ({ id }) => {
       updateOrden(String(id), { estado: 'cancelada' })
     },
+    onOrdenEsperandoPago: ({ id }) => {
+      updateOrden(String(id), { estado: 'esperando_pago' })
+      playAlertSequence()
+      notify.success('Orden lista para cobrar', { description: `Orden #${id} — escaneo completado`, duration: 8000 })
+    },
   }, isTokenReady)
   joinGrupoRef.current = joinGrupo
 
@@ -1543,11 +1607,11 @@ export function CajaPage() {
   }, [misOrdenes, playAlertSequence])
 
   useEffect(() => {
-    const ordenLista = misOrdenes.find(o => o.estado === 'completada' && !alertedListo.current.has(o.id))
+    const ordenLista = misOrdenes.find(o => o.estado === 'esperando_pago' && !alertedListo.current.has(o.id))
     if (ordenLista) {
       alertedListo.current.add(ordenLista.id)
       playAlertSequence()
-      notify.success(`${ordenLista.numero} lista para cobrar`, { description: 'Mercadería preparada', duration: 6000 })
+      notify.success(`${ordenLista.numero} lista para cobrar`, { description: 'Escaneo completado', duration: 6000 })
     }
   }, [misOrdenes, playAlertSequence])
 
@@ -1840,14 +1904,25 @@ export function CajaPage() {
     email?: string
   }
 
-  const handleConfirmarPago = (metodo: MetodoPago, monto: number, billing: BillingDataFromCobro) => {
+  const handleConfirmarPago = async (pagos: PagoOrden[], monto_recibido: number, billing: BillingDataFromCobro) => {
     if (!cobroOrden) return
+    const PAGO_MAP: Record<string, string> = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', qr: 'QR' }
+    const capitalizePago = (m: string) => PAGO_MAP[m] ?? m
+    try {
+      await api.post(`/OrdenVenta/${cobroOrden.id}/Completar`, {
+        Pagos: pagos.map(p => ({ TipoPago: capitalizePago(p.tipoPago), Monto: p.monto })),
+      })
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al registrar el pago')
+      return
+    }
     const now = new Date().toISOString()
-
+    const metodoPrimario = pagos[0].tipoPago
+    const ordenCompletada = { ...cobroOrden, estado: 'completada' as const, metodo_pago: metodoPrimario, monto_recibido, pagado_en: now }
     updateOrden(cobroOrden.id, {
       estado: 'completada',
-      metodo_pago: metodo,
-      monto_recibido: monto,
+      metodo_pago: metodoPrimario,
+      monto_recibido,
       pagado_en: now,
       tipoDocumento: billing.tipoDocumento as 'nota_venta' | 'factura',
       cliente_id: billing.cliente_id != null ? String(billing.cliente_id) : undefined,
@@ -1857,11 +1932,11 @@ export function CajaPage() {
       cliente_nit: billing.cliente_nit,
     })
     setCobroOrden(null)
-    setFacturaOrden({ ...cobroOrden, estado: 'completada', metodo_pago: metodo, monto_recibido: monto, pagado_en: now })
+    setFacturaOrden(ordenCompletada)
     if (billing.tipoDocumento === 'factura') {
       notify.success('Venta facturada')
     } else {
-      notify.success('Venta cobrada', { description: `${cobroOrden.numero} pagada con ${metodo}` })
+      notify.success('Venta cobrada', { description: `${cobroOrden.numero} — ${pagos.length > 1 ? 'pago mixto' : metodoPrimario}` })
     }
   }
 

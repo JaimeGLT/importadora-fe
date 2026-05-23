@@ -7,6 +7,12 @@ interface HubHandlers {
   onOrdenLista?: (p: { id: number }) => void
   onOrdenCompletada?: (p: { id: number; total: number }) => void
   onOrdenCancelada?: (p: { id: number; nota: string | null }) => void
+  onNuevoItemAgregado?: (p: { ordenId: number; itemId: number; productoNombre: string; codigo: string; cantidad: number }) => void
+  onItemEliminado?: (p: { ordenId: number; itemId: number }) => void
+  onCantidadItemActualizada?: (p: { ordenId: number; itemId: number; nuevaCantidad: number }) => void
+  onItemListoParaScaneo?: (p: { ordenId: number; itemId: number }) => void
+  onOrdenConFaltantes?: (p: { ordenId: number }) => void
+  onOrdenEsperandoPago?: (p: { id: number }) => void
 }
 
 export function useVentasHub(
@@ -36,6 +42,12 @@ export function useVentasHub(
     conn.on('OrdenLista', (p) => handlersRef.current.onOrdenLista?.(p))
     conn.on('OrdenCompletada', (p) => handlersRef.current.onOrdenCompletada?.(p))
     conn.on('OrdenCancelada', (p) => handlersRef.current.onOrdenCancelada?.(p))
+    conn.on('NuevoItemAgregado', (p) => handlersRef.current.onNuevoItemAgregado?.(p))
+    conn.on('ItemEliminado', (p) => handlersRef.current.onItemEliminado?.(p))
+    conn.on('CantidadItemActualizada', (p) => handlersRef.current.onCantidadItemActualizada?.(p))
+    conn.on('ItemListoParaScaneo', (p) => handlersRef.current.onItemListoParaScaneo?.(p))
+    conn.on('OrdenConFaltantes', (p) => handlersRef.current.onOrdenConFaltantes?.(p))
+    conn.on('OrdenEsperandoPago', (p) => handlersRef.current.onOrdenEsperandoPago?.(p))
 
     conn.onreconnecting(() => setIsConnected(false))
     conn.onreconnected(async () => {

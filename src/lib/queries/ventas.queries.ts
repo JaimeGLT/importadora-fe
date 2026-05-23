@@ -372,19 +372,23 @@ export const TODAS_ORDENES_QUERY = `
 // ─── Converters ───────────────────────────────────────────────────────────────
 
 const ESTADO_ORDEN_MAP: Record<string, EstadoOrden> = {
-  pendiente:    'pendiente_almacenero',
-  aceptada:     'en_preparacion',
-  lista:        'listo_para_escaneo',
-  completada:   'completada',
-  cancelada:    'cancelada',
+  pendiente:       'pendiente_almacenero',
+  aceptada:        'en_preparacion',
+  lista:           'listo_para_escaneo',
+  confaltantes:    'con_faltantes',
+  esperandopago:   'esperando_pago',
+  completada:      'completada',
+  cancelada:       'cancelada',
 }
 
 const ESTADO_ITEM_MAP: Record<string, EstadoItemOrden> = {
-  pendiente:   'pendiente',
-  completo:    'completo',
-  parcial:     'parcial',
-  faltante:    'faltante',
-  incompleto:  'faltante',
+  pendiente:         'pendiente',
+  confirmado:        'completo',
+  completo:          'completo',
+  parcial:           'parcial',
+  faltante:          'faltante',
+  incompleto:        'faltante',
+  listoindividual:   'listo_almacenero',
 }
 
 function parseUbicacion(ubicacion?: string | null) {

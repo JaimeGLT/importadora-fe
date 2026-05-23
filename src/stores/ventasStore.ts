@@ -8,6 +8,9 @@ interface VentasState {
   addOrden: (orden: OrdenVenta) => void
   updateOrden: (id: string, data: Partial<OrdenVenta>) => void
   addItemToOrden: (ordenId: string, item: ItemOrden) => void
+  removeItemFromOrden: (ordenId: string, itemId: string) => void
+  updateItemQtyInOrden: (ordenId: string, itemId: string, cantidad: number) => void
+  markItemListoEnOrden: (ordenId: string, itemId: string) => void
   marcarItemFaltante: (ordenId: string, itemId: string, cantidad: number) => void
   cancelarOrdenYLiberarStock: (id: string) => void
 }
@@ -39,6 +42,49 @@ export const useVentasStore = create<VentasState>()((set, get) => ({
     set((s) => ({
       ordenes: s.ordenes.map((o) =>
         o.id === ordenId ? { ...o, items: [...o.items, item] } : o,
+      ),
+    }))
+    broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })
+  },
+
+  removeItemFromOrden: (ordenId, itemId) => {
+    set((s) => ({
+      ordenes: s.ordenes.map((o) =>
+        o.id === ordenId ? { ...o, items: o.items.filter((i) => i.id !== itemId) } : o,
+      ),
+    }))
+    broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })
+  },
+
+  updateItemQtyInOrden: (ordenId, itemId, cantidad) => {
+    set((s) => ({
+      ordenes: s.ordenes.map((o) =>
+        o.id === ordenId
+          ? {
+              ...o,
+              items: o.items.map((i) =>
+                i.id === itemId
+                  ? { ...i, cantidad_pedida: cantidad, subtotal: i.precio_unitario * cantidad }
+                  : i,
+              ),
+            }
+          : o,
+      ),
+    }))
+    broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })
+  },
+
+  markItemListoEnOrden: (ordenId, itemId) => {
+    set((s) => ({
+      ordenes: s.ordenes.map((o) =>
+        o.id === ordenId
+          ? {
+              ...o,
+              items: o.items.map((i) =>
+                i.id === itemId ? { ...i, estado: 'listo_almacenero' as const } : i,
+              ),
+            }
+          : o,
       ),
     }))
     broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })

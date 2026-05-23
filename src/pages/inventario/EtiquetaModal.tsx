@@ -6,7 +6,7 @@ import { getAvailablePrinters } from '@/lib/qzTray'
 import type { Producto } from '@/types'
 
 const EMPRESA_NOMBRE = 'USAImportadora'
-const PRINTER_NAME_PARTIAL = 'GS-2409'
+const PRINTER_NAME_PARTIAL = 'GS-2406'
 
 function formatearFecha(iso: string): string {
   if (!iso) return ''

@@ -1,13 +1,16 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useVentasStore } from '@/stores/ventasStore'
-import { useInventarioStore } from '@/stores/inventarioStore'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
 import { Button, Input } from '@/components/ui'
 import type { ItemOrden, Producto, AgregarItemOrdenResponse } from '@/types'
 import { playConfirmBeep } from '@/lib/sounds'
 import { notify } from '@/lib/notify'
 import { api } from '@/lib/api'
+import { gql } from '@/lib/graphql'
+import { PRODUCTOS_QUERY, backendToProductoSimple, type ProductoAPI } from '@/lib/queries/inventario.queries'
+import { MIS_ORDENES_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
+import { useVentasHub } from '@/hooks/useVentasHub'
 import { clsx } from 'clsx'
 
 // ─── LineSelectionModal ───────────────────────────────────────────────────────
@@ -21,11 +24,6 @@ function LineSelectionModal({
   onSelect: (item: ItemOrden) => void
   onClose: () => void
 }) {
-  const productos = useInventarioStore(s => s.productos)
-
-  const getKitInfo = (kitId: string) => {
-    return productos.find(p => p.id === kitId)
-  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -45,7 +43,6 @@ function LineSelectionModal({
         <div className="p-4 space-y-2 max-h-[60vh] overflow-y-auto">
           {matches.map((item, idx) => {
             const isKit = !!item.kit_id
-            const kitPadre = isKit && item.kit_id ? getKitInfo(item.kit_id) : null
             const isParcial = item.diferencia_kit !== undefined
 
             return (
@@ -71,9 +68,8 @@ function LineSelectionModal({
                       )}
                     </div>
                     <p className="text-[11px] font-mono text-steel-400 mt-0.5">{item.producto_codigo}</p>
-                    {isKit && kitPadre && (
+                    {isKit && (
                       <div className="mt-1.5 px-2 py-1.5 rounded-lg bg-steel-50 border border-steel-100">
-                        <p className="text-[10px] font-semibold text-steel-500 mb-1">Kit: {kitPadre.nombre}</p>
                         <p className="text-[10px] text-steel-400">
                           {isParcial
                             ? `Diferencia kit: Bs ${item.diferencia_kit?.toFixed(2)}`
@@ -369,51 +365,374 @@ function TipoPagoModal({
   )
 }
 
+// ─── AgregarProductoModal ─────────────────────────────────────────────────────
+
+function AgregarProductoModal({
+  onAgregar,
+  onClose,
+  loading,
+}: {
+  onAgregar: (producto: Producto, cantidad: number) => void
+  onClose: () => void
+  loading: boolean
+}) {
+  const { isTokenReady } = useAuth()
+  const [query, setQuery] = useState('')
+  const [resultados, setResultados] = useState<Producto[]>([])
+  const [buscando, setBuscando] = useState(false)
+  const [seleccionado, setSeleccionado] = useState<Producto | null>(null)
+  const [cantidad, setCantidad] = useState('1')
+
+  useEffect(() => {
+    if (!query.trim() || !isTokenReady) { setResultados([]); return }
+    const q = query.trim()
+    const timer = setTimeout(async () => {
+      setBuscando(true)
+      try {
+        const res = await gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTOS_QUERY, {
+          first: 8,
+          where: {
+            or: [
+              { nombre: { contains: q } },
+              { codigo: { contains: q } },
+              { codigoAux: { contains: q } },
+              { codigoAux2: { contains: q } },
+            ],
+          },
+        })
+        setResultados((res.productos?.nodes ?? []).map(backendToProductoSimple).filter(p => !p.es_kit))
+      } catch {
+        setResultados([])
+      } finally {
+        setBuscando(false)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [query, isTokenReady])
+
+  const cantidadNum = parseInt(cantidad) || 0
+  const disp = seleccionado ? Math.max(0, seleccionado.stock - (seleccionado.stock_reservado ?? 0)) : 0
+  const puedeAgregar = seleccionado && cantidadNum >= 1 && cantidadNum <= disp
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !loading && onClose()} />
+      <div className="relative z-10 w-full max-w-md bg-white rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[80vh]">
+        <div className="px-5 py-4 border-b border-steel-100 flex items-center justify-between shrink-0">
+          <div>
+            <h3 className="text-sm font-bold text-steel-900">Agregar producto</h3>
+            <p className="text-xs text-steel-400 mt-0.5">Busca y selecciona el producto a agregar</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-steel-400 hover:text-steel-600 hover:bg-steel-100 rounded-lg transition-colors">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {!seleccionado ? (
+          <>
+            <div className="px-4 pt-3 pb-2 border-b border-steel-100 shrink-0">
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-steel-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  autoFocus
+                  type="text"
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Buscar por código o nombre…"
+                  className="w-full pl-9 pr-4 py-2.5 text-sm bg-steel-50 border border-steel-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-steel-400"
+                />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {buscando ? (
+                <div className="divide-y divide-steel-50 px-4">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="flex items-center gap-3 py-3 animate-pulse">
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-3 w-24 rounded bg-steel-100" />
+                        <div className="h-2 w-40 rounded bg-steel-100" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : query.trim() === '' ? (
+                <div className="flex items-center justify-center h-32 text-sm text-steel-400">Escribe para buscar</div>
+              ) : resultados.length === 0 ? (
+                <div className="flex items-center justify-center h-32 text-sm text-steel-400">Sin resultados</div>
+              ) : (
+                <div className="divide-y divide-steel-50">
+                  {resultados.map(p => {
+                    const dispP = Math.max(0, p.stock - (p.stock_reservado ?? 0))
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => { setSeleccionado(p); setCantidad('1') }}
+                        disabled={dispP === 0}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-steel-50 transition-colors text-left disabled:opacity-40"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-black text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">{p.codigo_universal}</span>
+                          </div>
+                          <p className="text-sm font-medium text-steel-700 truncate mt-0.5">{p.nombre}</p>
+                          <p className={clsx('text-[11px] font-semibold mt-0.5', dispP === 0 ? 'text-red-500' : 'text-emerald-600')}>{dispP} disponibles</p>
+                        </div>
+                        <svg className="h-4 w-4 text-steel-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="p-5 space-y-4">
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-steel-50 border border-steel-100">
+              <div className="flex-1 min-w-0">
+                <span className="font-mono text-xs font-black text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">{seleccionado.codigo_universal}</span>
+                <p className="text-sm font-semibold text-steel-800 mt-1">{seleccionado.nombre}</p>
+                <p className="text-xs text-emerald-600 font-semibold mt-0.5">{disp} disponibles</p>
+              </div>
+              <button onClick={() => setSeleccionado(null)} className="p-1.5 text-steel-400 hover:text-steel-600 hover:bg-steel-100 rounded-lg transition-colors shrink-0">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <Input
+              label={`Cantidad (máx. ${disp})`}
+              type="number"
+              min="1"
+              max={disp}
+              value={cantidad}
+              onChange={e => setCantidad(e.target.value)}
+              autoFocus
+            />
+          </div>
+        )}
+
+        <div className="px-5 pb-5 pt-3 flex gap-2 border-t border-steel-100 shrink-0">
+          <Button variant="secondary" className="flex-1" onClick={onClose} disabled={loading}>Cancelar</Button>
+          {seleccionado && (
+            <Button className="flex-1" onClick={() => onAgregar(seleccionado, cantidadNum)} disabled={loading || !puedeAgregar}>
+              {loading ? 'Agregando…' : 'Agregar al pedido'}
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── EscaneoPage ──────────────────────────────────────────────────────────────
 
 export function EscaneoPage() {
-  const { } = useAuth()
-  const { ordenes, updateOrden, addItemToOrden } = useVentasStore()
-  const { productos } = useInventarioStore()
+  const { isTokenReady } = useAuth()
+  const { ordenes, setOrdenes, updateOrden, addItemToOrden, removeItemFromOrden, updateItemQtyInOrden, markItemListoEnOrden } = useVentasStore()
   const [selectedOrdenId, setSelectedOrdenId] = useState<string | null>(null)
+  const [loadingOrdenes, setLoadingOrdenes] = useState(false)
   const [confirmedItemIds, setConfirmedItemIds] = useState<Set<string>>(new Set())
   const [pendingConfirmItem, setPendingConfirmItem] = useState<ItemOrden | null>(null)
   const [pendingNotInOrderCode, setPendingNotInOrderCode] = useState<string | null>(null)
   const [selectMultipleMatches, setSelectMultipleMatches] = useState<ItemOrden[]>([])
   const [confirmLoading, setConfirmLoading] = useState(false)
   const [agregarLoading, setAgregarLoading] = useState(false)
-  const [showPagoModal, setShowPagoModal] = useState(false)
   const [completarLoading, setCompletarLoading] = useState(false)
+  const [showAgregarModal, setShowAgregarModal] = useState(false)
+  const [itemLoading, setItemLoading] = useState<Record<string, boolean>>({})
+  const [confirmEliminar, setConfirmEliminar] = useState<string | null>(null)
+  const [flashItemId, setFlashItemId] = useState<string | null>(null)
+  const [notInOrderProducto, setNotInOrderProducto] = useState<Producto | null>(null)
   const scanInputRef = useRef<HTMLInputElement>(null)
+
+  // Buscar producto por código cuando se escanea algo fuera de la orden
+  useEffect(() => {
+    if (!pendingNotInOrderCode || !isTokenReady) { setNotInOrderProducto(null); return }
+    const code = pendingNotInOrderCode
+    gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTOS_QUERY, {
+      first: 1,
+      where: {
+        or: [
+          { codigo: { eq: code } },
+          { codigoAux: { eq: code } },
+          { codigoAux2: { eq: code } },
+        ],
+      },
+    })
+      .then(res => setNotInOrderProducto((res.productos?.nodes ?? []).map(backendToProductoSimple)[0] ?? null))
+      .catch(() => setNotInOrderProducto(null))
+  }, [pendingNotInOrderCode, isTokenReady])
+
+  const { joinGrupo } = useVentasHub({
+    onItemListoParaScaneo: useCallback((p) => {
+      if (selectedOrdenId === String(p.ordenId)) {
+        markItemListoEnOrden(String(p.ordenId), String(p.itemId))
+        notify.success('Producto listo para escanear', { description: 'El almacenero ya trajo el producto' })
+      }
+    }, [selectedOrdenId, markItemListoEnOrden]),
+    onOrdenConFaltantes: useCallback((p) => {
+      updateOrden(String(p.ordenId), { estado: 'con_faltantes' })
+    }, [updateOrden]),
+    onOrdenLista: useCallback((p) => {
+      if (selectedOrdenId === String(p.id)) {
+        updateOrden(String(p.id), { estado: 'listo_para_escaneo' })
+        notify.success('Almacenero listo', { description: 'Ya puedes continuar escaneando' })
+        scanInputRef.current?.focus()
+      }
+    }, [selectedOrdenId, updateOrden]),
+  }, isTokenReady)
+
+  useEffect(() => {
+    if (!isTokenReady) return
+    setLoadingOrdenes(true)
+    gql<{ misOrdenes: { nodes: OrdenVentaAPI[] } }>(MIS_ORDENES_QUERY)
+      .then(data => {
+        const fetched = (data.misOrdenes?.nodes ?? [])
+          .map(backendToOrdenVenta)
+          .filter(o => o.estado !== 'completada' && o.estado !== 'cancelada')
+        // Merge: update existing orders, add new ones, keep unrelated ones
+        const { ordenes: current } = useVentasStore.getState()
+        const fetchedMap = new Map(fetched.map(o => [o.id, o]))
+        const merged = current.map(o => fetchedMap.get(o.id) ?? o)
+        const newOnes = fetched.filter(o => !current.some(c => c.id === o.id))
+        setOrdenes([...merged, ...newOnes])
+      })
+      .catch(() => notify.error('Error al cargar órdenes'))
+      .finally(() => setLoadingOrdenes(false))
+  }, [isTokenReady, setOrdenes])
 
   useEffect(() => {
     scanInputRef.current?.focus()
   }, [selectedOrdenId])
+
+  useEffect(() => {
+    if (selectedOrdenId) {
+      joinGrupo(`orden-${selectedOrdenId}`)
+    }
+  }, [selectedOrdenId, joinGrupo])
 
   const selectedOrden = useMemo(
     () => ordenes.find((o) => o.id === selectedOrdenId) ?? null,
     [ordenes, selectedOrdenId],
   )
 
+  // Pre-marcar ítems que ya vienen confirmados del backend (recarga de página)
+  useEffect(() => {
+    if (!selectedOrden) return
+    const yaConfirmados = selectedOrden.items
+      .filter(i => i.estado === 'completo')
+      .map(i => i.id)
+    if (yaConfirmados.length > 0) {
+      setConfirmedItemIds(prev => new Set([...prev, ...yaConfirmados]))
+    }
+  }, [selectedOrden?.id])
+
   const itemsParaEscanear = useMemo(
     () => selectedOrden?.items.filter((i) => i.estado !== 'faltante') ?? [],
     [selectedOrden],
   )
 
-  const confirmedCount = useMemo(
-    () => itemsParaEscanear.filter(i => confirmedItemIds.has(i.id)).length,
-    [itemsParaEscanear, confirmedItemIds]
+  const itemsEscaneables = useMemo(
+    () => itemsParaEscanear.filter(i => i.estado !== 'pendiente'),
+    [itemsParaEscanear],
   )
-  const allConfirmed = itemsParaEscanear.length > 0 && confirmedCount === itemsParaEscanear.length
 
-  const notInOrderProducto = useMemo<Producto | null>(() => {
-    if (!pendingNotInOrderCode) return null
-    const code = pendingNotInOrderCode.toLowerCase()
-    return productos.find(p =>
-      p.codigo_universal.toLowerCase() === code ||
-      p.codigos_alternativos.some(c => c.toLowerCase() === code)
-    ) ?? null
-  }, [pendingNotInOrderCode, productos])
+  const confirmedCount = useMemo(
+    () => itemsEscaneables.filter(i => confirmedItemIds.has(i.id)).length,
+    [itemsEscaneables, confirmedItemIds]
+  )
+  const allConfirmed = itemsEscaneables.length > 0 && confirmedCount === itemsEscaneables.length && itemsParaEscanear.every(i => i.estado !== 'pendiente')
+
+
+  const setItemLoadingState = (itemId: string, val: boolean) =>
+    setItemLoading(prev => ({ ...prev, [itemId]: val }))
+
+  const handleEliminarItem = async (item: ItemOrden) => {
+    if (!selectedOrden) return
+    setItemLoadingState(item.id, true)
+    try {
+      await api.delete(`/OrdenVenta/${selectedOrden.id}/Items/${item.id}`)
+      removeItemFromOrden(selectedOrden.id, item.id)
+      setConfirmedItemIds(prev => { const n = new Set(prev); n.delete(item.id); return n })
+      setConfirmEliminar(null)
+      notify.success(`${item.producto_nombre} eliminado del pedido`)
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al eliminar')
+    } finally {
+      setItemLoadingState(item.id, false)
+    }
+  }
+
+  const handleAjustarCantidad = async (item: ItemOrden, delta: number) => {
+    if (!selectedOrden) return
+    const nuevaCantidad = item.cantidad_pedida + delta
+    if (nuevaCantidad < 1) return
+    setItemLoadingState(item.id, true)
+    try {
+      await api.put(`/OrdenVenta/${selectedOrden.id}/Items/${item.id}/Cantidad`, { cantidad: nuevaCantidad })
+      updateItemQtyInOrden(selectedOrden.id, item.id, nuevaCantidad)
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al actualizar cantidad')
+    } finally {
+      setItemLoadingState(item.id, false)
+    }
+  }
+
+  const handleAgregarProducto = async (producto: Producto, cantidad: number) => {
+    if (!selectedOrden) return
+    setAgregarLoading(true)
+    try {
+      const res = await api.post<AgregarItemOrdenResponse>(
+        `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
+        { Id_Producto: parseInt(producto.id), Cantidad: cantidad }
+      )
+      const newItem: ItemOrden = {
+        id: String(res.id),
+        producto_id: String(res.id_Producto),
+        producto_codigo: res.producto.codigo,
+        producto_nombre: res.producto.nombre,
+        producto_almacen: producto.almacen,
+        producto_estante: producto.estante,
+        producto_fila: producto.fila,
+        producto_columna: producto.columna,
+        cantidad_pedida: res.cantidad,
+        precio_unitario: res.precioUnitario,
+        subtotal: res.precioUnitario * res.cantidad,
+        estado: 'pendiente',
+      }
+      addItemToOrden(selectedOrden.id, newItem)
+      setShowAgregarModal(false)
+      notify.success(`${newItem.producto_nombre} agregado — almacén notificado`)
+      scanInputRef.current?.focus()
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al agregar')
+    } finally {
+      setAgregarLoading(false)
+    }
+  }
+
+  const autoConfirmarItem = useCallback(async (item: ItemOrden) => {
+    if (!selectedOrden) return
+    setConfirmLoading(true)
+    try {
+      await api.post(`/OrdenVenta/${selectedOrden.id}/Items/${item.id}/Confirmar`, undefined)
+      setConfirmedItemIds(prev => new Set([...prev, item.id]))
+      setFlashItemId(item.id)
+      setTimeout(() => setFlashItemId(null), 1200)
+      playConfirmBeep()
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al confirmar')
+    } finally {
+      setConfirmLoading(false)
+      scanInputRef.current?.focus()
+    }
+  }, [selectedOrden, playConfirmBeep])
 
   const handleScan = (code: string) => {
     if (!selectedOrden) return
@@ -421,7 +740,7 @@ export function EscaneoPage() {
     if (pendingConfirmItem || pendingNotInOrderCode !== null || selectMultipleMatches.length > 0) return
 
     const codeLower = code.toLowerCase().trim()
-    const matched = itemsParaEscanear.filter(
+    const matched = itemsEscaneables.filter(
       (i) =>
         i.producto_codigo.toLowerCase() === codeLower ||
         i.producto_id.toLowerCase() === codeLower,
@@ -438,6 +757,11 @@ export function EscaneoPage() {
         notify.warning('Este ítem ya fue confirmado')
         return
       }
+      // Kit no-parcial: auto-confirmar sin modal
+      if (item.kit_id && !item.es_parcial) {
+        autoConfirmarItem(item)
+        return
+      }
       setPendingConfirmItem(item)
       return
     }
@@ -450,6 +774,10 @@ export function EscaneoPage() {
     setSelectMultipleMatches([])
     if (confirmedItemIds.has(item.id)) {
       notify.warning('Este ítem ya fue confirmado')
+      return
+    }
+    if (item.kit_id && !item.es_parcial) {
+      autoConfirmarItem(item)
       return
     }
     setPendingConfirmItem(item)
@@ -507,24 +835,23 @@ export function EscaneoPage() {
     }
   }
 
-  const handleCompletarVenta = async (tipoPago: string) => {
+  const handleMarcarEsperandoPago = async () => {
     if (!selectedOrden) return
     setCompletarLoading(true)
     try {
-      await api.post(`/OrdenVenta/${selectedOrden.id}/Completar`, { TipoPago: tipoPago })
-      updateOrden(selectedOrden.id, { estado: 'completada' })
-      notify.success('Venta completada')
+      await api.post(`/OrdenVenta/${selectedOrden.id}/MarcarEsperandoPago`, undefined)
+      updateOrden(selectedOrden.id, { estado: 'esperando_pago' })
+      notify.success('Orden enviada a caja para cobro')
       setSelectedOrdenId(null)
       setConfirmedItemIds(new Set())
-      setShowPagoModal(false)
     } catch (err) {
-      notify.error(err instanceof Error ? err.message : 'Error al completar la venta')
+      notify.error(err instanceof Error ? err.message : 'Error al enviar a caja')
     } finally {
       setCompletarLoading(false)
     }
   }
 
-  const ordenesDisponibles = ordenes.filter((o) => o.estado === 'listo_para_escaneo')
+  const ordenesDisponibles = ordenes.filter((o) => o.estado === 'listo_para_escaneo' || o.estado === 'con_faltantes')
 
   const isItemConfirmed = (item: ItemOrden) => confirmedItemIds.has(item.id)
 
@@ -539,7 +866,17 @@ export function EscaneoPage() {
         <div className="flex gap-6" style={{ height: 'calc(100vh - 200px)' }}>
           {/* Lista de órdenes */}
           <div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto">
-            {ordenesDisponibles.length === 0 ? (
+            {loadingOrdenes ? (
+              <div className="flex flex-col gap-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="p-4 rounded-xl border border-steel-100 bg-white animate-pulse">
+                    <div className="h-3 w-16 bg-steel-100 rounded mb-2" />
+                    <div className="h-4 w-32 bg-steel-100 rounded mb-2" />
+                    <div className="h-3 w-24 bg-steel-100 rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : ordenesDisponibles.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <div className="h-12 w-12 rounded-2xl bg-steel-50 border border-steel-100 flex items-center justify-center mb-4">
                   <svg className="w-6 h-6 text-steel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -591,11 +928,21 @@ export function EscaneoPage() {
                   <div>
                     <h2 className="text-base font-bold text-steel-900">{selectedOrden.numero}</h2>
                     <p className="text-xs text-steel-400">
-                      {itemsParaEscanear.length} ítems · {confirmedCount}/{itemsParaEscanear.length} confirmados
+                      {itemsEscaneables.length} ítems · {confirmedCount}/{itemsEscaneables.length} confirmados
+                      {itemsParaEscanear.some(i => i.estado === 'pendiente') && (
+                        <span className="ml-2 text-amber-500 font-semibold">· {itemsParaEscanear.filter(i => i.estado === 'pendiente').length} esperando almacén</span>
+                      )}
                     </p>
                   </div>
-                  <div className="flex gap-2">
-                    {itemsParaEscanear.map((item, idx) => {
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowAgregarModal(true)}
+                    >
+                      + Agregar
+                    </Button>
+                    {itemsEscaneables.map((item, idx) => {
                       const confirmed = isItemConfirmed(item)
                       return (
                         <div
@@ -612,25 +959,42 @@ export function EscaneoPage() {
                   </div>
                 </div>
 
-                {/* Input escaneo (captura pistola) */}
+                {/* Banner con_faltantes */}
+                {selectedOrden.estado === 'con_faltantes' && (
+                  <div className="mx-6 mt-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                      <svg className="h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-amber-800">Almacenero buscando producto nuevo</p>
+                      <p className="text-xs text-amber-600">El escaneo está pausado — espera a que el almacenero lo traiga</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Input escaneo — pistola o escritura manual */}
                 <div className="px-6 py-3 border-b border-steel-100">
-                  <input
-                    ref={scanInputRef}
-                    autoFocus
-                    className="opacity-0 absolute"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        const val = (e.currentTarget as HTMLInputElement).value.trim()
-                        if (val) handleScan(val)
-                        ;(e.currentTarget as HTMLInputElement).value = ''
-                      }
-                    }}
-                  />
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-steel-50 border border-steel-200">
-                    <svg className="h-5 w-5 text-steel-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <div className="relative">
+                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-steel-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                     </svg>
-                    <span className="text-sm text-steel-400">Escanea un código de barras…</span>
+                    <input
+                      ref={scanInputRef}
+                      autoFocus
+                      type="text"
+                      disabled={selectedOrden.estado === 'con_faltantes'}
+                      placeholder={selectedOrden.estado === 'con_faltantes' ? 'Esperando almacenero…' : 'Escanea o escribe un código y presiona Enter…'}
+                      className="w-full pl-10 pr-4 py-2.5 text-sm bg-steel-50 border border-steel-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-400 placeholder:text-steel-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = (e.currentTarget as HTMLInputElement).value.trim()
+                          if (val) handleScan(val)
+                          ;(e.currentTarget as HTMLInputElement).value = ''
+                        }
+                      }}
+                    />
                   </div>
                 </div>
 
@@ -640,53 +1004,130 @@ export function EscaneoPage() {
                     const isKit = !!item.kit_id
                     const isParcialKit = isKit && item.diferencia_kit !== undefined
                     const confirmed = isItemConfirmed(item)
+                    const isPendiente = item.estado === 'pendiente'
+                    const isListoAlmacenero = item.estado === 'listo_almacenero'
+                    const isLoadingItem = !!itemLoading[item.id]
+                    const isConfirmandoEliminar = confirmEliminar === item.id
+                    const isFlashing = flashItemId === item.id
 
                     return (
                       <div
                         key={item.id}
                         className={clsx(
-                          'rounded-xl border p-4 transition-all',
-                          confirmed
+                          'rounded-xl border p-4 transition-all duration-300',
+                          isFlashing
+                            ? 'border-emerald-400 bg-emerald-100 scale-[1.01]'
+                            : confirmed
                             ? 'border-emerald-200 bg-emerald-50/50'
+                            : isPendiente
+                            ? 'border-amber-200 bg-amber-50/50'
+                            : isListoAlmacenero
+                            ? 'border-sky-200 bg-sky-50/50'
                             : isKit
                             ? 'border-amber-200 bg-amber-50/50'
                             : 'border-steel-200 bg-white',
                         )}
                       >
                         <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <p className="text-sm font-bold text-steel-800">{item.producto_nombre}</p>
-                              {isKit && (
+                              {isPendiente && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 shrink-0">
+                                  ⏳ Esperando almacén
+                                </span>
+                              )}
+                              {isListoAlmacenero && !confirmed && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 shrink-0">
+                                  ✓ Listo para escanear
+                                </span>
+                              )}
+                              {isKit && !isPendiente && (
                                 <span className={clsx(
-                                  'text-[10px] font-bold px-1.5 py-0.5 rounded',
+                                  'text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0',
                                   isParcialKit ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'
                                 )}>
                                   {isParcialKit ? 'Parcial' : 'Kit'}
                                 </span>
                               )}
+                              {isFlashing && (
+                                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500 text-white shrink-0 animate-pulse">
+                                  ✓ Escaneado
+                                </span>
+                              )}
                             </div>
                             <p className="text-xs text-steel-400 font-mono mt-0.5">{item.producto_codigo}</p>
-                            {!isKit && !confirmed && (
+                            {!isKit && !confirmed && !isPendiente && (
                               <p className="text-sm font-semibold text-steel-600 mt-1">
                                 Bs {(item.precio_unitario * item.cantidad_pedida).toFixed(2)}
                               </p>
                             )}
-                            {isKit && !confirmed && (
+                            {isPendiente && (
+                              <p className="text-xs text-amber-600 mt-1">
+                                Bs {(item.precio_unitario * item.cantidad_pedida).toFixed(2)}
+                              </p>
+                            )}
+                            {isKit && !confirmed && !isPendiente && (
                               <p className="text-xs text-steel-500 mt-1">
-                                {isParcialKit
-                                  ? `Diferencia: Bs ${item.diferencia_kit?.toFixed(2)}`
-                                  : 'Kit completo'}
+                                {isParcialKit ? `Diferencia: Bs ${item.diferencia_kit?.toFixed(2)}` : 'Kit completo'}
                               </p>
                             )}
                           </div>
-                          <div className="text-right shrink-0">
-                            <span className={clsx(
-                              'inline-block px-2.5 py-1 rounded-lg text-xs font-bold',
-                              confirmed ? 'bg-emerald-100 text-emerald-700' : 'bg-steel-100 text-steel-500',
-                            )}>
-                              {confirmed ? '✓ Confirmado' : `× ${item.cantidad_pedida}`}
-                            </span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {isPendiente && !isConfirmandoEliminar && (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => handleAjustarCantidad(item, -1)}
+                                  disabled={isLoadingItem || item.cantidad_pedida <= 1}
+                                  className="w-7 h-7 rounded-lg border border-steel-200 bg-white flex items-center justify-center text-steel-600 hover:bg-steel-50 disabled:opacity-40 transition-colors"
+                                >
+                                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" /></svg>
+                                </button>
+                                <span className="w-6 text-center text-sm font-bold text-steel-700">
+                                  {isLoadingItem ? '…' : item.cantidad_pedida}
+                                </span>
+                                <button
+                                  onClick={() => handleAjustarCantidad(item, +1)}
+                                  disabled={isLoadingItem}
+                                  className="w-7 h-7 rounded-lg border border-steel-200 bg-white flex items-center justify-center text-steel-600 hover:bg-steel-50 disabled:opacity-40 transition-colors"
+                                >
+                                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                                </button>
+                                <button
+                                  onClick={() => setConfirmEliminar(item.id)}
+                                  disabled={isLoadingItem}
+                                  className="w-7 h-7 rounded-lg border border-red-200 bg-white flex items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 transition-colors ml-1"
+                                >
+                                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                              </div>
+                            )}
+                            {isPendiente && isConfirmandoEliminar && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs text-red-600 font-semibold">¿Eliminar?</span>
+                                <button
+                                  onClick={() => handleEliminarItem(item)}
+                                  disabled={isLoadingItem}
+                                  className="px-2 py-1 text-[11px] font-bold rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
+                                >
+                                  {isLoadingItem ? '…' : 'Sí'}
+                                </button>
+                                <button
+                                  onClick={() => setConfirmEliminar(null)}
+                                  className="px-2 py-1 text-[11px] font-bold rounded-lg bg-steel-100 text-steel-600 hover:bg-steel-200 transition-colors"
+                                >
+                                  No
+                                </button>
+                              </div>
+                            )}
+                            {!isPendiente && (
+                              <span className={clsx(
+                                'inline-block px-2.5 py-1 rounded-lg text-xs font-bold',
+                                confirmed ? 'bg-emerald-100 text-emerald-700' : 'bg-steel-100 text-steel-500',
+                              )}>
+                                {confirmed ? '✓ Confirmado' : `× ${item.cantidad_pedida}`}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -699,12 +1140,18 @@ export function EscaneoPage() {
                   <Button
                     className="w-full"
                     size="lg"
-                    onClick={() => setShowPagoModal(true)}
-                    disabled={!allConfirmed}
+                    onClick={handleMarcarEsperandoPago}
+                    disabled={!allConfirmed || completarLoading || selectedOrden.estado === 'con_faltantes'}
                   >
-                    {allConfirmed
-                      ? `Completar venta — Bs ${selectedOrden.total.toFixed(2)}`
-                      : `Confirma todos los ítems (${confirmedCount}/${itemsParaEscanear.length})`}
+                    {completarLoading
+                      ? 'Enviando a caja…'
+                      : allConfirmed
+                      ? 'Listo para cobrar — enviar a caja'
+                      : selectedOrden.estado === 'con_faltantes'
+                      ? 'Esperando almacenero…'
+                      : itemsParaEscanear.some(i => i.estado === 'pendiente')
+                      ? `Esperando almacén (${itemsParaEscanear.filter(i => i.estado === 'pendiente').length} pendientes)`
+                      : `Confirma todos los ítems (${confirmedCount}/${itemsEscaneables.length})`}
                   </Button>
                 </div>
               </>
@@ -749,12 +1196,11 @@ export function EscaneoPage() {
         />
       )}
 
-      {showPagoModal && selectedOrden && (
-        <TipoPagoModal
-          total={selectedOrden.total}
-          onSeleccionar={handleCompletarVenta}
-          onCancelar={() => setShowPagoModal(false)}
-          loading={completarLoading}
+      {showAgregarModal && (
+        <AgregarProductoModal
+          onAgregar={handleAgregarProducto}
+          onClose={() => setShowAgregarModal(false)}
+          loading={agregarLoading}
         />
       )}
     </MainLayout>

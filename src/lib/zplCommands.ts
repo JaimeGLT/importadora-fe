@@ -9,10 +9,10 @@ export interface ZPLLabelData {
   fecha_importacion?: string
 }
 
-// Gainscha GS-2409T PLUS @ 203 DPI → 8 dots/mm
-const DOTS_PER_MM = 8
-const LABEL_W_DOTS = 30 * DOTS_PER_MM  // 240
-const LABEL_H_DOTS = 20 * DOTS_PER_MM  // 160
+const DPM = 8
+
+const LABEL_W_DOTS = 30 * DPM   // 240
+const LABEL_H_DOTS = 20 * DPM   // 160
 
 function formatearFecha(iso: string): string {
   if (!iso) return ''
@@ -23,30 +23,42 @@ function formatearFecha(iso: string): string {
 }
 
 function buildLabel(data: ZPLLabelData): string {
+  const codigo = data.marca
+    ? `${data.codigo_universal}-${data.marca}`
+    : data.codigo_universal
+
   const fecha = data.fecha_importacion
     ? formatearFecha(data.fecha_importacion)
     : data.creado_en
     ? formatearFecha(data.creado_en)
     : ''
 
-  // Module width 1 dot keeps barcode narrow enough for 30mm label.
-  // For a 10-char code: ~165 dots wide, fits inside 240 with room.
-  const lines = [
+  const parts = [
     `^XA`,
-    `^PW${LABEL_W_DOTS}`,
-    `^LL${LABEL_H_DOTS}`,
+    `^PW${LABEL_W_DOTS}`,   // 240 — ancho de UNA etiqueta
+    `^LL${LABEL_H_DOTS}`,   // 160
     `^CI28`,
-    // Company name — centered
-    `^FO0,4^FB${LABEL_W_DOTS},1,,C,0^A0N,15,15^FDUSAImportadora^FS`,
-    // Barcode — starts at X=4, Y=22; height 50 dots (~6mm); human-readable below
-    `^FO4,22^BY1,2,50^BCN,,Y,N,N^FD${data.marca ? `${data.codigo_universal}-${data.marca}` : data.codigo_universal}^FS`,
-    // Date — centered near bottom
-    ...(fecha ? [`^FO0,130^FB${LABEL_W_DOTS},1,,C,0^A0N,12,12^FD${fecha}^FS`] : []),
+    `^LH0,0`,
+
+    // Empresa — centrada, Y=4
+    `^FO0,4^FB${LABEL_W_DOTS},1,,C,0^A0N,12,12^FDUSAImportadora\&^FS`,
+
+    // Barcode — X=4, Y=20, altura 55 dots, sin HRI interno
+    `^FO4,20^BY2,2,55^BCN,,N,N,N^FD${codigo}^FS`,
+
+    // Código texto — centrado, Y=82
+    `^FO0,82^FB${LABEL_W_DOTS},1,,C,0^A0N,10,10^FD${codigo}\&^FS`,
+
+    // Fecha — centrada, Y=120
+    ...(fecha
+      ? [`^FO0,120^FB${LABEL_W_DOTS},1,,C,0^A0N,10,10^FD${fecha}\&^FS`]
+      : []),
+
     `^XZ`,
   ]
 
-  const zpl = lines.join('')
-  console.log('[ZPL single]', zpl)
+  const zpl = parts.join('')
+  console.log('[ZPL]', zpl)
   return zpl
 }
 
@@ -57,12 +69,11 @@ export function generarZPLMultiple(
   const commands: string[] = []
   for (const label of labels) {
     const zpl = buildLabel(label)
-    for (let c = 0; c < copiasPorLabel; c++) {
+    for (let i = 0; i < copiasPorLabel; i++) {
       commands.push(zpl)
     }
   }
   return commands
 }
 
-// Keep named export for any legacy imports
 export { buildLabel as generarZPLRow }
