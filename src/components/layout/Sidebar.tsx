@@ -20,11 +20,7 @@ interface NavGroup {
 const groups: NavGroup[] = [
   {
     label: 'Inventario',
-    icon: (
-      <svg className="h-[18px] w-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5"/><path d="M12 22V13"/>
-      </svg>
-    ),
+    icon: <span className="material-symbols-outlined text-[18px] shrink-0">inventory_2</span>,
     items: [
       { label: 'Productos',  to: '/inventario',            roles: ['admin'] },
       { label: 'Ajustes',    to: '/inventario/ajustes',   roles: ['admin', 'almacenero'] },
@@ -33,25 +29,17 @@ const groups: NavGroup[] = [
   },
   {
     label: 'Importaciones',
-    icon: (
-      <svg className="h-[18px] w-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M16 3h5v5"/><path d="M21 3 13 11"/><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/>
-      </svg>
-    ),
+    icon: <span className="material-symbols-outlined text-[18px] shrink-0">upload_file</span>,
     items: [
       { label: 'Importaciones', to: '/importaciones',             roles: ['admin'] },
       { label: 'Proveedores',   to: '/importaciones/proveedores', roles: ['admin'] },
       { label: 'Marcas',        to: '/importaciones/marcas',      roles: ['admin'] },
-      { label: 'Extractor IA', to: '/importaciones/extractor',  roles: ['admin'] },
+      { label: 'Extractor IA',  to: '/importaciones/extractor',   roles: ['admin'] },
     ],
   },
   {
     label: 'Caja',
-    icon: (
-      <svg className="h-[18px] w-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>
-      </svg>
-    ),
+    icon: <span className="material-symbols-outlined text-[18px] shrink-0">payments</span>,
     roles: ['admin', 'cajero'],
     items: [
       { label: 'Caja diaria', to: '/caja', roles: ['admin', 'cajero'] },
@@ -59,50 +47,37 @@ const groups: NavGroup[] = [
   },
   {
     label: 'Ventas',
-    icon: (
-      <svg className="h-[18px] w-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 6-6"/>
-      </svg>
-    ),
+    icon: <span className="material-symbols-outlined text-[18px] shrink-0">sell</span>,
     items: [
-      { label: 'Caja',     to: '/ventas/caja',    roles: ['admin', 'cajero'] },
-      { label: 'Almacén',  to: '/ventas/almacen', roles: ['admin', 'almacenero'] },
-      { label: 'Escaneo',  to: '/ventas/escaneo', roles: ['admin', 'cajero'] },
+      { label: 'Caja',     to: '/ventas/caja',     roles: ['admin', 'cajero'] },
+      { label: 'Almacén',  to: '/ventas/almacen',  roles: ['admin', 'almacenero'] },
+      { label: 'Escaneo',  to: '/ventas/escaneo',  roles: ['admin', 'cajero'] },
       { label: 'Clientes', to: '/ventas/clientes', roles: ['admin', 'cajero'] },
     ],
   },
   {
     label: 'Reportes',
-    icon: (
-      <svg className="h-[18px] w-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-        <rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>
-      </svg>
-    ),
+    icon: <span className="material-symbols-outlined text-[18px] shrink-0">bar_chart</span>,
     roles: ['admin'],
     items: [
-      { label: 'Ganancia por producto',    to: '/reportes/rentabilidad',   roles: ['admin'] },
-      { label: 'Costo de importaciones', to: '/reportes/landed-cost',    roles: ['admin'] },
-      { label: 'Velocidad de ventas',    to: '/reportes/rotacion',       roles: ['admin'] },
-      { label: 'Clientes que me deben',  to: '/reportes/cxc',            roles: ['admin'] },
-      { label: 'Compras en camino',      to: '/reportes/transito',       roles: ['admin'] },
-      { label: 'Productos por agotarse', to: '/reportes/quiebre',        roles: ['admin'] },
-      { label: 'Mis proveedores',        to: '/reportes/proveedores',    roles: ['admin'] },
-      { label: 'Productos sin movimiento', to: '/reportes/stock-muerto', roles: ['admin'] },
-      { label: 'Ventas por vehículo',    to: '/reportes/vehiculos',      roles: ['admin'] },
-      { label: 'Clientes que compraron menos', to: '/reportes/clientes-fuga', roles: ['admin'] },
-      { label: 'Épocas de mayor venta',  to: '/reportes/estacionalidad', roles: ['admin'] },
-      { label: 'Ventas de kits',         to: '/reportes/kits',           roles: ['admin'] },
-      { label: 'Alertas de stock',    to: '/alertas',                 roles: ['admin'] },
+      { label: 'Ganancia por producto',        to: '/reportes/rentabilidad',   roles: ['admin'] },
+      { label: 'Costo de importaciones',       to: '/reportes/landed-cost',    roles: ['admin'] },
+      { label: 'Velocidad de ventas',          to: '/reportes/rotacion',       roles: ['admin'] },
+      { label: 'Clientes que me deben',        to: '/reportes/cxc',            roles: ['admin'] },
+      { label: 'Compras en camino',            to: '/reportes/transito',       roles: ['admin'] },
+      { label: 'Productos por agotarse',       to: '/reportes/quiebre',        roles: ['admin'] },
+      { label: 'Mis proveedores',              to: '/reportes/proveedores',    roles: ['admin'] },
+      { label: 'Productos sin movimiento',     to: '/reportes/stock-muerto',   roles: ['admin'] },
+      { label: 'Ventas por vehículo',          to: '/reportes/vehiculos',      roles: ['admin'] },
+      { label: 'Clientes que compraron menos', to: '/reportes/clientes-fuga',  roles: ['admin'] },
+      { label: 'Épocas de mayor venta',        to: '/reportes/estacionalidad', roles: ['admin'] },
+      { label: 'Ventas de kits',               to: '/reportes/kits',           roles: ['admin'] },
+      { label: 'Alertas de stock',             to: '/alertas',                 roles: ['admin'] },
     ],
   },
   {
     label: 'Sistema',
-    icon: (
-      <svg className="h-[18px] w-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-      </svg>
-    ),
+    icon: <span className="material-symbols-outlined text-[18px] shrink-0">settings</span>,
     roles: ['admin'],
     items: [
       { label: 'Configuración',    to: '/configuracion',    roles: ['admin'] },
@@ -113,12 +88,11 @@ const groups: NavGroup[] = [
 
 function SidebarWatermark() {
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-none"
-         style={{ opacity: 0.055, mixBlendMode: 'screen' }}>
+    <div className="absolute inset-0 pointer-events-none overflow-hidden"
+         style={{ opacity: 0.03, mixBlendMode: 'screen' }}>
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 248 900" preserveAspectRatio="xMidYMax meet"
            style={{ width: '100%', height: '100%', display: 'block' }}>
         <g fill="#FFFFFF">
-          {/* Gear top-right */}
           <g transform="translate(148,80) rotate(15)">
             <circle cx="50" cy="50" r="38"/>
             <rect x="47" y="0" width="6" height="14"/>
@@ -129,34 +103,30 @@ function SidebarWatermark() {
             <rect x="74" y="9" width="6" height="14" transform="rotate(45 77 16)"/>
             <rect x="20" y="77" width="6" height="14" transform="rotate(45 23 84)"/>
             <rect x="74" y="77" width="6" height="14" transform="rotate(-45 77 84)"/>
-            <circle cx="50" cy="50" r="20" fill="#1F1C17"/>
+            <circle cx="50" cy="50" r="20" fill="#2a313d"/>
             <circle cx="50" cy="50" r="6"/>
           </g>
-          {/* Wheel center */}
           <g transform="translate(14,320)">
             <circle cx="52" cy="52" r="50"/>
-            <circle cx="52" cy="52" r="32" fill="#1F1C17"/>
+            <circle cx="52" cy="52" r="32" fill="#2a313d"/>
             <circle cx="52" cy="52" r="9"/>
-            <circle cx="52" cy="10" r="4" fill="#1F1C17"/>
-            <circle cx="52" cy="94" r="4" fill="#1F1C17"/>
-            <circle cx="10" cy="52" r="4" fill="#1F1C17"/>
-            <circle cx="94" cy="52" r="4" fill="#1F1C17"/>
-            <circle cx="80" cy="24" r="4" fill="#1F1C17"/>
-            <circle cx="24" cy="80" r="4" fill="#1F1C17"/>
-            <circle cx="24" cy="24" r="4" fill="#1F1C17"/>
-            <circle cx="80" cy="80" r="4" fill="#1F1C17"/>
+            <circle cx="52" cy="10" r="4" fill="#2a313d"/>
+            <circle cx="52" cy="94" r="4" fill="#2a313d"/>
+            <circle cx="10" cy="52" r="4" fill="#2a313d"/>
+            <circle cx="94" cy="52" r="4" fill="#2a313d"/>
+            <circle cx="80" cy="24" r="4" fill="#2a313d"/>
+            <circle cx="24" cy="80" r="4" fill="#2a313d"/>
+            <circle cx="24" cy="24" r="4" fill="#2a313d"/>
+            <circle cx="80" cy="80" r="4" fill="#2a313d"/>
           </g>
-          {/* Hex bolt */}
           <g transform="translate(172,490) rotate(-20)">
             <path d="M30 2 L56 16 L56 44 L30 58 L4 44 L4 16 Z"/>
-            <circle cx="30" cy="30" r="9" fill="#1F1C17"/>
+            <circle cx="30" cy="30" r="9" fill="#2a313d"/>
           </g>
-          {/* Cone */}
           <g transform="translate(28,620) rotate(10)">
             <rect x="0" y="0" width="12" height="8"/>
             <path d="M2 8 L10 8 L6 60 Z"/>
           </g>
-          {/* Small bolt */}
           <g transform="translate(168,710) rotate(40)">
             <rect x="6" y="0" width="9" height="8"/>
             <rect x="1" y="8" width="18" height="6"/>
@@ -204,247 +174,225 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
   return (
     <aside className={clsx(
-      'flex flex-col w-[248px] shrink-0',
-      'bg-[#1F1C17] border-r border-white/[0.06]',
+      'flex flex-col w-[248px] shrink-0 font-hanken',
+      'bg-inverse-surface border-r border-outline-variant',
       'fixed inset-y-0 left-0 z-50 h-full transition-transform duration-300 ease-in-out',
-      'md:sticky md:top-1 md:translate-x-0 md:h-screen',
+      'md:sticky md:top-0 md:translate-x-0 md:h-screen',
       open ? 'translate-x-0' : '-translate-x-full',
     )}>
       <SidebarWatermark />
 
-      <div className="relative z-[1] flex flex-col flex-1 min-h-0">
+      <div className="flex flex-col flex-1 min-h-0 relative z-[1]">
 
-      {/* Brand */}
-      <div className="px-[18px] pt-8 pb-5 border-b border-white/[0.06]">
-        <div className="flex items-center gap-3 mb-3">
-          {/* Brand mark */}
-          <div className="relative w-[46px] h-[46px] rounded-[10px] bg-navy flex flex-col items-center justify-center shrink-0 overflow-hidden"
-               style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12), 0 2px 8px rgba(0,0,0,0.4)' }}>
-            <span className="relative z-10 text-white text-sm font-black tracking-[0.08em] mt-0.5">USA</span>
-            <div className="absolute bottom-0 left-0 right-0 h-2"
-                 style={{ background: 'repeating-linear-gradient(to bottom, #B22234 0px, #B22234 1.4px, #FFFFFF 1.4px, #FFFFFF 2.8px)', opacity: 0.92 }} />
-          </div>
-          <div>
-            <div className="font-serif text-2xl leading-none tracking-[-0.015em] text-white/90">
-              USA <em className="italic not-italic" style={{ color: '#E8A0AA' }}>Autopartes</em>
+        {/* Brand */}
+        <div className="px-6 py-container-margin border-b border-surface-variant/10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary-container rounded flex items-center justify-center shrink-0">
+              <span className="text-white font-bold text-sm tracking-wide">USA</span>
             </div>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-[15px] font-bold text-white leading-tight">USA Autopartes</h1>
+              <p className="text-[11px] text-surface-variant/70">Operaciones</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="md:hidden p-1.5 rounded text-surface-variant/40 hover:text-white hover:bg-surface-variant/10 transition-colors"
+              aria-label="Cerrar menú"
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 flex flex-col gap-1 px-2 py-container-margin overflow-y-auto">
+
+          {/* Principal */}
+          <div className="text-[10px] font-bold text-surface-variant/40 px-4 mb-2 tracking-widest uppercase">
+            Principal
           </div>
 
-          {/* Close button mobile */}
-          <button
+          <NavLink
+            to="/dashboard"
             onClick={onClose}
-            className="md:hidden ml-auto p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/[0.08] transition-colors"
-            aria-label="Cerrar menú"
+            className={({ isActive }) =>
+              clsx(
+                'px-4 py-3 flex items-center gap-3 transition-colors text-[13px]',
+                isActive
+                  ? 'bg-primary-container text-on-primary-container border-l-4 border-primary'
+                  : 'text-surface-variant hover:bg-surface-variant/10',
+              )
+            }
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
+            <span className="material-symbols-outlined text-[18px] shrink-0">dashboard</span>
+            <span>Dashboard</span>
+          </NavLink>
 
-      {/* Nav */}
-      <nav className="flex-1 px-[18px] py-4 overflow-y-auto space-y-0.5">
+          <div className="text-[10px] font-bold text-surface-variant/40 px-4 mt-6 mb-2 tracking-widest uppercase">
+            Operaciones
+          </div>
 
-        {/* Dashboard */}
-        <div className="text-[10.5px] tracking-[0.14em] uppercase text-white/30 px-3 pt-3.5 pb-2 font-medium">
-          Principal
-        </div>
-        <NavLink
-          to="/dashboard"
-          onClick={onClose}
-          className={({ isActive }) =>
-            clsx(
-              'w-full flex items-center gap-3 px-3 py-[10px] rounded-[10px] text-sm font-medium transition-colors duration-120',
-              isActive
-                ? 'bg-terra text-white'
-                : 'text-white/60 hover:bg-white/[0.07] hover:text-white/90',
-            )
-          }
-        >
-          <svg className="h-[18px] w-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/>
-            <rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>
-          </svg>
-          <span>Dashboard</span>
-        </NavLink>
+          {groups.slice(0, 4).map((group) => {
+            const visibleItems = group.items.filter(i => !i.roles || !user || i.roles.includes(user.rol))
+            if (visibleItems.length === 0) return null
+            const groupActive = visibleItems.some((i) => pathname === i.to || pathname.startsWith(i.to + '/'))
+            const isExpanded = expandedGroups.has(group.label)
 
-        <div className="text-[10.5px] tracking-[0.14em] uppercase text-white/30 px-3 pt-3.5 pb-2 font-medium">
-          Operaciones
-        </div>
+            if (visibleItems.length === 1) {
+              const item = visibleItems[0]
+              return (
+                <NavLink
+                  key={group.label}
+                  to={item.to}
+                  end={item.to === '/inventario' || item.to === '/caja'}
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    clsx(
+                      'px-4 py-3 flex items-center gap-3 transition-colors text-[13px]',
+                      isActive
+                        ? 'bg-primary-container text-on-primary-container border-l-4 border-primary'
+                        : 'text-surface-variant hover:bg-surface-variant/10',
+                    )
+                  }
+                >
+                  {group.icon}
+                  <span>{group.label}</span>
+                </NavLink>
+              )
+            }
 
-        {groups.slice(0, 4).map((group) => {
-          const visibleItems = group.items.filter(i => !i.roles || !user || i.roles.includes(user.rol))
-          if (visibleItems.length === 0) return null
-          const groupActive = visibleItems.some((i) => pathname === i.to || pathname.startsWith(i.to + '/'))
-          const isExpanded = expandedGroups.has(group.label)
-
-          if (visibleItems.length === 1) {
-            const item = visibleItems[0]
             return (
-              <NavLink
-                key={group.label}
-                to={item.to}
-                end={item.to === '/inventario' || item.to === '/caja'}
-                onClick={onClose}
-                className={({ isActive }) =>
-                  clsx(
-                    'w-full flex items-center gap-3 px-3 py-[10px] rounded-[10px] text-sm font-medium transition-colors duration-120',
-                    isActive
-                      ? 'bg-terra text-white'
-                      : 'text-white/60 hover:bg-white/[0.07] hover:text-white/90',
-                  )
-                }
-              >
-                {group.icon}
-                <span>{group.label}</span>
-              </NavLink>
+              <div key={group.label}>
+                <button
+                  onClick={() => toggleGroup(group.label)}
+                  className={clsx(
+                    'w-full px-4 py-3 flex items-center gap-3 transition-colors text-[13px] text-left',
+                    groupActive && !isExpanded
+                      ? 'bg-primary-container text-on-primary-container border-l-4 border-primary'
+                      : 'text-surface-variant hover:bg-surface-variant/10',
+                  )}
+                >
+                  {group.icon}
+                  <span className="flex-1">{group.label}</span>
+                  <span className={clsx(
+                    'material-symbols-outlined text-[18px] shrink-0 opacity-50 transition-transform duration-200',
+                    isExpanded && 'rotate-180',
+                  )}>
+                    expand_more
+                  </span>
+                </button>
+
+                <div className={clsx(
+                  'overflow-hidden transition-all duration-200 ease-in-out',
+                  isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0',
+                )}>
+                  <div className="ml-12 flex flex-col gap-1 mt-1">
+                    {visibleItems.map((item) => (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        end
+                        onClick={onClose}
+                        className={({ isActive }) =>
+                          clsx(
+                            'py-2 text-xs transition-colors',
+                            isActive
+                              ? 'text-primary font-bold'
+                              : 'text-surface-variant/60 hover:text-surface-variant',
+                          )
+                        }
+                      >
+                        {item.label}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+              </div>
             )
-          }
+          })}
 
-          return (
-            <div key={group.label}>
-              <button
-                onClick={() => toggleGroup(group.label)}
-                className={clsx(
-                  'w-full flex items-center gap-3 px-3 py-[10px] rounded-[10px] text-sm font-medium transition-colors duration-120 text-left',
-                  groupActive && !isExpanded
-                    ? 'bg-terra text-white'
-                    : 'text-white/60 hover:bg-white/[0.07] hover:text-white/90',
-                )}
-              >
-                {group.icon}
-                <span className="flex-1">{group.label}</span>
-                <svg
-                  className={clsx('h-3.5 w-3.5 shrink-0 transition-transform duration-200 opacity-50', isExpanded && 'rotate-180')}
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          <div className="text-[10px] font-bold text-surface-variant/40 px-4 mt-6 mb-2 tracking-widest uppercase">
+            General
+          </div>
+
+          {groups.slice(4).map((group) => {
+            const visibleItems = group.items.filter(i => !i.roles || !user || i.roles.includes(user.rol))
+            if (visibleItems.length === 0) return null
+            const groupActive = visibleItems.some((i) => pathname === i.to || pathname.startsWith(i.to + '/'))
+            const isExpanded = expandedGroups.has(group.label)
+
+            return (
+              <div key={group.label}>
+                <button
+                  onClick={() => toggleGroup(group.label)}
+                  className={clsx(
+                    'w-full px-4 py-3 flex items-center gap-3 transition-colors text-[13px] text-left',
+                    groupActive && !isExpanded
+                      ? 'bg-primary-container text-on-primary-container border-l-4 border-primary'
+                      : 'text-surface-variant hover:bg-surface-variant/10',
+                  )}
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+                  {group.icon}
+                  <span className="flex-1">{group.label}</span>
+                  <span className={clsx(
+                    'material-symbols-outlined text-[18px] shrink-0 opacity-50 transition-transform duration-200',
+                    isExpanded && 'rotate-180',
+                  )}>
+                    expand_more
+                  </span>
+                </button>
 
-              <div className={clsx(
-                'overflow-hidden transition-all duration-200 ease-in-out',
-                isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0',
-              )}>
-                <div className="pl-[42px] pt-0.5 pb-1 space-y-0.5">
-                  {visibleItems.map((item) => (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      end
-                      onClick={onClose}
-                      className={({ isActive }) =>
-                        clsx(
-                          'flex items-center gap-2 px-3 py-2 rounded-[10px] text-[13.5px] transition-colors duration-120',
-                          isActive
-                            ? 'bg-terra/[0.18] text-[#F2B8BF] font-semibold'
-                            : 'text-white/50 hover:bg-white/[0.06] hover:text-white/80',
-                        )
-                      }
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-current shrink-0 opacity-40" />
-                      {item.label}
-                    </NavLink>
-                  ))}
+                <div className={clsx(
+                  'overflow-hidden transition-all duration-200 ease-in-out',
+                  isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0',
+                )}>
+                  <div className="ml-12 flex flex-col gap-1 mt-1">
+                    {visibleItems.map((item) => (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        end
+                        onClick={onClose}
+                        className={({ isActive }) =>
+                          clsx(
+                            'py-2 text-xs transition-colors',
+                            isActive
+                              ? 'text-primary font-bold'
+                              : 'text-surface-variant/60 hover:text-surface-variant',
+                          )
+                        }
+                      >
+                        {item.label}
+                      </NavLink>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </nav>
 
-        <div className="text-[10.5px] tracking-[0.14em] uppercase text-white/30 px-3 pt-3.5 pb-2 font-medium">
-          General
+        {/* User footer */}
+        <div className="px-4 py-4 border-t border-surface-variant/10 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold shrink-0">
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-xs font-bold truncate">{user?.nombre ?? '—'}</p>
+              <p className="text-surface-variant/50 text-[10px] capitalize truncate">{user?.rol ?? ''}</p>
+            </div>
+            <span
+              onClick={() => { void logout().then(() => navigate('/login')) }}
+              className="material-symbols-outlined text-[18px] text-surface-variant/40 cursor-pointer hover:text-white transition-colors"
+              title="Cerrar sesión"
+            >
+              logout
+            </span>
+          </div>
         </div>
 
-        {groups.slice(4).map((group) => {
-          const visibleItems = group.items.filter(i => !i.roles || !user || i.roles.includes(user.rol))
-          if (visibleItems.length === 0) return null
-          const groupActive = visibleItems.some((i) => pathname === i.to || pathname.startsWith(i.to + '/'))
-          const isExpanded = expandedGroups.has(group.label)
-
-          return (
-            <div key={group.label}>
-              <button
-                onClick={() => toggleGroup(group.label)}
-                className={clsx(
-                  'w-full flex items-center gap-3 px-3 py-[10px] rounded-[10px] text-sm font-medium transition-colors duration-120 text-left',
-                  groupActive && !isExpanded
-                    ? 'bg-terra text-white'
-                    : 'text-white/60 hover:bg-white/[0.07] hover:text-white/90',
-                )}
-              >
-                {group.icon}
-                <span className="flex-1">{group.label}</span>
-                <svg
-                  className={clsx('h-3.5 w-3.5 shrink-0 transition-transform duration-200 opacity-50', isExpanded && 'rotate-180')}
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-
-              <div className={clsx(
-                'overflow-hidden transition-all duration-200 ease-in-out',
-                isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0',
-              )}>
-                <div className="pl-[42px] pt-0.5 pb-1 space-y-0.5">
-                  {visibleItems.map((item) => (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      end
-                      onClick={onClose}
-                      className={({ isActive }) =>
-                        clsx(
-                          'flex items-center gap-2 px-3 py-2 rounded-[10px] text-[13.5px] transition-colors duration-120',
-                          isActive
-                            ? 'bg-terra/[0.18] text-[#F2B8BF] font-semibold'
-                            : 'text-white/50 hover:bg-white/[0.06] hover:text-white/80',
-                        )
-                      }
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-current shrink-0 opacity-40" />
-                      {item.label}
-                    </NavLink>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </nav>
-
-      {/* User footer */}
-      <div className="px-[18px] py-4 border-t border-white/[0.06] shrink-0">
-        <div className="flex items-center gap-3 px-1.5 py-2">
-          <div
-            className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[13px] font-semibold shrink-0"
-            style={{
-              background: 'linear-gradient(135deg, #B22234 0%, #8C1A28 100%)',
-              boxShadow: '0 0 0 2px rgba(255,255,255,0.1)',
-            }}
-          >
-            {initials}
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <p className="text-[13.5px] font-semibold text-white/85 leading-[1.2] truncate">{user?.nombre ?? '—'}</p>
-            <p className="text-[11.5px] text-white/35 capitalize">{user?.rol ?? ''}</p>
-          </div>
-          <button
-            onClick={() => { void logout().then(() => navigate('/login')) }}
-            className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/[0.08] transition-colors shrink-0"
-            title="Cerrar sesión"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-          </button>
-        </div>
       </div>
-
-      </div>{/* end z-[1] wrapper */}
     </aside>
   )
 }

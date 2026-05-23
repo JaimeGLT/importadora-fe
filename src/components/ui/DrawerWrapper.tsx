@@ -36,13 +36,15 @@ export function DrawerWrapper({ open, onClose, subtitle, title, sku, children, f
           background: '#FDFCFA',
           transform: open ? 'translateX(0)' : 'translateX(100%)',
           transition: 'transform 280ms cubic-bezier(0.32, 0.72, 0.2, 1)',
-          boxShadow: '-24px 0 40px -20px rgba(36,30,24,0.2)',
+          boxShadow: '-24px 0 40px -20px rgba(36,30,24,0.25)',
         }}
       >
+        {/* Top accent stripe */}
+        <div className="h-[3px] bg-gradient-to-r from-[#B22234] via-[#C94040] to-[#8B1A26] shrink-0" />
         {/* Head */}
         <div
-          className="px-5 sm:px-8 pt-7 pb-[22px] border-b border-hair flex items-start justify-between gap-3 shrink-0"
-          style={{ background: 'linear-gradient(180deg, #F4EFE6 0%, #FDFCFA 100%)' }}
+          className="px-5 sm:px-8 pt-6 pb-[22px] border-b border-hair flex items-start justify-between gap-3 shrink-0"
+          style={{ background: 'linear-gradient(180deg, #EDE5D6 0%, #FDFCFA 100%)' }}
         >
           <div>
             <div className="text-[10.5px] uppercase tracking-[0.12em] text-muted font-semibold mb-1.5">{subtitle}</div>

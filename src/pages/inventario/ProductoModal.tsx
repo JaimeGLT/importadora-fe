@@ -330,7 +330,7 @@ export function ProductoModal({
         <div className="space-y-4">
 
           {/* Identificación */}
-          <FormSection icon={<IconBarcode />} title="Identificación" description="Códigos únicos que identifican el producto">
+          <FormSection icon={<IconBarcode />} title="Identificación" description="Códigos únicos que identifican el producto" iconClass="bg-[#3B82F6] text-white shadow-sm">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <WarmInput
                 label="Código universal *"
@@ -367,7 +367,7 @@ export function ProductoModal({
           </FormSection>
 
           {/* Descripción */}
-          <FormSection icon={<IconClipboard />} title="Descripción" description="Marca y detalle del producto">
+          <FormSection icon={<IconClipboard />} title="Descripción" description="Marca y detalle del producto" iconClass="bg-[#1D4ED8] text-white shadow-sm">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <BrandSelect
                 label="Marca"
@@ -385,7 +385,7 @@ export function ProductoModal({
           </FormSection>
 
           {/* Stock y almacén */}
-          <FormSection icon={<IconBox />} title="Stock y almacén" description="Cantidades, unidad de medida y ubicación física">
+          <FormSection icon={<IconBox />} title="Stock y almacén" description="Cantidades, unidad de medida y ubicación física" iconClass="bg-[#0369A1] text-white shadow-sm">
             <WarmInput
               label="Ubicación"
               value={form.almacen}
@@ -424,21 +424,22 @@ export function ProductoModal({
             icon={<IconKit />}
             title="Kit / Conjunto"
             description="Relacionar producto como kit o como parte de un kit"
+            iconClass="bg-[#7C3AED] text-white shadow-sm"
             extra={producto?.es_kit ? (
               <div className="flex items-center gap-1.5 flex-wrap">
-                <div className="flex items-center gap-1.5 rounded-full bg-navy/10 border border-navy/20 px-2.5 py-1">
-                  <svg className="h-3 w-3 text-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <div className="flex items-center gap-1.5 rounded-full bg-navy px-2.5 py-1">
+                  <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                   </svg>
-                  <span className="text-[11px] font-bold text-navy tabular-nums">{producto.stock}</span>
-                  <span className="text-[10px] text-navy/70">kits completos</span>
+                  <span className="text-[11px] font-bold text-white tabular-nums">{producto.stock}</span>
+                  <span className="text-[10px] text-navy-soft/80">kits completos</span>
                 </div>
                 {(producto.piezas_kit?.length ?? 0) > 0 && (
-                  <div className="flex items-center gap-1 rounded-full bg-cream-2 border border-hair px-2.5 py-1">
-                    <span className="text-[11px] font-semibold text-muted-2 tabular-nums">
+                  <div className="flex items-center gap-1 rounded-full bg-navy/10 border border-navy/30 px-2.5 py-1">
+                    <span className="text-[11px] font-semibold text-navy tabular-nums">
                       {producto.piezas_kit!.reduce((s, p) => s + p.stock_actual, 0)}
                     </span>
-                    <span className="text-[10px] text-muted-2">piezas en bodega</span>
+                    <span className="text-[10px] text-navy/60">piezas en bodega</span>
                   </div>
                 )}
               </div>
@@ -509,7 +510,7 @@ export function ProductoModal({
           </FormSection>
 
           {/* Precios */}
-          <FormSection icon={<IconCurrency />} title="Precios" description="Costos, precio de venta y tipo de cambio">
+          <FormSection icon={<IconCurrency />} title="Precios" description="Costos, precio de venta y tipo de cambio" iconClass="bg-[#D97706] text-white shadow-sm">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <WarmInput
                 label="Precio costo (Bs) *"
@@ -546,15 +547,15 @@ export function ProductoModal({
             </div>
             {margen !== null && (
               <div className="mt-3.5 flex items-center gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5 rounded-full bg-[#D1FAE5] border border-[rgba(4,120,87,0.25)] px-3 py-1">
-                  <svg className="h-3.5 w-3.5 text-[#047857]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="flex items-center gap-1.5 rounded-full bg-warm-ok px-3 py-1">
+                  <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                   </svg>
-                  <span className="text-xs font-semibold text-[#047857]">Margen {margen}%</span>
+                  <span className="text-xs font-bold text-white">Margen {margen}%</span>
                 </div>
-                <div className="flex items-center gap-1.5 rounded-full bg-cream-2 border border-hair px-3 py-1">
-                  <span className="text-xs text-muted">Ganancia</span>
-                  <span className="text-xs font-semibold text-ink-2">Bs {ganancia}</span>
+                <div className="flex items-center gap-1.5 rounded-full bg-[#D1FAE5] border border-[#047857]/25 px-3 py-1">
+                  <span className="text-xs text-[#047857]/80">Ganancia</span>
+                  <span className="text-xs font-bold text-[#047857]">Bs {ganancia}</span>
                 </div>
               </div>
             )}
@@ -641,6 +642,7 @@ export function ProductoModal({
               icon={<IconHistory />}
               title="Historial de precios"
               description={`${form.historial_precios.length} registro${form.historial_precios.length !== 1 ? 's' : ''} de cambios`}
+              iconClass="bg-[#047857] text-white shadow-sm"
               collapsible
               open={historialOpen}
               onToggle={() => setHistorialOpen((v) => !v)}

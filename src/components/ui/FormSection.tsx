@@ -10,9 +10,10 @@ interface FormSectionProps {
   collapsible?: boolean
   open?: boolean
   onToggle?: () => void
+  iconClass?: string
 }
 
-export function FormSection({ icon, title, description, extra, children, collapsible, open, onToggle }: FormSectionProps) {
+export function FormSection({ icon, title, description, extra, children, collapsible, open, onToggle, iconClass }: FormSectionProps) {
   const isOpen = !collapsible || open
   return (
     <section className="rounded-[14px] border border-hair overflow-hidden">
@@ -25,7 +26,10 @@ export function FormSection({ icon, title, description, extra, children, collaps
         )}
         onClick={collapsible ? onToggle : undefined}
       >
-        <div className="flex items-center justify-center w-[30px] h-[30px] rounded-[8px] bg-white border border-hair text-ink-2 shadow-sm flex-shrink-0">
+        <div className={clsx(
+          'flex items-center justify-center w-[30px] h-[30px] rounded-[8px] shadow-sm flex-shrink-0',
+          iconClass ?? 'bg-white border border-hair text-ink-2',
+        )}>
           {icon}
         </div>
         <div className="flex-1 min-w-0">
