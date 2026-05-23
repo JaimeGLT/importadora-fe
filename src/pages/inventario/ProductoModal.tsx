@@ -18,6 +18,7 @@ interface ProductoModalProps {
   open: boolean
   onClose: () => void
   onSave: (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>, kitOps: KitOps, priceUpdate?: PriceUpdate) => Promise<void>
+  onDelete?: () => void
   producto: Producto | null
   loading?: boolean
   productosExistentes?: Producto[]
@@ -115,7 +116,7 @@ function PreciosEspecialesSection({ precioVenta }: { precioVenta: number }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function ProductoModal({
-  open, onClose, onSave, producto, loading, productosExistentes = [],
+  open, onClose, onSave, onDelete, producto, loading, productosExistentes = [],
 }: ProductoModalProps) {
   const [form, setForm]       = useState<FormData>(EMPTY)
   const [tipoCambio, setTipoCambio] = useState('6.96')
@@ -289,6 +290,15 @@ export function ProductoModal({
       sku={producto?.codigo_universal}
       footer={
         <>
+          {producto && onDelete && (
+            <button
+              onClick={onDelete} disabled={saving}
+              className="h-[42px] w-[42px] flex items-center justify-center rounded-[10px] border border-red-200 text-red-500 bg-white hover:bg-red-50 hover:border-red-300 transition-colors mr-auto disabled:opacity-40"
+              title="Eliminar producto"
+            >
+              <span className="material-symbols-outlined text-[20px]">delete</span>
+            </button>
+          )}
           <Button variant="secondary"
             className="h-[42px] px-5 rounded-[10px] !border-hair !text-ink-2 !bg-white hover:!bg-cream-2 hover:!border-hair-2 !text-[13.5px] !font-medium"
             onClick={onClose} disabled={saving}>
@@ -376,6 +386,8 @@ export function ProductoModal({
                 placeholder="Seleccionar marca…"
               />
               <WarmInput
+                multiline
+                rows={3}
                 label="Descripción adicional"
                 value={form.descripcion}
                 onChange={(e) => set('descripcion', e.target.value)}
@@ -426,7 +438,7 @@ export function ProductoModal({
             description="Relacionar producto como kit o como parte de un kit"
             iconClass="bg-[#7C3AED] text-white shadow-sm"
             extra={producto?.es_kit ? (
-              <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-1.5 rounded-full bg-navy px-2.5 py-1">
                   <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />

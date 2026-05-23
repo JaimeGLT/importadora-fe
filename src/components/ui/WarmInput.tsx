@@ -1,13 +1,29 @@
-import type { InputHTMLAttributes } from 'react'
+import type { InputHTMLAttributes, TextareaHTMLAttributes } from 'react'
 import { clsx } from 'clsx'
 
-interface WarmInputProps extends InputHTMLAttributes<HTMLInputElement> {
+type BaseProps = {
   label?: string
   error?: string
   hint?: string
+  multiline?: boolean
+  rows?: number
 }
 
-export function WarmInput({ label, error, hint, className, readOnly, ...props }: WarmInputProps) {
+type WarmInputProps =
+  | (BaseProps & { multiline?: false } & InputHTMLAttributes<HTMLInputElement>)
+  | (BaseProps & { multiline: true } & TextareaHTMLAttributes<HTMLTextAreaElement>)
+
+const sharedClass = (error?: string, readOnly?: boolean, className?: string) =>
+  clsx(
+    'w-full px-3.5 rounded-[10px] border text-[13.5px] text-ink',
+    'focus:outline-none focus:border-terra transition-colors duration-150',
+    'placeholder:text-muted-2',
+    error ? 'border-terra/50 bg-[#FEF0F2]' : 'border-hair bg-cream',
+    readOnly && 'opacity-55 cursor-not-allowed bg-cream-2',
+    className,
+  )
+
+export function WarmInput({ label, error, hint, multiline, rows, className, ...props }: WarmInputProps) {
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
@@ -15,18 +31,18 @@ export function WarmInput({ label, error, hint, className, readOnly, ...props }:
           {label}
         </label>
       )}
-      <input
-        className={clsx(
-          'w-full h-[42px] px-3.5 rounded-[10px] border text-[13.5px] text-ink',
-          'focus:outline-none focus:border-terra transition-colors duration-150',
-          'placeholder:text-muted-2',
-          error ? 'border-terra/50 bg-[#FEF0F2]' : 'border-hair bg-cream',
-          readOnly && 'opacity-55 cursor-not-allowed bg-cream-2',
-          className,
-        )}
-        readOnly={readOnly}
-        {...props}
-      />
+      {multiline ? (
+        <textarea
+          rows={rows ?? 3}
+          className={clsx(sharedClass(error, (props as TextareaHTMLAttributes<HTMLTextAreaElement>).readOnly as boolean | undefined, className), 'py-2.5 resize-none')}
+          {...(props as TextareaHTMLAttributes<HTMLTextAreaElement>)}
+        />
+      ) : (
+        <input
+          className={clsx(sharedClass(error, (props as InputHTMLAttributes<HTMLInputElement>).readOnly as boolean | undefined, className), 'h-[42px]')}
+          {...(props as InputHTMLAttributes<HTMLInputElement>)}
+        />
+      )}
       {error && <p className="text-[11px] text-terra leading-tight">{error}</p>}
       {hint && !error && <p className="text-[11px] text-muted-2 leading-tight">{hint}</p>}
     </div>

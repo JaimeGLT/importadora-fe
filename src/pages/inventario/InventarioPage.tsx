@@ -147,7 +147,10 @@ function EmptyState({ onNew, searching }: { onNew: () => void; searching: boolea
 function MobileProductRow({ p, marcaNombre, onTap }: { p: Producto; marcaNombre: string; onTap: () => void }) {
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3 border-b border-outline-variant last:border-0 active:bg-surface-container-low transition-colors cursor-pointer"
+      className={clsx(
+        'flex items-center gap-3 px-4 py-3 border-b border-outline-variant last:border-0 active:bg-surface-container-low transition-colors cursor-pointer',
+        p.es_kit && 'border-l-[3px] border-l-[#3B82F6]',
+      )}
       onClick={onTap}
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
@@ -599,20 +602,20 @@ export function InventarioPage() {
                 Inventario.
               </h2>
               <p className="text-sm text-on-surface-variant/80">
-                Gestión de repuestos y autopartes — control en tiempo real de existencias, costos y movimientos.
+                Gestión de repuestos y autopartes.
               </p>
             </div>
-            <div className="flex items-center gap-3 shrink-0 flex-wrap">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto shrink-0">
               <button
                 onClick={() => setImportOpen(true)}
-                className="px-5 py-2 border border-outline-variant rounded flex items-center gap-2 text-sm font-semibold hover:bg-surface-container transition-all text-on-surface"
+                className="px-5 py-2 border border-outline-variant rounded flex items-center justify-center gap-2 text-sm font-semibold hover:bg-surface-container transition-all text-on-surface"
               >
                 <span className="material-symbols-outlined text-lg">download</span>
                 Importar
               </button>
               <button
                 onClick={handleNew}
-                className="px-5 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-full flex items-center gap-2 text-sm font-semibold active:scale-95 transition-all shadow-sm"
+                className="px-5 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-full flex items-center justify-center gap-2 text-sm font-semibold active:scale-95 transition-all shadow-sm"
               >
                 <span className="material-symbols-outlined text-lg">add</span>
                 Nuevo producto
@@ -835,8 +838,9 @@ export function InventarioPage() {
                             idx % 2 !== 0 && 'bg-surface-container-low/20',
                           )}
                         >
-                          {row.getVisibleCells().map((cell) => {
+                          {row.getVisibleCells().map((cell, cellIdx) => {
                             const align = (cell.column.columnDef.meta as ColumnMeta<Producto, unknown> | undefined)?.align ?? 'left'
+                            const isKit = row.original.es_kit
                             return (
                               <td
                                 key={cell.id}
@@ -844,6 +848,7 @@ export function InventarioPage() {
                                   'px-6 py-table-cell-padding align-middle text-sm',
                                   align === 'center' && 'text-center',
                                   align === 'right'  && 'text-right',
+                                  cellIdx === 0 && isKit && 'border-l-[3px] border-l-[#3B82F6]',
                                 )}
                               >
                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -901,11 +906,13 @@ export function InventarioPage() {
         onClose={() => setImportOpen(false)}
         onImport={handleImport}
         productosExistentes={products}
+        marcas={marcas}
       />
       <ProductoModal
         open={modalOpen}
         onClose={() => { setModalOpen(false); setEditingProducto(null) }}
         onSave={handleSave}
+        onDelete={editingProducto ? () => { setModalOpen(false); setConfirmDelete(editingProducto) } : undefined}
         producto={editingProducto}
         loading={loadingModal}
         productosExistentes={products}

@@ -1,51 +1,11 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { MainLayout } from '@/components/layout/MainLayout'
-import { WarmMetric } from '@/components/ui'
 import { notify } from '@/lib/notify'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
 import { PRODUCTOS_QUERY, PRODUCTO_BY_ID_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI } from '@/lib/queries/inventario.queries'
 import type { Producto, PiezaKit } from '@/types'
 import { clsx } from 'clsx'
-import { AutopartsWatermark } from './AutopartsWatermark'
-
-// ─── Icons ────────────────────────────────────────────────────────────────────
-
-function IcoSearch() {
-  return (
-    <svg className="h-4 w-4 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
-    </svg>
-  )
-}
-function IcoBox() {
-  return (
-    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5"/>
-    </svg>
-  )
-}
-function IcoKit() {
-  return (
-    <svg className="h-[15px] w-[15px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 11l19-9-9 19-2-8-8-2z"/>
-    </svg>
-  )
-}
-function IcoAlert() {
-  return (
-    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/>
-    </svg>
-  )
-}
-function IcoLayers() {
-  return (
-    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m6.08 9.5-3.5 1.6a1 1 0 0 0 0 1.81l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9a1 1 0 0 0 0-1.83l-3.5-1.59"/><path d="m6.08 14.5-3.5 1.6a1 1 0 0 0 0 1.81l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9a1 1 0 0 0 0-1.83l-3.5-1.59"/>
-    </svg>
-  )
-}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -66,12 +26,14 @@ function MotivoField({ motivo, setMotivo, motivoCustom, setMotivoCustom }: {
 }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-ink mb-1.5">Motivo *</label>
+      <label className="block text-xs font-semibold text-on-surface mb-1.5">Motivo *</label>
       <div className="flex flex-wrap gap-1.5 mb-2">
         {MOTIVOS.map(m => (
           <button key={m} type="button" onClick={() => setMotivo(m)}
             className={clsx('px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-all',
-              motivo === m ? 'bg-ink text-cream border-ink' : 'bg-white text-muted border-hair hover:border-hair-2')}>
+              motivo === m
+                ? 'bg-[#3B82F6] text-white border-[#3B82F6]'
+                : 'bg-white text-on-surface-variant border-outline-variant hover:border-on-surface-variant')}>
             {m}
           </button>
         ))}
@@ -79,7 +41,7 @@ function MotivoField({ motivo, setMotivo, motivoCustom, setMotivoCustom }: {
       {motivo === 'Otro' && (
         <input type="text" value={motivoCustom} onChange={e => setMotivoCustom(e.target.value)}
           maxLength={200} placeholder="Describe el motivo…" required
-          className="w-full h-10 px-3.5 rounded-xl border border-hair bg-white text-ink text-sm focus:outline-none focus:border-terra transition-all" />
+          className="w-full h-10 px-3.5 rounded-xl border border-outline-variant bg-white text-on-surface text-sm focus:outline-none focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/10 transition-all" />
       )}
     </div>
   )
@@ -88,12 +50,12 @@ function MotivoField({ motivo, setMotivo, motivoCustom, setMotivoCustom }: {
 function NotaField({ nota, setNota }: { nota: string; setNota: (v: string) => void }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-ink mb-1.5">
-        Nota <span className="font-normal text-muted">(opcional)</span>
+      <label className="block text-xs font-semibold text-on-surface mb-1.5">
+        Nota <span className="font-normal text-on-surface-variant">(opcional)</span>
       </label>
       <textarea value={nota} onChange={e => setNota(e.target.value)} maxLength={500} rows={2}
         placeholder="Detalles adicionales…"
-        className="w-full px-3.5 py-2.5 rounded-xl border border-hair bg-white text-ink text-sm resize-none focus:outline-none focus:border-terra transition-all" />
+        className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-white text-on-surface text-sm resize-none focus:outline-none focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/10 transition-all" />
     </div>
   )
 }
@@ -149,7 +111,6 @@ function AjusteModal({
     }
   }, [tab, producto, piezasAjuste.length, loadingPiezas])
 
-  // Kit tab computed
   const delta = deltaStr === '' ? NaN : parseInt(deltaStr, 10)
   const deltaValido = !isNaN(delta) && delta !== 0
   const nuevoStock = producto.stock + delta
@@ -157,7 +118,6 @@ function AjusteModal({
   const motivoFinal = motivo === 'Otro' ? motivoCustom.trim() : motivo
   const motivoPiezasFinal = motivoPiezas === 'Otro' ? motivoPiezasCustom.trim() : motivoPiezas
 
-  // Piezas tab computed
   const piezasConCambio = piezasAjuste.filter(pa => {
     const d = parseInt(pa.deltaStr, 10)
     return pa.deltaStr !== '' && !isNaN(d) && d !== 0 && (pa.pieza.stock_actual + d) >= 0
@@ -214,39 +174,39 @@ function AjusteModal({
       style={{ background: 'rgba(0,0,0,0.4)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-paper rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-hair">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-outline-variant">
         {/* Header */}
-        <div className="px-6 pt-5 pb-4 border-b border-hair">
+        <div className="px-6 pt-5 pb-4 border-b border-outline-variant">
           <div className="flex items-start gap-3">
             <div className={clsx('h-10 w-10 rounded-xl flex items-center justify-center shrink-0',
-              producto.es_kit ? 'bg-terra/10 text-terra' : 'bg-cream-2 text-ink-2')}>
-              {producto.es_kit ? <IcoKit /> : <IcoBox />}
+              producto.es_kit ? 'bg-[#3B82F6]/10 text-[#3B82F6]' : 'bg-surface-container-low text-on-surface-variant')}>
+              <span className="material-symbols-outlined text-[20px]">
+                {producto.es_kit ? 'layers' : 'inventory_2'}
+              </span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-ink truncate">{producto.nombre}</p>
-              <p className="text-[11px] text-muted font-mono">{producto.codigo_universal}</p>
+              <p className="text-sm font-semibold text-on-surface truncate">{producto.nombre}</p>
+              <p className="text-[11px] text-on-surface-variant font-mono">{producto.codigo_universal}</p>
             </div>
-            <button onClick={onClose} className="text-muted hover:text-ink transition-colors p-1">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
+            <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface transition-colors p-1">
+              <span className="material-symbols-outlined text-[18px]">close</span>
             </button>
           </div>
 
           {/* Tabs — only for kits */}
           {producto.es_kit && (
-            <div className="flex gap-1 mt-4 p-1 bg-cream rounded-xl">
+            <div className="flex gap-1 mt-4 p-1 bg-surface-container-low rounded-xl">
               <button
                 onClick={() => setTab('kit')}
                 className={clsx('flex-1 h-8 rounded-lg text-[12px] font-semibold transition-all',
-                  tab === 'kit' ? 'bg-white text-ink shadow-sm border border-hair' : 'text-muted hover:text-ink')}
+                  tab === 'kit' ? 'bg-white text-on-surface shadow-sm border border-outline-variant' : 'text-on-surface-variant hover:text-on-surface')}
               >
                 Kit completo
               </button>
               <button
                 onClick={() => setTab('piezas')}
                 className={clsx('flex-1 h-8 rounded-lg text-[12px] font-semibold transition-all',
-                  tab === 'piezas' ? 'bg-white text-ink shadow-sm border border-hair' : 'text-muted hover:text-ink')}
+                  tab === 'piezas' ? 'bg-white text-on-surface shadow-sm border border-outline-variant' : 'text-on-surface-variant hover:text-on-surface')}
               >
                 Por pieza
               </button>
@@ -259,20 +219,20 @@ function AjusteModal({
           <form onSubmit={handleSubmitKit} className="px-6 py-5 space-y-4">
             {/* Stock preview */}
             <div className="flex items-center gap-3">
-              <div className="flex-1 bg-cream rounded-xl px-4 py-3 text-center border border-hair">
-                <p className="text-[10px] text-muted uppercase tracking-wider mb-1">Actual</p>
-                <p className="text-[28px] font-serif text-ink leading-none">{producto.stock}</p>
-                {producto.es_kit && <p className="text-[10px] text-terra mt-1">kits</p>}
+              <div className="flex-1 bg-surface-container-low rounded-xl px-4 py-3 text-center border border-outline-variant">
+                <p className="text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Actual</p>
+                <p className="text-[28px] font-mono text-on-surface leading-none">{producto.stock}</p>
+                {producto.es_kit && <p className="text-[10px] text-[#3B82F6] mt-1">kits</p>}
               </div>
-              <div className="text-muted">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg>
+              <div className="text-on-surface-variant">
+                <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
               </div>
               <div className={clsx('flex-1 rounded-xl px-4 py-3 text-center border-2 transition-all',
-                !deltaValido || !nuevoStockValido ? 'bg-cream border-hair' :
+                !deltaValido || !nuevoStockValido ? 'bg-surface-container-low border-outline-variant' :
                 delta > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200')}>
-                <p className="text-[10px] text-muted uppercase tracking-wider mb-1">Resultado</p>
-                <p className={clsx('text-[28px] font-serif leading-none',
-                  !deltaValido || !nuevoStockValido ? 'text-muted' :
+                <p className="text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Resultado</p>
+                <p className={clsx('text-[28px] font-mono leading-none',
+                  !deltaValido || !nuevoStockValido ? 'text-on-surface-variant' :
                   delta > 0 ? 'text-emerald-700' : 'text-red-600')}>
                   {deltaValido && nuevoStockValido ? nuevoStock : '—'}
                 </p>
@@ -286,15 +246,15 @@ function AjusteModal({
 
             {/* Delta input */}
             <div>
-              <label className="block text-xs font-semibold text-ink mb-1.5">
-                Ajuste <span className="font-normal text-muted">(usa − para restar, p.ej. −3 o +5)</span>
+              <label className="block text-xs font-semibold text-on-surface mb-1.5">
+                Ajuste <span className="font-normal text-on-surface-variant">(usa − para restar, p.ej. −3 o +5)</span>
               </label>
               <input
                 ref={inputRef}
                 type="number"
                 value={deltaStr}
                 onChange={e => setDeltaStr(e.target.value)}
-                className="w-full h-12 px-4 rounded-xl border border-hair bg-white text-ink text-lg text-center font-semibold focus:outline-none focus:border-terra focus:ring-2 focus:ring-terra/10 transition-all"
+                className="w-full h-12 px-4 rounded-xl border border-outline-variant bg-white text-on-surface text-lg text-center font-semibold focus:outline-none focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/10 transition-all"
                 placeholder="0"
               />
               {deltaValido && !nuevoStockValido && (
@@ -307,11 +267,11 @@ function AjusteModal({
 
             <div className="flex gap-2 pt-1">
               <button type="button" onClick={onClose} disabled={saving}
-                className="flex-1 h-10 rounded-xl border border-hair text-sm font-medium text-muted hover:bg-cream transition-colors disabled:opacity-50">
+                className="flex-1 h-10 rounded-xl border border-outline-variant text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors disabled:opacity-50">
                 Cancelar
               </button>
               <button type="submit" disabled={saving || !nuevoStockValido || !motivoFinal}
-                className="flex-1 h-10 rounded-xl bg-ink text-cream text-sm font-semibold hover:bg-ink/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                className="flex-1 h-10 rounded-xl bg-[#3B82F6] hover:bg-[#2563EB] text-white text-sm font-semibold active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed">
                 {saving ? 'Guardando…' : 'Confirmar ajuste'}
               </button>
             </div>
@@ -323,10 +283,10 @@ function AjusteModal({
           <form onSubmit={handleSubmitPiezas} className="px-6 py-5 space-y-4">
             {loadingPiezas ? (
               <div className="flex items-center justify-center py-10">
-                <div className="h-7 w-7 rounded-full border-2 border-hair border-t-terra animate-spin" />
+                <div className="h-7 w-7 rounded-full border-2 border-outline-variant border-t-[#3B82F6] animate-spin" />
               </div>
             ) : piezasAjuste.length === 0 ? (
-              <p className="text-sm text-muted text-center py-8">Sin piezas registradas</p>
+              <p className="text-sm text-on-surface-variant text-center py-8">Sin piezas registradas</p>
             ) : (
               <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
                 {piezasAjuste.map((pa, idx) => {
@@ -337,29 +297,29 @@ function AjusteModal({
                   return (
                     <div key={pa.pieza.id}
                       className={clsx('flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-colors',
-                        dValido && resultadoValido ? 'border-terra/30 bg-terra/5' :
+                        dValido && resultadoValido ? 'border-[#3B82F6]/30 bg-[#3B82F6]/5' :
                         dValido && !resultadoValido ? 'border-red-200 bg-red-50' :
-                        'border-hair bg-cream/50')}>
+                        'border-outline-variant bg-surface-container-low/50')}>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[12px] font-semibold text-ink truncate">{pa.pieza.nombre}</p>
-                        <p className="text-[10px] text-muted font-mono">{pa.pieza.codigo_universal}</p>
+                        <p className="text-[12px] font-semibold text-on-surface truncate">{pa.pieza.nombre}</p>
+                        <p className="text-[10px] text-on-surface-variant font-mono">{pa.pieza.codigo_universal}</p>
                       </div>
                       <div className="text-right shrink-0 w-12">
-                        <p className="text-[10px] text-muted">actual</p>
-                        <p className="text-sm font-serif text-ink">{pa.pieza.stock_actual}</p>
+                        <p className="text-[10px] text-on-surface-variant">actual</p>
+                        <p className="text-sm font-mono text-on-surface">{pa.pieza.stock_actual}</p>
                       </div>
                       <div className="shrink-0 w-20">
                         <input
                           type="number"
                           value={pa.deltaStr}
                           onChange={e => setPiezasAjuste(prev => prev.map((x, i) => i === idx ? { ...x, deltaStr: e.target.value } : x))}
-                          className="w-full h-8 px-2 rounded-lg border border-hair bg-white text-ink text-sm text-center font-semibold focus:outline-none focus:border-terra transition-all"
+                          className="w-full h-8 px-2 rounded-lg border border-outline-variant bg-white text-on-surface text-sm text-center font-semibold focus:outline-none focus:border-[#3B82F6] transition-all"
                           placeholder="±0"
                         />
                       </div>
                       <div className="shrink-0 w-10 text-right">
                         {dValido && resultadoValido && (
-                          <span className={clsx('text-[12px] font-serif font-semibold',
+                          <span className={clsx('text-[12px] font-mono font-semibold',
                             d > 0 ? 'text-emerald-600' : 'text-red-500')}>
                             {resultado}
                           </span>
@@ -380,12 +340,12 @@ function AjusteModal({
                 <NotaField nota={notaPiezas} setNota={setNotaPiezas} />
                 <div className="flex gap-2 pt-1">
                   <button type="button" onClick={onClose} disabled={saving}
-                    className="flex-1 h-10 rounded-xl border border-hair text-sm font-medium text-muted hover:bg-cream transition-colors disabled:opacity-50">
+                    className="flex-1 h-10 rounded-xl border border-outline-variant text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors disabled:opacity-50">
                     Cancelar
                   </button>
                   <button type="submit"
                     disabled={saving || piezasConCambio.length === 0 || !motivoPiezasFinal}
-                    className="flex-1 h-10 rounded-xl bg-ink text-cream text-sm font-semibold hover:bg-ink/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                    className="flex-1 h-10 rounded-xl bg-[#3B82F6] hover:bg-[#2563EB] text-white text-sm font-semibold active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed">
                     {saving ? 'Guardando…' : `Ajustar${piezasConCambio.length > 0 ? ` (${piezasConCambio.length})` : ''}`}
                   </button>
                 </div>
@@ -451,7 +411,6 @@ export function AjustesPage() {
     if (nuevoStock >= 0) {
       setProductos(prev => prev.map(p => p.id === id ? { ...p, stock: nuevoStock } : p))
     } else {
-      // Per-piece adjustment changed kit stock — reload to get recalculated value
       loadProductos()
     }
   }
@@ -464,70 +423,112 @@ export function AjustesPage() {
 
   return (
     <MainLayout>
-      <div className="relative px-4 sm:px-8 md:px-14 py-5 md:py-9 pb-10 md:pb-20 min-h-screen"
-           style={{ background: 'linear-gradient(180deg, #F4EFE6 0%, #FAF8F5 200px, #FAF8F5 100%)' }}>
+      <div className="bg-[#f9f9ff] min-h-screen font-hanken">
 
-        <AutopartsWatermark />
-
-        <div className="relative z-[1]">
-
-          {/* ── Breadcrumb ── */}
-          <div className="flex items-center gap-1.5 text-[12.5px] text-muted tracking-[0.02em] mb-9">
+        {/* ── Topbar ── */}
+        <header className="bg-[#f9f9ff] sticky top-0 z-40 flex items-center w-full h-16 px-6 border-b border-outline-variant">
+          <div className="flex items-center gap-2 text-sm text-on-surface-variant">
             <span>Operaciones</span>
-            <span className="opacity-50">/</span>
+            <span className="text-[10px] opacity-40">/</span>
             <span>Inventario</span>
-            <span className="opacity-50">/</span>
-            <span className="text-ink">Ajustes</span>
+            <span className="text-[10px] opacity-40">/</span>
+            <span className="text-primary font-bold">Ajustes</span>
           </div>
+        </header>
 
-          {/* ── Header ── */}
-          <div className="mb-7 md:mb-10">
-            <h1 className="font-serif text-[44px] md:text-[72px] leading-[0.95] tracking-[-0.025em] m-0 mb-2.5 text-ink">
-              Ajustes<em className="italic text-terra">.</em>
-            </h1>
-            <p className="text-base text-muted max-w-[480px]">
+        <div className="px-6 py-6 max-w-[1400px] mx-auto">
+
+          {/* ── Page Header ── */}
+          <div className="mb-8">
+            <h2 className="text-headline-lg text-on-surface mb-1">Ajustes.</h2>
+            <p className="text-sm text-on-surface-variant/80">
               Corrección manual de stock por conteo físico, mermas o importaciones. Cada ajuste queda registrado con motivo.
             </p>
           </div>
 
-          {/* ── Metrics ── */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-5 mb-7 md:mb-11">
-            <WarmMetric
-              label="Total productos"
-              value={kpi.total.toLocaleString('es-BO')}
-              icon={<IcoBox />}
-              sublabel="en catálogo"
-            />
-            <WarmMetric
-              label="Stock crítico"
-              value={kpi.stockBajo}
-              icon={<IcoAlert />}
-              tone={kpi.stockBajo > 0 ? 'crit' : undefined}
-              sublabel="bajo mínimo"
-            />
-            <WarmMetric
-              label="Kits"
-              value={kpi.kits}
-              icon={<IcoLayers />}
-              sublabel="productos kit"
-            />
+          {/* ── KPI Cards ── */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter mb-8">
+
+            {/* Total productos */}
+            <div className="bg-white border border-outline-variant border-l-[4px] border-l-[#3B82F6] p-card-padding flex flex-col justify-between h-32 rounded-xl">
+              <div className="flex justify-between items-start">
+                <span className="text-[11px] font-bold text-[#3B82F6] uppercase tracking-widest">Total productos</span>
+                <div className="p-1.5 bg-[#3B82F6] rounded">
+                  <span className="material-symbols-outlined text-[18px] text-white">inventory_2</span>
+                </div>
+              </div>
+              <div>
+                <div className="font-mono text-[28px] text-on-surface leading-none mb-1">
+                  {kpi.total.toLocaleString('es-BO')}
+                </div>
+                <div className="text-[11px] text-on-surface-variant/70">en catálogo</div>
+              </div>
+            </div>
+
+            {/* Stock crítico */}
+            <div className={clsx(
+              'border border-l-[4px] p-card-padding flex flex-col justify-between h-32 rounded-xl',
+              kpi.stockBajo > 0
+                ? 'bg-[#EF4444]/5 border-[#EF4444]/30 border-l-[#EF4444]'
+                : 'bg-white border-outline-variant border-l-[#3B82F6]'
+            )}>
+              <div className="flex justify-between items-start">
+                <span className={clsx('text-[11px] font-bold uppercase tracking-widest',
+                  kpi.stockBajo > 0 ? 'text-[#EF4444]' : 'text-[#3B82F6]')}>
+                  Stock crítico
+                </span>
+                <div className={clsx('p-1.5 rounded', kpi.stockBajo > 0 ? 'bg-[#EF4444]' : 'bg-[#3B82F6]')}>
+                  <span className="material-symbols-outlined text-[18px] text-white">warning</span>
+                </div>
+              </div>
+              <div>
+                <div className={clsx('font-mono text-[28px] leading-none mb-1',
+                  kpi.stockBajo > 0 ? 'text-[#EF4444]' : 'text-on-surface')}>
+                  {kpi.stockBajo}
+                </div>
+                <div className={clsx('text-[11px] font-medium',
+                  kpi.stockBajo > 0 ? 'text-[#EF4444]' : 'text-on-surface-variant/70')}>
+                  {kpi.stockBajo > 0 ? 'requiere atención' : 'bajo mínimo'}
+                </div>
+              </div>
+            </div>
+
+            {/* Kits */}
+            <div className="bg-white border border-outline-variant border-l-[4px] border-l-[#047857] p-card-padding flex flex-col justify-between h-32 rounded-xl">
+              <div className="flex justify-between items-start">
+                <span className="text-[11px] font-bold text-[#047857] uppercase tracking-widest">Kits</span>
+                <div className="p-1.5 bg-[#047857] rounded">
+                  <span className="material-symbols-outlined text-[18px] text-white">layers</span>
+                </div>
+              </div>
+              <div>
+                <div className="font-mono text-[28px] text-on-surface leading-none mb-1">
+                  {kpi.kits.toLocaleString('es-BO')}
+                </div>
+                <div className="text-[11px] text-on-surface-variant/70">productos kit</div>
+              </div>
+            </div>
+
           </div>
 
-          {/* ── Table card ── */}
-          <div className="rounded-[18px] border border-hair overflow-hidden"
-               style={{ background: 'rgba(255,255,255,0.86)', backdropFilter: 'blur(2px)' }}>
+          {/* ── Table Container ── */}
+          <div className="bg-white border border-outline-variant overflow-hidden relative rounded-xl">
 
             {/* Toolbar */}
-            <div className="flex items-center gap-3.5 px-4 md:px-7 py-4 md:py-[22px] border-b border-hair flex-wrap">
-              <div>
-                <span className="font-serif text-[28px] leading-[1] tracking-[-0.01em] text-ink">Productos</span>
-                <span className="text-base text-muted ml-2.5 font-normal">{filtered.length}</span>
-              </div>
-              <div className="ml-auto flex items-center gap-2 flex-wrap">
-                <div className="h-10 flex items-center gap-2.5 px-3.5 border border-hair rounded-[10px] bg-cream min-w-0 sm:min-w-[260px] md:min-w-[300px] transition-colors focus-within:border-terra focus-within:bg-paper">
-                  <IcoSearch />
+            <div className="px-6 py-4 border-b border-outline-variant flex flex-wrap justify-between items-center gap-4 bg-white">
+              <h3 className="text-headline-sm text-on-surface">
+                Productos
+                <span className="text-sm font-normal text-on-surface-variant/50 ml-2">
+                  {filtered.length} resultados
+                </span>
+              </h3>
+              <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+                <div className="relative w-full sm:w-auto sm:min-w-[300px]">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40 text-[20px]">
+                    search
+                  </span>
                   <input
-                    className="flex-1 min-w-0 bg-transparent border-none outline-none text-sm text-ink placeholder-muted-2"
+                    className="w-full pl-10 pr-4 py-2 border border-outline-variant rounded bg-surface-container-lowest text-sm focus:ring-0 focus:border-[#3B82F6] outline-none transition-all text-on-surface placeholder:text-on-surface-variant/40"
                     placeholder="Buscar por nombre, código o marca…"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
@@ -538,8 +539,10 @@ export function AjustesPage() {
                     <button
                       key={f}
                       onClick={() => setFiltro(f)}
-                      className={clsx('px-3 h-10 rounded-[10px] text-xs font-medium border transition-all',
-                        filtro === f ? 'bg-ink text-cream border-ink' : 'bg-cream text-muted border-hair hover:border-hair-2 hover:text-ink')}
+                      className={clsx('px-3 h-9 rounded text-xs font-medium border transition-all',
+                        filtro === f
+                          ? 'bg-[#3B82F6] text-white border-[#3B82F6]'
+                          : 'bg-white text-on-surface-variant border-outline-variant hover:bg-surface-container')}
                     >
                       {f === 'todos' ? 'Todos' : f === 'bajo' ? `Bajo mínimo${kpi.stockBajo > 0 ? ` (${kpi.stockBajo})` : ''}` : 'Kits'}
                     </button>
@@ -551,62 +554,77 @@ export function AjustesPage() {
             {/* Table content */}
             {loading ? (
               <div className="flex items-center justify-center py-20">
-                <div className="h-8 w-8 rounded-full border-2 border-hair border-t-terra animate-spin" />
+                <div className="h-8 w-8 rounded-full border-2 border-outline-variant border-t-[#3B82F6] animate-spin" />
               </div>
             ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="text-muted"><IcoBox /></div>
-                <p className="text-muted text-sm mt-3">Sin productos</p>
+              <div className="flex flex-col items-center justify-center py-16 px-5 text-center">
+                <div className="w-12 h-12 rounded bg-surface-container-low border border-outline-variant flex items-center justify-center mb-4">
+                  <span className="material-symbols-outlined text-on-surface-variant/30 text-2xl">inventory_2</span>
+                </div>
+                <p className="text-sm font-semibold text-on-surface mb-1">Sin productos</p>
+                <p className="text-xs text-on-surface-variant/60 max-w-xs">
+                  No hay productos que coincidan con la búsqueda o filtro seleccionado.
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-hair" style={{ background: 'rgba(250,248,245,0.7)' }}>
-                      <th className="text-left px-7 py-4 text-[11.5px] font-semibold text-muted uppercase tracking-[0.1em]">Producto</th>
-                      <th className="text-left px-4 py-4 text-[11.5px] font-semibold text-muted uppercase tracking-[0.1em] hidden md:table-cell">Ubicación</th>
-                      <th className="text-right px-4 py-4 text-[11.5px] font-semibold text-muted uppercase tracking-[0.1em]">Mín.</th>
-                      <th className="text-right px-4 py-4 text-[11.5px] font-semibold text-muted uppercase tracking-[0.1em]">Stock</th>
+                  <thead className="bg-surface-container-low/50">
+                    <tr className="border-b border-outline-variant">
+                      <th className="text-left px-6 py-3 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Producto</th>
+                      <th className="text-left px-4 py-3 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider hidden md:table-cell">Ubicación</th>
+                      <th className="text-right px-4 py-3 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Mín.</th>
+                      <th className="text-right px-4 py-3 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Stock</th>
                       <th className="w-28 px-4" />
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-hair/50">
-                    {filtered.map(p => {
+                  <tbody className="divide-y divide-outline-variant">
+                    {filtered.map((p, idx) => {
                       const bajo = p.stock <= p.stock_minimo
                       return (
                         <tr
                           key={p.id}
-                          className="hover:bg-cream/60 transition-colors cursor-pointer group"
+                          className={clsx(
+                            'transition-colors cursor-pointer hover:bg-surface-container-lowest',
+                            idx % 2 !== 0 && 'bg-surface-container-low/20',
+                          )}
                           onClick={() => setSeleccionado(p)}
                         >
-                          <td className="px-7 py-3.5">
+                          <td className="px-6 py-3.5">
                             <div className="flex items-center gap-2.5">
                               <div className={clsx('h-8 w-8 rounded-lg flex items-center justify-center shrink-0',
-                                p.es_kit ? 'bg-terra/10 text-terra' : 'bg-cream-2 text-ink-2')}>
-                                {p.es_kit ? <IcoKit /> : <IcoBox />}
+                                p.es_kit ? 'bg-[#3B82F6]/10 text-[#3B82F6]' : 'bg-surface-container-low text-on-surface-variant')}>
+                                <span className="material-symbols-outlined text-[16px]">
+                                  {p.es_kit ? 'layers' : 'inventory_2'}
+                                </span>
                               </div>
                               <div className="min-w-0">
-                                <p className="font-medium text-ink truncate max-w-[220px]">{p.nombre}</p>
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                  <span className="text-[11px] font-mono text-muted">{p.codigo_universal}</span>
-                                  {p.marca && <span className="text-[11px] text-muted">· {p.marca}</span>}
-                                  {p.es_kit && <span className="text-[10px] bg-terra/10 text-terra font-semibold px-1.5 py-0.5 rounded-full">Kit</span>}
+                                <p className="font-medium text-on-surface truncate max-w-[220px]">{p.nombre}</p>
+                                <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 mt-0.5">
+                                  <span className="text-[11px] font-mono text-on-surface-variant">{p.codigo_universal}</span>
+                                  {p.codigos_alternativos?.filter(Boolean).map((c, i) => (
+                                    <span key={i} className="text-[11px] font-mono text-on-surface-variant/50">{c}</span>
+                                  ))}
+                                  {p.marca && <span className="text-[11px] text-on-surface-variant">· {p.marca}</span>}
+                                  {p.es_kit && (
+                                    <span className="text-[9px] bg-[#3B82F6]/10 text-[#3B82F6] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide">Kit</span>
+                                  )}
                                 </div>
                               </div>
                             </div>
                           </td>
                           <td className="px-4 py-3.5 hidden md:table-cell">
-                            <p className="text-[12px] text-muted">
+                            <p className="text-[12px] text-on-surface-variant">
                               {[p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / ') || '—'}
                             </p>
                           </td>
                           <td className="px-4 py-3.5 text-right">
-                            <span className="text-sm text-muted tabular-nums">{p.stock_minimo}</span>
+                            <span className="text-sm text-on-surface-variant tabular-nums">{p.stock_minimo}</span>
                           </td>
                           <td className="px-4 py-3.5 text-right">
-                            <span className={clsx('font-serif text-[22px] leading-none tabular-nums',
-                              p.stock === 0 ? 'text-red-600' :
-                              bajo ? 'text-amber-600' : 'text-ink')}>
+                            <span className={clsx('font-mono text-[22px] leading-none tabular-nums',
+                              p.stock === 0 ? 'text-[#EF4444]' :
+                              bajo ? 'text-amber-600' : 'text-on-surface')}>
                               {p.stock}
                             </span>
                             {bajo && (
@@ -616,7 +634,7 @@ export function AjustesPage() {
                           <td className="px-4 py-3.5 text-right">
                             <button
                               onClick={e => { e.stopPropagation(); setSeleccionado(p) }}
-                              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cream text-muted hover:bg-ink hover:text-cream opacity-0 group-hover:opacity-100 transition-all border border-hair"
+                              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors"
                             >
                               Ajustar
                             </button>

@@ -33,10 +33,14 @@ export function FormSection({ icon, title, description, extra, children, collaps
           {icon}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[12.5px] font-semibold text-ink-2">{title}</p>
-          {description && <p className="text-[11px] text-muted-2 leading-tight">{description}</p>}
+          <div className="flex items-start justify-between gap-2 flex-wrap">
+            <div className="min-w-0">
+              <p className="text-[12.5px] font-semibold text-ink-2">{title}</p>
+              {description && <p className="text-[11px] text-muted-2 leading-tight">{description}</p>}
+            </div>
+            {extra && <div className="flex-shrink-0">{extra}</div>}
+          </div>
         </div>
-        {extra && <div className="flex-shrink-0">{extra}</div>}
         {collapsible && (
           <svg
             className={clsx('h-4 w-4 text-muted-2 transition-transform flex-shrink-0', isOpen && 'rotate-90')}

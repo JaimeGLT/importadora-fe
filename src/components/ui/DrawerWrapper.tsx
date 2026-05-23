@@ -48,10 +48,10 @@ export function DrawerWrapper({ open, onClose, subtitle, title, sku, children, f
         >
           <div>
             <div className="text-[10.5px] uppercase tracking-[0.12em] text-muted font-semibold mb-1.5">{subtitle}</div>
-            <h2 className="font-serif text-[30px] sm:text-[36px] leading-[1.05] tracking-[-0.02em] m-0 mb-1 text-ink">{title}</h2>
             {sku && (
-              <div className="font-mono text-[13px] font-bold tracking-[0.06em] text-ink">{sku}</div>
+              <h2 className="font-mono text-[30px] sm:text-[36px] leading-[1.05] tracking-[-0.02em] m-0 mb-1 text-ink">{sku}</h2>
             )}
+            <div className="text-[13px] font-bold tracking-[0.06em] text-ink">{title}</div>
           </div>
           <button
             onClick={onClose}

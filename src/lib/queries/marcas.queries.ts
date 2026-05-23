@@ -5,8 +5,8 @@ export interface DtoMarca {
 }
 
 export const MARCAS_QUERY = `
-  query Marcas {
-    marca(order: { nombre: ASC }) {
+  query Marcas($where: MarcaFilterInput) {
+    marca(order: { nombre: ASC }, where: $where) {
       nodes {
         id
         nombre

@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useMemo } from 'react'
 import type * as XLSXType from 'xlsx'
 import { Modal, Button, ExcelColumnMapper } from '@/components/ui'
 import { imprimirLote } from '@/lib/printLabel'
-import type { Producto } from '@/types'
+import type { Producto, Marca } from '@/types'
 import { clsx } from 'clsx'
 import { api } from '@/lib/api'
 import { useMarcasStore } from '@/stores/marcasStore'
@@ -199,6 +199,7 @@ interface ImportarExcelModalProps {
   onClose: () => void
   onImport: (results: ImportResult[]) => Promise<void>
   productosExistentes: Producto[]
+  marcas: Marca[]
 }
 
 async function resolveMarcaId(
@@ -215,14 +216,13 @@ async function resolveMarcaId(
   return res.id
 }
 
-export function ImportarExcelModal({ open, onClose, onImport, productosExistentes }: ImportarExcelModalProps) {
-  const { marcas, addMarca } = useMarcasStore()
+export function ImportarExcelModal({ open, onClose, onImport, productosExistentes, marcas }: ImportarExcelModalProps) {
+  const { addMarca } = useMarcasStore()
   const [step, setStep]               = useState<Step>('upload')
   const [excelCols, setExcelCols]     = useState<string[]>([])
   const [rawRows, setRawRows]         = useState<Record<string, unknown>[]>([])
   const [fileName, setFileName]       = useState('')
   const [mappings, setMappings]       = useState<FieldMappings>({})
-  const [parsed, setParsed]           = useState<(ProductoImportado | null)[]>([])
   const [, setPreviewActions] = useState<Record<string, ImportAction>>({})
   const [tipoCambio, setTipoCambio]   = useState('6.96')
   const [usarTipoCambioGlobal, setUsarTipoCambioGlobal] = useState(true)
@@ -234,38 +234,50 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
   const [printing, setPrinting]       = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  const parsed = useMemo<(ProductoImportado | null)[]>(() => {
+    if (rawRows.length === 0) return []
+    const tc = usarTipoCambioGlobal ? (parseFloat(tipoCambio) || 6.96) : 0
+    return rawRows.map((row) => parseRow(row, mappings, tc))
+  }, [rawRows, mappings, tipoCambio, usarTipoCambioGlobal])
+
   const tieneTipoCambioEnExcel = useMemo(() => {
     return (mappings['tipo_cambio']?.columns.length ?? 0) > 0
   }, [mappings])
 
-  // Mapa de códigos existentes para búsqueda rápida
+  const excelKey = (codigo: string, marca: string) => `${codigo}|${marca.toLowerCase().trim()}`
+
+  // Mapa de códigos existentes para búsqueda rápida — clave compuesta codigo|marca
   const codigosMap = useMemo(() => {
     const map = new Map<string, Producto>()
     productosExistentes.forEach((p) => {
-      map.set(p.codigo_universal, p)
+      const marcaNombre = (marcas.find((m) => m.id === p.marcaId)?.nombre ?? '').toLowerCase().trim()
+      const makeKey = (code: string) => excelKey(code, marcaNombre)
+      map.set(makeKey(p.codigo_universal), p)
       p.codigos_alternativos.forEach((code) => {
-        if (code) map.set(code, p)
+        if (code) map.set(makeKey(code), p)
       })
     })
     return map
-  }, [productosExistentes])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productosExistentes, marcas])
 
   // Detectar duplicados cuando se parsean los productos
   const duplicates = useMemo(() => {
     const dupMap = new Map<string, { existing: Producto; parsed: ProductoImportado }>()
     parsed.forEach((p) => {
       if (!p) return
-      const existing = codigosMap.get(p.codigo_universal)
+      const existing = codigosMap.get(excelKey(p.codigo_universal, p.marca ?? ''))
       if (existing) {
         dupMap.set(p.codigo_universal, { existing, parsed: p })
       }
     })
     return dupMap
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsed, codigosMap])
 
   const reset = () => {
     setStep('upload'); setExcelCols([]); setRawRows([])
-    setFileName(''); setMappings({}); setParsed([])
+    setFileName(''); setMappings({})
     setPreviewActions({}); setImportados([]); setLabelConfig({})
     setTipoCambio('6.96')
     setUsarTipoCambioGlobal(true)
@@ -326,15 +338,10 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
   }
 
   const handleGoToPreview = () => {
-    const tc = usarTipoCambioGlobal ? (parseFloat(tipoCambio) || 6.96) : 0
-    const parsedData = rawRows.map((row) => parseRow(row, mappings, tc))
-    setParsed(parsedData)
-    // Inicializar acciones: 'update' para duplicados (ya existen en inventario),
-    // 'create' para productos nuevos
     const actions: Record<string, ImportAction> = {}
-    parsedData.forEach((p) => {
+    parsed.forEach((p) => {
       if (p) {
-        const exists = codigosMap.has(p.codigo_universal)
+        const exists = codigosMap.has(excelKey(p.codigo_universal, p.marca ?? ''))
         actions[p.codigo_universal] = exists ? 'update' : 'create'
       }
     })
@@ -355,7 +362,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
     const results: ImportResult[] = parsed
       .filter((p): p is ProductoImportado => p !== null)
       .map((p) => {
-        const existing = codigosMap.get(p.codigo_universal)
+        const existing = codigosMap.get(excelKey(p.codigo_universal, p.marca ?? ''))
         const action: ImportAction = existing ? 'update' : 'create'
         const tcFromExcel = p.conversionABs ?? 0
         const tc = usarTipoCambioGlobal
@@ -589,7 +596,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
                 <div
                   key={p.codigo_universal}
                   className={clsx(
-                    'flex items-center gap-3 px-3 py-2.5 transition-colors',
+                    'flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5 transition-colors',
                     cfg.selected ? 'bg-brand-50/30' : 'bg-white',
                   )}
                 >
@@ -610,8 +617,8 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
                     </div>
                   </div>
 
-                  {/* Selector de copias */}
-                  <div className="flex items-center gap-1 shrink-0">
+                  {/* Selector de copias — fila propia en móvil */}
+                  <div className="flex items-center gap-1 w-full sm:w-auto pl-7 sm:pl-0">
                     <button
                       onClick={() => setCopias(p.codigo_universal, cfg.copias - 1)}
                       disabled={!cfg.selected}
@@ -808,7 +815,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
                     )
                   }
 
-                  const existing = codigosMap.get(row.codigo_universal)
+                  const existing = codigosMap.get(excelKey(row.codigo_universal, row.marca ?? ''))
                   const isDuplicate = !!existing
 
                   return (
