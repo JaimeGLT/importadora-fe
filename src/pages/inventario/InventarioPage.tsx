@@ -40,32 +40,36 @@ declare module '@tanstack/react-table' {
   }
 }
 
-// ─── Stock badge MD3 ──────────────────────────────────────────────────────────
+// ─── Status badge ─────────────────────────────────────────────────────────────
 
 function StockBadgeMd3({ stock, stockMinimo }: { stock: number; stockMinimo: number }) {
   if (stock === 0) {
     return (
-      <span className="px-2 py-0.5 rounded-full bg-error text-white text-[10px] font-bold tracking-wide">
+      <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-[#fee2e2] text-[#dc2626]">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#dc2626] shrink-0" />
         Sin stock
       </span>
     )
   }
   if (stock <= stockMinimo) {
     return (
-      <span className="px-2 py-0.5 rounded-full bg-error/80 text-white text-[10px] font-bold tracking-wide">
+      <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-[#fee2e2] text-[#dc2626]">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#dc2626] shrink-0" />
         Stock bajo
       </span>
     )
   }
   if (stock <= stockMinimo * 2) {
     return (
-      <span className="px-2 py-0.5 rounded-full bg-[#F59E0B] text-white text-[10px] font-bold tracking-wide">
+      <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-[#fff7ed] text-[#ea580c]">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#ea580c] shrink-0" />
         Limitado
       </span>
     )
   }
   return (
-    <span className="px-2 py-0.5 rounded-full bg-[#3B82F6] text-white text-[10px] font-bold tracking-wide">
+    <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-[#d1fae5] text-[#059669]">
+      <span className="w-1.5 h-1.5 rounded-full bg-[#059669] shrink-0" />
       En stock
     </span>
   )
@@ -79,13 +83,13 @@ function ProductThumb({ src, nombre }: { src?: string; nombre: string }) {
     return (
       <img
         src={src} alt={nombre} onError={() => setErr(true)}
-        className="w-12 h-12 rounded border border-outline-variant object-cover"
+        className="w-[42px] h-[42px] rounded-xl border-[1.5px] border-[#e2e8f0] object-cover"
       />
     )
   }
   return (
-    <div className="w-12 h-12 bg-surface-container-low rounded border border-outline-variant flex items-center justify-center">
-      <span className="material-symbols-outlined text-on-surface-variant/30 text-xl">image</span>
+    <div className="w-[42px] h-[42px] bg-[#f1f5f9] rounded-xl border-[1.5px] border-[#e2e8f0] flex items-center justify-center">
+      <i className="ti ti-photo text-[#9996b0] text-[18px]" />
     </div>
   )
 }
@@ -94,20 +98,20 @@ function ProductThumb({ src, nombre }: { src?: string; nombre: string }) {
 
 function TableSkeleton() {
   return (
-    <div className="divide-y divide-outline-variant">
+    <div className="divide-y divide-[#e2e8f0]">
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 px-6 py-3 animate-pulse">
-          <div className="w-12 h-12 rounded bg-surface-container-low shrink-0" />
+        <div key={i} className="flex items-center gap-4 px-5 py-3.5 animate-pulse">
+          <div className="w-[42px] h-[42px] rounded-xl bg-[#f1f5f9] shrink-0" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-3 w-28 rounded bg-surface-container-low" />
-            <div className="h-2.5 w-40 rounded bg-surface-container" />
+            <div className="h-3 w-28 rounded bg-[#f1f5f9]" />
+            <div className="h-2.5 w-40 rounded bg-[#e2e8f0]" />
           </div>
-          <div className="h-2.5 w-20 rounded bg-surface-container-low" />
-          <div className="h-5 w-20 rounded-full bg-surface-container-low" />
-          <div className="h-2.5 w-20 rounded bg-surface-container-low" />
-          <div className="h-2.5 w-16 rounded bg-surface-container" />
-          <div className="flex gap-1">
-            {[0, 1, 2].map(j => <div key={j} className="h-8 w-8 rounded bg-surface-container-low" />)}
+          <div className="h-2.5 w-20 rounded bg-[#f1f5f9]" />
+          <div className="h-5 w-20 rounded-full bg-[#f1f5f9]" />
+          <div className="h-2.5 w-20 rounded bg-[#f1f5f9]" />
+          <div className="h-2.5 w-16 rounded bg-[#e2e8f0]" />
+          <div className="flex gap-1.5">
+            {[0, 1, 2].map(j => <div key={j} className="h-8 w-8 rounded-[10px] bg-[#f1f5f9]" />)}
           </div>
         </div>
       ))}
@@ -120,21 +124,21 @@ function TableSkeleton() {
 function EmptyState({ onNew, searching }: { onNew: () => void; searching: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-5 text-center">
-      <div className="w-12 h-12 rounded bg-surface-container-low border border-outline-variant flex items-center justify-center mb-4">
-        <span className="material-symbols-outlined text-on-surface-variant/30 text-2xl">inventory_2</span>
+      <div className="w-12 h-12 rounded-xl bg-white border-[1.5px] border-[#e2e8f0] flex items-center justify-center mb-4">
+        <i className="ti ti-package text-[#9996b0] text-xl" />
       </div>
-      <p className="text-sm font-semibold text-on-surface mb-1">
+      <p className="text-sm font-bold text-[#1e1b2e] mb-1">
         {searching ? 'Sin resultados' : 'Sin productos'}
       </p>
-      <p className="text-xs text-on-surface-variant/60 max-w-xs mb-5">
+      <p className="text-xs text-[#9996b0] font-semibold max-w-xs mb-5">
         {searching
           ? 'No hay productos que coincidan con esta búsqueda.'
           : 'Agrega tu primer producto o importa desde Excel.'}
       </p>
       {!searching && (
         <button onClick={onNew}
-          className="px-5 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-full flex items-center gap-2 text-sm font-semibold transition-all shadow-sm">
-          <span className="material-symbols-outlined text-lg">add</span>
+          className="px-5 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white rounded-xl flex items-center gap-2 text-sm font-bold transition-all shadow-md">
+          <i className="ti ti-plus text-base" />
           Nuevo producto
         </button>
       )}
@@ -148,46 +152,46 @@ function MobileProductRow({ p, marcaNombre, onTap }: { p: Producto; marcaNombre:
   return (
     <div
       className={clsx(
-        'flex items-center gap-3 px-4 py-3 border-b border-outline-variant last:border-0 active:bg-surface-container-low transition-colors cursor-pointer',
-        p.es_kit && 'border-l-[3px] border-l-[#3B82F6]',
+        'flex items-center gap-3 px-4 py-3 border-b border-[#e2e8f0] last:border-0 active:bg-[#f1f5f9] transition-colors cursor-pointer',
+        p.es_kit && 'border-l-[3px] border-l-[#1d4ed8]',
       )}
       onClick={onTap}
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
       <ProductThumb src={p.imagen} nombre={p.nombre} />
       <div className="flex-1 min-w-0">
-        <div className="font-mono font-bold text-[13px] text-on-surface tracking-[0.05em] leading-tight">
+        <div className="font-mono font-bold text-[13px] text-[#1e1b2e] tracking-[0.05em] leading-tight">
           {p.codigo_universal}
         </div>
-        <div className="text-[11.5px] text-on-surface-variant/60 truncate leading-tight mt-0.5">{p.nombre}</div>
+        <div className="text-[11.5px] text-[#9996b0] font-semibold truncate leading-tight mt-0.5">{p.nombre}</div>
         {marcaNombre && (
-          <div className="text-[10.5px] text-on-surface-variant/50 mt-0.5">{marcaNombre}</div>
+          <div className="text-[10.5px] text-[#9996b0] mt-0.5">{marcaNombre}</div>
         )}
       </div>
       <div className="flex flex-col items-end gap-1.5 shrink-0">
         <StockBadgeMd3 stock={p.stock} stockMinimo={p.stock_minimo} />
-        <span className="font-mono text-[12px] font-semibold text-on-surface">
+        <span className="font-mono text-[12px] font-bold text-[#1e1b2e]">
           Bs. {p.precio_venta.toFixed(2)}
         </span>
       </div>
-      <span className="material-symbols-outlined text-on-surface-variant/30 text-lg ml-1">chevron_right</span>
+      <i className="ti ti-chevron-right text-[#9996b0] text-lg ml-1" />
     </div>
   )
 }
 
 function MobileSkeletonRows() {
   return (
-    <div className="divide-y divide-outline-variant">
+    <div className="divide-y divide-[#e2e8f0]">
       {Array.from({ length: 7 }).map((_, i) => (
         <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
-          <div className="w-12 h-12 rounded bg-surface-container-low shrink-0" />
+          <div className="w-[42px] h-[42px] rounded-xl bg-[#f1f5f9] shrink-0" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-3 w-24 rounded bg-surface-container-low" />
-            <div className="h-2.5 w-36 rounded bg-surface-container" />
+            <div className="h-3 w-24 rounded bg-[#f1f5f9]" />
+            <div className="h-2.5 w-36 rounded bg-[#e2e8f0]" />
           </div>
           <div className="flex flex-col items-end gap-1.5 shrink-0">
-            <div className="h-5 w-16 rounded-full bg-surface-container-low" />
-            <div className="h-2.5 w-14 rounded bg-surface-container" />
+            <div className="h-5 w-16 rounded-full bg-[#f1f5f9]" />
+            <div className="h-2.5 w-14 rounded bg-[#e2e8f0]" />
           </div>
         </div>
       ))}
@@ -396,8 +400,8 @@ export function InventarioPage() {
   const columns = useMemo(() => [
     colHelper.display({
       id: 'imagen',
-      header: 'Foto',
-      size: 68,
+      header: '',
+      size: 60,
       meta: { align: 'center' },
       enableSorting: false,
       cell: (info) => (
@@ -412,12 +416,12 @@ export function InventarioPage() {
         const p = info.row.original
         return (
           <div>
-            <div className="font-label-mono font-bold text-[15px] text-on-surface tracking-[0.05em] leading-tight">
+            <div className="font-mono font-bold text-[15px] text-[#1e1b2e] tracking-[0.05em] leading-tight">
               {p.codigo_universal || '—'}
             </div>
-            <div className="text-xs text-on-surface-variant/60 truncate max-w-[180px] mt-0.5">{p.nombre}</div>
+            <div className="text-xs text-[#9996b0] font-medium truncate max-w-[180px] mt-0.5">{p.nombre}</div>
             {p.es_kit && (
-              <span className="text-[9px] font-bold text-tertiary uppercase tracking-wider">Kit</span>
+              <span className="text-[9px] font-bold text-[#1d4ed8] uppercase tracking-wider">Kit</span>
             )}
           </div>
         )
@@ -433,12 +437,12 @@ export function InventarioPage() {
         const nombre = getMarcaNombre(p.marcaId, marcas)
         return (
           <div>
-            <div className="flex items-center gap-1.5 mb-1">
-              <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
-              <span className="text-xs font-medium text-on-surface">{nombre || '—'}</span>
+            <div className="inline-flex items-center gap-1.5 bg-[#dbeafe] text-[#1d4ed8] text-xs font-bold px-2.5 py-0.5 rounded-full mb-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#1d4ed8] shrink-0" />
+              {nombre || '—'}
             </div>
-            <div className="text-[10px] text-on-surface-variant/60 flex items-center gap-0.5">
-              <span className="material-symbols-outlined text-[10px]">location_on</span>
+            <div className="text-[10px] text-[#9996b0] font-medium flex items-center gap-1">
+              <i className="ti ti-map-pin text-[10px]" />
               <span>{p.almacen} {p.estante} {p.fila} {p.columna}</span>
             </div>
           </div>
@@ -454,16 +458,21 @@ export function InventarioPage() {
         const pct = Math.min(100, p.stock_minimo > 0
           ? (p.stock / (p.stock_minimo * 4)) * 100
           : p.stock > 0 ? 50 : 0)
-        const barColor = p.stock === 0 || p.stock <= p.stock_minimo
-          ? 'bg-[#EF4444]'
-          : p.stock <= p.stock_minimo * 2
-            ? 'bg-[#F59E0B]'
-            : 'bg-[#3B82F6]'
+        const isOk   = p.stock > p.stock_minimo * 2
+        const isWarn = p.stock > p.stock_minimo && p.stock <= p.stock_minimo * 2
         return (
           <div>
-            <div className="font-label-mono text-sm text-on-surface mb-1">{p.stock.toLocaleString('es-BO')}</div>
-            <div className="w-14 h-1.5 bg-surface-container-low rounded-full overflow-hidden">
-              <div className={clsx('h-full rounded-full transition-all', barColor)} style={{ width: `${pct}%` }} />
+            <div className="font-mono font-black text-[15px] text-[#1e1b2e] leading-none">{p.stock.toLocaleString('es-BO')}</div>
+            <div className="w-[60px] h-[5px] bg-[#e2e8f0] rounded-full overflow-hidden mt-1.5">
+              <div
+                className={clsx(
+                  'h-full rounded-full',
+                  isOk ? 'bg-gradient-to-r from-[#059669] to-[#0284c7]'
+                  : isWarn ? 'bg-gradient-to-r from-[#ea580c] to-[#f59e0b]'
+                  : 'bg-gradient-to-r from-[#ea580c] to-[#f97316]'
+                )}
+                style={{ width: `${pct}%` }}
+              />
             </div>
           </div>
         )
@@ -472,7 +481,7 @@ export function InventarioPage() {
     colHelper.display({
       id: 'estado',
       header: 'Estado',
-      size: 110,
+      size: 120,
       meta: { align: 'left' },
       enableSorting: false,
       cell: (info) => {
@@ -486,14 +495,14 @@ export function InventarioPage() {
       meta: { align: 'left' },
       cell: (info) => (
         <div>
-          <div className="font-label-mono text-sm text-on-surface">Bs. {info.getValue().toFixed(2)}</div>
-          <div className="text-[10px] text-on-surface-variant/40">PVP Unitario</div>
+          <div className="font-mono font-bold text-[13px] text-[#1e1b2e]">Bs. {info.getValue().toFixed(2)}</div>
+          <div className="text-[11px] text-[#9996b0] font-medium mt-0.5">PVP Unitario</div>
         </div>
       ),
     }),
     colHelper.accessor('precio_costo', {
-      header: 'P. Costo',
-      size: 130,
+      header: 'P. Costo / Margen',
+      size: 150,
       meta: { align: 'left' },
       cell: (info) => {
         const sale = info.row.original.precio_venta
@@ -501,9 +510,16 @@ export function InventarioPage() {
         const margen = sale > 0 && cost > 0 ? Math.round(((sale - cost) / sale) * 100) : null
         return (
           <div>
-            <div className="font-label-mono text-xs text-on-surface-variant">Bs. {cost.toFixed(2)}</div>
+            <div className="font-mono text-[13px] text-[#5a5670] font-semibold">Bs. {cost.toFixed(2)}</div>
             {margen !== null && (
-              <div className="text-[10px] text-tertiary font-bold">{margen}% Margen</div>
+              <div className={clsx(
+                'inline-block text-[11px] font-bold px-2 py-0.5 rounded-full mt-1',
+                margen > 0 ? 'bg-[#d1fae5] text-[#059669]'
+                : margen < 0 ? 'bg-[#fee2e2] text-[#dc2626]'
+                : 'bg-[#fff7ed] text-[#ea580c]'
+              )}>
+                {margen}% margen
+              </div>
             )}
           </div>
         )
@@ -511,34 +527,34 @@ export function InventarioPage() {
     }),
     colHelper.display({
       id: 'acciones',
-      header: 'Acciones',
-      size: 160,
+      header: '',
+      size: 120,
       meta: { align: 'right' },
       enableSorting: false,
       cell: (info) => {
         const p = info.row.original
         return (
-          <div className="flex justify-end gap-1">
+          <div className="flex justify-end gap-1.5">
             <button
               onClick={() => handleEdit(p)}
               title="Editar"
-              className="w-8 h-8 flex items-center justify-center border border-outline-variant rounded-lg hover:bg-surface-container transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#dbeafe] hover:text-[#1d4ed8] hover:border-[#1d4ed8] transition-all"
             >
-              <span className="material-symbols-outlined text-sm">edit</span>
+              <i className="ti ti-edit text-[15px]" />
             </button>
             <button
               onClick={() => setEtiquetaProducto(p)}
               title="Etiqueta"
-              className="w-8 h-8 flex items-center justify-center border border-outline-variant rounded-lg hover:bg-surface-container transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#dbeafe] hover:text-[#1d4ed8] hover:border-[#1d4ed8] transition-all"
             >
-              <span className="material-symbols-outlined text-sm">print</span>
+              <i className="ti ti-printer text-[15px]" />
             </button>
             <button
               onClick={() => setConfirmDelete(p)}
               title="Eliminar"
-              className="w-8 h-8 flex items-center justify-center border border-outline-variant rounded-lg hover:bg-error/10 hover:text-error transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#fee2e2] hover:text-[#dc2626] hover:border-[#dc2626] transition-all"
             >
-              <span className="material-symbols-outlined text-sm">delete</span>
+              <i className="ti ti-trash text-[15px]" />
             </button>
           </div>
         )
@@ -561,214 +577,177 @@ export function InventarioPage() {
 
   return (
     <MainLayout>
-      <div className="bg-[#f9f9ff] min-h-screen font-hanken">
+      <div className="bg-[#f1f5f9] min-h-screen">
 
         {/* ── TopBar ──────────────────────────────────────────────────────── */}
-        <header className="bg-[#f9f9ff] sticky top-0 z-40 flex justify-between items-center w-full h-16 px-6 border-b border-outline-variant">
-          <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+        <header className="bg-[#f1f5f9] sticky top-0 z-40 flex justify-between items-center w-full h-[62px] px-7 border-b border-[#e2e8f0]">
+          <div className="flex items-center gap-2 text-sm text-[#9996b0] font-semibold">
             <span>Operaciones</span>
             <span className="text-[10px] opacity-40">/</span>
-            <span className="text-primary font-bold">Inventario</span>
+            <strong className="text-[#1e1b2e] font-bold">Inventario</strong>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex bg-surface-container-low px-3 py-1.5 rounded items-center gap-2 border border-outline-variant">
-              <span className="material-symbols-outlined text-[18px] text-on-surface-variant">calendar_today</span>
-              <span className="text-xs font-medium text-on-surface">{dateStr}</span>
+          <div className="flex items-center gap-2.5">
+            <div className="hidden sm:flex bg-white px-3.5 py-1.5 rounded-xl items-center gap-2 border-[1.5px] border-[#e2e8f0]">
+              <i className="ti ti-calendar text-[#9996b0] text-[15px]" />
+              <span className="text-xs font-semibold text-[#5a5670]">{dateStr}</span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <button
-                className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors text-on-surface-variant relative"
+                className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] transition-colors relative"
                 title="Notificaciones"
               >
-                <span className="material-symbols-outlined">notifications</span>
-                <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-error border-2 border-[#f9f9ff]" />
+                <i className="ti ti-bell text-[18px]" />
+                <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#dc2626]" />
               </button>
               <button
-                className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors text-on-surface-variant"
+                className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] transition-colors"
                 title="Configuración"
               >
-                <span className="material-symbols-outlined">settings</span>
+                <i className="ti ti-settings text-[18px]" />
               </button>
             </div>
           </div>
         </header>
 
-        <div className="px-6 py-6 max-w-[1400px] mx-auto">
+        <div className="px-7 py-6 max-w-[1400px] mx-auto">
 
           {/* ── Page Header ─────────────────────────────────────────────── */}
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
-            <div>
-              <h2 className="text-headline-lg text-on-surface mb-1">
-                Inventario.
-              </h2>
-              <p className="text-sm text-on-surface-variant/80">
-                Gestión de repuestos y autopartes.
-              </p>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div className="flex items-center gap-3.5">
+              <div
+                className="w-12 h-12 bg-gradient-to-br from-[#0284c7] to-[#ea580c] rounded-2xl flex items-center justify-center text-white shrink-0"
+                style={{ boxShadow: '0 6px 18px rgba(2,132,199,0.28)' }}
+              >
+                <i className="ti ti-package text-2xl" />
+              </div>
+              <div>
+                <h2 className="font-black text-[34px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                  Inventario
+                </h2>
+                <p className="text-sm text-[#9996b0] font-semibold mt-0.5">
+                  Gestión de repuestos y autopartes
+                </p>
+              </div>
             </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto shrink-0">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0">
               <button
                 onClick={() => setImportOpen(true)}
-                className="px-5 py-2 border border-outline-variant rounded flex items-center justify-center gap-2 text-sm font-semibold hover:bg-surface-container transition-all text-on-surface"
+                className="px-[18px] py-2.5 bg-white border-[1.5px] border-[#e2e8f0] rounded-xl flex items-center justify-center gap-1.5 text-sm font-bold text-[#5a5670] hover:bg-[#f1f5f9] transition-all"
               >
-                <span className="material-symbols-outlined text-lg">download</span>
+                <i className="ti ti-upload text-base" />
                 Importar
               </button>
               <button
                 onClick={handleNew}
-                className="px-5 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-full flex items-center justify-center gap-2 text-sm font-semibold active:scale-95 transition-all shadow-sm"
+                className="px-[18px] py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white rounded-xl flex items-center justify-center gap-1.5 text-sm font-bold active:scale-95 transition-all shadow-md"
               >
-                <span className="material-symbols-outlined text-lg">add</span>
+                <i className="ti ti-plus text-base" />
                 Nuevo producto
               </button>
             </div>
           </div>
 
           {/* ── Metrics Grid ─────────────────────────────────────────────── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 mb-6">
 
             {/* Total Productos */}
-            <div className="bg-white border border-outline-variant border-l-[4px] border-l-[#3B82F6] p-card-padding flex flex-col justify-between h-32 rounded-xl">
-              <div className="flex justify-between items-start">
-                <span className="text-[11px] font-bold text-[#3B82F6] uppercase tracking-widest">
-                  Total Productos
-                </span>
-                <div className="p-1.5 bg-[#3B82F6] rounded">
-                  <span className="material-symbols-outlined text-[18px] text-white">inventory_2</span>
-                </div>
+            <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200">
+              <div className="absolute -top-5 -right-5 w-20 h-20 rounded-full bg-[#3b82f6] opacity-10" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0284c7] to-[#60a5fa] flex items-center justify-center text-white mb-3.5">
+                <i className="ti ti-box text-xl" />
               </div>
-              <div>
-                <div className="font-mono text-[28px] text-on-surface leading-none mb-1">
-                  {kpi.total.toLocaleString('es-BO')}
-                </div>
-                <div className="text-[11px] text-on-surface-variant/70">en catálogo</div>
+              <div className="font-black text-[30px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                {kpi.total.toLocaleString('es-BO')}
+              </div>
+              <div className="text-xs font-semibold text-[#9996b0] mt-1">Total productos</div>
+              <div className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#0284c7] mt-2">
+                <i className="ti ti-circle-check text-[11px]" />
+                en catálogo
               </div>
             </div>
 
             {/* Stock Crítico */}
             <div className={clsx(
-              'border border-l-[4px] p-card-padding flex flex-col justify-between h-32 rounded-xl',
-              kpi.stockBajo > 0
-                ? 'bg-[#EF4444]/5 border-[#EF4444]/30 border-l-[#EF4444]'
-                : 'bg-white border-outline-variant border-l-[#3B82F6]'
+              'rounded-2xl border-[1.5px] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200',
+              kpi.stockBajo > 0 ? 'bg-[#dc2626]/5 border-[#dc2626]/30' : 'bg-white border-[#e2e8f0]'
             )}>
-              <div className="flex justify-between items-start">
-                <span className={clsx(
-                  'text-[11px] font-bold uppercase tracking-widest',
-                  kpi.stockBajo > 0 ? 'text-[#EF4444]' : 'text-[#3B82F6]'
-                )}>
-                  Stock Crítico
-                </span>
-                <div className={clsx('p-1.5 rounded', kpi.stockBajo > 0 ? 'bg-[#EF4444]' : 'bg-[#3B82F6]')}>
-                  <span className="material-symbols-outlined text-[18px] text-white">
-                    warning
-                  </span>
-                </div>
+              <div className="absolute -top-5 -right-5 w-20 h-20 rounded-full bg-[#dc2626] opacity-10" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#dc2626] to-[#ff9090] flex items-center justify-center text-white mb-3.5">
+                <i className="ti ti-alert-triangle text-xl" />
               </div>
-              <div>
-                <div className={clsx('font-mono text-[28px] leading-none mb-1', kpi.stockBajo > 0 ? 'text-[#EF4444]' : 'text-on-surface')}>
-                  {kpi.stockBajo}
-                </div>
-                <div className={clsx('text-[11px] font-medium', kpi.stockBajo > 0 ? 'text-[#EF4444]' : 'text-on-surface-variant/70')}>
-                  {kpi.stockBajo > 0 ? 'requiere acción inmediata' : 'bajo mínimo'}
-                </div>
+              <div
+                className={clsx('font-black text-[30px] leading-none', kpi.stockBajo > 0 ? 'text-[#dc2626]' : 'text-[#1e1b2e]')}
+                style={{ fontFamily: 'Nunito, sans-serif' }}
+              >
+                {kpi.stockBajo}
+              </div>
+              <div className="text-xs font-semibold text-[#9996b0] mt-1">Stock crítico</div>
+              <div className={clsx(
+                'inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full mt-2',
+                kpi.stockBajo > 0 ? 'bg-[#fee2e2] text-[#dc2626]' : 'bg-[#d1fae5] text-[#059669]'
+              )}>
+                <i className={clsx('text-[11px]', kpi.stockBajo > 0 ? 'ti ti-mood-sad' : 'ti ti-mood-smile')} />
+                {kpi.stockBajo > 0 ? 'requiere acción' : 'todo bien'}
               </div>
             </div>
 
             {/* Valor Almacén */}
-            <div className="bg-white border border-outline-variant border-l-[4px] border-l-[#047857] p-card-padding flex flex-col justify-between h-32 rounded-xl">
-              <div className="flex justify-between items-start">
-                <span className="text-[11px] font-bold text-[#047857] uppercase tracking-widest">
-                  Valor Almacén
-                </span>
-                <div className="p-1.5 bg-[#047857] rounded">
-                  <span className="material-symbols-outlined text-[18px] text-white">account_balance_wallet</span>
-                </div>
+            <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200">
+              <div className="absolute -top-5 -right-5 w-20 h-20 rounded-full bg-[#059669] opacity-10" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#059669] to-[#4eddc4] flex items-center justify-center text-white mb-3.5">
+                <i className="ti ti-currency-dollar text-xl" />
               </div>
-              <div>
-                <div className="font-mono text-[28px] text-on-surface leading-none mb-1 flex items-baseline gap-1">
-                  <span className="text-sm font-normal text-[#047857]">Bs.</span>
-                  {fmtBs(kpi.totalValor)}
-                </div>
-                <div className="text-[11px] text-on-surface-variant/70">al precio de costo</div>
+              <div
+                className="font-black text-[22px] text-[#1e1b2e] leading-none flex items-baseline gap-1"
+                style={{ fontFamily: 'Nunito, sans-serif' }}
+              >
+                <span className="text-sm font-bold text-[#059669]">Bs.</span>
+                {fmtBs(kpi.totalValor)}
+              </div>
+              <div className="text-xs font-semibold text-[#9996b0] mt-1">Valor almacén</div>
+              <div className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#d1fae5] text-[#059669] mt-2">
+                <i className="ti ti-trending-up text-[11px]" />
+                al costo
               </div>
             </div>
 
             {/* Unidades Totales */}
-            <div className="bg-white border border-outline-variant border-l-[4px] border-l-[#EF4444] p-card-padding flex flex-col justify-between h-32 rounded-xl">
-              <div className="flex justify-between items-start">
-                <span className="text-[11px] font-bold text-[#EF4444] uppercase tracking-widest">
-                  Unidades Totales
-                </span>
-                <div className="p-1.5 bg-[#EF4444] rounded">
-                  <span className="material-symbols-outlined text-[18px] text-white">package_2</span>
-                </div>
+            <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200">
+              <div className="absolute -top-5 -right-5 w-20 h-20 rounded-full bg-[#0284c7] opacity-10" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0284c7] to-[#81aaff] flex items-center justify-center text-white mb-3.5">
+                <i className="ti ti-stack text-xl" />
               </div>
-              <div>
-                <div className="font-mono text-[28px] text-on-surface leading-none mb-1">
-                  {kpi.totalUnidades.toLocaleString('es-BO')}
-                </div>
-                <div className="text-[11px] text-on-surface-variant/70">en stock físico</div>
+              <div className="font-black text-[30px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                {kpi.totalUnidades.toLocaleString('es-BO')}
+              </div>
+              <div className="text-xs font-semibold text-[#9996b0] mt-1">Unidades en stock</div>
+              <div className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#0284c7] mt-2">
+                <i className="ti ti-building-warehouse text-[11px]" />
+                físico
               </div>
             </div>
 
           </div>
 
           {/* ── Table Container ──────────────────────────────────────────── */}
-          <div className="bg-white border border-outline-variant overflow-hidden relative rounded-xl">
-            {/* Decorative watermark */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ opacity: 0.018 }}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" preserveAspectRatio="xMaxYMax meet"
-                   style={{ width: '100%', height: '100%', display: 'block' }}>
-                <g fill="#2a313d">
-                  <g transform="translate(580,60) rotate(10)">
-                    <circle cx="50" cy="50" r="38"/>
-                    <rect x="47" y="0" width="6" height="14"/>
-                    <rect x="47" y="86" width="6" height="14"/>
-                    <rect x="0" y="47" width="14" height="6"/>
-                    <rect x="86" y="47" width="14" height="6"/>
-                    <rect x="20" y="9" width="6" height="14" transform="rotate(-45 23 16)"/>
-                    <rect x="74" y="9" width="6" height="14" transform="rotate(45 77 16)"/>
-                    <rect x="20" y="77" width="6" height="14" transform="rotate(45 23 84)"/>
-                    <rect x="74" y="77" width="6" height="14" transform="rotate(-45 77 84)"/>
-                    <circle cx="50" cy="50" r="20" fill="white"/>
-                    <circle cx="50" cy="50" r="6"/>
-                  </g>
-                  <g transform="translate(660,300)">
-                    <circle cx="52" cy="52" r="50"/>
-                    <circle cx="52" cy="52" r="32" fill="white"/>
-                    <circle cx="52" cy="52" r="9"/>
-                    <circle cx="52" cy="10" r="4" fill="white"/>
-                    <circle cx="52" cy="94" r="4" fill="white"/>
-                    <circle cx="10" cy="52" r="4" fill="white"/>
-                    <circle cx="94" cy="52" r="4" fill="white"/>
-                    <circle cx="80" cy="24" r="4" fill="white"/>
-                    <circle cx="24" cy="80" r="4" fill="white"/>
-                    <circle cx="24" cy="24" r="4" fill="white"/>
-                    <circle cx="80" cy="80" r="4" fill="white"/>
-                  </g>
-                  <g transform="translate(720,480) rotate(-15)">
-                    <path d="M30 2 L56 16 L56 44 L30 58 L4 44 L4 16 Z"/>
-                    <circle cx="30" cy="30" r="9" fill="white"/>
-                  </g>
-                </g>
-              </svg>
-            </div>
+          <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] overflow-hidden">
 
             {/* Toolbar */}
-            <div className="px-6 py-4 border-b border-outline-variant flex flex-wrap justify-between items-center gap-4 bg-white">
-              <h3 className="text-headline-sm text-on-surface">
+            <div className="px-5 py-[18px] border-b border-[#e2e8f0] flex flex-wrap justify-between items-center gap-4">
+              <h3
+                className="text-lg font-extrabold text-[#1e1b2e] flex items-center gap-2"
+                style={{ fontFamily: 'Nunito, sans-serif' }}
+              >
                 Productos
-                <span className="text-sm font-normal text-on-surface-variant/50 ml-2">
-                  {totalCount > 0 ? totalCount : displayProducts.length} resultados
+                <span className="bg-[#dbeafe] text-[#1d4ed8] text-xs font-bold px-2.5 py-0.5 rounded-full">
+                  {totalCount > 0 ? totalCount : displayProducts.length}
                 </span>
               </h3>
-              <div className="relative w-full sm:w-auto sm:min-w-[320px] md:min-w-[380px]">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40 text-[20px]">
-                  search
-                </span>
+              <div className="flex items-center gap-2 bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] rounded-xl px-3.5 w-full sm:w-auto sm:min-w-[250px] focus-within:border-[#1d4ed8] transition-colors">
+                <i className="ti ti-search text-[#9996b0] text-base shrink-0" />
                 <input
-                  className="w-full pl-10 pr-4 py-2 border border-outline-variant rounded bg-surface-container-lowest text-sm focus:ring-0 focus:border-primary outline-none transition-all text-on-surface placeholder:text-on-surface-variant/40"
-                  placeholder="Buscar por código, nombre o marca..."
+                  className="flex-1 py-2 bg-transparent text-sm text-[#1e1b2e] font-semibold placeholder:text-[#9996b0] outline-none border-none"
+                  placeholder="Buscar código, nombre o marca…"
                   value={searchTerm}
                   onChange={e => handleSearch(e.target.value)}
                 />
@@ -793,7 +772,7 @@ export function InventarioPage() {
                         <col key={h.id} style={{ width: h.column.getSize() }} />
                       ))}
                     </colgroup>
-                    <thead className="bg-surface-container-low/50">
+                    <thead className="bg-[#f1f5f9]">
                       {table.getHeaderGroups().map((hg) => (
                         <tr key={hg.id}>
                           {hg.headers.map((header) => {
@@ -804,10 +783,10 @@ export function InventarioPage() {
                               <th
                                 key={header.id}
                                 className={clsx(
-                                  'px-6 py-3 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider select-none whitespace-nowrap',
+                                  'px-4 py-3 text-[11px] font-bold text-[#9996b0] uppercase tracking-wide select-none whitespace-nowrap',
                                   align === 'center' && 'text-center',
                                   align === 'right'  && 'text-right',
-                                  canSort && 'cursor-pointer hover:text-on-surface transition-colors',
+                                  canSort && 'cursor-pointer hover:text-[#5a5670] transition-colors',
                                 )}
                                 onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                               >
@@ -818,9 +797,12 @@ export function InventarioPage() {
                                 )}>
                                   {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                                   {canSort && (
-                                    <span className="material-symbols-outlined text-[12px]">
-                                      {sorted === 'asc' ? 'arrow_upward' : sorted === 'desc' ? 'arrow_downward' : 'unfold_more'}
-                                    </span>
+                                    <i className={clsx(
+                                      'text-[12px]',
+                                      sorted === 'asc' ? 'ti ti-arrow-up'
+                                      : sorted === 'desc' ? 'ti ti-arrow-down'
+                                      : 'ti ti-selector'
+                                    )} />
                                   )}
                                 </span>
                               </th>
@@ -829,14 +811,11 @@ export function InventarioPage() {
                         </tr>
                       ))}
                     </thead>
-                    <tbody className="divide-y divide-outline-variant">
-                      {table.getRowModel().rows.map((row, idx) => (
+                    <tbody>
+                      {table.getRowModel().rows.map((row) => (
                         <tr
                           key={row.id}
-                          className={clsx(
-                            'transition-colors hover:bg-surface-container-lowest',
-                            idx % 2 !== 0 && 'bg-surface-container-low/20',
-                          )}
+                          className="border-t border-[#e2e8f0] hover:bg-[#faf9ff] transition-colors"
                         >
                           {row.getVisibleCells().map((cell, cellIdx) => {
                             const align = (cell.column.columnDef.meta as ColumnMeta<Producto, unknown> | undefined)?.align ?? 'left'
@@ -845,10 +824,10 @@ export function InventarioPage() {
                               <td
                                 key={cell.id}
                                 className={clsx(
-                                  'px-6 py-table-cell-padding align-middle text-sm',
+                                  'px-4 py-3.5 align-middle text-sm',
                                   align === 'center' && 'text-center',
                                   align === 'right'  && 'text-right',
-                                  cellIdx === 0 && isKit && 'border-l-[3px] border-l-[#3B82F6]',
+                                  cellIdx === 0 && isKit && 'border-l-[3px] border-l-[#1d4ed8]',
                                 )}
                               >
                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -877,7 +856,7 @@ export function InventarioPage() {
 
             {/* Footer */}
             {!loading && (
-              <div className="px-6 py-4 bg-white border-t border-outline-variant">
+              <div className="px-5 py-3.5 bg-[#f1f5f9] border-t border-[#e2e8f0]">
                 <ServerPagination
                   totalCount={totalCount}
                   page={page}

@@ -77,10 +77,12 @@ export default {
         'warm-crit': { DEFAULT: '#B22234', bg: '#FEE2E2' },
       },
       fontFamily: {
-        sans:   ['"DM Sans"', 'system-ui', 'sans-serif'],
-        serif:  ['"Instrument Serif"', 'Georgia', 'serif'],
-        mono:   ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
-        hanken:      ['"Hanken Grotesk"', 'system-ui', 'sans-serif'],
+        sans:         ['"Nunito Sans"', 'system-ui', 'sans-serif'],
+        serif:        ['"Nunito"', 'system-ui', 'sans-serif'],
+        mono:         ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+        nunito:       ['"Nunito"', 'system-ui', 'sans-serif'],
+        'nunito-sans':['"Nunito Sans"', 'system-ui', 'sans-serif'],
+        hanken:       ['"Nunito Sans"', 'system-ui', 'sans-serif'],
         'label-mono': ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
       fontSize: {

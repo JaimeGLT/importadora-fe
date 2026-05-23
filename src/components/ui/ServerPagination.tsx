@@ -60,7 +60,7 @@ export function ServerPagination({
             value={pageSize}
             onChange={e => onPageSize(Number(e.target.value))}
             disabled={loading}
-            className="text-xs font-semibold text-[#EF4444] bg-[#EF4444]/10 border border-[#EF4444]/30 rounded-lg px-2 py-1 focus:outline-none focus:border-[#EF4444] cursor-pointer disabled:opacity-50"
+            className="text-xs font-semibold text-[#1d4ed8] bg-[#1d4ed8]/10 border border-[#1d4ed8]/30 rounded-lg px-2 py-1 focus:outline-none focus:border-[#1d4ed8] cursor-pointer disabled:opacity-50"
           >
             {pageSizeOptions.map(s => (
               <option key={s} value={s}>{s}</option>
@@ -75,7 +75,7 @@ export function ServerPagination({
             onClick={() => onPage(page - 1)}
             disabled={page === 0 || loading}
             title="Página anterior"
-            className="p-1.5 rounded-lg text-on-surface-variant hover:text-[#EF4444] hover:bg-[#EF4444]/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="p-1.5 rounded-lg text-on-surface-variant hover:text-[#1d4ed8] hover:bg-[#1d4ed8]/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -93,9 +93,9 @@ export function ServerPagination({
                 className={clsx(
                   'min-w-[30px] h-7 rounded-lg text-xs font-semibold transition-colors',
                   p === page
-                    ? 'bg-[#EF4444] text-white shadow-sm'
+                    ? 'bg-[#1d4ed8] text-white shadow-sm'
                     : canReach(p as number)
-                      ? 'text-[#EF4444] hover:bg-[#EF4444]/10 cursor-pointer'
+                      ? 'text-[#1d4ed8] hover:bg-[#1d4ed8]/10 cursor-pointer'
                       : 'text-on-surface-variant/30 cursor-not-allowed',
                 )}
               >
@@ -108,7 +108,7 @@ export function ServerPagination({
             onClick={() => onPage(page + 1)}
             disabled={!hasNextPage || loading}
             title="Página siguiente"
-            className="p-1.5 rounded-lg text-on-surface-variant hover:text-[#EF4444] hover:bg-[#EF4444]/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="p-1.5 rounded-lg text-on-surface-variant hover:text-[#1d4ed8] hover:bg-[#1d4ed8]/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

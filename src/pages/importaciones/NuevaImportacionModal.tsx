@@ -160,11 +160,9 @@ function calcItems(
     const precio_venta_final =
       raw.precio_venta_manual > 0 ? raw.precio_venta_manual : precio_venta_sugerido
 
-    const allCodes = [raw.codigo_universal, ...raw.codigos_adicionales].map((c) => c.toLowerCase())
     const match = productos.find(
       (p) =>
-        (allCodes.includes(p.codigo_universal.toLowerCase()) ||
-         p.codigos_alternativos.some((c) => allCodes.includes(c.toLowerCase()))) &&
+        raw.codigo_universal.toLowerCase() === p.codigo_universal.toLowerCase() &&
         (p.marcaId ?? null) === (marcaDefault ?? null),
     )
 

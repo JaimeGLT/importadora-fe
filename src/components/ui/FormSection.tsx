@@ -16,38 +16,32 @@ interface FormSectionProps {
 export function FormSection({ icon, title, description, extra, children, collapsible, open, onToggle, iconClass }: FormSectionProps) {
   const isOpen = !collapsible || open
   return (
-    <section className="rounded-[14px] border border-hair overflow-hidden">
+    <section className="rounded-2xl border border-[#e2e8f0] overflow-hidden">
       <div
         className={clsx(
-          'flex items-center gap-3 px-5 py-3.5 border-b border-hair',
-          'bg-gradient-to-b from-cream-2/90 to-cream/50',
-          collapsible && 'cursor-pointer select-none hover:bg-cream-2 transition-colors',
+          'flex items-center gap-3 px-5 py-3.5 border-b border-[#e2e8f0] bg-white',
+          collapsible && 'cursor-pointer select-none hover:bg-[#f8fafc] transition-colors',
           collapsible && !isOpen && 'border-b-0',
         )}
         onClick={collapsible ? onToggle : undefined}
       >
         <div className={clsx(
-          'flex items-center justify-center w-[30px] h-[30px] rounded-[8px] shadow-sm flex-shrink-0',
-          iconClass ?? 'bg-white border border-hair text-ink-2',
+          'flex items-center justify-center w-[30px] h-[30px] rounded-[8px] flex-shrink-0',
+          iconClass ?? 'bg-white border border-[#e2e8f0] text-[#5a5670]',
         )}>
           {icon}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 flex-wrap">
             <div className="min-w-0">
-              <p className="text-[12.5px] font-semibold text-ink-2">{title}</p>
-              {description && <p className="text-[11px] text-muted-2 leading-tight">{description}</p>}
+              <p className="text-[12.5px] font-bold text-[#1e1b2e]">{title}</p>
+              {description && <p className="text-[11px] text-[#9996b0] leading-tight">{description}</p>}
             </div>
             {extra && <div className="flex-shrink-0">{extra}</div>}
           </div>
         </div>
         {collapsible && (
-          <svg
-            className={clsx('h-4 w-4 text-muted-2 transition-transform flex-shrink-0', isOpen && 'rotate-90')}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
+          <i className={clsx('ti ti-chevron-right text-[16px] text-[#9996b0] transition-transform flex-shrink-0', isOpen && 'rotate-90')} />
         )}
       </div>
       {isOpen && <div className="p-5 bg-white">{children}</div>}

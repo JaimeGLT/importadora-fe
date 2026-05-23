@@ -52,8 +52,8 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   if (!isTokenReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="h-8 w-8 rounded-full border-2 border-outline-variant border-t-primary animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[#f1f5f9]">
+        <div className="h-8 w-8 rounded-full border-2 border-[#e2e8f0] border-t-[#1d4ed8] animate-spin" />
       </div>
     )
   }
@@ -63,7 +63,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-[#f1f5f9]">
 
       {/* Backdrop mobile */}
       {sidebarOpen && (
@@ -78,20 +78,20 @@ export function MainLayout({ children }: MainLayoutProps) {
       <div className="flex-1 flex flex-col min-w-0">
 
         {/* Topbar mobile */}
-        <header className="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 bg-background border-b border-outline-variant shrink-0">
+        <header className="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 bg-[#f1f5f9] border-b border-[#e2e8f0] shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-1.5 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors"
+            className="p-1.5 rounded-lg text-[#5a5670] hover:text-[#1e1b2e] hover:bg-white transition-colors"
             aria-label="Abrir menú"
           >
-            <span className="material-symbols-outlined text-[22px]">menu</span>
+            <i className="ti ti-menu-2 text-[22px]" />
           </button>
 
           <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 rounded bg-primary-container flex items-center justify-center shrink-0">
+            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-[#0284c7] to-[#1d4ed8] flex items-center justify-center shrink-0">
               <span className="text-white text-[10px] font-black tracking-wider">USA</span>
             </div>
-            <span className="font-hanken text-sm font-semibold text-on-surface">USA Autopartes</span>
+            <span className="text-sm font-bold text-[#1e1b2e]">USA Autopartes</span>
           </div>
         </header>
 

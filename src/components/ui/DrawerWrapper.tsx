@@ -23,7 +23,7 @@ export function DrawerWrapper({ open, onClose, subtitle, title, sku, children, f
       <div
         className="fixed inset-0 z-50 transition-opacity duration-200"
         style={{
-          background: 'rgba(36,30,24,0.35)',
+          background: 'rgba(30,27,46,0.4)',
           backdropFilter: 'blur(4px)',
           opacity: open ? 1 : 0,
           pointerEvents: open ? 'auto' : 'none',
@@ -31,46 +31,41 @@ export function DrawerWrapper({ open, onClose, subtitle, title, sku, children, f
         onClick={onClose}
       />
       <aside
-        className="fixed top-0 right-0 bottom-0 w-full sm:w-[520px] border-l border-hair z-[60] flex flex-col"
+        className="fixed top-0 right-0 bottom-0 w-full sm:w-[520px] border-l border-[#e2e8f0] z-[60] flex flex-col"
         style={{
-          background: '#FDFCFA',
+          background: '#ffffff',
           transform: open ? 'translateX(0)' : 'translateX(100%)',
           transition: 'transform 280ms cubic-bezier(0.32, 0.72, 0.2, 1)',
-          boxShadow: '-24px 0 40px -20px rgba(36,30,24,0.25)',
+          boxShadow: '-24px 0 40px -20px rgba(30,27,46,0.18)',
         }}
       >
         {/* Top accent stripe */}
-        <div className="h-[3px] bg-gradient-to-r from-[#B22234] via-[#C94040] to-[#8B1A26] shrink-0" />
+        <div className="h-[3px] bg-gradient-to-r from-[#1d4ed8] via-[#3b82f6] to-[#0284c7] shrink-0" />
+
         {/* Head */}
-        <div
-          className="px-5 sm:px-8 pt-6 pb-[22px] border-b border-hair flex items-start justify-between gap-3 shrink-0"
-          style={{ background: 'linear-gradient(180deg, #EDE5D6 0%, #FDFCFA 100%)' }}
-        >
+        <div className="px-5 sm:px-8 pt-6 pb-[22px] border-b border-[#e2e8f0] flex items-start justify-between gap-3 shrink-0 bg-[#f8fafc]">
           <div>
-            <div className="text-[10.5px] uppercase tracking-[0.12em] text-muted font-semibold mb-1.5">{subtitle}</div>
+            <div className="text-[10.5px] uppercase tracking-[0.12em] text-[#9996b0] font-bold mb-1.5">{subtitle}</div>
             {sku && (
-              <h2 className="font-mono text-[30px] sm:text-[36px] leading-[1.05] tracking-[-0.02em] m-0 mb-1 text-ink">{sku}</h2>
+              <h2 className="font-mono text-[30px] sm:text-[36px] leading-[1.05] tracking-[-0.02em] m-0 mb-1 text-[#1e1b2e] font-black">{sku}</h2>
             )}
-            <div className="text-[13px] font-bold tracking-[0.06em] text-ink">{title}</div>
+            <div className="text-[13px] font-bold text-[#5a5670]">{title}</div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-[8px] text-muted hover:text-ink hover:bg-cream-2 transition-colors shrink-0 mt-1"
+            className="p-1.5 rounded-xl text-[#9996b0] hover:text-[#1e1b2e] hover:bg-[#f1f5f9] transition-colors shrink-0 mt-1"
           >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18 6 6 18M6 6l12 12" />
-            </svg>
+            <i className="ti ti-x text-[20px]" />
           </button>
         </div>
+
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 sm:px-8 py-6">
+        <div className="flex-1 overflow-y-auto px-5 sm:px-8 py-6 bg-[#f1f5f9]">
           {children}
         </div>
+
         {/* Footer */}
-        <div
-          className="px-5 sm:px-8 py-[18px] border-t border-hair flex justify-end gap-2.5 shrink-0"
-          style={{ background: '#F4EFE6' }}
-        >
+        <div className="px-5 sm:px-8 py-[18px] border-t border-[#e2e8f0] flex justify-end gap-2.5 shrink-0 bg-white">
           {footer}
         </div>
       </aside>

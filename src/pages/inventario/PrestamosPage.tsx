@@ -10,13 +10,12 @@ import {
   type ColumnMeta,
 } from '@tanstack/react-table'
 import { MainLayout } from '@/components/layout/MainLayout'
-import { ConfirmModal, TablePagination, WarmMetric } from '@/components/ui'
+import { ConfirmModal, TablePagination } from '@/components/ui'
 import { notify } from '@/lib/notify'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
 import { clsx } from 'clsx'
-import { AutopartsWatermark } from './AutopartsWatermark'
 import { PrestamoModal } from './PrestamoModal'
 import {
   PRESTAMOS_QUERY,
@@ -33,89 +32,44 @@ declare module '@tanstack/react-table' {
   }
 }
 
-// ─── Icons ─────────────────────────────────────────────────────────────────────
-
-function IcoCal() {
-  return (
-    <svg className="w-[15px] h-[15px] text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>
-    </svg>
-  )
-}
-function IcoBell() {
-  return (
-    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
-    </svg>
-  )
-}
-function IcoSettings() {
-  return (
-    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3"/>
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-    </svg>
-  )
-}
-function IcoPlus() {
-  return (
-    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
-      <path d="M12 5v14M5 12h14"/>
-    </svg>
-  )
-}
-function IcoSearch() {
-  return (
-    <svg className="h-4 w-4 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
-    </svg>
-  )
-}
-function IcoHandshake() {
-  return (
-    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 11l-5-5-5 5m5-5v12"/><path d="M3 7l4 4m10-4l-4 4"/>
-    </svg>
-  )
-}
-function IcoActive() {
-  return (
-    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>
-    </svg>
-  )
-}
-function IcoReturn() {
-  return (
-    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/>
-    </svg>
-  )
-}
-function IcoMoney() {
-  return (
-    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="9"/><path d="M12 7v1m0 8v1m-3-5h6m-6 0a2 2 0 1 0 2-2h-2a2 2 0 1 0 2 2"/>
-    </svg>
-  )
-}
-
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function TableSkeleton() {
   return (
-    <div className="divide-y divide-hair">
+    <div className="divide-y divide-[#e2e8f0]">
       {Array.from({ length: 7 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 px-[22px] py-3.5 animate-pulse">
+        <div key={i} className="flex items-center gap-4 px-5 py-3.5 animate-pulse">
           <div className="flex-1 space-y-1.5">
-            <div className="h-[13px] w-32 rounded bg-cream-2" />
-            <div className="h-3 w-44 rounded bg-hair" />
+            <div className="h-[13px] w-32 rounded bg-[#f1f5f9]" />
+            <div className="h-3 w-44 rounded bg-[#e2e8f0]" />
           </div>
-          <div className="h-3 w-20 rounded bg-cream-2" />
-          <div className="h-6 w-16 rounded-full bg-cream-2" />
-          <div className="h-3 w-16 rounded bg-hair" />
-          <div className="flex gap-1">
-            {[0, 1].map((j) => <div key={j} className="h-7 w-7 rounded-lg bg-cream-2" />)}
+          <div className="h-3 w-20 rounded bg-[#f1f5f9]" />
+          <div className="h-6 w-16 rounded-full bg-[#f1f5f9]" />
+          <div className="h-3 w-16 rounded bg-[#e2e8f0]" />
+          <div className="flex gap-1.5">
+            {[0, 1].map((j) => <div key={j} className="h-8 w-8 rounded-[10px] bg-[#f1f5f9]" />)}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── Mobile skeleton ──────────────────────────────────────────────────────────
+
+function MobileSkeletonRows() {
+  return (
+    <div className="divide-y divide-[#e2e8f0]">
+      {Array.from({ length: 7 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
+          <div className="w-[42px] h-[42px] rounded-xl bg-[#f1f5f9] shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-3 w-28 rounded bg-[#f1f5f9]" />
+            <div className="h-2.5 w-36 rounded bg-[#e2e8f0]" />
+          </div>
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <div className="h-5 w-16 rounded-full bg-[#f1f5f9]" />
+            <div className="h-2.5 w-14 rounded bg-[#e2e8f0]" />
           </div>
         </div>
       ))}
@@ -127,14 +81,14 @@ function TableSkeleton() {
 
 function EmptyState({ onNew, searching }: { onNew: () => void; searching: boolean }) {
   return (
-    <div className="flex flex-col items-center justify-center py-[60px] px-5 text-center text-muted">
-      <div className="h-[38px] w-[38px] rounded-lg bg-cream-2 border border-hair flex items-center justify-center mb-4">
-        <svg className="h-5 w-5 text-muted-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-        </svg>
+    <div className="flex flex-col items-center justify-center py-16 px-5 text-center">
+      <div className="w-12 h-12 rounded-xl bg-white border-[1.5px] border-[#e2e8f0] flex items-center justify-center mb-4">
+        <i className="ti ti-arrows-exchange text-[#9996b0] text-xl" />
       </div>
-      <p className="text-sm font-medium text-ink-2 mb-1">{searching ? 'Sin resultados' : 'Sin préstamos'}</p>
-      <p className="text-xs text-muted max-w-xs mb-5">
+      <p className="text-sm font-bold text-[#1e1b2e] mb-1">
+        {searching ? 'Sin resultados' : 'Sin préstamos'}
+      </p>
+      <p className="text-xs text-[#9996b0] font-semibold max-w-xs mb-5">
         {searching
           ? 'No hay préstamos que coincidan con esta búsqueda o filtro.'
           : 'Registra el primer préstamo con el botón de arriba.'}
@@ -142,12 +96,32 @@ function EmptyState({ onNew, searching }: { onNew: () => void; searching: boolea
       {!searching && (
         <button
           onClick={onNew}
-          className="h-[38px] px-4 rounded-[10px] bg-terra text-white text-sm font-semibold flex items-center gap-2 hover:bg-terra-deep transition-colors"
+          className="px-5 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white rounded-xl flex items-center gap-2 text-sm font-bold transition-all shadow-md"
         >
-          <IcoPlus /> Nuevo préstamo
+          <i className="ti ti-plus text-base" />
+          Nuevo préstamo
         </button>
       )}
     </div>
+  )
+}
+
+// ─── Estado badge ──────────────────────────────────────────────────────────────
+
+function EstadoBadge({ estado }: { estado: string }) {
+  if (estado === 'Activo') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-[#d1fae5] text-[#059669]">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#059669] shrink-0" />
+        Activo
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-[#dbeafe] text-[#1d4ed8]">
+      <span className="w-1.5 h-1.5 rounded-full bg-[#1d4ed8] shrink-0" />
+      Devuelto
+    </span>
   )
 }
 
@@ -156,61 +130,31 @@ function EmptyState({ onNew, searching }: { onNew: () => void; searching: boolea
 function MobilePrestamoRow({ p, onTap }: { p: Prestamo; onTap: () => void }) {
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3 border-b border-hair last:border-0 active:bg-[#F4EFE6] transition-colors cursor-pointer"
+      className="flex items-center gap-3 px-4 py-3 border-b border-[#e2e8f0] last:border-0 active:bg-[#f1f5f9] transition-colors cursor-pointer"
       onClick={onTap}
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
-      <div className="h-[38px] w-[38px] rounded-lg bg-cream-2 border border-hair flex items-center justify-center shrink-0">
-        <svg className="h-4 w-4 text-muted-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-        </svg>
+      <div className="w-[42px] h-[42px] bg-[#f1f5f9] rounded-xl border-[1.5px] border-[#e2e8f0] flex items-center justify-center shrink-0">
+        <i className="ti ti-user text-[#9996b0] text-[18px]" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-[13px] text-ink leading-tight truncate">{p.clienteNombreCompleto}</div>
-        <div className="text-[11px] text-muted-2 mt-0.5">
+        <div className="font-semibold text-[13px] text-[#1e1b2e] leading-tight truncate">{p.clienteNombreCompleto}</div>
+        <div className="text-[11px] text-[#9996b0] font-medium mt-0.5">
           {p.detalle.length} producto{p.detalle.length !== 1 ? 's' : ''} · {new Date(p.fecha).toLocaleDateString('es-BO', { day: '2-digit', month: 'short' })}
         </div>
       </div>
       <div className="flex flex-col items-end gap-1.5 shrink-0">
-        <span className={clsx(
-          'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold',
-          p.estado === 'Activo' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700',
-        )}>
-          {p.estado}
-        </span>
-        <span className="text-[12px] font-semibold text-ink tabular-nums">
+        <EstadoBadge estado={p.estado} />
+        <span className="font-mono text-[12px] font-bold text-[#1e1b2e]">
           Bs. {p.total.toFixed(2)}
         </span>
       </div>
-      <svg className="h-4 w-4 text-muted-2 shrink-0 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-      </svg>
+      <i className="ti ti-chevron-right text-[#9996b0] text-lg ml-1" />
     </div>
   )
 }
 
-function MobileSkeletonRows() {
-  return (
-    <div className="divide-y divide-hair">
-      {Array.from({ length: 7 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
-          <div className="h-[38px] w-[38px] rounded-lg bg-cream-2 shrink-0" />
-          <div className="flex-1 space-y-1.5">
-            <div className="h-[13px] w-28 rounded bg-cream-2" />
-            <div className="h-[11px] w-36 rounded bg-hair" />
-          </div>
-          <div className="flex flex-col items-end gap-1.5 shrink-0">
-            <div className="h-5 w-14 rounded-full bg-cream-2" />
-            <div className="h-[11px] w-14 rounded bg-hair" />
-          </div>
-          <div className="h-4 w-4 rounded bg-cream-2 ml-1" />
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// ─── Detail drawer ─────────────────────────────────────────────────────────────
+// ─── Detail drawer ────────────────────────────────────────────────────────────
 
 function DetailDrawer({
   prestamo,
@@ -235,7 +179,7 @@ function DetailDrawer({
       <div
         className="fixed inset-0 z-50 transition-opacity duration-200"
         style={{
-          background: 'rgba(36,30,24,0.35)',
+          background: 'rgba(30,27,46,0.4)',
           backdropFilter: 'blur(4px)',
           opacity: open ? 1 : 0,
           pointerEvents: open ? 'auto' : 'none',
@@ -243,80 +187,68 @@ function DetailDrawer({
         onClick={onClose}
       />
       <aside
-        className="fixed top-0 right-0 bottom-0 w-full sm:w-[480px] border-l border-hair z-[60] flex flex-col"
+        className="fixed top-0 right-0 bottom-0 w-full sm:w-[480px] bg-white border-l border-[#e2e8f0] z-[60] flex flex-col"
         style={{
-          background: '#FDFCFA',
           transform: open ? 'translateX(0)' : 'translateX(100%)',
           transition: 'transform 280ms cubic-bezier(0.32, 0.72, 0.2, 1)',
-          boxShadow: '-24px 0 40px -20px rgba(36,30,24,0.2)',
+          boxShadow: '-24px 0 40px -20px rgba(30,27,46,0.15)',
         }}
       >
         {prestamo && (
           <>
-            <div
-              className="px-6 sm:px-8 pt-7 pb-[22px] border-b border-hair flex items-start justify-between gap-3 shrink-0"
-              style={{ background: 'linear-gradient(180deg, #F4EFE6 0%, #FDFCFA 100%)' }}
-            >
+            {/* Header */}
+            <div className="px-6 sm:px-8 pt-7 pb-[22px] border-b border-[#e2e8f0] flex items-start justify-between gap-3 shrink-0 bg-[#f1f5f9]">
               <div>
-                <div className="text-[10.5px] uppercase tracking-[0.12em] text-muted font-semibold mb-1.5">
+                <div className="text-[10.5px] uppercase tracking-[0.12em] text-[#9996b0] font-semibold mb-1.5">
                   Detalle de préstamo
                 </div>
-                <h2 className="font-serif text-[28px] sm:text-[32px] leading-[1.05] tracking-[-0.02em] m-0 mb-1.5 text-ink">
+                <h2 className="font-black text-[26px] text-[#1e1b2e] leading-tight mb-2" style={{ fontFamily: 'Nunito, sans-serif' }}>
                   {prestamo.clienteNombreCompleto}
                 </h2>
                 <div className="flex items-center gap-2">
-                  <span className={clsx(
-                    'inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold',
-                    prestamo.estado === 'Activo' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-blue-50 text-blue-700 border border-blue-200',
-                  )}>
-                    {prestamo.estado}
-                  </span>
-                  <span className="text-[12px] text-muted-2">
+                  <EstadoBadge estado={prestamo.estado} />
+                  <span className="text-[12px] text-[#9996b0] font-semibold">
                     {new Date(prestamo.fecha).toLocaleDateString('es-BO', { day: '2-digit', month: 'long', year: 'numeric' })}
                   </span>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-[8px] text-muted hover:text-ink hover:bg-cream-2 transition-colors shrink-0 mt-1"
+                className="p-1.5 rounded-[8px] text-[#9996b0] hover:text-[#1e1b2e] hover:bg-[#e2e8f0] transition-colors shrink-0 mt-1"
               >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M18 6 6 18M6 6l12 12" />
-                </svg>
+                <i className="ti ti-x text-xl" />
               </button>
             </div>
 
+            {/* Body */}
             <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-6 space-y-5">
-              {/* Cliente info */}
               {prestamo.cliente.telefono && (
-                <div className="flex items-center gap-2 text-[13px] text-muted-2">
-                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}><path strokeLinecap="round" strokeLinejoin="round" d="M3 5h2l3 6-2 2a16 16 0 006 6l2-2 6 3v2A18 18 0 013 5z"/></svg>
+                <div className="flex items-center gap-2 text-[13px] text-[#5a5670]">
+                  <i className="ti ti-phone text-[#9996b0] text-base" />
                   {prestamo.cliente.telefono}
                 </div>
               )}
 
-              {/* Nota */}
               {prestamo.nota && (
-                <div className="rounded-[10px] bg-cream border border-hair px-4 py-3 text-[13px] text-ink-2">
+                <div className="rounded-xl bg-[#f1f5f9] border border-[#e2e8f0] px-4 py-3 text-[13px] text-[#5a5670]">
                   {prestamo.nota}
                 </div>
               )}
 
-              {/* Items */}
               <div>
-                <p className="text-[10.5px] uppercase tracking-[0.1em] font-semibold text-muted mb-3">Productos prestados</p>
-                <div className="divide-y divide-hair border-y border-hair">
+                <p className="text-[10.5px] uppercase tracking-[0.1em] font-bold text-[#9996b0] mb-3">Productos prestados</p>
+                <div className="divide-y divide-[#e2e8f0] border-y border-[#e2e8f0]">
                   {prestamo.detalle.map((det) => (
                     <div key={det.id} className="flex items-center gap-3 py-3">
                       <div className="flex-1 min-w-0">
-                        <div className="font-mono font-bold text-[12.5px] text-ink tracking-[0.05em]">{det.codigo}</div>
-                        <p className="text-[11.5px] text-muted-2 truncate mt-0.5">{det.nombre}</p>
+                        <div className="font-mono font-bold text-[12.5px] text-[#1e1b2e] tracking-[0.05em]">{det.codigo}</div>
+                        <p className="text-[11.5px] text-[#9996b0] truncate mt-0.5">{det.nombre}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-[11px] text-muted-2">
+                        <p className="text-[11px] text-[#9996b0]">
                           Bs. {det.precio.toFixed(2)} × {det.cantidad}
                         </p>
-                        <p className="text-[13.5px] font-semibold text-ink tabular-nums">
+                        <p className="text-[13.5px] font-bold text-[#1e1b2e] tabular-nums">
                           Bs. {det.total.toFixed(2)}
                         </p>
                       </div>
@@ -325,31 +257,28 @@ function DetailDrawer({
                 </div>
               </div>
 
-              {/* Total */}
               <div className="flex items-center justify-between pt-1">
-                <span className="text-[13px] font-semibold text-muted">Total préstamo</span>
-                <span className="font-serif text-[28px] leading-[1] tracking-[-0.02em] text-ink">
+                <span className="text-[13px] font-semibold text-[#5a5670]">Total préstamo</span>
+                <span className="font-mono font-black text-[26px] text-[#1e1b2e]" style={{ fontFamily: 'Nunito, sans-serif' }}>
                   Bs. {prestamo.total.toFixed(2)}
                 </span>
               </div>
             </div>
 
-            <div
-              className="px-6 sm:px-8 py-[18px] border-t border-hair flex justify-end gap-2.5 shrink-0"
-              style={{ background: '#F4EFE6' }}
-            >
+            {/* Footer */}
+            <div className="px-6 sm:px-8 py-[18px] border-t border-[#e2e8f0] bg-[#f1f5f9] flex justify-end gap-2.5 shrink-0">
               <button
                 onClick={onClose}
-                className="h-[44px] px-5 rounded-[10px] text-[13.5px] font-semibold text-ink-2 border border-hair hover:bg-cream-2 transition-colors"
+                className="px-5 py-2.5 rounded-xl text-[13.5px] font-bold text-[#5a5670] border border-[#e2e8f0] bg-white hover:bg-[#f1f5f9] transition-colors"
               >
                 Cerrar
               </button>
               {prestamo.estado === 'Activo' && (
                 <button
                   onClick={() => { onClose(); onDevolver(prestamo) }}
-                  className="h-[44px] px-6 rounded-[10px] text-[13.5px] font-semibold bg-ink text-cream hover:bg-ink/90 transition-colors flex items-center gap-2"
+                  className="px-5 py-2.5 rounded-xl text-[13.5px] font-bold bg-[#1d4ed8] hover:bg-[#1e40af] text-white transition-colors flex items-center gap-2 shadow-md"
                 >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 14l-4-4 4-4M5 10h11a4 4 0 0 1 0 8h-1"/></svg>
+                  <i className="ti ti-arrow-back text-base" />
                   Marcar devuelto
                 </button>
               )}
@@ -380,19 +309,19 @@ type EstadoFilter = 'todos' | 'Activo' | 'Devuelto'
 export function PrestamosPage() {
   const { isTokenReady } = useAuth()
 
-  const [prestamos, setPrestamos]           = useState<Prestamo[]>([])
-  const [totalCount, setTotalCount]         = useState(0)
-  const [hasNextPage, setHasNextPage]       = useState(false)
-  const [endCursor, setEndCursor]           = useState<string | null>(null)
-  const [loading, setLoading]               = useState(true)
-  const [sorting, setSorting]               = useState<SortingState>([])
-  const [searchTerm, setSearchTerm]         = useState('')
-  const [filterEstado, setFilterEstado]     = useState<EstadoFilter>('todos')
-  const [modalOpen, setModalOpen]           = useState(false)
-  const [detailPrestamo, setDetailPrestamo] = useState<Prestamo | null>(null)
-  const [detailOpen, setDetailOpen]         = useState(false)
+  const [prestamos, setPrestamos]             = useState<Prestamo[]>([])
+  const [totalCount, setTotalCount]           = useState(0)
+  const [hasNextPage, setHasNextPage]         = useState(false)
+  const [endCursor, setEndCursor]             = useState<string | null>(null)
+  const [loading, setLoading]                 = useState(true)
+  const [sorting, setSorting]                 = useState<SortingState>([])
+  const [searchTerm, setSearchTerm]           = useState('')
+  const [filterEstado, setFilterEstado]       = useState<EstadoFilter>('todos')
+  const [modalOpen, setModalOpen]             = useState(false)
+  const [detailPrestamo, setDetailPrestamo]   = useState<Prestamo | null>(null)
+  const [detailOpen, setDetailOpen]           = useState(false)
   const [confirmDevolver, setConfirmDevolver] = useState<Prestamo | null>(null)
-  const [devolviendo, setDevolviendo]       = useState(false)
+  const [devolviendo, setDevolviendo]         = useState(false)
 
   const dateStr = useMemo(() => new Date().toLocaleDateString('es-BO', {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
@@ -463,10 +392,10 @@ export function PrestamosPage() {
 
   // ── KPIs ───────────────────────────────────────────────────────────────────
   const kpi = useMemo(() => ({
-    total: totalCount || prestamos.length,
-    activos: prestamos.filter((p) => p.estado === 'Activo').length,
-    devueltos: prestamos.filter((p) => p.estado === 'Devuelto').length,
-    valorActivo: prestamos.filter((p) => p.estado === 'Activo').reduce((s, p) => s + p.total, 0),
+    total:        totalCount || prestamos.length,
+    activos:      prestamos.filter((p) => p.estado === 'Activo').length,
+    devueltos:    prestamos.filter((p) => p.estado === 'Devuelto').length,
+    valorActivo:  prestamos.filter((p) => p.estado === 'Activo').reduce((s, p) => s + p.total, 0),
   }), [prestamos, totalCount])
 
   // ── Columns ────────────────────────────────────────────────────────────────
@@ -479,9 +408,9 @@ export function PrestamosPage() {
         const p = info.row.original
         return (
           <div>
-            <div className="font-medium text-[13.5px] text-ink leading-tight">{info.getValue()}</div>
+            <div className="font-semibold text-[13.5px] text-[#1e1b2e] leading-tight">{info.getValue()}</div>
             {p.cliente.telefono && (
-              <div className="text-[11px] text-muted-2 mt-0.5">{p.cliente.telefono}</div>
+              <div className="text-[11px] text-[#9996b0] mt-0.5">{p.cliente.telefono}</div>
             )}
           </div>
         )
@@ -499,18 +428,18 @@ export function PrestamosPage() {
           <div>
             <div className="flex items-center gap-1.5">
               {first && (
-                <span className="font-mono font-bold text-[11.5px] text-ink tracking-[0.05em]">
+                <span className="font-mono font-bold text-[12px] text-[#1e1b2e] tracking-[0.05em]">
                   {first.codigo}
                 </span>
               )}
               {det.length > 1 && (
-                <span className="text-[10px] font-semibold text-muted-2 bg-cream-2 border border-hair px-1.5 py-0.5 rounded-full">
+                <span className="text-[10px] font-bold text-[#1d4ed8] bg-[#dbeafe] px-1.5 py-0.5 rounded-full">
                   +{det.length - 1}
                 </span>
               )}
             </div>
             {first && (
-              <div className="text-[11px] text-muted-2 mt-0.5 truncate max-w-[160px]">{first.nombre}</div>
+              <div className="text-[11px] text-[#9996b0] mt-0.5 truncate max-w-[160px]">{first.nombre}</div>
             )}
           </div>
         )
@@ -521,66 +450,50 @@ export function PrestamosPage() {
       size: 130,
       meta: { align: 'left' },
       cell: (info) => (
-        <span className="text-[12.5px] text-muted-2">{fmtFecha(info.getValue())}</span>
+        <span className="text-[12.5px] text-[#5a5670] font-medium">{fmtFecha(info.getValue())}</span>
       ),
     }),
     colHelper.accessor('total', {
       header: 'Total',
-      size: 110,
-      meta: { align: 'right' },
+      size: 120,
+      meta: { align: 'left' },
       cell: (info) => (
-        <div className="text-right">
-          <span className="font-semibold text-[13.5px] text-ink tabular-nums">
-            <span className="text-[10.5px] text-muted-2 font-medium mr-0.5">Bs.</span>
-            {fmtBs(info.getValue())}
-          </span>
+        <div>
+          <div className="font-mono font-bold text-[13px] text-[#1e1b2e]">Bs. {fmtBs(info.getValue())}</div>
+          <div className="text-[11px] text-[#9996b0] font-medium mt-0.5">Total prestado</div>
         </div>
       ),
     }),
     colHelper.accessor('estado', {
       header: 'Estado',
-      size: 100,
-      meta: { align: 'center' },
-      cell: (info) => {
-        const est = info.getValue()
-        return (
-          <span className={clsx(
-            'inline-flex items-center px-2.5 py-1 rounded-full text-[10.5px] font-semibold',
-            est === 'Activo' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700',
-          )}>
-            {est}
-          </span>
-        )
-      },
+      size: 120,
+      meta: { align: 'left' },
+      cell: (info) => <EstadoBadge estado={info.getValue()} />,
     }),
     colHelper.display({
       id: 'acciones',
       header: '',
-      size: 90,
+      size: 100,
       meta: { align: 'right' },
       enableSorting: false,
       cell: (info) => {
         const p = info.row.original
         return (
-          <div className="flex justify-end gap-0.5">
+          <div className="flex justify-end gap-1.5">
             <button
               title="Ver detalle"
               onClick={(e) => { e.stopPropagation(); setDetailPrestamo(p); setDetailOpen(true) }}
-              className="p-[7px] rounded-lg text-muted hover:text-ink hover:bg-cream-2 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#dbeafe] hover:text-[#1d4ed8] hover:border-[#1d4ed8] transition-all"
             >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-              </svg>
+              <i className="ti ti-eye text-[15px]" />
             </button>
             {p.estado === 'Activo' && (
               <button
                 title="Marcar devuelto"
                 onClick={(e) => { e.stopPropagation(); setConfirmDevolver(p) }}
-                className="p-[7px] rounded-lg text-muted hover:text-ink hover:bg-cream-2 transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#d1fae5] hover:text-[#059669] hover:border-[#059669] transition-all"
               >
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l-4-4 4-4M5 10h11a4 4 0 0 1 0 8h-1"/>
-                </svg>
+                <i className="ti ti-arrow-back text-[15px]" />
               </button>
             )}
           </div>
@@ -611,113 +524,200 @@ export function PrestamosPage() {
 
   return (
     <MainLayout>
-      <div
-        className="relative px-4 sm:px-8 md:px-14 py-5 md:py-9 pb-10 md:pb-20 min-h-screen"
-        style={{ background: 'linear-gradient(180deg, #F4EFE6 0%, #FAF8F5 200px, #FAF8F5 100%)' }}
-      >
-        <AutopartsWatermark />
+      <div className="bg-[#f1f5f9] min-h-screen">
 
-        <div className="relative z-[1]">
-
-          {/* ── Topbar ───────────────────────────────────────────────────── */}
-          <div className="flex items-center justify-between mb-9">
-            <div className="flex items-center gap-1.5 text-[12.5px] text-muted tracking-[0.02em]">
-              <span>Operaciones</span>
-              <span className="opacity-50">/</span>
-              <span>Inventario</span>
-              <span className="opacity-50">/</span>
-              <span className="text-ink">Préstamos</span>
+        {/* ── TopBar ──────────────────────────────────────────────────────── */}
+        <header className="bg-[#f1f5f9] sticky top-0 z-40 flex justify-between items-center w-full h-[62px] px-7 border-b border-[#e2e8f0]">
+          <div className="flex items-center gap-2 text-sm text-[#9996b0] font-semibold">
+            <span>Operaciones</span>
+            <span className="text-[10px] opacity-40">/</span>
+            <span>Inventario</span>
+            <span className="text-[10px] opacity-40">/</span>
+            <strong className="text-[#1e1b2e] font-bold">Préstamos</strong>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <div className="hidden sm:flex bg-white px-3.5 py-1.5 rounded-xl items-center gap-2 border-[1.5px] border-[#e2e8f0]">
+              <i className="ti ti-calendar text-[#9996b0] text-[15px]" />
+              <span className="text-xs font-semibold text-[#5a5670]">{dateStr}</span>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex h-[38px] px-3.5 border border-hair bg-paper rounded-[10px] items-center gap-2 text-[13px] text-ink-2">
-                <IcoCal /><span>{dateStr}</span>
-              </div>
-              <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors relative" title="Notificaciones">
-                <IcoBell />
-                <span className="absolute top-[9px] right-[10px] w-[7px] h-[7px] rounded-full bg-terra border-2 border-paper" />
+            <div className="flex items-center gap-1.5">
+              <button
+                className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] transition-colors relative"
+                title="Notificaciones"
+              >
+                <i className="ti ti-bell text-[18px]" />
+                <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#dc2626]" />
               </button>
-              <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors" title="Configuración">
-                <IcoSettings />
+              <button
+                className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] transition-colors"
+                title="Configuración"
+              >
+                <i className="ti ti-settings text-[18px]" />
               </button>
             </div>
           </div>
+        </header>
 
-          {/* ── Header ───────────────────────────────────────────────────── */}
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-8 mb-7 md:mb-10">
-            <div>
-              <h1 className="font-serif text-[44px] md:text-[72px] leading-[0.95] tracking-[-0.025em] m-0 mb-2.5 text-ink">
-                Préstamos<em className="italic text-terra">.</em>
-              </h1>
-              <p className="text-base text-muted max-w-[520px]">
-                Control de salida de productos — registro de préstamos a clientes y seguimiento de devoluciones.
-              </p>
+        <div className="px-7 py-6 max-w-[1400px] mx-auto">
+
+          {/* ── Page Header ─────────────────────────────────────────────── */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div className="flex items-center gap-3.5">
+              <div
+                className="w-12 h-12 bg-gradient-to-br from-[#0284c7] to-[#059669] rounded-2xl flex items-center justify-center text-white shrink-0"
+                style={{ boxShadow: '0 6px 18px rgba(2,132,199,0.28)' }}
+              >
+                <i className="ti ti-arrows-exchange text-2xl" />
+              </div>
+              <div>
+                <h2 className="font-black text-[34px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                  Préstamos
+                </h2>
+                <p className="text-sm text-[#9996b0] font-semibold mt-0.5">
+                  Control de salida y devolución de productos
+                </p>
+              </div>
             </div>
-            <div className="shrink-0">
+            <div className="flex items-center gap-2.5 shrink-0">
               <button
                 onClick={() => setModalOpen(true)}
-                className="h-[46px] px-[22px] rounded-[12px] text-sm font-semibold flex items-center gap-2 bg-terra text-white hover:bg-terra-deep transition-all hover:-translate-y-px active:translate-y-0"
-                style={{ boxShadow: '0 1px 2px rgba(200,80,31,0.3), 0 6px 16px -8px rgba(200,80,31,0.5)' }}
+                className="px-[18px] py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white rounded-xl flex items-center justify-center gap-1.5 text-sm font-bold active:scale-95 transition-all shadow-md"
               >
-                <IcoPlus /> <span>Nuevo préstamo</span>
+                <i className="ti ti-plus text-base" />
+                Nuevo préstamo
               </button>
             </div>
           </div>
 
-          {/* ── Metrics ──────────────────────────────────────────────────── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 mb-7 md:mb-11">
-            <WarmMetric label="Total préstamos" value={kpi.total.toLocaleString('es-BO')} icon={<IcoHandshake />} sublabel="registrados" />
-            <WarmMetric label="Activos" value={kpi.activos} icon={<IcoActive />} tone={kpi.activos > 0 ? 'warn' : undefined} sublabel="en préstamo" />
-            <WarmMetric label="Devueltos" value={kpi.devueltos} icon={<IcoReturn />} sublabel="completados" />
-            <WarmMetric label="Valor activo" value={fmtBs(kpi.valorActivo)} unit="Bs." icon={<IcoMoney />} sublabel="en préstamo" />
-          </div>
+          {/* ── Metrics Grid ─────────────────────────────────────────────── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 mb-6">
 
-          {/* ── Table card ───────────────────────────────────────────────── */}
-          <div
-            className="rounded-[18px] border border-hair overflow-hidden"
-            style={{ background: 'rgba(255,255,255,0.86)', backdropFilter: 'blur(2px)' }}
-          >
-
-            {/* Toolbar */}
-            <div className="flex items-center gap-3.5 px-4 md:px-7 py-4 md:py-[22px] border-b border-hair flex-wrap">
-              <div>
-                <span className="font-serif text-[28px] leading-[1] tracking-[-0.01em] text-ink">Préstamos</span>
-                <span className="text-base text-muted ml-2.5 font-normal">
-                  {displayPrestamos.length}
-                </span>
+            {/* Total préstamos */}
+            <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200">
+              <div className="absolute -top-5 -right-5 w-20 h-20 rounded-full bg-[#3b82f6] opacity-10" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0284c7] to-[#60a5fa] flex items-center justify-center text-white mb-3.5">
+                <i className="ti ti-arrows-exchange text-xl" />
               </div>
-
-              {/* Estado filter tabs */}
-              <div className="flex items-center gap-1 bg-cream rounded-[10px] p-1 border border-hair">
-                {(['todos', 'Activo', 'Devuelto'] as EstadoFilter[]).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setFilterEstado(tab)}
-                    className={clsx(
-                      'px-3 py-1.5 text-[12px] font-semibold rounded-[8px] transition-all',
-                      filterEstado === tab
-                        ? 'bg-ink text-cream shadow-sm'
-                        : 'text-muted hover:text-ink-2',
-                    )}
-                  >
-                    {tab === 'todos' ? 'Todos' : tab}
-                  </button>
-                ))}
+              <div className="font-black text-[30px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                {kpi.total.toLocaleString('es-BO')}
               </div>
-
-              <div className="ml-auto flex items-center gap-2">
-                <div className="h-10 flex items-center gap-2.5 px-3.5 border border-hair rounded-[10px] bg-cream min-w-0 w-full sm:w-auto sm:min-w-[260px] md:min-w-[300px] transition-colors focus-within:border-terra focus-within:bg-paper">
-                  <IcoSearch />
-                  <input
-                    className="flex-1 min-w-0 bg-transparent border-none outline-none text-sm text-ink placeholder-muted-2"
-                    placeholder="Buscar cliente, código..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
+              <div className="text-xs font-semibold text-[#9996b0] mt-1">Total préstamos</div>
+              <div className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#0284c7] mt-2">
+                <i className="ti ti-circle-check text-[11px]" />
+                registrados
               </div>
             </div>
 
-            {/* Body */}
+            {/* Activos */}
+            <div className={clsx(
+              'rounded-2xl border-[1.5px] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200',
+              kpi.activos > 0 ? 'bg-[#fef9c3]/40 border-[#ca8a04]/30' : 'bg-white border-[#e2e8f0]',
+            )}>
+              <div className="absolute -top-5 -right-5 w-20 h-20 rounded-full bg-[#f59e0b] opacity-10" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#f59e0b] to-[#fbbf24] flex items-center justify-center text-white mb-3.5">
+                <i className="ti ti-clock text-xl" />
+              </div>
+              <div
+                className={clsx('font-black text-[30px] leading-none', kpi.activos > 0 ? 'text-[#ca8a04]' : 'text-[#1e1b2e]')}
+                style={{ fontFamily: 'Nunito, sans-serif' }}
+              >
+                {kpi.activos}
+              </div>
+              <div className="text-xs font-semibold text-[#9996b0] mt-1">Activos</div>
+              <div className={clsx(
+                'inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full mt-2',
+                kpi.activos > 0 ? 'bg-[#fef9c3] text-[#ca8a04]' : 'bg-[#d1fae5] text-[#059669]',
+              )}>
+                <i className={clsx('text-[11px]', kpi.activos > 0 ? 'ti ti-clock' : 'ti ti-mood-smile')} />
+                {kpi.activos > 0 ? 'en préstamo' : 'todo devuelto'}
+              </div>
+            </div>
+
+            {/* Devueltos */}
+            <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200">
+              <div className="absolute -top-5 -right-5 w-20 h-20 rounded-full bg-[#059669] opacity-10" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#059669] to-[#4eddc4] flex items-center justify-center text-white mb-3.5">
+                <i className="ti ti-arrow-back text-xl" />
+              </div>
+              <div className="font-black text-[30px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                {kpi.devueltos}
+              </div>
+              <div className="text-xs font-semibold text-[#9996b0] mt-1">Devueltos</div>
+              <div className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#d1fae5] text-[#059669] mt-2">
+                <i className="ti ti-circle-check text-[11px]" />
+                completados
+              </div>
+            </div>
+
+            {/* Valor activo */}
+            <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200">
+              <div className="absolute -top-5 -right-5 w-20 h-20 rounded-full bg-[#0284c7] opacity-10" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0284c7] to-[#81aaff] flex items-center justify-center text-white mb-3.5">
+                <i className="ti ti-currency-dollar text-xl" />
+              </div>
+              <div
+                className="font-black text-[22px] text-[#1e1b2e] leading-none flex items-baseline gap-1"
+                style={{ fontFamily: 'Nunito, sans-serif' }}
+              >
+                <span className="text-sm font-bold text-[#0284c7]">Bs.</span>
+                {fmtBs(kpi.valorActivo)}
+              </div>
+              <div className="text-xs font-semibold text-[#9996b0] mt-1">Valor activo</div>
+              <div className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#0284c7] mt-2">
+                <i className="ti ti-trending-up text-[11px]" />
+                en préstamo
+              </div>
+            </div>
+
+          </div>
+
+          {/* ── Table Container ──────────────────────────────────────────── */}
+          <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] overflow-hidden">
+
+            {/* Toolbar */}
+            <div className="px-5 py-[18px] border-b border-[#e2e8f0] flex flex-wrap justify-between items-center gap-4">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h3
+                  className="text-lg font-extrabold text-[#1e1b2e] flex items-center gap-2"
+                  style={{ fontFamily: 'Nunito, sans-serif' }}
+                >
+                  Préstamos
+                  <span className="bg-[#dbeafe] text-[#1d4ed8] text-xs font-bold px-2.5 py-0.5 rounded-full">
+                    {displayPrestamos.length}
+                  </span>
+                </h3>
+
+                {/* Estado filter tabs */}
+                <div className="flex items-center gap-1 bg-[#f1f5f9] rounded-xl p-1 border border-[#e2e8f0]">
+                  {(['todos', 'Activo', 'Devuelto'] as EstadoFilter[]).map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setFilterEstado(tab)}
+                      className={clsx(
+                        'px-3 py-1 text-[12px] font-bold rounded-[8px] transition-all',
+                        filterEstado === tab
+                          ? 'bg-white text-[#1e1b2e] shadow-sm border border-[#e2e8f0]'
+                          : 'text-[#9996b0] hover:text-[#5a5670]',
+                      )}
+                    >
+                      {tab === 'todos' ? 'Todos' : tab}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] rounded-xl px-3.5 w-full sm:w-auto sm:min-w-[250px] focus-within:border-[#1d4ed8] transition-colors">
+                <i className="ti ti-search text-[#9996b0] text-base shrink-0" />
+                <input
+                  className="flex-1 py-2 bg-transparent text-sm text-[#1e1b2e] font-semibold placeholder:text-[#9996b0] outline-none border-none"
+                  placeholder="Buscar cliente, código..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Table / skeleton / empty */}
             {loading ? (
               <>
                 <div className="hidden md:block"><TableSkeleton /></div>
@@ -729,15 +729,15 @@ export function PrestamosPage() {
               <>
                 {/* Desktop table */}
                 <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-sm table-fixed">
+                  <table className="w-full text-left border-collapse table-fixed">
                     <colgroup>
                       {table.getFlatHeaders().map((h) => (
                         <col key={h.id} style={{ width: h.column.getSize() }} />
                       ))}
                     </colgroup>
-                    <thead>
+                    <thead className="bg-[#f1f5f9]">
                       {table.getHeaderGroups().map((hg) => (
-                        <tr key={hg.id} className="border-b border-hair" style={{ background: 'rgba(250,248,245,0.7)' }}>
+                        <tr key={hg.id}>
                           {hg.headers.map((header) => {
                             const canSort = header.column.getCanSort()
                             const sorted  = header.column.getIsSorted()
@@ -746,23 +746,26 @@ export function PrestamosPage() {
                               <th
                                 key={header.id}
                                 className={clsx(
-                                  'px-[22px] py-4 text-[11.5px] font-semibold text-muted uppercase tracking-[0.1em] select-none whitespace-nowrap',
+                                  'px-4 py-3 text-[11px] font-bold text-[#9996b0] uppercase tracking-wide select-none whitespace-nowrap',
                                   align === 'center' && 'text-center',
-                                  align === 'right' && 'text-right',
-                                  canSort && 'cursor-pointer hover:text-ink-2 transition-colors',
+                                  align === 'right'  && 'text-right',
+                                  canSort && 'cursor-pointer hover:text-[#5a5670] transition-colors',
                                 )}
                                 onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                               >
                                 <span className={clsx(
                                   'inline-flex items-center gap-1',
                                   align === 'center' && 'justify-center w-full',
-                                  align === 'right' && 'justify-end w-full',
+                                  align === 'right'  && 'justify-end w-full',
                                 )}>
                                   {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                                  {canSort && sorted !== false && (
-                                    <svg className="h-3 w-3 text-terra shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sorted === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'} />
-                                    </svg>
+                                  {canSort && (
+                                    <i className={clsx(
+                                      'text-[12px]',
+                                      sorted === 'asc'  ? 'ti ti-arrow-up'
+                                      : sorted === 'desc' ? 'ti ti-arrow-down'
+                                      : 'ti ti-selector'
+                                    )} />
                                   )}
                                 </span>
                               </th>
@@ -772,14 +775,11 @@ export function PrestamosPage() {
                       ))}
                     </thead>
                     <tbody>
-                      {table.getRowModel().rows.map((row, idx) => (
+                      {table.getRowModel().rows.map((row) => (
                         <tr
                           key={row.id}
-                          className="border-b border-hair transition-colors cursor-pointer"
-                          style={{ background: idx % 2 === 0 ? 'rgba(255,255,255,0.55)' : 'rgba(250,250,248,0.45)' }}
+                          className="border-t border-[#e2e8f0] hover:bg-[#faf9ff] transition-colors cursor-pointer"
                           onClick={() => { setDetailPrestamo(row.original); setDetailOpen(true) }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(244,239,230,0.8)')}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = idx % 2 === 0 ? 'rgba(255,255,255,0.55)' : 'rgba(250,250,248,0.45)')}
                         >
                           {row.getVisibleCells().map((cell) => {
                             const align = (cell.column.columnDef.meta as ColumnMeta<Prestamo, unknown> | undefined)?.align ?? 'left'
@@ -787,9 +787,9 @@ export function PrestamosPage() {
                               <td
                                 key={cell.id}
                                 className={clsx(
-                                  'px-[22px] py-[9px] align-middle text-[13.5px]',
+                                  'px-4 py-3.5 align-middle text-sm',
                                   align === 'center' && 'text-center',
-                                  align === 'right' && 'text-right',
+                                  align === 'right'  && 'text-right',
                                 )}
                               >
                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -817,8 +817,8 @@ export function PrestamosPage() {
 
             {/* Footer */}
             {!loading && displayPrestamos.length > 0 && (
-              <div className="px-4 md:px-7 py-4 border-t border-hair bg-cream flex flex-col sm:flex-row items-center justify-between gap-3">
-                <span className="text-[12.5px] text-muted">
+              <div className="px-5 py-3.5 bg-[#f1f5f9] border-t border-[#e2e8f0] flex flex-col sm:flex-row items-center justify-between gap-3">
+                <span className="text-[12.5px] text-[#9996b0] font-semibold">
                   Mostrando {displayPrestamos.length} de {totalCount || prestamos.length} préstamos
                 </span>
                 <div className="flex items-center gap-3">
@@ -826,7 +826,7 @@ export function PrestamosPage() {
                     <button
                       onClick={() => loadPrestamos(endCursor)}
                       disabled={loading}
-                      className="h-9 px-4 rounded-[10px] text-[13px] font-semibold bg-paper border border-hair text-ink hover:border-ink transition-colors disabled:opacity-50"
+                      className="h-9 px-4 rounded-xl text-[13px] font-bold bg-white border border-[#e2e8f0] text-[#5a5670] hover:border-[#1d4ed8] hover:text-[#1d4ed8] transition-colors disabled:opacity-50"
                     >
                       Cargar más
                     </button>

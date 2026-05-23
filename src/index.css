@@ -8,26 +8,11 @@
   }
 
   body {
-    @apply bg-cream text-ink font-sans;
+    background: #f1f5f9;
+    color: #1e1b2e;
+    font-family: 'Nunito Sans', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-  }
-
-  body::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg,
-      #B22234 0%,
-      #B22234 33%,
-      #FAF8F5 33%,
-      #FAF8F5 38%,
-      #002868 38%,
-      #002868 100%);
-    z-index: 100;
   }
 
   * {

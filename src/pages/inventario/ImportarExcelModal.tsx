@@ -253,8 +253,12 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
       const marcaNombre = (marcas.find((m) => m.id === p.marcaId)?.nombre ?? '').toLowerCase().trim()
       const makeKey = (code: string) => excelKey(code, marcaNombre)
       map.set(makeKey(p.codigo_universal), p)
+      if (marcaNombre) map.set(excelKey(p.codigo_universal, ''), p)
       p.codigos_alternativos.forEach((code) => {
-        if (code) map.set(makeKey(code), p)
+        if (code) {
+          map.set(makeKey(code), p)
+          if (marcaNombre) map.set(excelKey(code, ''), p)
+        }
       })
     })
     return map
@@ -376,6 +380,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
           return {
             data: {
               ...p,
+              marcaId: p.marcaId ?? existing.marcaId ?? null,
               stock: stockParaEnviar,
               conversionABs: usarTipoCambioGlobal ? tc : (tcFromExcel > 0 ? tcFromExcel : 6.96),
               piezas: columnaPiezasMapeada ? p.piezas : existing.piezas ?? 1,

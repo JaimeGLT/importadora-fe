@@ -20,7 +20,7 @@ interface NavGroup {
 const groups: NavGroup[] = [
   {
     label: 'Inventario',
-    icon: <span className="material-symbols-outlined text-[18px] shrink-0">inventory_2</span>,
+    icon: <i className="ti ti-package text-[18px] shrink-0" />,
     items: [
       { label: 'Productos',  to: '/inventario',            roles: ['admin'] },
       { label: 'Ajustes',    to: '/inventario/ajustes',   roles: ['admin', 'almacenero'] },
@@ -29,7 +29,7 @@ const groups: NavGroup[] = [
   },
   {
     label: 'Importaciones',
-    icon: <span className="material-symbols-outlined text-[18px] shrink-0">upload_file</span>,
+    icon: <i className="ti ti-file-import text-[18px] shrink-0" />,
     items: [
       { label: 'Importaciones', to: '/importaciones',             roles: ['admin'] },
       { label: 'Proveedores',   to: '/importaciones/proveedores', roles: ['admin'] },
@@ -39,7 +39,7 @@ const groups: NavGroup[] = [
   },
   {
     label: 'Caja',
-    icon: <span className="material-symbols-outlined text-[18px] shrink-0">payments</span>,
+    icon: <i className="ti ti-cash-register text-[18px] shrink-0" />,
     roles: ['admin', 'cajero'],
     items: [
       { label: 'Caja diaria', to: '/caja', roles: ['admin', 'cajero'] },
@@ -47,7 +47,7 @@ const groups: NavGroup[] = [
   },
   {
     label: 'Ventas',
-    icon: <span className="material-symbols-outlined text-[18px] shrink-0">sell</span>,
+    icon: <i className="ti ti-receipt text-[18px] shrink-0" />,
     items: [
       { label: 'Caja',     to: '/ventas/caja',     roles: ['admin', 'cajero'] },
       { label: 'Almacén',  to: '/ventas/almacen',  roles: ['admin', 'almacenero'] },
@@ -57,7 +57,7 @@ const groups: NavGroup[] = [
   },
   {
     label: 'Reportes',
-    icon: <span className="material-symbols-outlined text-[18px] shrink-0">bar_chart</span>,
+    icon: <i className="ti ti-chart-bar text-[18px] shrink-0" />,
     roles: ['admin'],
     items: [
       { label: 'Ganancia por producto',        to: '/reportes/rentabilidad',   roles: ['admin'] },
@@ -77,7 +77,7 @@ const groups: NavGroup[] = [
   },
   {
     label: 'Sistema',
-    icon: <span className="material-symbols-outlined text-[18px] shrink-0">settings</span>,
+    icon: <i className="ti ti-settings-2 text-[18px] shrink-0" />,
     roles: ['admin'],
     items: [
       { label: 'Configuración',    to: '/configuracion',    roles: ['admin'] },
@@ -103,25 +103,25 @@ function SidebarWatermark() {
             <rect x="74" y="9" width="6" height="14" transform="rotate(45 77 16)"/>
             <rect x="20" y="77" width="6" height="14" transform="rotate(45 23 84)"/>
             <rect x="74" y="77" width="6" height="14" transform="rotate(-45 77 84)"/>
-            <circle cx="50" cy="50" r="20" fill="#2a313d"/>
+            <circle cx="50" cy="50" r="20" fill="#0f172a"/>
             <circle cx="50" cy="50" r="6"/>
           </g>
           <g transform="translate(14,320)">
             <circle cx="52" cy="52" r="50"/>
-            <circle cx="52" cy="52" r="32" fill="#2a313d"/>
+            <circle cx="52" cy="52" r="32" fill="#0f172a"/>
             <circle cx="52" cy="52" r="9"/>
-            <circle cx="52" cy="10" r="4" fill="#2a313d"/>
-            <circle cx="52" cy="94" r="4" fill="#2a313d"/>
-            <circle cx="10" cy="52" r="4" fill="#2a313d"/>
-            <circle cx="94" cy="52" r="4" fill="#2a313d"/>
-            <circle cx="80" cy="24" r="4" fill="#2a313d"/>
-            <circle cx="24" cy="80" r="4" fill="#2a313d"/>
-            <circle cx="24" cy="24" r="4" fill="#2a313d"/>
-            <circle cx="80" cy="80" r="4" fill="#2a313d"/>
+            <circle cx="52" cy="10" r="4" fill="#0f172a"/>
+            <circle cx="52" cy="94" r="4" fill="#0f172a"/>
+            <circle cx="10" cy="52" r="4" fill="#0f172a"/>
+            <circle cx="94" cy="52" r="4" fill="#0f172a"/>
+            <circle cx="80" cy="24" r="4" fill="#0f172a"/>
+            <circle cx="24" cy="80" r="4" fill="#0f172a"/>
+            <circle cx="24" cy="24" r="4" fill="#0f172a"/>
+            <circle cx="80" cy="80" r="4" fill="#0f172a"/>
           </g>
           <g transform="translate(172,490) rotate(-20)">
             <path d="M30 2 L56 16 L56 44 L30 58 L4 44 L4 16 Z"/>
-            <circle cx="30" cy="30" r="9" fill="#2a313d"/>
+            <circle cx="30" cy="30" r="9" fill="#0f172a"/>
           </g>
           <g transform="translate(28,620) rotate(10)">
             <rect x="0" y="0" width="12" height="8"/>
@@ -174,10 +174,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
   return (
     <aside className={clsx(
-      'flex flex-col w-[248px] shrink-0 font-hanken',
-      'bg-inverse-surface border-r border-outline-variant',
+      'flex flex-col w-[248px] shrink-0',
+      'bg-[#0f172a]',
       'fixed inset-y-0 left-0 z-50 h-full transition-transform duration-300 ease-in-out',
-      'md:sticky md:top-0 md:translate-x-0 md:h-screen',
+      'md:sticky md:top-0 md:translate-x-0 md:h-screen md:rounded-r-3xl',
       open ? 'translate-x-0' : '-translate-x-full',
     )}>
       <SidebarWatermark />
@@ -185,30 +185,30 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       <div className="flex flex-col flex-1 min-h-0 relative z-[1]">
 
         {/* Brand */}
-        <div className="px-6 py-container-margin border-b border-surface-variant/10">
+        <div className="px-6 py-6 border-b border-white/5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary-container rounded flex items-center justify-center shrink-0">
-              <span className="text-white font-bold text-sm tracking-wide">USA</span>
+            <div className="w-10 h-10 bg-gradient-to-br from-[#0284c7] to-[#1d4ed8] rounded-xl flex items-center justify-center shrink-0">
+              <span className="text-white font-black text-sm tracking-wide">USA</span>
             </div>
             <div className="flex-1 min-w-0">
               <h1 className="text-[15px] font-bold text-white leading-tight">USA Autopartes</h1>
-              <p className="text-[11px] text-surface-variant/70">Operaciones</p>
+              <p className="text-[11px] text-[#64748b]">Operaciones</p>
             </div>
             <button
               onClick={onClose}
-              className="md:hidden p-1.5 rounded text-surface-variant/40 hover:text-white hover:bg-surface-variant/10 transition-colors"
+              className="md:hidden p-1.5 rounded-lg text-[#475569] hover:text-white hover:bg-[#1e293b] transition-colors"
               aria-label="Cerrar menú"
             >
-              <span className="material-symbols-outlined text-[18px]">close</span>
+              <i className="ti ti-x text-[18px]" />
             </button>
           </div>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 flex flex-col gap-1 px-2 py-container-margin overflow-y-auto">
+        <nav className="flex-1 flex flex-col gap-0.5 px-3 py-5 overflow-y-auto">
 
           {/* Principal */}
-          <div className="text-[10px] font-bold text-surface-variant/40 px-4 mb-2 tracking-widest uppercase">
+          <div className="text-[10px] font-bold text-[#334155] px-3 mb-1.5 tracking-[2px] uppercase">
             Principal
           </div>
 
@@ -217,18 +217,18 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             onClick={onClose}
             className={({ isActive }) =>
               clsx(
-                'px-4 py-3 flex items-center gap-3 transition-colors text-[13px]',
+                'px-3 py-2.5 flex items-center gap-2.5 transition-colors text-[14px] font-semibold rounded-xl mb-0.5',
                 isActive
-                  ? 'bg-primary-container text-on-primary-container border-l-4 border-primary'
-                  : 'text-surface-variant hover:bg-surface-variant/10',
+                  ? 'bg-[#1e293b] text-white border-l-[3px] border-l-[#3b82f6] pl-[9px]'
+                  : 'text-[#64748b] hover:bg-[#1e293b] hover:text-[#e2e8f0]',
               )
             }
           >
-            <span className="material-symbols-outlined text-[18px] shrink-0">dashboard</span>
+            <i className="ti ti-layout-dashboard text-[18px] shrink-0" />
             <span>Dashboard</span>
           </NavLink>
 
-          <div className="text-[10px] font-bold text-surface-variant/40 px-4 mt-6 mb-2 tracking-widest uppercase">
+          <div className="text-[10px] font-bold text-[#334155] px-3 mt-5 mb-1.5 tracking-[2px] uppercase">
             Operaciones
           </div>
 
@@ -248,10 +248,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                   onClick={onClose}
                   className={({ isActive }) =>
                     clsx(
-                      'px-4 py-3 flex items-center gap-3 transition-colors text-[13px]',
+                      'px-3 py-2.5 flex items-center gap-2.5 transition-colors text-[14px] font-semibold rounded-xl mb-0.5',
                       isActive
-                        ? 'bg-primary-container text-on-primary-container border-l-4 border-primary'
-                        : 'text-surface-variant hover:bg-surface-variant/10',
+                        ? 'bg-[#1e293b] text-white border-l-[3px] border-l-[#3b82f6] pl-[9px]'
+                        : 'text-[#64748b] hover:bg-[#1e293b] hover:text-[#e2e8f0]',
                     )
                   }
                 >
@@ -262,31 +262,29 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             }
 
             return (
-              <div key={group.label}>
+              <div key={group.label} className="mb-0.5">
                 <button
                   onClick={() => toggleGroup(group.label)}
                   className={clsx(
-                    'w-full px-4 py-3 flex items-center gap-3 transition-colors text-[13px] text-left',
+                    'w-full px-3 py-2.5 flex items-center gap-2.5 transition-colors text-[14px] font-semibold text-left rounded-xl',
                     groupActive && !isExpanded
-                      ? 'bg-primary-container text-on-primary-container border-l-4 border-primary'
-                      : 'text-surface-variant hover:bg-surface-variant/10',
+                      ? 'bg-[#1e293b] text-white border-l-[3px] border-l-[#3b82f6] pl-[9px]'
+                      : 'text-[#64748b] hover:bg-[#1e293b] hover:text-[#e2e8f0]',
                   )}
                 >
                   {group.icon}
                   <span className="flex-1">{group.label}</span>
-                  <span className={clsx(
-                    'material-symbols-outlined text-[18px] shrink-0 opacity-50 transition-transform duration-200',
+                  <i className={clsx(
+                    'ti ti-chevron-down text-[18px] shrink-0 opacity-50 transition-transform duration-200',
                     isExpanded && 'rotate-180',
-                  )}>
-                    expand_more
-                  </span>
+                  )} />
                 </button>
 
                 <div className={clsx(
                   'overflow-hidden transition-all duration-200 ease-in-out',
                   isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0',
                 )}>
-                  <div className="ml-12 flex flex-col gap-1 mt-1">
+                  <div className="ml-10 flex flex-col gap-0.5 mt-1">
                     {visibleItems.map((item) => (
                       <NavLink
                         key={item.to}
@@ -295,10 +293,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                         onClick={onClose}
                         className={({ isActive }) =>
                           clsx(
-                            'py-2 text-xs transition-colors',
+                            'py-1.5 text-[13px] font-medium transition-colors',
                             isActive
-                              ? 'text-primary font-bold'
-                              : 'text-surface-variant/60 hover:text-surface-variant',
+                              ? 'text-[#3b82f6] font-bold'
+                              : 'text-[#475569] hover:text-[#e2e8f0]',
                           )
                         }
                       >
@@ -311,7 +309,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             )
           })}
 
-          <div className="text-[10px] font-bold text-surface-variant/40 px-4 mt-6 mb-2 tracking-widest uppercase">
+          <div className="text-[10px] font-bold text-[#334155] px-3 mt-5 mb-1.5 tracking-[2px] uppercase">
             General
           </div>
 
@@ -322,31 +320,29 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             const isExpanded = expandedGroups.has(group.label)
 
             return (
-              <div key={group.label}>
+              <div key={group.label} className="mb-0.5">
                 <button
                   onClick={() => toggleGroup(group.label)}
                   className={clsx(
-                    'w-full px-4 py-3 flex items-center gap-3 transition-colors text-[13px] text-left',
+                    'w-full px-3 py-2.5 flex items-center gap-2.5 transition-colors text-[14px] font-semibold text-left rounded-xl',
                     groupActive && !isExpanded
-                      ? 'bg-primary-container text-on-primary-container border-l-4 border-primary'
-                      : 'text-surface-variant hover:bg-surface-variant/10',
+                      ? 'bg-[#1e293b] text-white border-l-[3px] border-l-[#3b82f6] pl-[9px]'
+                      : 'text-[#64748b] hover:bg-[#1e293b] hover:text-[#e2e8f0]',
                   )}
                 >
                   {group.icon}
                   <span className="flex-1">{group.label}</span>
-                  <span className={clsx(
-                    'material-symbols-outlined text-[18px] shrink-0 opacity-50 transition-transform duration-200',
+                  <i className={clsx(
+                    'ti ti-chevron-down text-[18px] shrink-0 opacity-50 transition-transform duration-200',
                     isExpanded && 'rotate-180',
-                  )}>
-                    expand_more
-                  </span>
+                  )} />
                 </button>
 
                 <div className={clsx(
                   'overflow-hidden transition-all duration-200 ease-in-out',
                   isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0',
                 )}>
-                  <div className="ml-12 flex flex-col gap-1 mt-1">
+                  <div className="ml-10 flex flex-col gap-0.5 mt-1">
                     {visibleItems.map((item) => (
                       <NavLink
                         key={item.to}
@@ -355,10 +351,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                         onClick={onClose}
                         className={({ isActive }) =>
                           clsx(
-                            'py-2 text-xs transition-colors',
+                            'py-1.5 text-[13px] font-medium transition-colors',
                             isActive
-                              ? 'text-primary font-bold'
-                              : 'text-surface-variant/60 hover:text-surface-variant',
+                              ? 'text-[#3b82f6] font-bold'
+                              : 'text-[#475569] hover:text-[#e2e8f0]',
                           )
                         }
                       >
@@ -373,22 +369,20 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </nav>
 
         {/* User footer */}
-        <div className="px-4 py-4 border-t border-surface-variant/10 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold shrink-0">
+        <div className="p-3 shrink-0">
+          <div className="flex items-center gap-2.5 bg-[#1e293b] rounded-2xl px-3 py-3">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#059669] to-[#0284c7] flex items-center justify-center text-white text-xs font-black shrink-0">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-xs font-bold truncate">{user?.nombre ?? '—'}</p>
-              <p className="text-surface-variant/50 text-[10px] capitalize truncate">{user?.rol ?? ''}</p>
+              <p className="text-white text-[13px] font-bold truncate">{user?.nombre ?? '—'}</p>
+              <p className="text-[#475569] text-[11px] capitalize truncate">{user?.rol ?? ''}</p>
             </div>
-            <span
+            <i
               onClick={() => { void logout().then(() => navigate('/login')) }}
-              className="material-symbols-outlined text-[18px] text-surface-variant/40 cursor-pointer hover:text-white transition-colors"
+              className="ti ti-logout text-[18px] text-[#475569] cursor-pointer hover:text-white transition-colors"
               title="Cerrar sesión"
-            >
-              logout
-            </span>
+            />
           </div>
         </div>
 

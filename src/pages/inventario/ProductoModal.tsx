@@ -58,8 +58,8 @@ const EMPTY: FormData = {
 function SkeletonField({ labelWidth = 24 }: { labelWidth?: number }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="h-2.5 rounded bg-cream-2 animate-pulse" style={{ width: `${labelWidth}%` }} />
-      <div className="h-[42px] w-full rounded-[10px] bg-cream-2 animate-pulse" />
+      <div className="h-2.5 rounded bg-[#f1f5f9] animate-pulse" style={{ width: `${labelWidth}%` }} />
+      <div className="h-[42px] w-full rounded-xl bg-[#f1f5f9] animate-pulse" />
     </div>
   )
 }
@@ -81,16 +81,16 @@ function PreciosEspecialesSection({ precioVenta }: { precioVenta: number }) {
   if (descuentosActivos.length === 0 || precioVenta <= 0) return null
 
   return (
-    <section className="rounded-[14px] border border-hair overflow-hidden">
-      <div className="flex items-center gap-3 px-5 py-3.5 bg-gradient-to-b from-cream-2/90 to-cream/50 border-b border-hair">
+    <section className="rounded-2xl border border-[#e2e8f0] overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-3.5 bg-white border-b border-[#e2e8f0]">
         <div className="flex items-center justify-center w-[30px] h-[30px] rounded-[8px] bg-white border border-hair text-ink-2 shadow-sm flex-shrink-0">
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[12.5px] font-semibold text-ink-2">Precios especiales</p>
-          <p className="text-[11px] text-muted-2 leading-tight">Descuentos automáticos configurados</p>
+          <p className="text-[12.5px] font-bold text-[#1e1b2e]">Precios especiales</p>
+          <p className="text-[11px] text-[#9996b0] leading-tight">Descuentos automáticos configurados</p>
         </div>
       </div>
       <div className="p-5 bg-white">
@@ -293,19 +293,19 @@ export function ProductoModal({
           {producto && onDelete && (
             <button
               onClick={onDelete} disabled={saving}
-              className="h-[42px] w-[42px] flex items-center justify-center rounded-[10px] border border-red-200 text-red-500 bg-white hover:bg-red-50 hover:border-red-300 transition-colors mr-auto disabled:opacity-40"
+              className="h-[42px] w-[42px] flex items-center justify-center rounded-xl border border-[#e2e8f0] text-[#9996b0] bg-white hover:bg-[#fee2e2] hover:text-[#dc2626] hover:border-[#dc2626] transition-all mr-auto disabled:opacity-40"
               title="Eliminar producto"
             >
-              <span className="material-symbols-outlined text-[20px]">delete</span>
+              <i className="ti ti-trash text-[20px]" />
             </button>
           )}
           <Button variant="secondary"
-            className="h-[42px] px-5 rounded-[10px] !border-hair !text-ink-2 !bg-white hover:!bg-cream-2 hover:!border-hair-2 !text-[13.5px] !font-medium"
+            className="h-[42px] px-5 rounded-xl !border-[#e2e8f0] !text-[#5a5670] !bg-white hover:!bg-[#f1f5f9] !text-[13.5px] !font-semibold"
             onClick={onClose} disabled={saving}>
             Cancelar
           </Button>
           <Button
-            className="h-[42px] px-5 rounded-[10px] !bg-terra hover:!bg-terra-deep !text-white !text-[13.5px] !font-semibold"
+            className="h-[42px] px-5 rounded-xl !bg-[#1d4ed8] hover:!bg-[#1e40af] !text-white !text-[13.5px] !font-bold shadow-md"
             onClick={() => void handleSave()} loading={saving}>
             {producto ? 'Guardar cambios' : 'Crear producto'}
           </Button>
@@ -439,19 +439,17 @@ export function ProductoModal({
             iconClass="bg-[#7C3AED] text-white shadow-sm"
             extra={producto?.es_kit ? (
               <div className="flex flex-col gap-1.5">
-                <div className="flex items-center gap-1.5 rounded-full bg-navy px-2.5 py-1">
-                  <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
+                <div className="flex items-center gap-1.5 rounded-full bg-[#1d4ed8] px-2.5 py-1">
+                  <i className="ti ti-package text-white text-[11px]" />
                   <span className="text-[11px] font-bold text-white tabular-nums">{producto.stock}</span>
-                  <span className="text-[10px] text-navy-soft/80">kits completos</span>
+                  <span className="text-[10px] text-white/70">kits</span>
                 </div>
                 {(producto.piezas_kit?.length ?? 0) > 0 && (
-                  <div className="flex items-center gap-1 rounded-full bg-navy/10 border border-navy/30 px-2.5 py-1">
-                    <span className="text-[11px] font-semibold text-navy tabular-nums">
+                  <div className="flex items-center gap-1 rounded-full bg-[#dbeafe] border border-[#1d4ed8]/30 px-2.5 py-1">
+                    <span className="text-[11px] font-semibold text-[#1d4ed8] tabular-nums">
                       {producto.piezas_kit!.reduce((s, p) => s + p.stock_actual, 0)}
                     </span>
-                    <span className="text-[10px] text-navy/60">piezas en bodega</span>
+                    <span className="text-[10px] text-[#1d4ed8]/70">piezas en bodega</span>
                   </div>
                 )}
               </div>
@@ -463,10 +461,10 @@ export function ProductoModal({
                   type="checkbox"
                   checked={form.es_kit}
                   onChange={(e) => set('es_kit', e.target.checked)}
-                  className="h-4 w-4 rounded-[4px] border-hair"
-                  style={{ accentColor: '#B22234' }}
+                  className="h-4 w-4 rounded-[4px] border-[#e2e8f0]"
+                  style={{ accentColor: '#1d4ed8' }}
                 />
-                <span className="text-[13px] font-semibold text-ink-2">Este producto es un kit</span>
+                <span className="text-[13px] font-semibold text-[#5a5670]">Este producto es un kit</span>
               </label>
 
               {/* Kit → Regular: warning + stock manual input */}
@@ -511,10 +509,10 @@ export function ProductoModal({
               )}
 
               {!form.es_kit && !producto?.es_kit && producto?.kit_id && (
-                <div className="p-3.5 rounded-[10px] bg-cream-2 border border-hair">
-                  <p className="text-[12px] text-muted-2">
+                <div className="p-3.5 rounded-xl bg-[#f8fafc] border border-[#e2e8f0]">
+                  <p className="text-[12px] text-[#9996b0]">
                     Parte del kit:{' '}
-                    <span className="font-semibold text-ink-2">{getKitNombre(producto.kit_id, productosExistentes)}</span>
+                    <span className="font-bold text-[#1e1b2e]">{getKitNombre(producto.kit_id, productosExistentes)}</span>
                   </p>
                 </div>
               )}
@@ -559,15 +557,13 @@ export function ProductoModal({
             </div>
             {margen !== null && (
               <div className="mt-3.5 flex items-center gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5 rounded-full bg-warm-ok px-3 py-1">
-                  <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-[#059669] px-3 py-1">
+                  <i className="ti ti-trending-up text-white text-xs" />
                   <span className="text-xs font-bold text-white">Margen {margen}%</span>
                 </div>
-                <div className="flex items-center gap-1.5 rounded-full bg-[#D1FAE5] border border-[#047857]/25 px-3 py-1">
-                  <span className="text-xs text-[#047857]/80">Ganancia</span>
-                  <span className="text-xs font-bold text-[#047857]">Bs {ganancia}</span>
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-[#d1fae5] border border-[#059669]/25 px-3 py-1">
+                  <span className="text-xs text-[#059669]/80">Ganancia</span>
+                  <span className="text-xs font-bold text-[#059669]">Bs {ganancia}</span>
                 </div>
               </div>
             )}
@@ -583,7 +579,7 @@ export function ProductoModal({
                     checked={actualizarPrecio}
                     onChange={(e) => setActualizarPrecio(e.target.checked)}
                     className="h-4 w-4 rounded-[4px] border-amber-400"
-                    style={{ accentColor: '#B45309' }}
+                    style={{ accentColor: '#d97706' }}
                   />
                   <span className="text-[12.5px] font-bold text-amber-800">Actualizar precios</span>
                 </label>
@@ -661,25 +657,25 @@ export function ProductoModal({
             >
               <div className="overflow-x-auto -mx-5 -mb-5">
                 <table className="w-full text-xs min-w-[400px]">
-                  <thead className="border-b border-hair">
-                    <tr style={{ background: 'rgba(240,237,232,0.7)' }}>
-                      <th className="px-4 py-2.5 text-left text-[10.5px] font-semibold text-muted uppercase tracking-[0.06em]">Fecha</th>
-                      <th className="px-4 py-2.5 text-right text-[10.5px] font-semibold text-muted uppercase tracking-[0.06em]">Costo (Bs)</th>
-                      <th className="px-4 py-2.5 text-right text-[10.5px] font-semibold text-muted uppercase tracking-[0.06em]">Venta (Bs)</th>
-                      <th className="px-4 py-2.5 text-right text-[10.5px] font-semibold text-muted uppercase tracking-[0.06em]">T.C.</th>
-                      <th className="px-4 py-2.5 text-left text-[10.5px] font-semibold text-muted uppercase tracking-[0.06em]">Nota</th>
+                  <thead className="border-b border-[#e2e8f0]">
+                    <tr className="bg-[#f1f5f9]">
+                      <th className="px-4 py-2.5 text-left text-[10.5px] font-bold text-[#9996b0] uppercase tracking-[0.06em]">Fecha</th>
+                      <th className="px-4 py-2.5 text-right text-[10.5px] font-bold text-[#9996b0] uppercase tracking-[0.06em]">Costo (Bs)</th>
+                      <th className="px-4 py-2.5 text-right text-[10.5px] font-bold text-[#9996b0] uppercase tracking-[0.06em]">Venta (Bs)</th>
+                      <th className="px-4 py-2.5 text-right text-[10.5px] font-bold text-[#9996b0] uppercase tracking-[0.06em]">T.C.</th>
+                      <th className="px-4 py-2.5 text-left text-[10.5px] font-bold text-[#9996b0] uppercase tracking-[0.06em]">Nota</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-hair/50">
+                  <tbody className="divide-y divide-[#e2e8f0]">
                     {[...form.historial_precios].reverse().map((h, i) => (
-                      <tr key={i} style={{ background: i === 0 ? 'rgba(245,220,223,0.2)' : 'white' }}>
-                        <td className="px-4 py-2.5 text-ink-2 whitespace-nowrap">
+                      <tr key={i} className={i === 0 ? 'bg-[#dbeafe]/20' : 'bg-white'}>
+                        <td className="px-4 py-2.5 text-[#5a5670] whitespace-nowrap">
                           {new Date(h.fecha).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </td>
-                        <td className="px-4 py-2.5 text-right text-muted tabular-nums">{h.precio_costo.toFixed(2)}</td>
-                        <td className="px-4 py-2.5 text-right font-semibold text-ink tabular-nums">{h.precio_venta.toFixed(2)}</td>
-                        <td className="px-4 py-2.5 text-right text-muted-2 tabular-nums">{h.tipo_cambio.toFixed(2)}</td>
-                        <td className="px-4 py-2.5 text-muted-2">{h.nota ?? '—'}</td>
+                        <td className="px-4 py-2.5 text-right text-[#9996b0] tabular-nums">{h.precio_costo.toFixed(2)}</td>
+                        <td className="px-4 py-2.5 text-right font-bold text-[#1e1b2e] tabular-nums">{h.precio_venta.toFixed(2)}</td>
+                        <td className="px-4 py-2.5 text-right text-[#9996b0] tabular-nums">{h.tipo_cambio.toFixed(2)}</td>
+                        <td className="px-4 py-2.5 text-[#9996b0]">{h.nota ?? '—'}</td>
                       </tr>
                     ))}
                   </tbody>
