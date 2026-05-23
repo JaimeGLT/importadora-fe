@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useVentasStore } from '@/stores/ventasStore'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
 import { Button, Input } from '@/components/ui'
-import type { ItemOrden, Producto, AgregarItemOrdenResponse } from '@/types'
+import type { ItemOrden, PiezaOrden, Producto, AgregarItemOrdenResponse } from '@/types'
 import { playConfirmBeep } from '@/lib/sounds'
 import { notify } from '@/lib/notify'
 import { api } from '@/lib/api'
@@ -115,14 +115,14 @@ function ScanConfirmModal({
   const [precio, setPrecio] = useState('')
   const isKit = !!item.kit_id
   const isParcial = !!item.es_parcial
-  const precioValido = !isKit || (parseFloat(precio) > 0)
+  const precioValido = isParcial || !isKit || (parseFloat(precio) > 0)
   const ubicacion = [item.producto_almacen, item.producto_estante, item.producto_fila, item.producto_columna]
     .filter(Boolean).join(' › ')
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCancel()
-      if (e.key === 'Enter' && !loading && precioValido && !isParcial) {
+      if (e.key === 'Enter' && !loading && precioValido) {
         onConfirm(isKit ? parseFloat(precio) : undefined)
       }
     }
@@ -162,12 +162,6 @@ function ScanConfirmModal({
             <span className="text-sm font-black text-steel-800">× {item.cantidad_pedida}</span>
           </div>
 
-          {isParcial && (
-            <div className="px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200">
-              <p className="text-xs font-semibold text-amber-700">Ítem parcial — confirma las piezas individualmente desde el sistema.</p>
-            </div>
-          )}
-
           {isKit && !isParcial && (
             <Input
               label="Precio total del kit (Bs)"
@@ -181,7 +175,7 @@ function ScanConfirmModal({
             />
           )}
 
-          {!isKit && (
+          {(!isKit || isParcial) && (
             <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-steel-50 border border-steel-100">
               <span className="text-xs text-steel-500">Precio unitario</span>
               <span className="text-sm font-bold text-steel-800">Bs {item.precio_unitario.toFixed(2)}</span>
@@ -196,7 +190,7 @@ function ScanConfirmModal({
           <Button
             className="flex-1"
             onClick={() => onConfirm(isKit ? parseFloat(precio) : undefined)}
-            disabled={loading || !precioValido || isParcial}
+            disabled={loading || !precioValido}
           >
             {loading ? 'Confirmando…' : 'Confirmar'}
           </Button>
@@ -534,7 +528,7 @@ function AgregarProductoModal({
 
 export function EscaneoPage() {
   const { isTokenReady } = useAuth()
-  const { ordenes, setOrdenes, updateOrden, addItemToOrden, removeItemFromOrden, updateItemQtyInOrden, markItemListoEnOrden } = useVentasStore()
+  const { ordenes, setOrdenes, updateOrden, addItemToOrden, removeItemFromOrden, updateItemQtyInOrden, markItemListoEnOrden, updateItemEstadoEnOrden } = useVentasStore()
   const [selectedOrdenId, setSelectedOrdenId] = useState<string | null>(null)
   const [loadingOrdenes, setLoadingOrdenes] = useState(false)
   const [confirmedItemIds, setConfirmedItemIds] = useState<Set<string>>(new Set())
@@ -548,6 +542,10 @@ export function EscaneoPage() {
   const [itemLoading, setItemLoading] = useState<Record<string, boolean>>({})
   const [confirmEliminar, setConfirmEliminar] = useState<string | null>(null)
   const [flashItemId, setFlashItemId] = useState<string | null>(null)
+  const [piezaPrecios, setPiezaPrecios] = useState<Record<number, string>>({})
+  const [piezaLoading, setPiezaLoading] = useState<Record<number, boolean>>({})
+  const [confirmedPiezaPrices, setConfirmedPiezaPrices] = useState<Record<number, number>>({})
+  const [confirmedPiezaIds, setConfirmedPiezaIds] = useState<Set<number>>(new Set())
   const [notInOrderProducto, setNotInOrderProducto] = useState<Producto | null>(null)
   const scanInputRef = useRef<HTMLInputElement>(null)
 
@@ -643,11 +641,20 @@ export function EscaneoPage() {
     [itemsParaEscanear],
   )
 
+  const isItemConfirmed = (item: ItemOrden) => {
+    if (item.es_parcial && item.piezas_orden?.length) {
+      return item.piezas_orden.every(p => confirmedPiezaIds.has(p.id) || !!p.confirmado)
+    }
+    return confirmedItemIds.has(item.id)
+  }
+
   const confirmedCount = useMemo(
     () => itemsEscaneables.filter(i => confirmedItemIds.has(i.id)).length,
     [itemsEscaneables, confirmedItemIds]
   )
-  const allConfirmed = itemsEscaneables.length > 0 && confirmedCount === itemsEscaneables.length && itemsParaEscanear.every(i => i.estado !== 'pendiente')
+  const allConfirmed = itemsEscaneables.length > 0 &&
+    itemsEscaneables.every(i => isItemConfirmed(i)) &&
+    itemsParaEscanear.every(i => i.estado !== 'pendiente')
 
 
   const setItemLoadingState = (itemId: string, val: boolean) =>
@@ -677,10 +684,35 @@ export function EscaneoPage() {
     try {
       await api.put(`/OrdenVenta/${selectedOrden.id}/Items/${item.id}/Cantidad`, { cantidad: nuevaCantidad })
       updateItemQtyInOrden(selectedOrden.id, item.id, nuevaCantidad)
+      if (delta > 0 && item.estado === 'listo_almacenero') {
+        updateItemEstadoEnOrden(selectedOrden.id, item.id, 'pendiente')
+        updateOrden(selectedOrden.id, { estado: 'con_faltantes' })
+      }
     } catch (err) {
       notify.error(err instanceof Error ? err.message : 'Error al actualizar cantidad')
     } finally {
       setItemLoadingState(item.id, false)
+    }
+  }
+
+  const handleConfirmarPieza = async (item: ItemOrden, pieza: PiezaOrden) => {
+    if (!selectedOrden) return
+    const precio = parseFloat(piezaPrecios[pieza.id] ?? '')
+    if (isNaN(precio) || precio <= 0) { notify.warning('Ingresa un precio válido'); return }
+    setPiezaLoading(prev => ({ ...prev, [pieza.id]: true }))
+    try {
+      await api.post(
+        `/OrdenVenta/${selectedOrden.id}/Items/${item.id}/Piezas/${pieza.id}/Confirmar`,
+        { PrecioUnitario: precio }
+      )
+      setConfirmedPiezaIds(prev => new Set([...prev, pieza.id]))
+      setConfirmedPiezaPrices(prev => ({ ...prev, [pieza.id]: precio }))
+      playConfirmBeep()
+      notify.success(`${pieza.nombre} confirmada`)
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al confirmar pieza')
+    } finally {
+      setPiezaLoading(prev => ({ ...prev, [pieza.id]: false }))
     }
   }
 
@@ -853,8 +885,6 @@ export function EscaneoPage() {
 
   const ordenesDisponibles = ordenes.filter((o) => o.estado === 'listo_para_escaneo' || o.estado === 'con_faltantes')
 
-  const isItemConfirmed = (item: ItemOrden) => confirmedItemIds.has(item.id)
-
   return (
     <MainLayout>
       <PageContainer>
@@ -1010,6 +1040,71 @@ export function EscaneoPage() {
                     const isConfirmandoEliminar = confirmEliminar === item.id
                     const isFlashing = flashItemId === item.id
 
+                    // es_parcial: render expanded kit card with per-piece confirm
+                    if (item.es_parcial && item.piezas_orden?.length) {
+                      return (
+                        <div
+                          key={item.id}
+                          className={clsx(
+                            'rounded-xl border overflow-hidden transition-all duration-300',
+                            confirmed ? 'border-emerald-200 bg-emerald-50/50' : 'border-violet-200 bg-violet-50/30',
+                          )}
+                        >
+                          {/* Kit header */}
+                          <div className="flex items-center justify-between gap-3 px-4 py-3 bg-violet-100/60 border-b border-violet-200">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-200 text-violet-700 shrink-0">Kit Parcial</span>
+                                <p className="text-sm font-bold text-steel-800">{item.producto_nombre}</p>
+                              </div>
+                              <p className="text-xs text-steel-400 font-mono mt-0.5">{item.producto_codigo}</p>
+                            </div>
+                            <span className="text-sm font-bold text-steel-700 shrink-0">×{item.cantidad_pedida}</span>
+                          </div>
+                          {/* Piece rows */}
+                          <div className="divide-y divide-violet-100">
+                            {item.piezas_orden.map((pieza) => {
+                              const piezaConfirmada = confirmedPiezaIds.has(pieza.id) || !!pieza.confirmado
+                              const loadingPieza = !!piezaLoading[pieza.id]
+                              return (
+                                <div key={pieza.id} className="flex items-center gap-3 px-4 py-2.5">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-semibold text-steel-700">{pieza.nombre}</p>
+                                    <p className="text-[10px] font-mono text-steel-400">{pieza.codigo}</p>
+                                  </div>
+                                  <span className="text-xs text-steel-500 shrink-0">×{pieza.cantidad}</span>
+                                  {piezaConfirmada ? (
+                                    <span className="text-xs font-bold px-2 py-1 rounded-lg bg-emerald-100 text-emerald-700 shrink-0">
+                                      ✓ Bs {(confirmedPiezaPrices[pieza.id] ?? pieza.precio_unitario ?? 0).toFixed(2)}
+                                    </span>
+                                  ) : (
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="Bs"
+                                        value={piezaPrecios[pieza.id] ?? ''}
+                                        onChange={(e) => setPiezaPrecios(prev => ({ ...prev, [pieza.id]: e.target.value }))}
+                                        className="w-20 px-2 py-1 text-xs border border-violet-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-violet-400"
+                                      />
+                                      <button
+                                        onClick={() => handleConfirmarPieza(item, pieza)}
+                                        disabled={loadingPieza}
+                                        className="px-2 py-1 text-[11px] font-bold rounded-lg bg-violet-500 text-white hover:bg-violet-600 disabled:opacity-50 transition-colors"
+                                      >
+                                        {loadingPieza ? '…' : '✓'}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    }
+
                     return (
                       <div
                         key={item.id}
@@ -1074,7 +1169,7 @@ export function EscaneoPage() {
                             )}
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
-                            {isPendiente && !isConfirmandoEliminar && (
+                            {(isPendiente || isListoAlmacenero) && !isConfirmandoEliminar && (
                               <div className="flex items-center gap-1">
                                 <button
                                   onClick={() => handleAjustarCantidad(item, -1)}
@@ -1093,13 +1188,15 @@ export function EscaneoPage() {
                                 >
                                   <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                                 </button>
-                                <button
-                                  onClick={() => setConfirmEliminar(item.id)}
-                                  disabled={isLoadingItem}
-                                  className="w-7 h-7 rounded-lg border border-red-200 bg-white flex items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 transition-colors ml-1"
-                                >
-                                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                </button>
+                                {isPendiente && (
+                                  <button
+                                    onClick={() => setConfirmEliminar(item.id)}
+                                    disabled={isLoadingItem}
+                                    className="w-7 h-7 rounded-lg border border-red-200 bg-white flex items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 transition-colors ml-1"
+                                  >
+                                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                  </button>
+                                )}
                               </div>
                             )}
                             {isPendiente && isConfirmandoEliminar && (
@@ -1120,7 +1217,7 @@ export function EscaneoPage() {
                                 </button>
                               </div>
                             )}
-                            {!isPendiente && (
+                            {!isPendiente && !isListoAlmacenero && (
                               <span className={clsx(
                                 'inline-block px-2.5 py-1 rounded-lg text-xs font-bold',
                                 confirmed ? 'bg-emerald-100 text-emerald-700' : 'bg-steel-100 text-steel-500',

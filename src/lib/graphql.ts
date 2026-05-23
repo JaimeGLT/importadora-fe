@@ -1,4 +1,4 @@
-const GQL_URL = import.meta.env.VITE_GQL_URL ?? 'https://usaautopartesapi20260406085513-amh4fwdnanbpa9gs.centralus-01.azurewebsites.net/graphql'
+const GQL_URL = import.meta.env.VITE_GQL_URL ?? 'https://importadora-usa-grbkc0bah9adbher.chilecentral-01.azurewebsites.net/graphql'
 
 let refreshFn: (() => Promise<boolean>) | null = null
 let logoutFn: (() => Promise<void>) | null = null

@@ -1,7 +1,7 @@
 export const runtime = 'edge'
 
-// const BACKEND = 'https://usaautopartesapi20260406085513-amh4fwdnanbpa9gs.centralus-01.azurewebsites.net'
-const BACKEND = "http://localhost:5120"
+const BACKEND = 'https://importadora-usa-grbkc0bah9adbher.chilecentral-01.azurewebsites.net'
+// const BACKEND = "http://localhost:5120"
 
 function rewriteSetCookie(setCookieValue: string | null, targetDomain: string): string {
   if (!setCookieValue) return ''

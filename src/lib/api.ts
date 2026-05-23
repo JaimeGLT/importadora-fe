@@ -3,7 +3,7 @@
  * Todos los componentes deben usar esta función — nunca fetch() directo.
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'https://usaautopartesapi20260406085513-amh4fwdnanbpa9gs.centralus-01.azurewebsites.net/api'
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'https://importadora-usa-grbkc0bah9adbher.chilecentral-01.azurewebsites.net/api'
 
 function serializeBody(body: unknown): string {
   const json = JSON.stringify(body)

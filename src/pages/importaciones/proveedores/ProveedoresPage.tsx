@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
-import { Button } from '@/components/ui'
+import { MainLayout } from '@/components/layout/MainLayout'
 import type { Proveedor, Importacion } from '@/types'
 import { ProveedorFormModal } from './ProveedorFormModal'
 import { CatalogoProveedorModal } from './CatalogoProveedorModal'
@@ -16,10 +15,12 @@ import {
   PROVEEDOR_IMPORTACIONES_QUERY,
   DtoProveedor,
 } from '@/lib/queries/proveedores.queries'
+import { useProveedoresStore } from '@/stores/proveedoresStore'
 
 export function ProveedoresPage() {
   const { isTokenReady } = useAuth()
 
+  const { proveedores, setProveedores, addProveedor: storeAdd, updateProveedor: storeUpdate, removeProveedor: storeRemove } = useProveedoresStore()
   const [formOpen, setFormOpen] = useState(false)
   const [editingProv, setEditingProv] = useState<Proveedor | null>(null)
   const [historialProv, setHistorialProv] = useState<Proveedor | null>(null)
@@ -27,7 +28,6 @@ export function ProveedoresPage() {
   const [historialLoading, setHistorialLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [filterEstado, setFilterEstado] = useState<'activo' | 'inactivo' | ''>('')
-  const [proveedores, setProveedores] = useState<Proveedor[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -81,20 +81,14 @@ export function ProveedoresPage() {
 
       if (editingProv) {
         await api.put(`/Proveedor/${editingProv.id}`, body)
-        setProveedores((prev) =>
-          prev.map((p) =>
-            p.id === editingProv.id
-              ? { ...p, ...data, actualizado_en: new Date().toISOString() }
-              : p,
-          ),
-        )
+        storeUpdate(editingProv.id, { ...data, actualizado_en: new Date().toISOString() })
         notify.success('Proveedor actualizado')
       } else {
         const res = await api.post<{ id: number }>('/Proveedor', body)
         const newId = res?.id ?? Date.now().toString()
         const ahora = new Date().toISOString()
         const nuevo: Proveedor = { ...data, id: String(newId), creado_en: ahora, actualizado_en: ahora }
-        setProveedores((prev) => [nuevo, ...prev])
+        storeAdd(nuevo)
         notify.success('Proveedor registrado')
       }
       setFormOpen(false)
@@ -110,7 +104,7 @@ export function ProveedoresPage() {
     if (!confirm(`¿Eliminar proveedor "${prov.nombre}"?`)) return
     try {
       await api.delete(`/Proveedor/${prov.id}`)
-      setProveedores((prev) => prev.filter((p) => p.id !== prov.id))
+      storeRemove(prov.id)
       notify.success('Proveedor eliminado')
     } catch {
       notify.error('Error eliminando proveedor')
@@ -155,113 +149,169 @@ export function ProveedoresPage() {
 
   return (
     <MainLayout>
-      <PageContainer>
-        <PageHeader
-          title="Proveedores"
-          description="Registro de proveedores internacionales"
-          actions={
-            <Button
+      <div className="bg-[#f1f5f9] min-h-screen">
+
+        {/* TopBar */}
+        <header className="bg-[#f1f5f9] sticky top-0 z-40 flex justify-between items-center w-full h-[62px] px-7 border-b border-[#e2e8f0]">
+          <div className="flex items-center gap-2 text-sm text-[#9996b0] font-semibold">
+            <span>Importaciones</span>
+            <span className="text-[10px] opacity-40">/</span>
+            <strong className="text-[#1e1b2e] font-bold">Proveedores</strong>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] transition-colors">
+              <i className="ti ti-bell text-[18px]" />
+            </button>
+            <button className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] transition-colors">
+              <i className="ti ti-settings text-[18px]" />
+            </button>
+          </div>
+        </header>
+
+        <div className="px-7 py-6 max-w-[1400px] mx-auto">
+
+          {/* Page Header */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div className="flex items-center gap-3.5">
+              <div
+                className="w-12 h-12 bg-gradient-to-br from-[#0284c7] to-[#7c3aed] rounded-2xl flex items-center justify-center text-white shrink-0"
+                style={{ boxShadow: '0 6px 18px rgba(2,132,199,0.28)' }}
+              >
+                <i className="ti ti-building-store text-2xl" />
+              </div>
+              <div>
+                <h2 className="font-black text-[34px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                  Proveedores
+                </h2>
+                <p className="text-sm text-[#9996b0] font-semibold mt-0.5">
+                  Registro de proveedores internacionales
+                </p>
+              </div>
+            </div>
+            <button
               onClick={openNew}
-              icon={
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              }
+              className="px-[18px] py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white rounded-xl flex items-center justify-center gap-1.5 text-sm font-bold active:scale-95 transition-all shadow-md w-full md:w-auto"
             >
-              <span className="hidden sm:inline">Nuevo proveedor</span>
-            </Button>
-          }
-        />
+              <i className="ti ti-plus text-base" />
+              Nuevo proveedor
+            </button>
+          </div>
 
-        {/* Métricas */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-          <MetricCard label="Proveedores activos" value={totalActivos}        bg="#DDE8FF" valueColor="#1A40C4" sublabelColor="#5270C8" sublabel="en operación" />
-          <MetricCard label="Total registrados"   value={proveedores.length}  bg="#F5F5F5" sublabel="en sistema" />
-        </div>
-
-        {/* Filtros */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-4">
-          <div className="relative flex-1">
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-steel-400 pointer-events-none"
-              fill="none" viewBox="0 0 24 24" stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              className="w-full pl-9 pr-4 py-2 rounded-lg border border-steel-200 bg-white text-[13px] text-steel-800 placeholder-steel-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400"
-              placeholder="Buscar por nombre, país o contacto…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+          {/* Metrics */}
+          <div className="grid grid-cols-2 gap-3.5 mb-6">
+            <MetricCard
+              label="Proveedores activos"
+              value={totalActivos}
+              sublabel="en operación"
+              iconClass="ti ti-circle-check"
+              gradFrom="#0284c7"
+              gradTo="#60a5fa"
+              badgeBg="#e0f2fe"
+              badgeColor="#0284c7"
+              badgeText="activos"
+              badgeIcon="ti ti-circle-check"
+            />
+            <MetricCard
+              label="Total registrados"
+              value={proveedores.length}
+              sublabel="en sistema"
+              iconClass="ti ti-building-store"
+              gradFrom="#5a5670"
+              gradTo="#9996b0"
+              badgeBg="#f1f5f9"
+              badgeColor="#5a5670"
+              badgeText="total"
+              badgeIcon="ti ti-database"
             />
           </div>
-          <div className="flex gap-2">
-            {([['', 'Todos'], ['activo', 'Activos'], ['inactivo', 'Inactivos']] as const).map(([val, label]) => (
-              <button
-                key={val}
-                onClick={() => setFilterEstado(val)}
-                className={clsx(
-                  'px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors',
-                  filterEstado === val
-                    ? 'bg-steel-800 text-white border-steel-800'
-                    : 'bg-white text-steel-600 border-steel-200 hover:border-steel-300',
-                )}
-              >
-                {label}
-              </button>
-            ))}
+
+          {/* Table container */}
+          <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] overflow-hidden">
+
+            {/* Toolbar */}
+            <div className="px-5 py-[18px] border-b border-[#e2e8f0] flex flex-wrap justify-between items-center gap-3">
+              <h3 className="text-lg font-extrabold text-[#1e1b2e] flex items-center gap-2" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                Lista
+                <span className="bg-[#dbeafe] text-[#1d4ed8] text-xs font-bold px-2.5 py-0.5 rounded-full">
+                  {filtered.length}
+                </span>
+              </h3>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <div className="flex items-center gap-2 bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] rounded-xl px-3.5 w-full sm:min-w-[260px] focus-within:border-[#1d4ed8] transition-colors">
+                  <i className="ti ti-search text-[#9996b0] text-base shrink-0" />
+                  <input
+                    className="flex-1 py-2 bg-transparent text-sm text-[#1e1b2e] font-semibold placeholder:text-[#9996b0] outline-none border-none"
+                    placeholder="Nombre, país o contacto…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-1.5">
+                  {([['', 'Todos'], ['activo', 'Activos'], ['inactivo', 'Inactivos']] as const).map(([val, label]) => (
+                    <button
+                      key={val}
+                      onClick={() => setFilterEstado(val)}
+                      className={clsx(
+                        'px-3 py-1.5 rounded-xl text-[12px] font-bold border-[1.5px] transition-colors',
+                        filterEstado === val
+                          ? 'bg-[#1d4ed8] text-white border-[#1d4ed8]'
+                          : 'bg-white text-[#5a5670] border-[#e2e8f0] hover:bg-[#f1f5f9]',
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            {!isTokenReady || loading ? (
+              <ListSkeleton />
+            ) : filtered.length === 0 ? (
+              <EmptyState onNew={openNew} />
+            ) : (
+              <>
+                {/* Desktop */}
+                <div className="hidden lg:block">
+                  <div
+                    className="grid items-center px-5 py-3 bg-[#f1f5f9] border-b border-[#e2e8f0]"
+                    style={{ gridTemplateColumns: '1fr 110px 100px 140px 120px 88px', gap: '0 16px' }}
+                  >
+                    {['Proveedor', 'País', 'Moneda', 'Términos pago', 'Contacto', ''].map((h) => (
+                      <span key={h} className="text-[11px] font-bold uppercase tracking-wide text-[#9996b0]">{h}</span>
+                    ))}
+                  </div>
+                  <div className="divide-y divide-[#e2e8f0]">
+                    {filtered.map((p) => (
+                      <ProveedorRow
+                        key={p.id}
+                        prov={p}
+                        onEdit={() => openEdit(p)}
+                        onDelete={() => handleDelete(p)}
+                        onHistorial={() => openHistorial(p)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Mobile */}
+                <div className="lg:hidden divide-y divide-[#e2e8f0]">
+                  {filtered.map((p) => (
+                    <ProveedorCard
+                      key={p.id}
+                      prov={p}
+                      onEdit={() => openEdit(p)}
+                      onDelete={() => handleDelete(p)}
+                      onHistorial={() => openHistorial(p)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
-
-        <span className="block text-[12px] text-steel-400 mb-3">
-          {filtered.length} proveedor{filtered.length !== 1 ? 'es' : ''}
-        </span>
-
-        {/* Lista */}
-        {!isTokenReady || loading ? (
-          <ListSkeleton />
-        ) : filtered.length === 0 ? (
-          <EmptyState onNew={openNew} />
-        ) : (
-          <>
-            {/* Desktop */}
-            <div className="hidden lg:block">
-              <div
-                className="grid items-center px-5 pb-2 mb-1"
-                style={{ gridTemplateColumns: '1fr 110px 100px 140px 120px 80px', gap: '0 16px' }}
-              >
-                {['Proveedor', 'País', 'Moneda', 'Términos pago', 'Email / Contacto', ''].map((h) => (
-                  <span key={h} className="text-[11px] font-semibold uppercase tracking-wider text-steel-400">{h}</span>
-                ))}
-              </div>
-              <div className="flex flex-col gap-2">
-                {filtered.map((p) => (
-                  <ProveedorRow
-                    key={p.id}
-                    prov={p}
-                    onEdit={() => openEdit(p)}
-                    onDelete={() => handleDelete(p)}
-                    onHistorial={() => openHistorial(p)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Mobile / Tablet */}
-            <div className="lg:hidden flex flex-col gap-2">
-              {filtered.map((p) => (
-                <ProveedorCard
-                  key={p.id}
-                  prov={p}
-                  onEdit={() => openEdit(p)}
-                  onDelete={() => handleDelete(p)}
-                  onHistorial={() => openHistorial(p)}
-                />
-              ))}
-            </div>
-          </>
-        )}
-      </PageContainer>
+      </div>
 
       <ProveedorFormModal
         open={formOpen}
@@ -294,50 +344,53 @@ interface RowProps {
 }
 
 function ProveedorRow({ prov, onEdit, onDelete, onHistorial }: RowProps) {
-  const COL = '1fr 110px 100px 140px 120px 80px'
+  const COL = '1fr 110px 100px 140px 120px 88px'
   return (
     <div
-      className="grid items-center px-5 py-3.5 rounded-xl"
-      style={{
-        gridTemplateColumns: COL,
-        gap: '0 16px',
-        background: '#FFFFFF',
-        border: '1px solid #E8EDF3',
-        boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
-        opacity: prov.estado === 'inactivo' ? 0.6 : 1,
-      }}
+      className={clsx(
+        'grid items-center px-5 py-3.5 hover:bg-[#faf9ff] transition-colors',
+        prov.estado === 'inactivo' && 'opacity-60',
+      )}
+      style={{ gridTemplateColumns: COL, gap: '0 16px' }}
     >
       <div className="min-w-0">
-        <p className="font-semibold text-[13px] text-steel-800 truncate">{prov.nombre}</p>
-        <p className="text-[11px] text-steel-400 mt-0.5 truncate">{prov.email}</p>
+        <p className="font-bold text-[13px] text-[#1e1b2e] truncate">{prov.nombre}</p>
+        <p className="text-[11px] text-[#9996b0] font-semibold mt-0.5 truncate">{prov.email}</p>
       </div>
 
-      <p className="text-[12px] text-steel-700 truncate">{prov.pais}</p>
+      <p className="text-[12px] text-[#5a5670] font-semibold truncate">{prov.pais}</p>
 
-      <span
-        className="inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold w-fit"
-        style={{ background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' }}
-      >
+      <span className="inline-flex items-center gap-1 bg-[#dbeafe] text-[#1d4ed8] text-[11px] font-bold px-2.5 py-0.5 rounded-full w-fit">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#1d4ed8] shrink-0" />
         {prov.moneda}
       </span>
 
-      <p className="text-[11px] text-steel-600 truncate">{prov.terminos_pago}</p>
+      <p className="text-[11px] text-[#5a5670] font-medium truncate">{prov.terminos_pago}</p>
 
-      <p className="text-[11px] text-steel-500 truncate">{prov.contacto}</p>
+      <p className="text-[11px] text-[#9996b0] truncate">{prov.contacto}</p>
 
       <div className="flex items-center gap-1 justify-end">
-        <IconBtn title="Ver historial" onClick={onHistorial}>
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </IconBtn>
-        <IconBtn title="Editar proveedor" onClick={onEdit}>
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-        </IconBtn>
-        <IconBtn title="Eliminar proveedor" onClick={onDelete}>
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-        </IconBtn>
+        <button
+          onClick={onHistorial}
+          title="Ver historial"
+          className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#dbeafe] hover:text-[#1d4ed8] hover:border-[#1d4ed8] transition-all"
+        >
+          <i className="ti ti-file-text text-[15px]" />
+        </button>
+        <button
+          onClick={onEdit}
+          title="Editar proveedor"
+          className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#dbeafe] hover:text-[#1d4ed8] hover:border-[#1d4ed8] transition-all"
+        >
+          <i className="ti ti-edit text-[15px]" />
+        </button>
+        <button
+          onClick={onDelete}
+          title="Eliminar proveedor"
+          className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#fee2e2] hover:text-[#dc2626] hover:border-[#dc2626] transition-all"
+        >
+          <i className="ti ti-trash text-[15px]" />
+        </button>
       </div>
     </div>
   )
@@ -346,86 +399,76 @@ function ProveedorRow({ prov, onEdit, onDelete, onHistorial }: RowProps) {
 function ProveedorCard({ prov, onEdit, onDelete, onHistorial }: RowProps) {
   return (
     <div
-      className="bg-white rounded-xl px-4 py-4"
-      style={{ border: '1px solid #E8EDF3', boxShadow: '0 1px 4px rgba(15,23,42,0.05)', opacity: prov.estado === 'inactivo' ? 0.6 : 1 }}
+      className={clsx(
+        'px-4 py-4 hover:bg-[#faf9ff] transition-colors',
+        prov.estado === 'inactivo' && 'opacity-60',
+      )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="font-semibold text-[13px] text-steel-800 truncate">{prov.nombre}</p>
-          <p className="text-[11px] text-steel-400 mt-0.5">{prov.pais} · {prov.moneda}</p>
+          <p className="font-bold text-[13px] text-[#1e1b2e] truncate">{prov.nombre}</p>
+          <p className="text-[11px] text-[#9996b0] font-semibold mt-0.5">{prov.pais}</p>
         </div>
-        <span
-          className="shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
-          style={{ background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' }}
-        >
+        <span className="shrink-0 inline-flex items-center gap-1 bg-[#dbeafe] text-[#1d4ed8] text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#1d4ed8] shrink-0" />
           {prov.moneda}
         </span>
       </div>
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-[12px]">
-        <span className="text-steel-400">Pago: <span className="text-steel-700">{prov.terminos_pago}</span></span>
-        <span className="text-steel-400">Contacto: <span className="text-steel-700">{prov.contacto}</span></span>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5">
+        <span className="text-[11px] text-[#9996b0] font-medium">
+          Pago: <span className="text-[#5a5670] font-semibold">{prov.terminos_pago}</span>
+        </span>
+        <span className="text-[11px] text-[#9996b0] font-medium">
+          Contacto: <span className="text-[#5a5670] font-semibold">{prov.contacto}</span>
+        </span>
       </div>
 
-      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-steel-100">
+      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[#e2e8f0]">
         <button
           onClick={onHistorial}
-          className="flex items-center gap-1.5 text-[12px] text-brand-600 hover:text-brand-700 font-medium transition-colors"
+          className="flex items-center gap-1.5 text-[12px] text-[#1d4ed8] hover:text-[#1e40af] font-bold transition-colors"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
+          <i className="ti ti-file-text text-[15px]" />
           Ver historial
         </button>
         <div className="flex-1" />
         <button
           onClick={onEdit}
-          className="p-2 rounded-lg text-steel-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
           title="Editar"
+          className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#dbeafe] hover:text-[#1d4ed8] hover:border-[#1d4ed8] transition-all"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
+          <i className="ti ti-edit text-[15px]" />
         </button>
         <button
           onClick={onDelete}
-          className="p-2 rounded-lg text-steel-400 hover:text-red-600 hover:bg-red-50 transition-colors"
           title="Eliminar"
+          className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#fee2e2] hover:text-[#dc2626] hover:border-[#dc2626] transition-all"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
+          <i className="ti ti-trash text-[15px]" />
         </button>
       </div>
     </div>
   )
 }
 
-function IconBtn({ title, onClick, children }: { title: string; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      className="p-2 rounded-lg text-steel-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
-    >
-      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">{children}</svg>
-    </button>
-  )
-}
-
 function EmptyState({ onNew }: { onNew: () => void }) {
   return (
-    <div className="py-20 text-center">
-      <svg className="h-12 w-12 text-steel-200 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-      </svg>
-      <p className="text-[14px] font-medium text-steel-600 mb-1">Sin proveedores registrados</p>
-      <p className="text-[12px] text-steel-400 mb-5">Agrega tu primer proveedor internacional</p>
-      <Button size="sm" onClick={onNew}>Nuevo proveedor</Button>
+    <div className="flex flex-col items-center justify-center py-16 px-5 text-center">
+      <div className="w-12 h-12 rounded-xl bg-white border-[1.5px] border-[#e2e8f0] flex items-center justify-center mb-4">
+        <i className="ti ti-building-store text-[#9996b0] text-xl" />
+      </div>
+      <p className="text-sm font-bold text-[#1e1b2e] mb-1">Sin proveedores registrados</p>
+      <p className="text-xs text-[#9996b0] font-semibold max-w-xs mb-5">
+        Agrega tu primer proveedor internacional
+      </p>
+      <button
+        onClick={onNew}
+        className="px-5 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white rounded-xl flex items-center gap-2 text-sm font-bold transition-all shadow-md"
+      >
+        <i className="ti ti-plus text-base" />
+        Nuevo proveedor
+      </button>
     </div>
   )
 }
@@ -434,28 +477,58 @@ interface MetricCardProps {
   label: string
   value: number | string
   sublabel: string
-  bg?: string
-  valueColor?: string
-  sublabelColor?: string
+  iconClass: string
+  gradFrom: string
+  gradTo: string
+  badgeBg: string
+  badgeColor: string
+  badgeText: string
+  badgeIcon: string
 }
 
-function MetricCard({ label, value, sublabel, bg = '#F5F5F5', valueColor = '#1A1A1A', sublabelColor = '#8C8C8C' }: MetricCardProps) {
+function MetricCard({ label, value, sublabel, iconClass, gradFrom, gradTo, badgeBg, badgeColor, badgeText, badgeIcon }: MetricCardProps) {
   return (
-    <div className="rounded-xl px-5 py-4" style={{ background: bg }}>
-      <p className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: sublabelColor }}>{label}</p>
-      <p className="font-bold leading-none" style={{ fontSize: 28, color: valueColor }}>{value}</p>
-      <p className="text-[11px] mt-1.5" style={{ color: sublabelColor }}>{sublabel}</p>
+    <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200">
+      <div
+        className="absolute -top-5 -right-5 w-20 h-20 rounded-full opacity-10"
+        style={{ background: gradFrom }}
+      />
+      <div
+        className="w-10 h-10 rounded-xl flex items-center justify-center text-white mb-3.5"
+        style={{ background: `linear-gradient(135deg, ${gradFrom}, ${gradTo})` }}
+      >
+        <i className={`${iconClass} text-xl`} />
+      </div>
+      <div className="font-black text-[30px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
+        {value}
+      </div>
+      <div className="text-xs font-semibold text-[#9996b0] mt-1">{label}</div>
+      <div
+        className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full mt-2"
+        style={{ background: badgeBg, color: badgeColor }}
+      >
+        <i className={`${badgeIcon} text-[11px]`} />
+        {badgeText}
+      </div>
     </div>
   )
 }
 
 function ListSkeleton() {
   return (
-    <div className="flex flex-col gap-2">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="px-5 py-4 rounded-xl animate-pulse" style={{ background: '#FFFFFF', border: '1px solid #E8EDF3' }}>
-          <div className="h-3 w-48 rounded mb-2" style={{ background: '#F1F5F9' }} />
-          <div className="h-2.5 w-32 rounded" style={{ background: '#F1F5F9' }} />
+    <div className="divide-y divide-[#e2e8f0]">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 px-5 py-3.5 animate-pulse">
+          <div className="flex-1 space-y-1.5">
+            <div className="h-3 w-36 rounded bg-[#f1f5f9]" />
+            <div className="h-2.5 w-48 rounded bg-[#e2e8f0]" />
+          </div>
+          <div className="h-2.5 w-20 rounded bg-[#f1f5f9]" />
+          <div className="h-5 w-16 rounded-full bg-[#f1f5f9]" />
+          <div className="h-2.5 w-24 rounded bg-[#f1f5f9]" />
+          <div className="flex gap-1.5">
+            {[0, 1, 2].map(j => <div key={j} className="h-8 w-8 rounded-[10px] bg-[#f1f5f9]" />)}
+          </div>
         </div>
       ))}
     </div>

@@ -3,20 +3,27 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Sidebar } from './Sidebar'
 import { gql } from '@/lib/graphql'
+import { api } from '@/lib/api'
 import { useConfigStore } from '@/stores/configStore'
+import { TipoCambioModal } from '@/components/ui/TipoCambioModal'
 import { DESCUENTOS_QUERY, CONFIG_VENTA_QUERY, TIPO_CAMBIO_QUERY, backendToDescuento, type DescuentoAPI, type ConfigVentaAPI, type TipoCambioAPI } from '@/lib/queries/config.queries'
 import type { ModoPrecioCajero } from '@/stores/configStore'
 
-let _configLoaded = false 
+let _configLoaded = false
 
 interface MainLayoutProps {
   children: ReactNode
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
-  const { isAuthenticated, isTokenReady } = useAuth()
+  const { isAuthenticated, isTokenReady, user } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { setDescuentos, setModoPrecioCajero, setTipoCambio, setTipoCambioHabilitado } = useConfigStore()
+  const [showTipoCambioModal, setShowTipoCambioModal] = useState(false)
+  const [tipoCambioApi, setTipoCambioApi] = useState(0)
+  const {
+    setDescuentos, setModoPrecioCajero, setTipoCambio, setTipoCambioHabilitado,
+    tipoCambioFechaRecordatorio, setTipoCambioFechaRecordatorio,
+  } = useConfigStore()
 
   useEffect(() => {
     if (!isTokenReady || !isAuthenticated || _configLoaded) return
@@ -48,7 +55,38 @@ export function MainLayout({ children }: MainLayoutProps) {
         }
       })
       .catch(() => {})
-  }, [isTokenReady, isAuthenticated, setDescuentos, setModoPrecioCajero, setTipoCambio, setTipoCambioHabilitado])
+
+    if (user?.rol === 'admin') {
+      const today = new Date().toISOString().split('T')[0]
+      if (tipoCambioFechaRecordatorio !== today) {
+        fetch('https://bo.dolarapi.com/v1/dolares/binance')
+          .then(r => r.json())
+          .then((d: { venta?: number }) => {
+            setTipoCambioApi(d.venta ?? 0)
+            setShowTipoCambioModal(true)
+          })
+          .catch(() => {})
+      }
+    }
+  }, [isTokenReady, isAuthenticated, user, tipoCambioFechaRecordatorio, setDescuentos, setModoPrecioCajero, setTipoCambio, setTipoCambioHabilitado, setTipoCambioFechaRecordatorio])
+
+  const handleTipoCambioAccept = async () => {
+    setTipoCambio(tipoCambioApi)
+    setTipoCambioHabilitado(true)
+    setTipoCambioFechaRecordatorio(new Date().toISOString().split('T')[0])
+    setShowTipoCambioModal(false)
+    try {
+      await api.post('/TipoCambio', { precioDolar: tipoCambioApi })
+    } catch {
+      // non-blocking — store already updated
+    }
+  }
+
+  const handleTipoCambioReject = () => {
+    setTipoCambioHabilitado(false)
+    setTipoCambioFechaRecordatorio(new Date().toISOString().split('T')[0])
+    setShowTipoCambioModal(false)
+  }
 
   if (!isTokenReady) {
     return (
@@ -63,6 +101,13 @@ export function MainLayout({ children }: MainLayoutProps) {
   }
 
   return (
+    <>
+    <TipoCambioModal
+      open={showTipoCambioModal}
+      tipoCambio={tipoCambioApi}
+      onAccept={handleTipoCambioAccept}
+      onReject={handleTipoCambioReject}
+    />
     <div className="flex min-h-screen bg-[#f1f5f9]">
 
       {/* Backdrop mobile */}
@@ -98,6 +143,7 @@ export function MainLayout({ children }: MainLayoutProps) {
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
+    </>
   )
 }
 

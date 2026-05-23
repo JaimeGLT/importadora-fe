@@ -424,6 +424,8 @@ function backendToItemOrden(api: OrdenItemAPI): ItemOrden {
           nombre: p.pieza?.nombre ?? `Pieza #${p.id_Pieza}`,
           codigo: p.pieza?.codigoUniversal ?? '',
           cantidad: p.cantidad,
+          precio_unitario: p.precioUnitario,
+          confirmado: p.confirmado,
         }))
       : undefined,
   }
@@ -432,7 +434,11 @@ function backendToItemOrden(api: OrdenItemAPI): ItemOrden {
 export function backendToOrdenVenta(api: OrdenVentaAPI): OrdenVenta {
   const estado = ESTADO_ORDEN_MAP[api.estado?.toLowerCase()] ?? 'pendiente_almacenero'
   const items = (api.items ?? []).map(backendToItemOrden)
-  const total = items.reduce((s, i) => s + i.precio_unitario * i.cantidad_pedida, 0)
+  const total = items.reduce((s, i) => {
+    if (i.es_parcial && i.piezas_orden?.length)
+      return s + i.piezas_orden.filter(p => p.confirmado).reduce((ps, p) => ps + (p.precio_unitario ?? 0) * p.cantidad, 0)
+    return s + i.precio_unitario * i.cantidad_pedida
+  }, 0)
   const clienteNombre = api.cliente
     ? `${api.cliente.nombre} ${api.cliente.apellido}`.trim()
     : undefined

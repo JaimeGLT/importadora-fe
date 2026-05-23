@@ -84,8 +84,7 @@ export function ProveedorFormModal({ open, onClose, onSave, initial, saving = fa
     const e: Partial<Record<keyof Form, string>> = {}
     if (!form.nombre.trim()) e.nombre = 'Requerido'
     if (!form.pais.trim())   e.pais   = 'Requerido'
-    if (!form.contacto.trim()) e.contacto = 'Requerido'
-    if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) e.email = 'Email inválido'
+    if (form.email.trim() && !/\S+@\S+\.\S+/.test(form.email)) e.email = 'Email inválido'
     if (form.tiempo_reposicion_dias && isNaN(Number(form.tiempo_reposicion_dias))) {
       e.tiempo_reposicion_dias = 'Debe ser número'
     }
@@ -174,14 +173,13 @@ export function ProveedorFormModal({ open, onClose, onSave, initial, saving = fa
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-[11px] font-semibold text-steel-500 uppercase tracking-wide mb-1">
-              Contacto <span className="text-red-500">*</span>
+              Contacto
             </label>
             <Input value={form.contacto} onChange={set('contacto')} placeholder="Nombre del contacto" />
-            {errors.contacto && <p className="text-[11px] text-red-500 mt-1">{errors.contacto}</p>}
           </div>
           <div>
             <label className="block text-[11px] font-semibold text-steel-500 uppercase tracking-wide mb-1">
-              Email <span className="text-red-500">*</span>
+              Email
             </label>
             <Input value={form.email} onChange={set('email')} placeholder="correo@proveedor.com" type="email" />
             {errors.email && <p className="text-[11px] text-red-500 mt-1">{errors.email}</p>}

@@ -63,7 +63,7 @@ function OrderCard({
   const tomadaPorOtro = !!orden.almacenero_id && !esMia
   const status = STATUS_CONFIG[orden.estado]
   const pendientesCount = orden.items.filter(i => i.estado === 'pendiente').length
-  const hasPendientes = pendientesCount > 0 && (orden.estado === 'listo_para_escaneo' || orden.estado === 'con_faltantes')
+  const hasPendientes = pendientesCount > 0 && orden.estado === 'con_faltantes'
 
   return (
     <div
@@ -151,11 +151,14 @@ function OrderCard({
             Continuar preparación
           </button>
         )}
-        {orden.estado === 'listo_para_escaneo' && !hasPendientes && (
-          <div className="flex items-center justify-center gap-2 py-2.5 bg-indigo-50 rounded-xl border border-indigo-100">
+        {orden.estado === 'listo_para_escaneo' && (
+          <button
+            onClick={() => onTomar(orden)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-50 rounded-xl border border-indigo-100 hover:bg-indigo-100 transition-colors"
+          >
             <div className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce" />
-            <p className="text-xs text-indigo-700 font-bold">Lista — esperando escaneo</p>
-          </div>
+            <p className="text-xs text-indigo-700 font-bold">Lista — esperando escaneo · Ver detalle</p>
+          </button>
         )}
         {(orden.estado === 'listo_para_escaneo' || orden.estado === 'con_faltantes') && hasPendientes && (
           <button
@@ -416,6 +419,105 @@ function FaltantesModal({
 
 // ─── PickingView (en preparación) ──────────────────────────────────────────
 
+function ItemCard({
+  item,
+  showListoBtn,
+  loading,
+  onListo,
+}: {
+  item: OrdenVenta['items'][number]
+  showListoBtn: boolean
+  loading: boolean
+  onListo: () => void
+}) {
+  const isPendiente = item.estado === 'pendiente'
+  const isListoAlmacenero = item.estado === 'listo_almacenero'
+  const isFaltante = item.estado === 'faltante'
+
+  return (
+    <div className={clsx(
+      'rounded-xl border overflow-hidden',
+      isFaltante ? 'border-red-200 bg-red-50/40' :
+      isPendiente ? 'border-amber-200 bg-amber-50/60' :
+      isListoAlmacenero ? 'border-emerald-200 bg-emerald-50/40' :
+      'border-steel-100 bg-white'
+    )}>
+      <div className="flex items-start gap-3 p-4">
+        <div className={clsx(
+          'h-10 w-10 rounded-xl flex items-center justify-center shrink-0',
+          isFaltante ? 'bg-red-100 border border-red-200' :
+          isPendiente ? 'bg-amber-100 border border-amber-200' :
+          isListoAlmacenero ? 'bg-emerald-100 border border-emerald-200' :
+          'bg-steel-50 border border-steel-100'
+        )}>
+          {isFaltante ? (
+            <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          ) : isListoAlmacenero ? (
+            <svg className="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+          ) : (
+            <svg className={clsx('h-5 w-5', isPendiente ? 'text-amber-400' : 'text-steel-300')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-semibold text-steel-800 leading-tight">{item.producto_nombre}</p>
+            {isPendiente && (
+              <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">⏳ Nuevo</span>
+            )}
+            {isListoAlmacenero && (
+              <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">✓ Listo</span>
+            )}
+            {isFaltante && (
+              <span className="text-[10px] font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">✗ Faltante</span>
+            )}
+            {item.es_parcial && (
+              <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">Kit parcial</span>
+            )}
+          </div>
+          {item.nota && (
+            <p className="text-[11px] text-red-500 mt-0.5 italic">{item.nota}</p>
+          )}
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            <span className="text-[11px] font-mono text-steel-400 bg-steel-50 px-1.5 py-0.5 rounded">
+              {item.producto_codigo}
+            </span>
+            {(item.producto_almacen || item.producto_estante || item.producto_fila || item.producto_columna) && (
+              <span className="text-[11px] text-steel-400">
+                📦 {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}{item.producto_fila ? ` / ${item.producto_fila}` : ''}{item.producto_columna ? ` / ${item.producto_columna}` : ''}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="text-right shrink-0 flex flex-col items-end gap-2">
+          <p className="text-lg font-black text-steel-800">×{item.cantidad_pedida}</p>
+          {showListoBtn && isPendiente && (
+            <button
+              onClick={onListo}
+              disabled={loading}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+            >
+              {loading ? '…' : '✓ Listo'}
+            </button>
+          )}
+        </div>
+      </div>
+      {item.es_parcial && item.piezas_orden && item.piezas_orden.length > 0 && (
+        <div className="border-t border-steel-100 bg-steel-50 divide-y divide-steel-100">
+          {item.piezas_orden.map(p => (
+            <div key={p.id_pieza} className="flex items-center gap-2 px-4 py-2">
+              <span className="text-[10px] font-mono text-steel-400 bg-white px-1 py-0.5 rounded border border-steel-200 shrink-0">{p.codigo}</span>
+              <span className="text-xs text-steel-700 flex-1 min-w-0 truncate">{p.nombre}</span>
+              <span className="text-xs font-bold text-steel-800 shrink-0">×{p.cantidad}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PickingView({
   orden,
   onMarcarListo,
@@ -450,6 +552,14 @@ function PickingView({
 
   const itemsSinKit = orden.items.filter(i => !i.kit_id)
 
+  const isReadOnly = orden.estado === 'listo_para_escaneo'
+  const isConFaltantes = orden.estado === 'con_faltantes'
+
+  // Para con_faltantes: separar nuevos (pendiente) de ya reportados (faltante)
+  const itemsNuevos = isConFaltantes ? itemsSinKit.filter(i => i.estado === 'pendiente') : []
+  const itemsFaltantesReportados = isConFaltantes ? itemsSinKit.filter(i => i.estado === 'faltante') : []
+  const itemsNormales = isConFaltantes ? [] : itemsSinKit
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -476,150 +586,150 @@ function PickingView({
       {/* Items list */}
       <div className="flex-1 overflow-y-auto px-3 pt-2">
         <div className="space-y-3 pb-2">
-          {/* Items que no son parte de kit */}
-          {itemsSinKit.map(item => {
-            const isPendiente = item.estado === 'pendiente'
-            const isListoAlmacenero = item.estado === 'listo_almacenero'
-            return (
-            <div key={item.id} className={clsx(
-              'rounded-xl border overflow-hidden',
-              isPendiente ? 'border-amber-200 bg-amber-50/60' : isListoAlmacenero ? 'border-emerald-200 bg-emerald-50/40' : 'border-steel-100 bg-white'
-            )}>
-              <div className="flex items-start gap-3 p-4">
-                <div className={clsx(
-                  'h-10 w-10 rounded-xl flex items-center justify-center shrink-0',
-                  isPendiente ? 'bg-amber-100 border border-amber-200' : isListoAlmacenero ? 'bg-emerald-100 border border-emerald-200' : 'bg-steel-50 border border-steel-100'
-                )}>
-                  {isListoAlmacenero ? (
-                    <svg className="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                  ) : (
-                    <svg className={clsx('h-5 w-5', isPendiente ? 'text-amber-400' : 'text-steel-300')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                    </svg>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-semibold text-steel-800 leading-tight">{item.producto_nombre}</p>
-                    {isPendiente && (
-                      <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">⏳ Nuevo</span>
-                    )}
-                    {isListoAlmacenero && (
-                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">✓ Listo</span>
-                    )}
-                    {item.es_parcial && (
-                      <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">Kit parcial</span>
-                    )}
-                  </div>
-                  {item.es_parcial && (
-                    <p className="text-[11px] text-indigo-500 mt-0.5 font-medium">
-                      0 kits completos · {item.piezas_orden?.reduce((s, p) => s + p.cantidad, 0) ?? 0} pieza(s) sueltas
-                    </p>
-                  )}
-                  <div className="flex flex-wrap items-center gap-2 mt-1">
-                    <span className="text-[11px] font-mono text-steel-400 bg-steel-50 px-1.5 py-0.5 rounded">
-                      {item.producto_codigo}
+
+          {/* Modo con_faltantes: dos secciones */}
+          {isConFaltantes && (
+            <>
+              {itemsNuevos.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2 px-1">
+                    <span className="text-[10px] font-black text-amber-600 uppercase tracking-wide">
+                      Productos nuevos a buscar ({itemsNuevos.length})
                     </span>
-                    {(item.producto_almacen || item.producto_estante || item.producto_fila || item.producto_columna) && (
-                      <span className="text-[11px] text-steel-400">
-                        📦 {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}{item.producto_fila ? ` / ${item.producto_fila}` : ''}{item.producto_columna ? ` / ${item.producto_columna}` : ''}
-                      </span>
-                    )}
+                    <div className="flex-1 h-px bg-amber-200" />
                   </div>
-                </div>
-                <div className="text-right shrink-0 flex flex-col items-end gap-2">
-                  <p className="text-lg font-black text-steel-800">×{item.cantidad_pedida}</p>
-                  {isPendiente && (
-                    <button
-                      onClick={() => handleListoIndividual(item.id)}
-                      disabled={listoLoading[item.id]}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-                    >
-                      {listoLoading[item.id] ? '…' : '✓ Listo'}
-                    </button>
-                  )}
-                </div>
-              </div>
-              {item.es_parcial && item.piezas_orden && item.piezas_orden.length > 0 && (
-                <div className="border-t border-steel-100 bg-steel-50 divide-y divide-steel-100">
-                  {item.piezas_orden.map(p => (
-                    <div key={p.id_pieza} className="flex items-center gap-2 px-4 py-2">
-                      <span className="text-[10px] font-mono text-steel-400 bg-white px-1 py-0.5 rounded border border-steel-200 shrink-0">{p.codigo}</span>
-                      <span className="text-xs text-steel-700 flex-1 min-w-0 truncate">{p.nombre}</span>
-                      <span className="text-xs font-bold text-steel-800 shrink-0">×{p.cantidad}</span>
-                    </div>
-                  ))}
+                  <div className="space-y-2">
+                    {itemsNuevos.map(item => (
+                      <ItemCard
+                        key={item.id}
+                        item={item}
+                        showListoBtn
+                        loading={!!listoLoading[item.id]}
+                        onListo={() => handleListoIndividual(item.id)}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
-            </div>
-          )
-          })}
 
-          {/* Grupos de kits */}
-          {Object.entries(gruposKit).map(([kitId, partes]) => {
-            return (
-              <div key={kitId} className="rounded-xl border border-indigo-100 bg-indigo-50/50 overflow-hidden">
-                <div className="px-4 py-2.5 bg-indigo-100 border-b border-indigo-200">
-                  <p className="text-xs font-bold text-indigo-700">
-                    Kit #{kitId}
-                  </p>
-                  <p className="text-[10px] text-indigo-500 mt-0.5">Kit — {partes.length} pieza{partes.length !== 1 ? 's' : ''}</p>
+              {itemsFaltantesReportados.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2 px-1">
+                    <span className="text-[10px] font-black text-red-500 uppercase tracking-wide">
+                      Faltantes que ya reportaste ({itemsFaltantesReportados.length})
+                    </span>
+                    <div className="flex-1 h-px bg-red-200" />
+                  </div>
+                  <div className="space-y-2">
+                    {itemsFaltantesReportados.map(item => (
+                      <ItemCard
+                        key={item.id}
+                        item={item}
+                        showListoBtn={false}
+                        loading={false}
+                        onListo={() => {}}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="divide-y divide-indigo-100">
-                  {partes.map(item => (
-                    <div key={item.id} className="flex items-start gap-3 px-4 py-3">
-                      <div className="h-8 w-8 rounded-lg bg-white border border-indigo-200 flex items-center justify-center shrink-0">
-                        <svg className="h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-steel-700 leading-tight">{item.producto_nombre}</p>
-                        <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                          <span className="text-[11px] font-mono text-steel-400 bg-steel-50 px-1.5 py-0.5 rounded">
-                            {item.producto_codigo}
-                          </span>
-                          {(item.producto_almacen || item.producto_estante || item.producto_fila || item.producto_columna) && (
-                            <span className="text-[11px] text-steel-400">
-                              📦 {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}{item.producto_fila ? ` / ${item.producto_fila}` : ''}{item.producto_columna ? ` / ${item.producto_columna}` : ''}
+              )}
+            </>
+          )}
+
+          {/* Modo normal (en_preparacion) o read-only (listo_para_escaneo) */}
+          {!isConFaltantes && (
+            <>
+              {itemsNormales.map(item => (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  showListoBtn={!isReadOnly}
+                  loading={!!listoLoading[item.id]}
+                  onListo={() => handleListoIndividual(item.id)}
+                />
+              ))}
+
+              {/* Grupos de kits */}
+              {Object.entries(gruposKit).map(([kitId, partes]) => (
+                <div key={kitId} className="rounded-xl border border-indigo-100 bg-indigo-50/50 overflow-hidden">
+                  <div className="px-4 py-2.5 bg-indigo-100 border-b border-indigo-200">
+                    <p className="text-xs font-bold text-indigo-700">Kit #{kitId}</p>
+                    <p className="text-[10px] text-indigo-500 mt-0.5">Kit — {partes.length} pieza{partes.length !== 1 ? 's' : ''}</p>
+                  </div>
+                  <div className="divide-y divide-indigo-100">
+                    {partes.map(item => (
+                      <div key={item.id} className="flex items-start gap-3 px-4 py-3">
+                        <div className="h-8 w-8 rounded-lg bg-white border border-indigo-200 flex items-center justify-center shrink-0">
+                          <svg className="h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-steel-700 leading-tight">{item.producto_nombre}</p>
+                          <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                            <span className="text-[11px] font-mono text-steel-400 bg-steel-50 px-1.5 py-0.5 rounded">
+                              {item.producto_codigo}
                             </span>
-                          )}
+                            {(item.producto_almacen || item.producto_estante || item.producto_fila || item.producto_columna) && (
+                              <span className="text-[11px] text-steel-400">
+                                📦 {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}{item.producto_fila ? ` / ${item.producto_fila}` : ''}{item.producto_columna ? ` / ${item.producto_columna}` : ''}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-base font-black text-steel-800">×{item.cantidad_pedida}</p>
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-base font-black text-steel-800">×{item.cantidad_pedida}</p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              ))}
+            </>
+          )}
         </div>
       </div>
 
       {/* Footer */}
       <div className="border-t border-steel-100 bg-white px-4 py-3 shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-          <span className="text-xs text-steel-600 font-medium">
-            {orden.items.length} producto{orden.items.length !== 1 ? 's' : ''} por recoger
-          </span>
-        </div>
-        <div className="flex gap-2 mt-3">
-          <button
-            onClick={onFaltantes}
-            className="px-4 py-2.5 rounded-xl text-sm font-bold text-amber-600 hover:bg-amber-50 border border-amber-200 transition-all"
-          >
-            Reportar faltante
-          </button>
-          <button
-            onClick={onMarcarListo}
-            className="ml-auto px-5 py-2.5 rounded-xl text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 transition-all"
-          >
-            ✓ Marcar como lista
-          </button>
-        </div>
+        {isReadOnly ? (
+          <div className="flex items-center justify-center gap-2 py-1">
+            <div className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce" />
+            <span className="text-xs text-indigo-700 font-bold">Orden enviada a escaneo — solo lectura</span>
+          </div>
+        ) : isConFaltantes ? (
+          <div className="flex items-center gap-2 py-1">
+            <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-xs text-amber-700 font-medium">
+              Marca los productos nuevos como listos para volver a escaneo
+            </span>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+              <span className="text-xs text-steel-600 font-medium">
+                {orden.items.length} producto{orden.items.length !== 1 ? 's' : ''} por recoger
+              </span>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={onFaltantes}
+                className="px-4 py-2.5 rounded-xl text-sm font-bold text-amber-600 hover:bg-amber-50 border border-amber-200 transition-all"
+              >
+                Reportar faltante
+              </button>
+              <button
+                onClick={onMarcarListo}
+                className="ml-auto px-5 py-2.5 rounded-xl text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 transition-all"
+              >
+                ✓ Marcar como lista
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
@@ -689,7 +799,14 @@ export function AlmacenPage() {
       notify.warning(`Producto nuevo en orden #${p.ordenId}`, { description: `${p.productoNombre} ×${p.cantidad} — ve a buscarlo`, duration: 10000 })
     },
     onItemEliminado: (p) => removeItemFromOrden(String(p.ordenId), String(p.itemId)),
-    onCantidadItemActualizada: (p) => updateItemQtyInOrden(String(p.ordenId), String(p.itemId), p.nuevaCantidad),
+    onCantidadItemActualizada: (p) => {
+      updateItemQtyInOrden(String(p.ordenId), String(p.itemId), p.nuevaCantidad)
+      playAlertSequence()
+      notify.warning(`Cantidad actualizada en orden #${p.ordenId}`, {
+        description: `Nueva cantidad: ×${p.nuevaCantidad} — revisa el producto`,
+        duration: 8000,
+      })
+    },
   }, isTokenReady, ['Almaceneros'])
 
   const [, setTick] = useState(0)
@@ -818,6 +935,18 @@ export function AlmacenPage() {
     try {
       await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/MarcarListoIndividual`, null)
       markItemListoEnOrden(pickingOrdenId, itemId)
+
+      // Zustand set es síncrono → leer estado post-mark
+      const updatedOrden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)
+      if (updatedOrden?.estado === 'con_faltantes') {
+        const remainingPendientes = updatedOrden.items.filter(i => i.estado === 'pendiente').length
+        if (remainingPendientes === 0) {
+          updateOrden(pickingOrdenId, { estado: 'listo_para_escaneo' })
+          setPickingOrdenId(null)
+          notify.success('Todos los productos listos — orden de vuelta en escaneo')
+          return
+        }
+      }
       notify.success('Producto marcado como listo — cajero notificado')
     } catch (e) {
       notify.error(e instanceof Error ? e.message : 'Error al marcar como listo')

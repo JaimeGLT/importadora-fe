@@ -4,7 +4,7 @@ export const MI_CAJA_QUERY = `
   query MiCaja {
     misCajas(where: {
       estado: {
-        contains: "Abierta"
+        eq: "Abierta"
       }
     }) {
       nodes {

@@ -355,6 +355,8 @@ export interface PiezaOrden {
   nombre: string
   codigo: string
   cantidad: number
+  precio_unitario?: number
+  confirmado?: boolean
 }
 
 export interface ItemOrden {

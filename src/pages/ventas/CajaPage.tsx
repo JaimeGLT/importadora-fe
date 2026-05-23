@@ -65,11 +65,9 @@ interface CartItem {
 interface Cart {
   items: CartItem[]
   nota: string
-  tipo: 'venta' | 'reserva'
-  cliente_nombre: string
 }
 
-const emptyCart = (): Cart => ({ items: [], nota: '', tipo: 'venta', cliente_nombre: '' })
+const emptyCart = (): Cart => ({ items: [], nota: '' })
 
 // ─── FlyingBall ────────────────────────────────────────────────────────────────
 
@@ -106,16 +104,16 @@ function FlyingBall({ fromRect, toRect, itemCount, onComplete }: FlyingBallProps
         }}
       >
         <div
-          className="h-12 w-12 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 shadow-xl flex items-center justify-center text-white font-black text-lg relative"
+          className="h-12 w-12 rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#1e40af] shadow-xl flex items-center justify-center text-white font-black text-lg relative"
           style={{
-            boxShadow: '0 0 0 4px rgba(200, 16, 46, 0.3), 0 0 20px rgba(200, 16, 46, 0.5)',
+            boxShadow: '0 0 0 4px rgba(29, 78, 216, 0.3), 0 0 20px rgba(29, 78, 216, 0.5)',
           }}
         >
           <span className="relative z-10">{itemCount}</span>
-          <div className="absolute inset-0 rounded-full bg-brand-400 animate-ping opacity-30" />
+          <div className="absolute inset-0 rounded-full bg-[#60a5fa] animate-ping opacity-30" />
         </div>
         <svg
-          className="absolute -right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-brand-500"
+          className="absolute -right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[#1d4ed8]"
           style={{ animation: 'dash 0.2s ease-in-out infinite' }}
           fill="none"
           viewBox="0 0 24 24"
@@ -126,7 +124,7 @@ function FlyingBall({ fromRect, toRect, itemCount, onComplete }: FlyingBallProps
         </svg>
       </div>
       <div
-        className="absolute w-3 h-3 rounded-full bg-brand-400 opacity-40"
+        className="absolute w-3 h-3 rounded-full bg-[#60a5fa] opacity-40"
         style={{ animation: 'trail 0.3s ease-out infinite alternate' }}
       />
       <style>{`
@@ -166,7 +164,7 @@ function PrecioCard({
   descuento?: DescuentoConfig
   onSelect: () => void
 }) {
-  const styles = descuento ? COLOR_STYLES[descuento.color] || COLOR_STYLES.emerald : { bg: 'bg-white', text: 'text-steel-900', border: 'border-steel-200' }
+  const styles = descuento ? COLOR_STYLES[descuento.color] || COLOR_STYLES.emerald : { bg: 'bg-white', text: 'text-[#1e1b2e]', border: 'border-[#e2e8f0]' }
   const precioFinal = descuento ? calcularPrecioConDescuento(precio, descuento.porcentaje) : precio
 
   return (
@@ -184,12 +182,12 @@ function PrecioCard({
             <span className={clsx('text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/70', styles.text)}>-{descuento.porcentaje}%</span>
           </>
         ) : (
-          <span className="text-sm font-bold text-steel-700">Precio base</span>
+          <span className="text-sm font-bold text-[#5a5670]">Precio base</span>
         )}
       </div>
       <div className="text-right">
         <span className={clsx('text-base font-black', styles.text)}>{fmtBs(precioFinal)}</span>
-        {descuento && <p className="text-[10px] text-steel-400 line-through">Bs {precio.toFixed(2)}</p>}
+        {descuento && <p className="text-[10px] text-[#9996b0] line-through">Bs {precio.toFixed(2)}</p>}
       </div>
     </button>
   )
@@ -241,12 +239,12 @@ function SelectPriceModal({
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Cambiar precio' : 'Seleccionar precio'} size="sm">
       <div className="space-y-4">
-        <div className="flex items-start gap-3 p-3 rounded-xl bg-steel-50 border border-steel-100">
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#f1f5f9] border border-[#e2e8f0]">
           {producto.imagen ? (
-            <img src={producto.imagen} alt={producto.nombre} className="h-14 w-14 rounded-lg object-cover bg-white border border-steel-100 shrink-0" />
+            <img src={producto.imagen} alt={producto.nombre} className="h-14 w-14 rounded-lg object-cover bg-white border border-[#e2e8f0] shrink-0" />
           ) : (
-            <div className="h-14 w-14 rounded-lg bg-white border border-steel-100 flex items-center justify-center shrink-0">
-              <svg className="h-6 w-6 text-steel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <div className="h-14 w-14 rounded-lg bg-white border border-[#e2e8f0] flex items-center justify-center shrink-0">
+              <svg className="h-6 w-6 text-[#9996b0]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
             </div>
@@ -256,18 +254,18 @@ function SelectPriceModal({
               {allCodes.slice(0, 3).map((code, i) => (
                 <span key={i} className={clsx(
                   'inline-flex items-center px-2 py-0.5 rounded font-mono font-black text-xs',
-                  i === 0 ? 'bg-brand-600 text-white' : 'bg-steel-800 text-steel-100'
+                  i === 0 ? 'bg-[#1d4ed8] text-white' : 'bg-[#1e1b2e] text-[#f1f5f9]'
                 )}>
                   {code}
                 </span>
               ))}
             </div>
-            <p className="text-sm font-medium text-steel-700 truncate">{producto.nombre}</p>
+            <p className="text-sm font-medium text-[#5a5670] truncate">{producto.nombre}</p>
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <p className="text-[10px] font-bold text-steel-400 uppercase tracking-widest px-1">Precios disponibles</p>
+          <p className="text-[10px] font-bold text-[#9996b0] uppercase tracking-widest px-1">Precios disponibles</p>
 
           <PrecioCard precio={precioADisplay} onSelect={() => handleSelect(precioADisplay)} />
 
@@ -282,8 +280,8 @@ function SelectPriceModal({
         </div>
 
         {isEdit && onAddAnother && (
-          <div className="border-t border-steel-200 pt-4">
-            <p className="text-[10px] font-semibold text-steel-400 uppercase tracking-widest px-1 mb-2">¿Actualizar precio y agregar más?</p>
+          <div className="border-t border-[#e2e8f0] pt-4">
+            <p className="text-[10px] font-semibold text-[#9996b0] uppercase tracking-widest px-1 mb-2">¿Actualizar precio y agregar más?</p>
             <div className="space-y-1.5">
               <PrecioCard precio={precioADisplay} onSelect={() => handleSelect(precioADisplay)} />
               {activeDescuentos.map(d => (
@@ -348,9 +346,9 @@ function ProductSearch({ onSelectProducto }: { onSelectProducto: (producto: Prod
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 pt-3 pb-2 border-b border-steel-100">
+      <div className="px-4 pt-3 pb-2 border-b border-[#e2e8f0]">
         <div className="relative">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-steel-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9996b0] pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -359,10 +357,10 @@ function ProductSearch({ onSelectProducto }: { onSelectProducto: (producto: Prod
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Buscar por código, nombre o marca..."
-            className="w-full pl-9 pr-4 py-2.5 text-sm bg-steel-50 border border-steel-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-steel-400"
+            className="w-full pl-9 pr-4 py-2.5 text-sm bg-[#f1f5f9] border border-[#e2e8f0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1d4ed8] placeholder:text-[#9996b0]"
           />
           {query && (
-            <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-steel-400 hover:text-steel-600">
+            <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9996b0] hover:text-[#5a5670]">
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -372,49 +370,49 @@ function ProductSearch({ onSelectProducto }: { onSelectProducto: (producto: Prod
       </div>
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="divide-y divide-steel-50 px-4">
+          <div className="divide-y divide-[#f1f5f9] px-4">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3 py-3 animate-pulse">
-                <div className="h-10 w-10 rounded-lg bg-steel-100" />
+                <div className="h-10 w-10 rounded-lg bg-[#f1f5f9]" />
                 <div className="flex-1 space-y-1.5">
-                  <div className="h-3 w-24 rounded bg-steel-100" />
-                  <div className="h-2 w-40 rounded bg-steel-100" />
+                  <div className="h-3 w-24 rounded bg-[#f1f5f9]" />
+                  <div className="h-2 w-40 rounded bg-[#f1f5f9]" />
                 </div>
-                <div className="h-4 w-20 rounded bg-steel-100" />
+                <div className="h-4 w-20 rounded bg-[#f1f5f9]" />
               </div>
             ))}
           </div>
         ) : query.trim() === '' ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
-            <svg className="h-10 w-10 text-steel-200 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
+            <svg className="h-10 w-10 text-[#e2e8f0] mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <p className="text-sm text-steel-400">Escribe para buscar productos</p>
+            <p className="text-sm text-[#9996b0]">Escribe para buscar productos</p>
           </div>
         ) : resultados.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
-            <p className="text-sm text-steel-500 font-medium">Sin resultados</p>
-            <p className="text-xs text-steel-400 mt-1">"{query}"</p>
+            <p className="text-sm text-[#9996b0] font-medium">Sin resultados</p>
+            <p className="text-xs text-[#9996b0] mt-1">"{query}"</p>
           </div>
         ) : (
-          <div className="divide-y divide-steel-50">
+          <div className="divide-y divide-[#f1f5f9]">
             {resultados.map(p => {
               const disp = stockDisponible(p)
               const stockCls = disp === 0 ? 'text-red-500' : disp <= p.stock_minimo ? 'text-amber-500' : 'text-emerald-600'
               return (
-                <div key={p.id} className="flex items-center gap-3 px-4 py-3 hover:bg-steel-50 transition-colors group">
+                <div key={p.id} className="flex items-center gap-3 px-4 py-3 hover:bg-[#f1f5f9] transition-colors group">
                   {p.imagen ? (
-                    <img src={p.imagen} alt={p.nombre} className="h-10 w-10 rounded-lg object-cover bg-steel-100 border border-steel-100 shrink-0" />
+                    <img src={p.imagen} alt={p.nombre} className="h-10 w-10 rounded-lg object-cover bg-[#f1f5f9] border border-[#e2e8f0] shrink-0" />
                   ) : (
-                    <div className="h-10 w-10 rounded-lg bg-steel-100 border border-steel-100 shrink-0 flex items-center justify-center">
-                      <svg className="h-5 w-5 text-steel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <div className="h-10 w-10 rounded-lg bg-[#f1f5f9] border border-[#e2e8f0] shrink-0 flex items-center justify-center">
+                      <svg className="h-5 w-5 text-[#9996b0]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                       </svg>
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="font-mono text-sm font-black text-brand-600 bg-brand-50 px-2 py-0.5 rounded">{p.codigo_universal}</span>
+                      <span className="font-mono text-sm font-black text-[#1d4ed8] bg-[#eff6ff] px-2 py-0.5 rounded">{p.codigo_universal}</span>
                       {p.es_kit && (
                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-black bg-violet-100 text-violet-700 border border-violet-200">
                           <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -424,10 +422,10 @@ function ProductSearch({ onSelectProducto }: { onSelectProducto: (producto: Prod
                         </span>
                       )}
                     </div>
-                    <p className="text-sm font-medium text-steel-600 truncate">{p.nombre}</p>
+                    <p className="text-sm font-medium text-[#5a5670] truncate">{p.nombre}</p>
                     <div className="flex items-center gap-3 mt-1">
                       <span className={`text-[11px] font-semibold ${stockCls}`}>{disp} disponibles</span>
-                      {p.almacen && <span className="text-[11px] text-steel-400">📦 {p.almacen} {p.estante} {p.fila} {p.columna}</span>}
+                      {p.almacen && <span className="text-[11px] text-[#9996b0]">📦 {p.almacen} {p.estante} {p.fila} {p.columna}</span>}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -436,7 +434,7 @@ function ProductSearch({ onSelectProducto }: { onSelectProducto: (producto: Prod
                       disabled={!p.es_kit && disp === 0}
                       className={clsx(
                         'h-7 w-7 rounded-lg flex items-center justify-center transition-all opacity-0 group-hover:opacity-100',
-                        !p.es_kit && disp === 0 ? 'bg-steel-100 text-steel-300 cursor-not-allowed' : 'bg-brand-600 text-white hover:bg-brand-700'
+                        !p.es_kit && disp === 0 ? 'bg-[#f1f5f9] text-[#9996b0] cursor-not-allowed' : 'bg-[#1d4ed8] text-white hover:bg-[#1e40af]'
                       )}
                     >
                       <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -478,10 +476,10 @@ function CartItem({
     <div className="px-4 py-3">
       <div className="flex items-start gap-3">
         {item.producto_imagen ? (
-          <img src={item.producto_imagen} alt={item.producto_nombre} className="h-12 w-12 rounded-lg object-cover bg-steel-100 border shrink-0" />
+          <img src={item.producto_imagen} alt={item.producto_nombre} className="h-12 w-12 rounded-lg object-cover bg-[#f1f5f9] border shrink-0" />
         ) : (
-          <div className="h-12 w-12 rounded-lg bg-steel-100 border shrink-0 flex items-center justify-center">
-            <svg className="h-5 w-5 text-steel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <div className="h-12 w-12 rounded-lg bg-[#f1f5f9] border shrink-0 flex items-center justify-center">
+            <svg className="h-5 w-5 text-[#9996b0]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
           </div>
@@ -491,16 +489,16 @@ function CartItem({
             <div className="flex items-center gap-2">
               {item.descuento_nombre ? (
                 <div className="flex items-center gap-1.5">
-                  <span className="font-mono text-sm font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded">{item.producto_codigo}</span>
+                  <span className="font-mono text-sm font-bold text-[#1d4ed8] bg-[#eff6ff] px-2 py-0.5 rounded">{item.producto_codigo}</span>
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">{item.descuento_nombre} -{item.descuento_porcentaje}%</span>
                 </div>
               ) : (
-                <span className="font-mono text-sm font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded">{item.producto_codigo}</span>
+                <span className="font-mono text-sm font-bold text-[#1d4ed8] bg-[#eff6ff] px-2 py-0.5 rounded">{item.producto_codigo}</span>
               )}
             </div>
             <button
               onClick={() => onEditPrice(item.producto_id)}
-              className="p-1.5 text-steel-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+              className="p-1.5 text-[#9996b0] hover:text-[#1d4ed8] hover:bg-[#eff6ff] rounded-lg transition-colors"
               title="Cambiar precio"
             >
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -508,10 +506,10 @@ function CartItem({
               </svg>
             </button>
           </div>
-          <p className="text-xs text-steel-500 mt-0.5 truncate">{item.producto_nombre}</p>
+          <p className="text-xs text-[#9996b0] mt-0.5 truncate">{item.producto_nombre}</p>
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-1">
-              <button onClick={() => onQtyChange(idx, -1)} className="h-7 w-7 rounded-lg border border-steel-200 text-steel-600 hover:bg-steel-100 flex items-center justify-center text-base font-bold transition-colors">−</button>
+              <button onClick={() => onQtyChange(idx, -1)} className="h-7 w-7 rounded-lg border border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] flex items-center justify-center text-base font-bold transition-colors">−</button>
               {editingQty ? (
                 <input
                   type="number"
@@ -547,7 +545,7 @@ function CartItem({
                       setEditingQty(false)
                     }
                   }}
-                  className="w-14 h-7 px-2 text-center text-sm font-bold border border-brand-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-14 h-7 px-2 text-center text-sm font-bold border border-[#1d4ed8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1d4ed8]"
                 />
               ) : (
                 <button
@@ -555,17 +553,17 @@ function CartItem({
                     setQtyValue(String(item.cantidad))
                     setEditingQty(true)
                   }}
-                  className="h-7 w-10 text-center text-sm font-bold text-steel-800 hover:bg-steel-50 rounded-lg transition-colors"
+                  className="h-7 w-10 text-center text-sm font-bold text-[#1e1b2e] hover:bg-[#f1f5f9] rounded-lg transition-colors"
                 >
                   {item.cantidad}
                 </button>
               )}
-              <button onClick={() => onQtyChange(idx, +1)} disabled={item.cantidad >= disp} className={clsx('h-7 w-7 rounded-lg border flex items-center justify-center text-base font-bold transition-colors', item.cantidad >= disp ? 'border-steel-100 text-steel-300 cursor-not-allowed' : 'border-steel-200 text-steel-600 hover:bg-steel-100')}>+</button>
+              <button onClick={() => onQtyChange(idx, +1)} disabled={item.cantidad >= disp} className={clsx('h-7 w-7 rounded-lg border flex items-center justify-center text-base font-bold transition-colors', item.cantidad >= disp ? 'border-[#e2e8f0] text-[#9996b0] cursor-not-allowed' : 'border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9]')}>+</button>
             </div>
-            <span className="text-sm font-bold text-steel-900">{fmtBs(item.precio_unitario * item.cantidad)}</span>
+            <span className="text-sm font-bold text-[#1e1b2e]">{fmtBs(item.precio_unitario * item.cantidad)}</span>
           </div>
         </div>
-        <button onClick={() => onRemoveItem(idx)} className="text-steel-300 hover:text-red-500 transition-colors shrink-0">
+        <button onClick={() => onRemoveItem(idx)} className="text-[#9996b0] hover:text-red-500 transition-colors shrink-0">
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -577,7 +575,7 @@ function CartItem({
 
 // ─── CartPanel ────────────────────────────────────────────────────────────────
 
-function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChange, onEmitir, onEditPrice, emitButtonRef, onTipoChange, onClienteChange }: { cart: Cart; productosCache: Record<string, Producto>; onQtyChange: (itemIdx: number, delta: number) => void; onRemoveItem: (itemIdx: number) => void; onNotaChange: (nota: string) => void; onEmitir: () => void; onEditPrice: (producto_id: string) => void; emitButtonRef?: (el: HTMLButtonElement | null) => void; onTipoChange: (tipo: 'venta' | 'reserva') => void; onClienteChange: (nombre: string) => void }) {
+function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChange, onEmitir, onEditPrice, emitButtonRef }: { cart: Cart; productosCache: Record<string, Producto>; onQtyChange: (itemIdx: number, delta: number) => void; onRemoveItem: (itemIdx: number) => void; onNotaChange: (nota: string) => void; onEmitir: () => void; onEditPrice: (producto_id: string) => void; emitButtonRef?: (el: HTMLButtonElement | null) => void }) {
   const stockDisponible = (id: string) => {
     const p = productosCache[id]
     return p ? Math.max(0, p.stock - (p.stock_reservado ?? 0)) : Infinity
@@ -586,46 +584,20 @@ function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChan
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-steel-100 shrink-0">
-        <p className="text-[10px] font-bold text-steel-400 uppercase tracking-widest">Carrito de venta</p>
-      </div>
-      <div className="px-4 py-2 border-b border-steel-100 shrink-0">
-        <div className="flex gap-1 bg-steel-100 rounded-xl p-1">
-          <button
-            onClick={() => onTipoChange('venta')}
-            className={clsx('flex-1 py-2 text-xs font-bold rounded-lg transition-all', cart.tipo === 'venta' ? 'bg-white text-steel-800 shadow-sm' : 'text-steel-500 hover:text-steel-700')}
-          >
-            Venta
-          </button>
-          <button
-            onClick={() => onTipoChange('reserva')}
-            className={clsx('flex-1 py-2 text-xs font-bold rounded-lg transition-all', cart.tipo === 'reserva' ? 'bg-white text-steel-800 shadow-sm' : 'text-steel-500 hover:text-steel-700')}
-          >
-            Reserva
-          </button>
-        </div>
-        {cart.tipo === 'reserva' && (
-          <input
-            type="text"
-            value={cart.cliente_nombre}
-            onChange={e => onClienteChange(e.target.value)}
-            placeholder="Nombre del cliente"
-            className="w-full mt-2 text-xs px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-amber-400"
-            maxLength={60}
-          />
-        )}
+      <div className="px-4 py-3 border-b border-[#e2e8f0] shrink-0">
+        <p className="text-[10px] font-bold text-[#9996b0] uppercase tracking-widest">Carrito de venta</p>
       </div>
       <div className="flex-1 overflow-y-auto">
         {cart.items.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
-            <svg className="h-12 w-12 text-steel-200 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
+            <svg className="h-12 w-12 text-[#e2e8f0] mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
-            <p className="text-sm text-steel-400">Carrito vacío</p>
-            <p className="text-xs text-steel-400 mt-1">Agrega productos desde la búsqueda</p>
+            <p className="text-sm text-[#9996b0]">Carrito vacío</p>
+            <p className="text-xs text-[#9996b0] mt-1">Agrega productos desde la búsqueda</p>
           </div>
         ) : (
-          <div className="divide-y divide-steel-50">
+          <div className="divide-y divide-[#f1f5f9]">
             {cart.items.map((item, idx) => {
               const disp = stockDisponible(item.producto_id)
               return (
@@ -644,12 +616,12 @@ function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChan
         )}
       </div>
       {cart.items.length > 0 && (
-        <div className="border-t border-steel-100 px-4 py-3 space-y-3 shrink-0">
-          <input type="text" value={cart.nota} onChange={e => onNotaChange(e.target.value)} placeholder="Nota para almacén (opcional)" className="w-full text-xs px-3 py-2.5 bg-steel-50 border border-steel-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-steel-400" maxLength={100} />
+        <div className="border-t border-[#e2e8f0] px-4 py-3 space-y-3 shrink-0">
+          <input type="text" value={cart.nota} onChange={e => onNotaChange(e.target.value)} placeholder="Nota para almacén (opcional)" className="w-full text-xs px-3 py-2.5 bg-[#f1f5f9] border border-[#e2e8f0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1d4ed8] placeholder:text-[#9996b0]" maxLength={100} />
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] text-steel-400 uppercase tracking-widest">Total</p>
-              <p className="text-xl font-black text-steel-900 tabular-nums">{fmtBs(total)}</p>
+              <p className="text-[10px] text-[#9996b0] uppercase tracking-widest">Total</p>
+              <p className="text-xl font-black text-[#1e1b2e] tabular-nums">{fmtBs(total)}</p>
             </div>
             <Button ref={emitButtonRef} onClick={onEmitir} className="px-6">
               <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -668,50 +640,28 @@ function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChan
 
 function OrdersModal({
   ordenes,
-  reservaciones,
   canceladas,
   onCobrar,
   onCancelar,
-  onClaim,
   open,
   onClose,
 }: {
   ordenes: OrdenVenta[]
-  reservaciones: OrdenVenta[]
   canceladas?: OrdenVenta[]
   onCobrar: (o: OrdenVenta) => void
   onCancelar: (o: OrdenVenta) => void
-  onClaim: (o: OrdenVenta) => void
   open: boolean
   onClose: () => void
 }) {
   const [showCanceladas, setShowCanceladas] = useState(false)
-  const [tab, setTab] = useState<'ordenes' | 'reservas'>('ordenes')
   const listos = ordenes.filter(o => o.estado === 'esperando_pago')
   const otras = ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada' && o.estado !== 'esperando_pago')
 
   return (
     <Modal open={open} onClose={onClose} title="Órdenes activas" size="lg">
       <div className="space-y-4 pt-1">
-        <div className="flex gap-1 bg-steel-100 rounded-xl p-1">
-          <button
-            onClick={() => setTab('ordenes')}
-            className={clsx('flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2', tab === 'ordenes' ? 'bg-white text-steel-800 shadow-sm' : 'text-steel-500 hover:text-steel-700')}
-          >
-            Órdenes
-            {ordenes.length > 0 && <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full text-[10px] font-black bg-steel-300 text-white">{ordenes.length}</span>}
-          </button>
-          <button
-            onClick={() => setTab('reservas')}
-            className={clsx('flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2', tab === 'reservas' ? 'bg-white text-steel-800 shadow-sm' : 'text-steel-500 hover:text-steel-700')}
-          >
-            Reservas
-            {reservaciones.length > 0 && <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full text-[10px] font-black bg-amber-400 text-white">{reservaciones.length}</span>}
-          </button>
-        </div>
         <div className="max-h-[60vh] overflow-y-auto space-y-4">
-          {tab === 'ordenes' ? (
-            <>
+          <>
               {listos.length > 0 ? (
                 <div className="space-y-2">
                   {listos.map(o => (
@@ -725,7 +675,7 @@ function OrdersModal({
                       </div>
                       <div className="flex items-center gap-2">
                         <button onClick={() => { onCobrar(o); onClose() }} className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors">Cobrar</button>
-                        <button onClick={() => { onCancelar(o); onClose() }} className="p-1.5 text-steel-400 hover:text-red-500">
+                        <button onClick={() => { onCancelar(o); onClose() }} className="p-1.5 text-[#9996b0] hover:text-red-500">
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                           </svg>
@@ -736,32 +686,32 @@ function OrdersModal({
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <svg className="h-12 w-12 text-steel-200 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
+                  <svg className="h-12 w-12 text-[#e2e8f0] mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
-                  <p className="text-sm text-steel-500">No hay órdenes listas</p>
+                  <p className="text-sm text-[#9996b0]">No hay órdenes listas</p>
                 </div>
               )}
               {otras.length > 0 && (
                 <div>
-                  <p className="text-xs font-bold text-steel-400 uppercase tracking-wide mb-2">En proceso</p>
+                  <p className="text-xs font-bold text-[#9996b0] uppercase tracking-wide mb-2">En proceso</p>
                   <div className="space-y-2">
                     {otras.map(o => {
-                      const cfg = ESTADO_ORDEN_CONFIG[o.estado] ?? { label: o.estado, cls: 'bg-steel-100 text-steel-500', dot: 'bg-steel-400' }
+                      const cfg = ESTADO_ORDEN_CONFIG[o.estado] ?? { label: o.estado, cls: 'bg-[#f1f5f9] text-[#9996b0]', dot: 'bg-[#9996b0]' }
                       const tieneFaltantes = o.items.some(i => i.estado === 'faltante')
                       return (
-                        <div key={o.id} className={clsx('flex items-center justify-between px-4 py-3 rounded-xl border', tieneFaltantes ? 'bg-amber-50 border-amber-200' : 'bg-white border-steel-100')}>
+                        <div key={o.id} className={clsx('flex items-center justify-between px-4 py-3 rounded-xl border', tieneFaltantes ? 'bg-amber-50 border-amber-200' : 'bg-white border-[#e2e8f0]')}>
                           <div className="flex items-center gap-3">
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${cfg.cls}`}>{cfg.label}</span>
                             <div>
-                              <p className="text-sm font-semibold text-steel-700">{o.numero}</p>
-                              <p className="text-xs text-steel-400">{o.items.length} prod. · {fmtBs(o.total)}</p>
+                              <p className="text-sm font-semibold text-[#5a5670]">{o.numero}</p>
+                              <p className="text-xs text-[#9996b0]">{o.items.length} prod. · {fmtBs(o.total)}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
                             {tieneFaltantes && <span className="text-[10px] font-bold text-amber-600">⚠ faltantes</span>}
-                            <span className="text-[10px] text-steel-400">{fmtTimeSince(o.creado_en)}</span>
-                            <button onClick={() => { onCancelar(o); onClose() }} className="p-1.5 text-steel-400 hover:text-red-500">
+                            <span className="text-[10px] text-[#9996b0]">{fmtTimeSince(o.creado_en)}</span>
+                            <button onClick={() => { onCancelar(o); onClose() }} className="p-1.5 text-[#9996b0] hover:text-red-500">
                               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                               </svg>
@@ -774,12 +724,12 @@ function OrdersModal({
                 </div>
               )}
               {canceladas && canceladas.length > 0 && (
-                <div className="border-t border-steel-200 pt-3">
+                <div className="border-t border-[#e2e8f0] pt-3">
                   <button
                     onClick={() => setShowCanceladas(!showCanceladas)}
-                    className="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-steel-50 transition-colors"
+                    className="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-[#f1f5f9] transition-colors"
                   >
-                    <span className="text-xs font-bold text-steel-400 uppercase tracking-wide flex items-center gap-2">
+                    <span className="text-xs font-bold text-[#9996b0] uppercase tracking-wide flex items-center gap-2">
                       <svg className={clsx('h-4 w-4 transition-transform', showCanceladas && 'rotate-90')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                       </svg>
@@ -809,51 +759,6 @@ function OrdersModal({
                 </div>
               )}
             </>
-          ) : (
-            <>
-              {reservaciones.length > 0 ? (
-                <div className="space-y-2">
-                  {reservaciones.map(o => {
-                    const caduca = o.caduca_en ? new Date(o.caduca_en).getTime() : 0
-                    const expira = caduca - Date.now()
-                    const expiraStr = expira > 0 ? `${Math.ceil(expira / 60000)}min` : 'expirada'
-                    return (
-                      <div key={o.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-amber-50 border-2 border-amber-200">
-                        <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-lg bg-amber-400 flex items-center justify-center text-white font-bold text-sm">{o.numero.replace('ORD-', '')}</div>
-                          <div>
-                            <p className="text-sm font-bold text-amber-800">{o.cliente_nombre}</p>
-                            <p className="text-xs text-amber-600">{o.items.length} prod. · {fmtBs(o.total)}</p>
-                            <p className="text-[10px] text-amber-500">Expira: {expiraStr}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => { onClaim(o); onClose() }}
-                            className="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 transition-colors"
-                          >
-                            Reclamar
-                          </button>
-                          <button onClick={() => { onCancelar(o); onClose() }} className="p-1.5 text-amber-400 hover:text-red-500">
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <svg className="h-12 w-12 text-amber-200 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <p className="text-sm text-amber-500">No hay reservaciones activas</p>
-                </div>
-              )}
-            </>
-          )}
         </div>
       </div>
     </Modal>
@@ -868,13 +773,13 @@ function PickingParcialModal({ orden, onPartial, onCancelar, onClose }: { orden:
   return (
     <Modal open onClose={onClose} title="Orden con faltantes">
       <div className="space-y-4 pt-1">
-        <p className="text-sm text-steel-500">Esta orden tiene productos no encontrados. ¿Cómo procedes?</p>
+        <p className="text-sm text-[#9996b0]">Esta orden tiene productos no encontrados. ¿Cómo procedes?</p>
         {completos.length > 0 && (
           <div>
             <p className="text-xs font-bold text-emerald-600 uppercase tracking-wide mb-2">✓ Encontrados ({completos.length})</p>
             <div className="space-y-1">{completos.map(i => (
               <div key={i.id} className="flex justify-between text-sm px-3 py-1.5 bg-emerald-50 rounded-lg">
-                <span className="text-steel-700 truncate mr-2">{i.producto_nombre}</span>
+                <span className="text-[#5a5670] truncate mr-2">{i.producto_nombre}</span>
                 <span className="text-emerald-700 font-semibold">×{i.cantidad_recogida ?? i.cantidad_pedida}</span>
               </div>
             ))}</div>
@@ -885,7 +790,7 @@ function PickingParcialModal({ orden, onPartial, onCancelar, onClose }: { orden:
             <p className="text-xs font-bold text-red-500 uppercase tracking-wide mb-2">✕ Faltantes ({faltantes.length})</p>
             <div className="space-y-1">{faltantes.map(i => (
               <div key={i.id} className="flex justify-between text-sm px-3 py-1.5 bg-red-50 rounded-lg">
-                <span className="text-steel-700 truncate mr-2">{i.producto_nombre}</span>
+                <span className="text-[#5a5670] truncate mr-2">{i.producto_nombre}</span>
                 <span className="text-red-500 font-semibold">×{i.cantidad_pedida}</span>
               </div>
             ))}</div>
@@ -926,19 +831,19 @@ function CancelarOrdenModal({
           </div>
         </div>
 
-        <div className="rounded-xl border border-steel-200 overflow-hidden">
-          <div className="px-4 py-2 bg-steel-50 border-b border-steel-200 flex items-center justify-between">
-            <span className="text-xs font-bold text-steel-500">PRODUCTOS</span>
-            <span className="text-xs text-steel-400">{orden.items.length} items · {fmtBs(orden.total)}</span>
+        <div className="rounded-xl border border-[#e2e8f0] overflow-hidden">
+          <div className="px-4 py-2 bg-[#f1f5f9] border-b border-[#e2e8f0] flex items-center justify-between">
+            <span className="text-xs font-bold text-[#9996b0]">PRODUCTOS</span>
+            <span className="text-xs text-[#9996b0]">{orden.items.length} items · {fmtBs(orden.total)}</span>
           </div>
-          <div className="divide-y divide-steel-100 max-h-48 overflow-y-auto">
+          <div className="divide-y divide-[#e2e8f0] max-h-48 overflow-y-auto">
             {orden.items.map(item => (
               <div key={item.id} className="flex items-center justify-between px-4 py-2.5">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xs font-mono text-steel-400 bg-steel-50 px-1.5 py-0.5 rounded shrink-0">{item.producto_codigo}</span>
-                  <span className="text-xs text-steel-700 truncate">{item.producto_nombre}</span>
+                  <span className="text-xs font-mono text-[#9996b0] bg-[#f1f5f9] px-1.5 py-0.5 rounded shrink-0">{item.producto_codigo}</span>
+                  <span className="text-xs text-[#5a5670] truncate">{item.producto_nombre}</span>
                 </div>
-                <span className="text-xs font-semibold text-steel-600 ml-2 shrink-0">×{item.cantidad_pedida}</span>
+                <span className="text-xs font-semibold text-[#5a5670] ml-2 shrink-0">×{item.cantidad_pedida}</span>
               </div>
             ))}
           </div>
@@ -983,7 +888,11 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
 
   const itemsDespachados = orden.items.filter(i => i.estado === 'completo' || i.estado === 'parcial')
   const itemsFaltantes = orden.items.filter(i => i.estado === 'faltante')
-  const totalReal = itemsDespachados.reduce((s, i) => s + (i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida)), 0)
+  const totalReal = itemsDespachados.reduce((s, i) => {
+    if (i.es_parcial && i.piezas_orden?.length)
+      return s + i.piezas_orden.filter(p => p.confirmado).reduce((ps, p) => ps + (p.precio_unitario ?? 0) * p.cantidad, 0)
+    return s + i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida)
+  }, 0)
 
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
   const [montoStr, setMontoStr] = useState(totalReal.toFixed(2))
@@ -1140,32 +1049,32 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
           {itemsDespachados.map(i => (
             <div key={i.id} className="flex justify-between text-sm gap-2">
               <div className="flex-1 min-w-0">
-                <p className="text-steel-700 truncate">{i.producto_nombre}</p>
-                <p className="text-[10px] font-mono text-steel-400">{i.producto_codigo} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
+                <p className="text-[#5a5670] truncate">{i.producto_nombre}</p>
+                <p className="text-[10px] font-mono text-[#9996b0]">{i.producto_codigo} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
               </div>
-              <span className="font-semibold text-steel-800 shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
+              <span className="font-semibold text-[#1e1b2e] shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
             </div>
           ))}
           {itemsFaltantes.map(i => (
             <div key={i.id} className="flex justify-between text-sm gap-2 opacity-50">
               <div className="flex-1 min-w-0">
-                <p className="text-steel-400 truncate line-through">{i.producto_nombre}</p>
-                <p className="text-[10px] font-mono text-steel-300">{i.producto_codigo} · ×{i.cantidad_pedida}</p>
+                <p className="text-[#9996b0] truncate line-through">{i.producto_nombre}</p>
+                <p className="text-[10px] font-mono text-[#9996b0]">{i.producto_codigo} · ×{i.cantidad_pedida}</p>
               </div>
-              <span className="text-steel-400 shrink-0">N/A</span>
+              <span className="text-[#9996b0] shrink-0">N/A</span>
             </div>
           ))}
-          <div className="flex justify-between pt-2 border-t border-steel-100 mt-2">
-            <span className="text-sm font-bold text-steel-700">Total</span>
-            <span className="text-lg font-black text-steel-900">{fmtBs(totalReal)}</span>
+          <div className="flex justify-between pt-2 border-t border-[#e2e8f0] mt-2">
+            <span className="text-sm font-bold text-[#5a5670]">Total</span>
+            <span className="text-lg font-black text-[#1e1b2e]">{fmtBs(totalReal)}</span>
           </div>
         </div>
 
         {/* Toggle Factura */}
-        <div className="flex items-center justify-between py-3 px-4 rounded-xl bg-steel-50 border border-steel-200">
+        <div className="flex items-center justify-between py-3 px-4 rounded-xl bg-[#f1f5f9] border border-[#e2e8f0]">
           <div>
-            <p className="text-sm font-semibold text-steel-800">¿Requiere factura?</p>
-            <p className="text-xs text-steel-400 mt-0.5">Si es nota de venta, no se piden datos fiscales</p>
+            <p className="text-sm font-semibold text-[#1e1b2e]">¿Requiere factura?</p>
+            <p className="text-xs text-[#9996b0] mt-0.5">Si es nota de venta, no se piden datos fiscales</p>
           </div>
           <button
             type="button"
@@ -1178,8 +1087,8 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
                 if (!clienteSelected) setShowClienteDropdown(true)
               }
             }}
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 ${
-              requiereFactura ? 'bg-brand-600' : 'bg-steel-300'
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d4ed8] focus-visible:ring-offset-2 ${
+              requiereFactura ? 'bg-[#1d4ed8]' : 'bg-[#9996b0]'
             }`}
           >
             <span
@@ -1192,12 +1101,12 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
 
         {/* Billing section — only shown if requiereFactura is ON */}
         {requiereFactura && (
-          <div className="space-y-3 border border-brand-200 rounded-xl p-4 bg-brand-50/50">
-            <p className="text-xs font-bold text-brand-600 uppercase tracking-widest">Datos para factura</p>
+          <div className="space-y-3 border border-[#bfdbfe] rounded-xl p-4 bg-[#eff6ff]/50">
+            <p className="text-xs font-bold text-[#1d4ed8] uppercase tracking-widest">Datos para factura</p>
 
             {/* Cliente existente */}
             <div>
-              <p className="text-[11px] font-semibold text-steel-500 uppercase tracking-wide mb-1.5">Cliente existente</p>
+              <p className="text-[11px] font-semibold text-[#9996b0] uppercase tracking-wide mb-1.5">Cliente existente</p>
               {clienteSelected ? (
                 <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
                   <div className="min-w-0">
@@ -1224,27 +1133,27 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
                     onFocus={() => setShowClienteDropdown(true)}
                     onBlur={() => setTimeout(() => setShowClienteDropdown(false), 150)}
                     placeholder="Buscar cliente por nombre, CI o NIT…"
-                    className="w-full text-xs px-3 py-2.5 bg-white border border-steel-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-steel-400"
+                    className="w-full text-xs px-3 py-2.5 bg-white border border-[#e2e8f0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1d4ed8] placeholder:text-[#9996b0]"
                   />
                   {showClienteDropdown && (clienteSearch.trim()) && (
-                    <div className="absolute z-20 w-full mt-1 bg-white rounded-xl border border-steel-200 shadow-lg max-h-40 overflow-y-auto">
+                    <div className="absolute z-20 w-full mt-1 bg-white rounded-xl border border-[#e2e8f0] shadow-lg max-h-40 overflow-y-auto">
                       {filteredClientes.length === 0 && (
-                        <div className="px-3 py-2.5 text-xs text-steel-400 text-center">Sin resultados</div>
+                        <div className="px-3 py-2.5 text-xs text-[#9996b0] text-center">Sin resultados</div>
                       )}
                       {filteredClientes.map(c => (
                         <button
                           key={c.id}
                           onClick={() => handleSelectCliente(c)}
-                          className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-steel-50 transition-colors text-left"
+                          className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#f1f5f9] transition-colors text-left"
                         >
-                          <div className="h-7 w-7 rounded-full bg-brand-100 flex items-center justify-center text-[10px] font-bold text-brand-700 shrink-0">
+                          <div className="h-7 w-7 rounded-full bg-[#dbeafe] flex items-center justify-center text-[10px] font-bold text-[#1e40af] shrink-0">
                             {c.nombre ? c.nombre.charAt(0) : c.apellido.charAt(0)}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-semibold text-steel-800 truncate">
+                            <p className="text-xs font-semibold text-[#1e1b2e] truncate">
                               {c.nombre ? `${c.nombre} ${c.apellido}` : c.apellido}
                             </p>
-                            <p className="text-[10px] text-steel-400">
+                            <p className="text-[10px] text-[#9996b0]">
                               {c.ci ? `CI: ${c.ci}${c.ciComplemento ? `-${c.ciComplemento}` : ''}` : ''}
                               {c.nit ? `NIT: ${c.nit}` : ''}
                             </p>
@@ -1259,7 +1168,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
 
             {/* Tipo de identificación */}
             <div>
-              <p className="text-[11px] font-semibold text-steel-500 uppercase tracking-wide mb-1.5">Tipo de identificación</p>
+              <p className="text-[11px] font-semibold text-[#9996b0] uppercase tracking-wide mb-1.5">Tipo de identificación</p>
               <div className="grid grid-cols-3 gap-2">
                 {([
                   { value: 'ci', label: 'CI' },
@@ -1272,8 +1181,8 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
                     className={clsx(
                       'py-2 rounded-lg border-2 text-xs font-bold transition-all',
                       billingTipo === t.value
-                        ? 'border-brand-600 bg-brand-50 text-brand-700'
-                        : 'border-steel-200 text-steel-500 hover:border-steel-300'
+                        ? 'border-[#1d4ed8] bg-[#eff6ff] text-[#1e40af]'
+                        : 'border-[#e2e8f0] text-[#9996b0] hover:border-[#e2e8f0]'
                     )}
                   >
                     {t.label}
@@ -1286,7 +1195,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
             {billingTipo !== 'sin_nit' && (
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_70px] gap-2">
                 <div>
-                  <label className="block text-[11px] font-semibold text-steel-500 uppercase tracking-wide mb-1">
+                  <label className="block text-[11px] font-semibold text-[#9996b0] uppercase tracking-wide mb-1">
                     {billingTipo === 'ci' ? 'Número de CI' : 'Número de NIT'}
                   </label>
                   <Input
@@ -1299,9 +1208,9 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
                 </div>
                 {billingTipo === 'ci' && (
                   <>
-                    <span className="self-end pb-2 text-steel-400 font-bold">−</span>
+                    <span className="self-end pb-2 text-[#9996b0] font-bold">−</span>
                     <div>
-                      <label className="block text-[11px] font-semibold text-steel-500 uppercase tracking-wide mb-1">Complemento</label>
+                      <label className="block text-[11px] font-semibold text-[#9996b0] uppercase tracking-wide mb-1">Complemento</label>
                       <Input
                         value={billingComplemento}
                         onChange={e => setBillingComplemento(e.target.value)}
@@ -1315,7 +1224,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
 
             {/* Nombre / Razón Social */}
             <div>
-              <label className="block text-[11px] font-semibold text-steel-500 uppercase tracking-wide mb-1">
+              <label className="block text-[11px] font-semibold text-[#9996b0] uppercase tracking-wide mb-1">
                 Nombre o razón social <span className="text-red-500">*</span>
               </label>
               <Input
@@ -1327,7 +1236,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
 
             {/* Email */}
             <div>
-              <label className="block text-[11px] font-semibold text-steel-500 uppercase tracking-wide mb-1">
+              <label className="block text-[11px] font-semibold text-[#9996b0] uppercase tracking-wide mb-1">
                 Correo electrónico (opcional)
               </label>
               <Input
@@ -1342,10 +1251,10 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-bold text-steel-500 uppercase tracking-widest">Método de pago</p>
+            <p className="text-xs font-bold text-[#9996b0] uppercase tracking-widest">Método de pago</p>
             <button
               onClick={() => setPagoMixto(v => !v)}
-              className={clsx('text-[11px] font-bold px-2 py-1 rounded-lg border transition-all', pagoMixto ? 'bg-brand-50 border-brand-300 text-brand-700' : 'bg-steel-50 border-steel-200 text-steel-500 hover:border-steel-300')}
+              className={clsx('text-[11px] font-bold px-2 py-1 rounded-lg border transition-all', pagoMixto ? 'bg-[#eff6ff] border-[#93c5fd] text-[#1e40af]' : 'bg-[#f1f5f9] border-[#e2e8f0] text-[#9996b0] hover:border-[#e2e8f0]')}
             >
               {pagoMixto ? 'Pago mixto ✓' : 'Pago mixto'}
             </button>
@@ -1353,7 +1262,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
           {!pagoMixto ? (
             <div className="grid grid-cols-3 gap-2">
               {METODOS.map(m => (
-                <button key={m.value} onClick={() => setMetodo(m.value)} className={clsx('py-3 rounded-xl border-2 text-sm font-bold transition-all flex flex-col items-center gap-1', metodo === m.value ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-steel-100 text-steel-500 hover:border-steel-300')}>
+                <button key={m.value} onClick={() => setMetodo(m.value)} className={clsx('py-3 rounded-xl border-2 text-sm font-bold transition-all flex flex-col items-center gap-1', metodo === m.value ? 'border-[#1d4ed8] bg-[#eff6ff] text-[#1e40af]' : 'border-[#e2e8f0] text-[#9996b0] hover:border-[#e2e8f0]')}>
                   {m.icon}
                   {m.label}
                 </button>
@@ -1364,21 +1273,21 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
               <div className="flex items-center gap-2">
                 <div className="flex-1 grid grid-cols-3 gap-1">
                   {METODOS.map(m => (
-                    <button key={m.value} onClick={() => setMetodo(m.value)} className={clsx('py-2 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center gap-0.5', metodo === m.value ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-steel-100 text-steel-500 hover:border-steel-300')}>
+                    <button key={m.value} onClick={() => setMetodo(m.value)} className={clsx('py-2 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center gap-0.5', metodo === m.value ? 'border-[#1d4ed8] bg-[#eff6ff] text-[#1e40af]' : 'border-[#e2e8f0] text-[#9996b0] hover:border-[#e2e8f0]')}>
                       {m.icon}
                       {m.label}
                     </button>
                   ))}
                 </div>
                 <div className="w-28 shrink-0">
-                  <p className="text-xs text-steel-400 mb-1">Bs {monto1Mixto > 0 ? monto1Mixto.toFixed(2) : '—'}</p>
-                  <p className="text-[10px] text-steel-300">Resto automático</p>
+                  <p className="text-xs text-[#9996b0] mb-1">Bs {monto1Mixto > 0 ? monto1Mixto.toFixed(2) : '—'}</p>
+                  <p className="text-[10px] text-[#9996b0]">Resto automático</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex-1 grid grid-cols-3 gap-1">
                   {METODOS.map(m => (
-                    <button key={m.value} onClick={() => setMetodo2(m.value)} className={clsx('py-2 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center gap-0.5', metodo2 === m.value ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-steel-100 text-steel-500 hover:border-steel-300')}>
+                    <button key={m.value} onClick={() => setMetodo2(m.value)} className={clsx('py-2 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center gap-0.5', metodo2 === m.value ? 'border-[#1d4ed8] bg-[#eff6ff] text-[#1e40af]' : 'border-[#e2e8f0] text-[#9996b0] hover:border-[#e2e8f0]')}>
                       {m.icon}
                       {m.label}
                     </button>
@@ -1393,7 +1302,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
         </div>
         {!pagoMixto && metodo === 'efectivo' && (
           <div>
-            <label className="block text-xs font-bold text-steel-500 uppercase tracking-widest mb-1.5">Monto recibido (Bs)</label>
+            <label className="block text-xs font-bold text-[#9996b0] uppercase tracking-widest mb-1.5">Monto recibido (Bs)</label>
             <Input type="number" min={totalReal} step="0.50" value={montoStr} onChange={e => setMontoStr(e.target.value)} autoFocus />
             {cambio !== null && cambio >= 0 && <p className="text-sm font-bold text-emerald-600 mt-2">Cambio: {fmtBs(cambio)}</p>}
           </div>
@@ -1411,38 +1320,42 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
   const isFactura = orden.tipoDocumento === 'factura'
   const itemsDespachados = orden.items.filter(i => i.estado === 'completo' || i.estado === 'parcial')
   const itemsFaltantes = orden.items.filter(i => i.estado === 'faltante')
-  const totalReal = itemsDespachados.reduce((s, i) => s + i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida), 0)
+  const totalReal = itemsDespachados.reduce((s, i) => {
+    if (i.es_parcial && i.piezas_orden?.length)
+      return s + i.piezas_orden.filter(p => p.confirmado).reduce((ps, p) => ps + (p.precio_unitario ?? 0) * p.cantidad, 0)
+    return s + i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida)
+  }, 0)
   const cambio = orden.monto_recibido != null ? orden.monto_recibido - totalReal : null
 
   const docLabel = isFactura ? 'FACTURA' : 'NOTA DE VENTA'
-  const docColorCls = isFactura ? 'bg-emerald-100 text-emerald-700' : 'bg-steel-100 text-steel-600'
+  const docColorCls = isFactura ? 'bg-emerald-100 text-emerald-700' : 'bg-[#f1f5f9] text-[#5a5670]'
 
   return (
     <Modal open onClose={onClose} title="Comprobante de venta" size="md">
       <div className="space-y-4">
-        <div className="text-center pb-3 border-b border-steel-100">
+        <div className="text-center pb-3 border-b border-[#e2e8f0]">
           <span className={clsx('inline-block text-[10px] font-black px-2 py-1 rounded mb-2 tracking-widest', docColorCls)}>{docLabel}</span>
           {isFactura && orden.facturaNro && (
-            <p className="text-xs font-mono font-bold text-steel-600 mt-1">N° {orden.facturaNro}</p>
+            <p className="text-xs font-mono font-bold text-[#5a5670] mt-1">N° {orden.facturaNro}</p>
           )}
-          <p className="text-lg font-black text-steel-900">{orden.numero}</p>
-          <p className="text-xs text-steel-400 mt-0.5">{new Date(orden.pagado_en ?? orden.actualizado_en).toLocaleString('es-BO')}</p>
-          <p className="text-xs text-steel-500 mt-0.5">Cajero: {orden.cajero_nombre}</p>
+          <p className="text-lg font-black text-[#1e1b2e]">{orden.numero}</p>
+          <p className="text-xs text-[#9996b0] mt-0.5">{new Date(orden.pagado_en ?? orden.actualizado_en).toLocaleString('es-BO')}</p>
+          <p className="text-xs text-[#9996b0] mt-0.5">Cajero: {orden.cajero_nombre}</p>
         </div>
 
         {isFactura && orden.cliente_nombre && (
-          <div className="rounded-xl bg-steel-50 border border-steel-100 p-3 space-y-1">
-            <p className="text-[10px] font-bold text-steel-400 uppercase tracking-widest">Datos del cliente</p>
-            <p className="text-sm font-semibold text-steel-800">{orden.cliente_nombre}</p>
+          <div className="rounded-xl bg-[#f1f5f9] border border-[#e2e8f0] p-3 space-y-1">
+            <p className="text-[10px] font-bold text-[#9996b0] uppercase tracking-widest">Datos del cliente</p>
+            <p className="text-sm font-semibold text-[#1e1b2e]">{orden.cliente_nombre}</p>
             {orden.cliente_tipo_id && orden.cliente_numero_id && (
-              <p className="text-xs text-steel-500">
+              <p className="text-xs text-[#9996b0]">
                 {orden.cliente_tipo_id === 'nit' ? `NIT: ${orden.cliente_numero_id}` :
                  orden.cliente_tipo_id === 'ci' ? `CI: ${orden.cliente_numero_id}` :
                  'Sin NIT (99001)'}
               </p>
             )}
             {orden.cliente_nit && orden.cliente_tipo_id !== 'nit' && (
-              <p className="text-xs text-steel-500">NIT: {orden.cliente_nit}</p>
+              <p className="text-xs text-[#9996b0]">NIT: {orden.cliente_nit}</p>
             )}
           </div>
         )}
@@ -1451,8 +1364,8 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
           {itemsDespachados.map(i => (
             <div key={i.id} className="flex justify-between text-sm gap-2">
               <div className="flex-1 min-w-0">
-                <p className="text-steel-700 truncate">{i.producto_nombre}</p>
-                <p className="text-[10px] font-mono text-steel-400">{i.producto_codigo} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
+                <p className="text-[#5a5670] truncate">{i.producto_nombre}</p>
+                <p className="text-[10px] font-mono text-[#9996b0]">{i.producto_codigo} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
               </div>
               <span className="font-semibold shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
             </div>
@@ -1460,28 +1373,28 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
           {itemsFaltantes.map(i => (
             <div key={i.id} className="flex justify-between text-sm gap-2 opacity-40">
               <div className="flex-1 min-w-0">
-                <p className="text-steel-400 truncate line-through">{i.producto_nombre}</p>
-                <p className="text-[10px] font-mono text-steel-300">{i.producto_codigo} · ×{i.cantidad_pedida}</p>
+                <p className="text-[#9996b0] truncate line-through">{i.producto_nombre}</p>
+                <p className="text-[10px] font-mono text-[#9996b0]">{i.producto_codigo} · ×{i.cantidad_pedida}</p>
               </div>
-              <span className="text-steel-400 shrink-0">N/A</span>
+              <span className="text-[#9996b0] shrink-0">N/A</span>
             </div>
           ))}
         </div>
-        <div className="border-t border-steel-100 pt-3 space-y-1">
+        <div className="border-t border-[#e2e8f0] pt-3 space-y-1">
           <div className="flex justify-between text-sm font-bold"><span>Total</span><span>{fmtBs(totalReal)}</span></div>
-          {orden.metodo_pago && <div className="flex justify-between text-xs text-steel-500"><span>Método</span><span className="capitalize">{orden.metodo_pago}</span></div>}
+          {orden.metodo_pago && <div className="flex justify-between text-xs text-[#9996b0]"><span>Método</span><span className="capitalize">{orden.metodo_pago}</span></div>}
           {cambio != null && cambio > 0 && <div className="flex justify-between text-xs text-emerald-600"><span>Cambio</span><span>{fmtBs(cambio)}</span></div>}
         </div>
 
         {isFactura && (
-          <div className="rounded-xl bg-white border border-steel-200 p-4 flex items-center gap-4">
-            <div className="h-20 w-20 rounded-lg bg-steel-100 border-2 border-dashed border-steel-300 flex items-center justify-center shrink-0">
-              <span className="text-[10px] text-steel-400 font-bold text-center leading-tight">QR\nSIAT</span>
+          <div className="rounded-xl bg-white border border-[#e2e8f0] p-4 flex items-center gap-4">
+            <div className="h-20 w-20 rounded-lg bg-[#f1f5f9] border-2 border-dashed border-[#e2e8f0] flex items-center justify-center shrink-0">
+              <span className="text-[10px] text-[#9996b0] font-bold text-center leading-tight">QR\nSIAT</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-steel-400 uppercase tracking-widest mb-1">Código QR</p>
-              <p className="text-xs text-steel-500">Verifique su factura en el portal del SIN</p>
-              {orden.facturaNro && <p className="text-[10px] font-mono text-steel-400 mt-1">{orden.facturaNro}</p>}
+              <p className="text-[10px] font-bold text-[#9996b0] uppercase tracking-widest mb-1">Código QR</p>
+              <p className="text-xs text-[#9996b0]">Verifique su factura en el portal del SIN</p>
+              {orden.facturaNro && <p className="text-[10px] font-mono text-[#9996b0] mt-1">{orden.facturaNro}</p>}
             </div>
           </div>
         )}
@@ -1529,8 +1442,7 @@ export function CajaPage() {
   const [margenGanancia, setMargenGanancia] = useState(1.20)
   const [tipoCambioHabilitado, setTipoCambioHabilitado] = useState(false)
 
-  const misOrdenes = useMemo(() => ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada' && o.tipo !== 'reserva'), [ordenes])
-  const reservaciones = useMemo(() => ordenes.filter(o => o.tipo === 'reserva' && o.estado !== 'cancelada'), [ordenes])
+  const misOrdenes = useMemo(() => ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada'), [ordenes])
   const canceladas = useMemo(() => ordenes.filter(o => o.estado === 'cancelada'), [ordenes])
   const listosCount = misOrdenes.filter(o => o.estado === 'esperando_pago').length
   const alertedFaltantes = useRef<Set<string>>(new Set())
@@ -1797,14 +1709,6 @@ export function CajaPage() {
     setCart(prev => ({ ...prev, nota }))
   }
 
-  const handleTipoChange = (tipo: 'venta' | 'reserva') => {
-    setCart(prev => ({ ...prev, tipo }))
-  }
-
-  const handleClienteChange = (nombre: string) => {
-    setCart(prev => ({ ...prev, cliente_nombre: nombre }))
-  }
-
   const handleEmitir = () => {
     if (cart.items.length === 0) return
     const fromRect = emitButtonRef.current?.getBoundingClientRect() ?? null
@@ -1849,14 +1753,14 @@ export function CajaPage() {
     ]
 
     try {
-      const result = await api.post<{ id: number; numero: string }>('/OrdenVenta', {
+      const result = await api.post<{ ordenId: number; message: string }>('/OrdenVenta', {
         id_Cliente: null,
         items: apiItems,
       })
-      await joinGrupo(`orden-${result.id}`)
+      await joinGrupo(`orden-${result.ordenId}`)
       setCart(emptyCart())
       playBeep({ frequency: 800, duration: 80 })
-      notify.success(`${result.numero ?? `#${result.id}`} enviada a almacén`)
+      notify.success(`#${result.ordenId} enviada a almacén`)
       await loadOrdenes()
     } catch (err) {
       notify.error(err instanceof Error ? err.message : 'Error al crear la orden')
@@ -1881,11 +1785,6 @@ export function CajaPage() {
     } catch (err) {
       notify.error(err instanceof Error ? err.message : 'Error al cancelar')
     }
-  }
-
-  const handleClaimReserva = (orden: OrdenVenta) => {
-    updateOrden(orden.id, { estado: 'pendiente_almacenero', tipo: 'venta', cliente_nombre: undefined, caduca_en: undefined })
-    notify.success(`${orden.numero} convertida a venta`)
   }
 
   const handleEntregarParcial = () => {
@@ -1942,16 +1841,16 @@ export function CajaPage() {
 
   return (
     <MainLayout>
-      <div className="flex flex-col h-screen overflow-hidden bg-steel-50">
-        <div className="bg-white border-b border-steel-100 px-6 py-3 shrink-0">
+      <div className="flex flex-col h-screen overflow-hidden bg-[#f1f5f9]">
+        <header className="bg-[#f1f5f9] sticky top-0 z-40 border-b border-[#e2e8f0] px-7 py-3 shrink-0">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h1 className="text-base font-bold text-steel-900">Caja</h1>
-              <p className="text-xs text-steel-400">{new Date().toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+              <h1 className="font-black text-[24px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>Caja</h1>
+              <p className="text-xs text-[#9996b0] font-semibold mt-0.5">{new Date().toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
             </div>
             <div className="flex items-center gap-2">
               <div className={clsx('h-2 w-2 rounded-full', isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400')} title={isConnected ? 'Conectado' : 'Reconectando...'} />
-              <span className="text-xs text-steel-500">{user?.nombre}</span>
+              <span className="text-xs text-[#9996b0]">{user?.nombre}</span>
             </div>
           </div>
           <button
@@ -1959,9 +1858,9 @@ export function CajaPage() {
             onClick={() => setOrdersModalOpen(true)}
             className={clsx(
               'w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold',
-              listosCount > 0 || reservaciones.length > 0
+              listosCount > 0
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                : 'bg-steel-50 border-steel-200 text-steel-600 hover:bg-steel-100'
+                : 'bg-[#f1f5f9] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9]'
             )}
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1971,26 +1870,21 @@ export function CajaPage() {
             {misOrdenes.length > 0 && (
               <span className={clsx(
                 'inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full text-[10px] font-black',
-                listosCount > 0 ? 'bg-emerald-500 text-white' : 'bg-steel-300 text-white'
+                listosCount > 0 ? 'bg-emerald-500 text-white' : 'bg-[#9996b0] text-white'
               )}>
                 {misOrdenes.length}
               </span>
             )}
-            {reservaciones.length > 0 && (
-              <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full text-[10px] font-black bg-amber-400 text-white">
-                {reservaciones.length} reserva{reservaciones.length > 1 ? 's' : ''}
-              </span>
-            )}
             {listosCount > 0 && <span className="text-[10px] font-normal text-emerald-600">({listosCount} listas)</span>}
           </button>
-        </div>
+        </header>
 
         <div className="flex-1 overflow-hidden flex flex-col p-4 gap-4">
           <div className="flex-1 grid grid-cols-[1fr_380px] gap-4 overflow-hidden min-h-0">
-            <div className="bg-white rounded-2xl border border-steel-100 shadow-sm overflow-hidden flex flex-col">
+            <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] overflow-hidden flex flex-col">
               <ProductSearch onSelectProducto={addToCart} />
             </div>
-            <div className="bg-white rounded-2xl border border-steel-100 shadow-sm overflow-hidden flex flex-col">
+            <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] overflow-hidden flex flex-col">
               <CartPanel
                 cart={cart}
                 productosCache={productosCache}
@@ -1999,8 +1893,6 @@ export function CajaPage() {
                 onNotaChange={handleNotaChange}
                 onEmitir={handleEmitir}
                 onEditPrice={handleEditPrice}
-                onTipoChange={handleTipoChange}
-                onClienteChange={handleClienteChange}
                 emitButtonRef={(el) => { (emitButtonRef as React.MutableRefObject<HTMLButtonElement | null>).current = el }}
               />
             </div>
@@ -2019,11 +1911,9 @@ export function CajaPage() {
 
       <OrdersModal
         ordenes={misOrdenes}
-        reservaciones={reservaciones}
         canceladas={canceladas}
         onCobrar={handleOpenCobro}
         onCancelar={handleCancelarOrden}
-        onClaim={handleClaimReserva}
         open={ordersModalOpen}
         onClose={() => setOrdersModalOpen(false)}
       />

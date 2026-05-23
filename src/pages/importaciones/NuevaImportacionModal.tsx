@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import type * as XLSXType from 'xlsx'
-import { Modal, Button, Input, Select, ExcelColumnMapper, BrandSelect } from '@/components/ui'
+import { Modal, Button, Input, Select, ExcelColumnMapper, BrandSelect, ProveedorSelect } from '@/components/ui'
 import type { Importacion, ItemImportacion, Producto, Proveedor } from '@/types'
 import { clsx } from 'clsx'
 import { notify } from '@/lib/notify'
@@ -294,6 +294,9 @@ export function NuevaImportacionModal({
   // Items calculados
   const [items, setItems] = useState<DraftItem[]>([])
 
+  // Proveedores creados inline durante este flujo
+  const [extraProveedores, setExtraProveedores] = useState<Proveedor[]>([])
+
   // Guardando
   const [saving, setSaving] = useState(false)
   const [successOpen, setSuccessOpen] = useState(false)
@@ -306,6 +309,7 @@ export function NuevaImportacionModal({
     setRawItems([])
     setDatos({ proveedor_id: '', fecha_estimada_llegada: '', tipo_cambio: '6.96', flete_usd: '', aduana_bs: '', transporte_interno_bs: '', marca_id: null })
     setItems([])
+    setExtraProveedores([])
     setSaving(false)
   }, [])
 
@@ -547,10 +551,11 @@ export function NuevaImportacionModal({
         <StepDatos
           datos={datos}
           setDatos={setDatos}
-          proveedores={proveedores.filter((p) => p.estado === 'activo')}
+          proveedores={[...proveedores, ...extraProveedores].filter((p) => p.estado === 'activo')}
           fobPreliminar={fobPreliminar}
           totalProductos={rawItems.length}
           onProveedorChange={handleProveedorChange}
+          onProveedorCreado={(p) => setExtraProveedores((prev) => [...prev, p])}
         />
       )}
 
@@ -699,7 +704,7 @@ function StepUpload({
 }
 
 function StepDatos({
-  datos, setDatos, proveedores, fobPreliminar, totalProductos, onProveedorChange,
+  datos, setDatos, proveedores, fobPreliminar, totalProductos, onProveedorChange, onProveedorCreado,
 }: {
   datos: DatosForm
   setDatos: React.Dispatch<React.SetStateAction<DatosForm>>
@@ -707,6 +712,7 @@ function StepDatos({
   fobPreliminar: number
   totalProductos: number
   onProveedorChange: (id: string) => void
+  onProveedorCreado: (p: import('@/types').Proveedor) => void
 }) {
   const set = (k: keyof DatosForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDatos((d) => ({ ...d, [k]: e.target.value }))
@@ -716,12 +722,12 @@ function StepDatos({
   return (
     <div className="space-y-5">
       {/* Proveedor */}
-      <Select
+      <ProveedorSelect
         label="Proveedor"
-        value={datos.proveedor_id}
-        onChange={(e) => onProveedorChange(e.target.value)}
-        options={proveedores.map((p) => ({ value: p.id, label: `${p.nombre} — ${p.pais}` }))}
-        placeholder="Seleccionar proveedor…"
+        value={datos.proveedor_id || null}
+        onChange={onProveedorChange}
+        onCreated={onProveedorCreado}
+        proveedores={proveedores}
       />
 
       {/* Info del proveedor seleccionado */}

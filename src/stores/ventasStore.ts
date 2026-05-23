@@ -11,6 +11,7 @@ interface VentasState {
   removeItemFromOrden: (ordenId: string, itemId: string) => void
   updateItemQtyInOrden: (ordenId: string, itemId: string, cantidad: number) => void
   markItemListoEnOrden: (ordenId: string, itemId: string) => void
+  updateItemEstadoEnOrden: (ordenId: string, itemId: string, estado: ItemOrden['estado']) => void
   marcarItemFaltante: (ordenId: string, itemId: string, cantidad: number) => void
   cancelarOrdenYLiberarStock: (id: string) => void
 }
@@ -84,6 +85,17 @@ export const useVentasStore = create<VentasState>()((set, get) => ({
                 i.id === itemId ? { ...i, estado: 'listo_almacenero' as const } : i,
               ),
             }
+          : o,
+      ),
+    }))
+    broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })
+  },
+
+  updateItemEstadoEnOrden: (ordenId, itemId, estado) => {
+    set((s) => ({
+      ordenes: s.ordenes.map((o) =>
+        o.id === ordenId
+          ? { ...o, items: o.items.map((i) => i.id === itemId ? { ...i, estado } : i) }
           : o,
       ),
     }))
