@@ -1,7 +1,18 @@
+/// <reference types="vite/client" />
 export const runtime = 'edge'
 
-// const BACKEND = 'https://usaautopartesapi20260406085513-amh4fwdnanbpa9gs.centralus-01.azurewebsites.net'
-const BACKEND = "http://localhost:5120"
+
+interface ImportMetaEnv {
+  readonly VITE_API_URL: string
+  readonly VITE_COOKIE_DOMAIN: string
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+}
+
+const BACKEND = import.meta.env.VITE_API_URL
+const TARGET_DOMAIN = import.meta.env.VITE_COOKIE_DOMAIN
 
 function rewriteSetCookie(setCookieValue: string | null, targetDomain: string): string {
   if (!setCookieValue) return ''
@@ -31,7 +42,7 @@ export async function POST(request: Request) {
   const newHeaders = new Headers()
   response.headers.forEach((value, key) => {
     if (key.toLowerCase() === 'set-cookie') {
-      newHeaders.set(key, rewriteSetCookie(value, '.snakil.com'))
+      newHeaders.set(key, rewriteSetCookie(value, TARGET_DOMAIN))
     } else {
       newHeaders.set(key, value)
     }
@@ -59,7 +70,7 @@ export async function GET(request: Request) {
   const newHeaders = new Headers()
   response.headers.forEach((value, key) => {
     if (key.toLowerCase() === 'set-cookie') {
-      newHeaders.set(key, rewriteSetCookie(value, '.snakil.com'))
+      newHeaders.set(key, rewriteSetCookie(value, TARGET_DOMAIN))
     } else {
       newHeaders.set(key, value)
     }

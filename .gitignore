@@ -12,7 +12,7 @@ dist-ssr/
 .env
 .env.local
 .env.*.local
-
+**/publish/
 # Editor
 .vscode/*
 !.vscode/extensions.json

@@ -1,38 +1,39 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
 
-// const BACKEND = 'https://usaautopartesapi20260406085513-amh4fwdnanbpa9gs.centralus-01.azurewebsites.net'
-const BACKEND = "https://importadora-usa-grbkc0bah9adbher.chilecentral-01.azurewebsites.net"
-
-export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
-  },
-  server: {
-    proxy: {
-      '/api': {
-        target: BACKEND,
-        changeOrigin: true,
-        secure: true,
-        cookieDomainRewrite: { '*': '' },
-      },
-      '/graphql': {
-        target: BACKEND,
-        changeOrigin: true,
-        secure: true,
-        cookieDomainRewrite: { '*': '' },
-      },
-      '/hubs': {
-        target: BACKEND,
-        changeOrigin: true,
-        secure: true,
-        ws: true,
-        cookieDomainRewrite: { '*': '' },
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  const BACKEND = env.VITE_BACKEND_PROXY
+  return {
+    plugins: [react()],
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
-  },
+    server: {
+      proxy: {
+        '/api': {
+          target: BACKEND,
+          changeOrigin: true,
+          secure: true,
+          cookieDomainRewrite: { '*': '' },
+        },
+        '/graphql': {
+          target: BACKEND,
+          changeOrigin: true,
+          secure: true,
+          cookieDomainRewrite: { '*': '' },
+        },
+        '/hubs': {
+          target: BACKEND,
+          changeOrigin: true,
+          secure: true,
+          ws: true,
+          cookieDomainRewrite: { '*': '' },
+        },
+      },
+    },
+  }
 })

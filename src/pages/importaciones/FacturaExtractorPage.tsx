@@ -2,9 +2,7 @@ import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { MainLayout } from '@/components/layout/MainLayout'
 
-const BASE_URL =
-  import.meta.env.VITE_API_URL ??
-  'https://importadora-usa-grbkc0bah9adbher.chilecentral-01.azurewebsites.net/api'
+const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 
 type Estado = 'idle' | 'procesando' | 'listo'
 
