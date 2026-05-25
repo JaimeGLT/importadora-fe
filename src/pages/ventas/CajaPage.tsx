@@ -2,10 +2,11 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout } from '@/components/layout/MainLayout'
-import { Button, Input, Modal } from '@/components/ui'
+import { Button, Input, Modal, ConfirmModal } from '@/components/ui'
 import { KitSeleccionModal, type KitSeleccionResult } from '@/components/ui/KitVentaParcialModal'
 import { notify } from '@/lib/notify'
 import { useVentasStore } from '@/stores/ventasStore'
+import { useCajaStore, type Cart, type CartItem } from '@/stores/cajaStore'
 import { useSoundAlert } from '@/hooks/useSoundAlert'
 import { calcularPrecioConDescuento, calcularPrecioDolarHoy, type DescuentoConfig } from '@/stores/configStore'
 import { gql } from '@/lib/graphql'
@@ -40,34 +41,6 @@ const ESTADO_ORDEN_CONFIG: Record<string, { label: string; cls: string; dot: str
   esperando_pago:       { label: 'Listo para cobrar', cls: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-400' },
   cancelada:            { label: 'Cancelada',      cls: 'bg-red-100 text-red-500', dot: 'bg-red-400' },
 }
-
-// ─── Cart types ───────────────────────────────────────────────────────────────
-
-interface CartItem {
-  producto_id: string
-  producto_codigo: string
-  producto_nombre: string
-  producto_almacen: string
-  producto_estante: string
-  producto_fila: string
-  producto_columna: string
-  cantidad: number
-  precio_unitario: number
-  precio_base: number
-  producto_imagen?: string
-  descuento_id?: string
-  descuento_nombre?: string
-  descuento_porcentaje?: number
-  diferencia_kit?: number
-  kit_id?: string
-}
-
-interface Cart {
-  items: CartItem[]
-  nota: string
-}
-
-const emptyCart = (): Cart => ({ items: [], nota: '' })
 
 // ─── FlyingBall ────────────────────────────────────────────────────────────────
 
@@ -306,7 +279,11 @@ function SelectPriceModal({
 
 // ─── ProductSearch ─────────────────────────────────────────────────────────────
 
-function ProductSearch({ onSelectProducto }: { onSelectProducto: (producto: Producto) => void }) {
+function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
+  onSelectProducto: (producto: Producto) => void
+  cart: Cart
+  onDecrementProducto: (productoId: string) => void
+}) {
   const { isTokenReady } = useAuth()
   const [query, setQuery] = useState('')
   const [resultados, setResultados] = useState<Producto[]>([])
@@ -343,6 +320,9 @@ function ProductSearch({ onSelectProducto }: { onSelectProducto: (producto: Prod
   }, [query, isTokenReady])
 
   const stockDisponible = (p: Producto) => Math.max(0, p.stock - (p.stock_reservado ?? 0))
+
+  const getCartQty = (productoId: string) =>
+    cart.items.filter(i => i.producto_id === productoId).reduce((acc, i) => acc + i.cantidad, 0)
 
   return (
     <div className="flex flex-col h-full">
@@ -400,7 +380,12 @@ function ProductSearch({ onSelectProducto }: { onSelectProducto: (producto: Prod
               const disp = stockDisponible(p)
               const stockCls = disp === 0 ? 'text-red-500' : disp <= p.stock_minimo ? 'text-amber-500' : 'text-emerald-600'
               return (
-                <div key={p.id} className="flex items-center gap-3 px-4 py-3 hover:bg-[#f1f5f9] transition-colors group">
+                <div key={p.id} className={clsx(
+                  'flex items-center gap-3 px-4 py-3 transition-colors',
+                  !p.es_kit && getCartQty(p.id) > 0
+                    ? 'bg-[#dbeafe] border-l-4 border-[#1d4ed8] hover:bg-[#bfdbfe]'
+                    : 'hover:bg-[#f1f5f9]'
+                )}>
                   {p.imagen ? (
                     <img src={p.imagen} alt={p.nombre} className="h-10 w-10 rounded-lg object-cover bg-[#f1f5f9] border border-[#e2e8f0] shrink-0" />
                   ) : (
@@ -428,19 +413,42 @@ function ProductSearch({ onSelectProducto }: { onSelectProducto: (producto: Prod
                       {p.almacen && <span className="text-[11px] text-[#9996b0]">📦 {p.almacen} {p.estante} {p.fila} {p.columna}</span>}
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <button
-                      onClick={() => onSelectProducto(p)}
-                      disabled={!p.es_kit && disp === 0}
-                      className={clsx(
-                        'h-7 w-7 rounded-lg flex items-center justify-center transition-all opacity-0 group-hover:opacity-100',
-                        !p.es_kit && disp === 0 ? 'bg-[#f1f5f9] text-[#9996b0] cursor-not-allowed' : 'bg-[#1d4ed8] text-white hover:bg-[#1e40af]'
-                      )}
-                    >
-                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                      </svg>
-                    </button>
+                  <div className="flex items-center shrink-0">
+                    {p.es_kit ? (
+                      <button
+                        onClick={() => onSelectProducto(p)}
+                        className="h-7 w-7 rounded-lg flex items-center justify-center bg-[#1d4ed8] text-white hover:bg-[#1e40af] transition-colors"
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                        </svg>
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => onDecrementProducto(p.id)}
+                          disabled={getCartQty(p.id) === 0}
+                          className="h-7 w-7 rounded-lg flex items-center justify-center bg-[#f1f5f9] text-[#5a5670] hover:bg-[#e2e8f0] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
+                          </svg>
+                        </button>
+                        <span className="w-5 text-center text-sm font-semibold text-[#1e293b]">{getCartQty(p.id)}</span>
+                        <button
+                          onClick={() => onSelectProducto(p)}
+                          disabled={disp === 0}
+                          className={clsx(
+                            'h-7 w-7 rounded-lg flex items-center justify-center transition-colors',
+                            disp === 0 ? 'bg-[#f1f5f9] text-[#9996b0] cursor-not-allowed' : 'bg-[#1d4ed8] text-white hover:bg-[#1e40af]'
+                          )}
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )
@@ -575,7 +583,8 @@ function CartItem({
 
 // ─── CartPanel ────────────────────────────────────────────────────────────────
 
-function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChange, onEmitir, onEditPrice, emitButtonRef }: { cart: Cart; productosCache: Record<string, Producto>; onQtyChange: (itemIdx: number, delta: number) => void; onRemoveItem: (itemIdx: number) => void; onNotaChange: (nota: string) => void; onEmitir: () => void; onEditPrice: (producto_id: string) => void; emitButtonRef?: (el: HTMLButtonElement | null) => void }) {
+function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChange, onEmitir, onEditPrice, onCancelarOrden, emitButtonRef }: { cart: Cart; productosCache: Record<string, Producto>; onQtyChange: (itemIdx: number, delta: number) => void; onRemoveItem: (itemIdx: number) => void; onNotaChange: (nota: string) => void; onEmitir: () => void; onEditPrice: (producto_id: string) => void; onCancelarOrden: () => void; emitButtonRef?: (el: HTMLButtonElement | null) => void }) {
+  const [confirmCancelar, setConfirmCancelar] = useState(false)
   const stockDisponible = (id: string) => {
     const p = productosCache[id]
     return p ? Math.max(0, p.stock - (p.stock_reservado ?? 0)) : Infinity
@@ -584,9 +593,26 @@ function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChan
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-[#e2e8f0] shrink-0">
-        <p className="text-[10px] font-bold text-[#9996b0] uppercase tracking-widest">Carrito de venta</p>
+      <div className="px-4 py-3 border-b border-[#e2e8f0] shrink-0 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <p className="text-[10px] font-bold text-[#9996b0] uppercase tracking-widest shrink-0">Carrito de venta</p>
+        </div>
+        {cart.items.length > 0 && (
+          <button
+            onClick={() => setConfirmCancelar(true)}
+            className="shrink-0 text-[11px] font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
+          >
+            Cancelar
+          </button>
+        )}
       </div>
+      <ConfirmModal
+        open={confirmCancelar}
+        title="Cancelar orden"
+        message="Se eliminarán todos los productos del carrito. ¿Continuar?"
+        onConfirm={() => { setConfirmCancelar(false); onCancelarOrden() }}
+        onClose={() => setConfirmCancelar(false)}
+      />
       <div className="flex-1 overflow-y-auto">
         {cart.items.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
@@ -1420,7 +1446,7 @@ export function CajaPage() {
   const { ordenes, setOrdenes, updateOrden } = useVentasStore()
   const { playAlertSequence, playBeep } = useSoundAlert()
 
-  const [cart, setCart] = useState<Cart>(emptyCart())
+  const { cart, setCart, clearCart } = useCajaStore()
   const [ordersModalOpen, setOrdersModalOpen] = useState(false)
   const [flyingBall, setFlyingBall] = useState<{ from: DOMRect | null; items: number } | null>(null)
   const emitButtonRef = useRef<HTMLButtonElement>(null)
@@ -1561,6 +1587,20 @@ export function CajaPage() {
       return prev
     })
   }, [addKitSeleccion])
+
+  const handleDecrementProducto = useCallback((productoId: string) => {
+    setCart(prev => {
+      const items = [...prev.items]
+      const lastIdx = items.map(i => i.producto_id).lastIndexOf(productoId)
+      if (lastIdx === -1) return prev
+      if (items[lastIdx].cantidad > 1) {
+        items[lastIdx] = { ...items[lastIdx], cantidad: items[lastIdx].cantidad - 1 }
+      } else {
+        items.splice(lastIdx, 1)
+      }
+      return { ...prev, items }
+    })
+  }, [])
 
   const handleSelectPrice = useCallback((precio: number, descuento_id?: string, descuento_nombre?: string, descuento_porcentaje?: number) => {
     if (!productoSeleccionado) return
@@ -1758,7 +1798,7 @@ export function CajaPage() {
         items: apiItems,
       })
       await joinGrupo(`orden-${result.ordenId}`)
-      setCart(emptyCart())
+      clearCart()
       playBeep({ frequency: 800, duration: 80 })
       notify.success(`#${result.ordenId} enviada a almacén`)
       await loadOrdenes()
@@ -1882,7 +1922,7 @@ export function CajaPage() {
         <div className="flex-1 overflow-hidden flex flex-col p-4 gap-4">
           <div className="flex-1 grid grid-cols-[1fr_380px] gap-4 overflow-hidden min-h-0">
             <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] overflow-hidden flex flex-col">
-              <ProductSearch onSelectProducto={addToCart} />
+              <ProductSearch onSelectProducto={addToCart} cart={cart} onDecrementProducto={handleDecrementProducto} />
             </div>
             <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] overflow-hidden flex flex-col">
               <CartPanel
@@ -1893,6 +1933,7 @@ export function CajaPage() {
                 onNotaChange={handleNotaChange}
                 onEmitir={handleEmitir}
                 onEditPrice={handleEditPrice}
+                onCancelarOrden={clearCart}
                 emitButtonRef={(el) => { (emitButtonRef as React.MutableRefObject<HTMLButtonElement | null>).current = el }}
               />
             </div>

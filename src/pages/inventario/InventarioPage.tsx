@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import {
   PRODUCTOS_QUERY,
+  PRODUCTOS_ALL_QUERY,
   PRODUCTO_BY_ID_QUERY,
   backendToProducto,
   backendToProductoSimple,
@@ -219,6 +220,8 @@ export function InventarioPage() {
   const { isTokenReady } = useAuth()
   const [modalOpen, setModalOpen]               = useState(false)
   const [importOpen, setImportOpen]             = useState(false)
+  const [allProductos, setAllProductos]         = useState<Producto[]>([])
+  const [loadingAllProductos, setLoadingAllProductos] = useState(false)
   const [etiquetaProducto, setEtiquetaProducto] = useState<Producto | null>(null)
   const [editingProducto, setEditingProducto]   = useState<Producto | null>(null)
   const [confirmDelete, setConfirmDelete]       = useState<Producto | null>(null)
@@ -254,6 +257,7 @@ export function InventarioPage() {
         { codigoAux2:  { contains: q } },
         { nombre:      { contains: q } },
         { descripcion: { contains: q } },
+        { marca:       { nombre: { contains: q } } },
       ],
     } : undefined
     gql<{ productos: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: ProductoAPI[] } }>(
@@ -357,6 +361,19 @@ export function InventarioPage() {
       setModalOpen(false)
     } catch (e) {
       notify.error(e instanceof Error ? e.message : 'Error al guardar producto')
+    }
+  }
+
+  const handleOpenImport = async () => {
+    setImportOpen(true)
+    setLoadingAllProductos(true)
+    try {
+      const data = await gql<{ productos: { nodes: Parameters<typeof backendToProductoSimple>[0][] } }>(PRODUCTOS_ALL_QUERY)
+      setAllProductos(data.productos.nodes.map(backendToProductoSimple))
+    } catch {
+      notify.error('Error al cargar productos para importación')
+    } finally {
+      setLoadingAllProductos(false)
     }
   }
 
@@ -631,7 +648,7 @@ export function InventarioPage() {
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0">
               <button
-                onClick={() => setImportOpen(true)}
+                onClick={() => void handleOpenImport()}
                 className="px-[18px] py-2.5 bg-white border-[1.5px] border-[#e2e8f0] rounded-xl flex items-center justify-center gap-1.5 text-sm font-bold text-[#5a5670] hover:bg-[#f1f5f9] transition-all"
               >
                 <i className="ti ti-upload text-base" />
@@ -884,7 +901,7 @@ export function InventarioPage() {
         open={importOpen}
         onClose={() => setImportOpen(false)}
         onImport={handleImport}
-        productosExistentes={products}
+        productosExistentes={loadingAllProductos ? products : (allProductos.length > 0 ? allProductos : products)}
         marcas={marcas}
       />
       <ProductoModal

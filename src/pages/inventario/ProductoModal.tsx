@@ -531,15 +531,22 @@ export function ProductoModal({
                 error={errors.precio_costo}
                 readOnly={!!producto}
               />
-              <WarmInput
-                label="Precio venta (Bs)"
-                type="number"
-                step="0.01"
-                value={form.precio_venta}
-                onChange={(e) => set('precio_venta', Number(e.target.value))}
-                error={errors.precio_venta}
-                readOnly={!!producto}
-              />
+              <div>
+                <WarmInput
+                  label="Precio venta (Bs)"
+                  type="number"
+                  step="0.01"
+                  value={form.precio_venta}
+                  onChange={(e) => set('precio_venta', Number(e.target.value))}
+                  error={errors.precio_venta}
+                  readOnly={!!producto}
+                />
+                {!producto && form.precio_venta <= 0 && (
+                  <p className="text-xs text-steel-400 mt-1">
+                    Se calculará automáticamente con el margen de ganancia
+                  </p>
+                )}
+              </div>
               <WarmInput
                 label="Tipo de cambio (Bs/$)"
                 type="number"

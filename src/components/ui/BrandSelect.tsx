@@ -92,8 +92,8 @@ export function BrandSelect({ value, onChange, label, placeholder = 'Seleccionar
       setShowDropdown(false)
       setSearch('')
       notify.success('Marca creada')
-    } catch {
-      notify.error('Error al crear la marca')
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al crear la marca')
     } finally {
       setSaving(false)
     }

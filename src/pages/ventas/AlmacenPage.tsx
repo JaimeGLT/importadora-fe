@@ -424,11 +424,15 @@ function ItemCard({
   showListoBtn,
   loading,
   onListo,
+  onFaltante,
+  faltanteLoading,
 }: {
   item: OrdenVenta['items'][number]
   showListoBtn: boolean
   loading: boolean
   onListo: () => void
+  onFaltante?: () => void
+  faltanteLoading?: boolean
 }) {
   const isPendiente = item.estado === 'pendiente'
   const isListoAlmacenero = item.estado === 'listo_almacenero'
@@ -493,13 +497,22 @@ function ItemCard({
         <div className="text-right shrink-0 flex flex-col items-end gap-2">
           <p className="text-lg font-black text-steel-800">×{item.cantidad_pedida}</p>
           {showListoBtn && isPendiente && (
-            <button
-              onClick={onListo}
-              disabled={loading}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-            >
-              {loading ? '…' : '✓ Listo'}
-            </button>
+            <div className="flex flex-col gap-1.5 items-end">
+              <button
+                onClick={onListo}
+                disabled={loading}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+              >
+                {loading ? '…' : '✓ Listo'}
+              </button>
+              <button
+                onClick={onFaltante}
+                disabled={faltanteLoading}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
+              >
+                {faltanteLoading ? '…' : '✗ Faltante'}
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -522,21 +535,28 @@ function PickingView({
   orden,
   onMarcarListo,
   onVolver,
-  onFaltantes,
   onMarcarListoIndividual,
+  onMarcarFaltanteIndividual,
 }: {
   orden: OrdenVenta
   onMarcarListo: () => void
   onVolver: () => void
-  onFaltantes: () => void
   onMarcarListoIndividual: (itemId: string) => Promise<void>
+  onMarcarFaltanteIndividual: (itemId: string) => Promise<void>
 }) {
   const [listoLoading, setListoLoading] = useState<Record<string, boolean>>({})
+  const [faltanteLoading, setFaltanteLoading] = useState<Record<string, boolean>>({})
 
   const handleListoIndividual = async (itemId: string) => {
     setListoLoading(p => ({ ...p, [itemId]: true }))
     await onMarcarListoIndividual(itemId)
     setListoLoading(p => ({ ...p, [itemId]: false }))
+  }
+
+  const handleFaltanteIndividual = async (itemId: string) => {
+    setFaltanteLoading(p => ({ ...p, [itemId]: true }))
+    await onMarcarFaltanteIndividual(itemId)
+    setFaltanteLoading(p => ({ ...p, [itemId]: false }))
   }
 
   const gruposKit = useMemo(() => {
@@ -554,6 +574,9 @@ function PickingView({
 
   const isReadOnly = orden.estado === 'listo_para_escaneo'
   const isConFaltantes = orden.estado === 'con_faltantes'
+
+  const todosConEstado = orden.items.every(i => i.estado !== 'pendiente')
+  const pendienteCount = orden.items.filter(i => i.estado === 'pendiente').length
 
   // Para con_faltantes: separar nuevos (pendiente) de ya reportados (faltante)
   const itemsNuevos = isConFaltantes ? itemsSinKit.filter(i => i.estado === 'pendiente') : []
@@ -606,6 +629,8 @@ function PickingView({
                         showListoBtn
                         loading={!!listoLoading[item.id]}
                         onListo={() => handleListoIndividual(item.id)}
+                        onFaltante={() => handleFaltanteIndividual(item.id)}
+                        faltanteLoading={!!faltanteLoading[item.id]}
                       />
                     ))}
                   </div>
@@ -646,6 +671,8 @@ function PickingView({
                   showListoBtn={!isReadOnly}
                   loading={!!listoLoading[item.id]}
                   onListo={() => handleListoIndividual(item.id)}
+                  onFaltante={() => handleFaltanteIndividual(item.id)}
+                  faltanteLoading={!!faltanteLoading[item.id]}
                 />
               ))}
 
@@ -697,33 +724,26 @@ function PickingView({
             <div className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce" />
             <span className="text-xs text-indigo-700 font-bold">Orden enviada a escaneo — solo lectura</span>
           </div>
-        ) : isConFaltantes ? (
-          <div className="flex items-center gap-2 py-1">
-            <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-xs text-amber-700 font-medium">
-              Marca los productos nuevos como listos para volver a escaneo
-            </span>
-          </div>
         ) : (
           <>
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+              <div className={clsx('h-2 w-2 rounded-full', todosConEstado ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse')} />
               <span className="text-xs text-steel-600 font-medium">
-                {orden.items.length} producto{orden.items.length !== 1 ? 's' : ''} por recoger
+                {todosConEstado
+                  ? 'Todos los productos marcados'
+                  : `${pendienteCount} producto${pendienteCount !== 1 ? 's' : ''} por marcar`}
               </span>
             </div>
-            <div className="flex gap-2 mt-3">
-              <button
-                onClick={onFaltantes}
-                className="px-4 py-2.5 rounded-xl text-sm font-bold text-amber-600 hover:bg-amber-50 border border-amber-200 transition-all"
-              >
-                Reportar faltante
-              </button>
+            <div className="flex justify-end mt-3">
               <button
                 onClick={onMarcarListo}
-                className="ml-auto px-5 py-2.5 rounded-xl text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 transition-all"
+                disabled={!todosConEstado}
+                className={clsx(
+                  'px-5 py-2.5 rounded-xl text-sm font-bold transition-all',
+                  todosConEstado
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800'
+                    : 'bg-steel-100 text-steel-400 cursor-not-allowed'
+                )}
               >
                 ✓ Marcar como lista
               </button>
@@ -739,7 +759,7 @@ function PickingView({
 
 export function AlmacenPage() {
   const { user, isTokenReady } = useAuth()
-  const { ordenes, updateOrden, setOrdenes, removeItemFromOrden, updateItemQtyInOrden, markItemListoEnOrden } = useVentasStore()
+  const { ordenes, updateOrden, setOrdenes, removeItemFromOrden, updateItemQtyInOrden, markItemListoEnOrden, marcarItemFaltante } = useVentasStore()
   const { playBeep, playAlertSequence } = useSoundAlert()
   useVentasAlerts()
 
@@ -953,6 +973,17 @@ export function AlmacenPage() {
     }
   }
 
+  const handleMarcarFaltanteIndividual = async (itemId: string) => {
+    if (!pickingOrdenId) return
+    try {
+      await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Incompleto`, { CantidadEncontrada: 0 })
+      marcarItemFaltante(pickingOrdenId, itemId, 0)
+      notify.warning('Producto marcado como faltante')
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al marcar faltante')
+    }
+  }
+
   const handleTicketClose = () => {
     setTicketOrden(null)
   }
@@ -975,8 +1006,8 @@ export function AlmacenPage() {
               orden={pickingOrden}
               onMarcarListo={handleMarcarListo}
               onVolver={() => setPickingOrdenId(null)}
-              onFaltantes={() => setFaltantesOrden(pickingOrden)}
               onMarcarListoIndividual={handleMarcarListoIndividual}
+              onMarcarFaltanteIndividual={handleMarcarFaltanteIndividual}
             />
           </div>
         ) : (

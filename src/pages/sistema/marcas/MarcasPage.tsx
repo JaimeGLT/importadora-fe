@@ -64,8 +64,8 @@ export function MarcasPage() {
       setFormOpen(false)
       setEditingMarca(null)
       setFormNombre('')
-    } catch {
-      notify.error('Error al guardar la marca')
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al guardar la marca')
     } finally {
       setSaving(false)
     }
@@ -77,8 +77,8 @@ export function MarcasPage() {
       await api.delete(`/marca/${deleteTarget.id}`)
       removeMarca(deleteTarget.id)
       notify.success('Marca eliminada')
-    } catch {
-      notify.error('Error al eliminar la marca')
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al eliminar la marca')
     } finally {
       setDeleteTarget(null)
     }

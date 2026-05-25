@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from 'react'
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import type * as XLSXType from 'xlsx'
 import { Modal, Button, ExcelColumnMapper } from '@/components/ui'
 import { imprimirLote } from '@/lib/printLabel'
@@ -226,8 +226,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
   const [, setPreviewActions] = useState<Record<string, ImportAction>>({})
   const [tipoCambio, setTipoCambio]   = useState('6.96')
   const [usarTipoCambioGlobal, setUsarTipoCambioGlobal] = useState(true)
-  const [stockMode, setStockMode] = useState<'reemplazar' | 'sumar'>('reemplazar')
-  const [dragOver, setDragOver]       = useState(false)
+const [dragOver, setDragOver]       = useState(false)
   const [importing, setImporting]     = useState(false)
   const [importados, setImportados]   = useState<ProductoImportado[]>([])
   const [labelConfig, setLabelConfig] = useState<Record<string, LabelConfig>>({})
@@ -244,6 +243,10 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
     return (mappings['tipo_cambio']?.columns.length ?? 0) > 0
   }, [mappings])
 
+  useEffect(() => {
+    setUsarTipoCambioGlobal(!tieneTipoCambioEnExcel)
+  }, [tieneTipoCambioEnExcel])
+
   const excelKey = (codigo: string, marca: string) => `${codigo}|${marca.toLowerCase().trim()}`
 
   // Mapa de códigos existentes para búsqueda rápida — clave compuesta codigo|marca
@@ -253,12 +256,8 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
       const marcaNombre = (marcas.find((m) => m.id === p.marcaId)?.nombre ?? '').toLowerCase().trim()
       const makeKey = (code: string) => excelKey(code, marcaNombre)
       map.set(makeKey(p.codigo_universal), p)
-      if (marcaNombre) map.set(excelKey(p.codigo_universal, ''), p)
       p.codigos_alternativos.forEach((code) => {
-        if (code) {
-          map.set(makeKey(code), p)
-          if (marcaNombre) map.set(excelKey(code, ''), p)
-        }
+        if (code) map.set(makeKey(code), p)
       })
     })
     return map
@@ -374,9 +373,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
           : tcFromExcel > 0 ? tcFromExcel : 6.96
 
         if (action === 'update' && existing) {
-          const stockParaEnviar = stockMode === 'reemplazar'
-            ? p.stock - (existing.stock ?? 0)
-            : p.stock
+          const stockParaEnviar = p.stock
           return {
             data: {
               ...p,
@@ -738,34 +735,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
             </div>
           )}
 
-          {/* Stock mode toggle */}
-          <div className="mb-4 flex items-center justify-between gap-4 px-4 py-3 bg-steel-50 border border-steel-100 rounded-xl">
-            <div>
-              <p className="text-sm font-semibold text-steel-700">
-                {stockMode === 'reemplazar' ? 'Reemplazar stock existente' : 'Sumar al stock existente'}
-              </p>
-              <p className="text-xs text-steel-400 mt-0.5">
-                {stockMode === 'reemplazar'
-                  ? 'El stock del Excel reemplaza al valor actual en BD (migración / ajuste)'
-                  : 'El stock del Excel se suma al actual en BD (carga de stock adicional)'}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setStockMode((m) => m === 'reemplazar' ? 'sumar' : 'reemplazar')}
-              className={clsx(
-                'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
-                stockMode === 'sumar' ? 'bg-brand-600' : 'bg-steel-300',
-              )}
-            >
-              <span className={clsx(
-                'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform',
-                stockMode === 'sumar' ? 'translate-x-5' : 'translate-x-0',
-              )} />
-            </button>
-          </div>
-
-          <div className="flex flex-wrap gap-3 mb-4">
+<div className="flex flex-wrap gap-3 mb-4">
             <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
               <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

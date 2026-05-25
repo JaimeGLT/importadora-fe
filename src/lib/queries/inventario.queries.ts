@@ -42,11 +42,40 @@ export const PRODUCTOS_QUERY = `
         costo
         precio
         conversionABs
+        fechaCreacion
+        fechaActualizacion
       }
     }
   }
 `
 
+
+export const PRODUCTOS_ALL_QUERY = `
+  query ProductosTodos {
+    productos {
+      nodes {
+        id
+        codigo
+        codigoAux
+        codigoAux2
+        nombre
+        marcaId
+        ubicacion
+        stock_Actual
+        stockReservado
+        stock_Minimo
+        calcularStockKit
+        esKit
+        costo
+        precio
+        conversionABs
+        piezas
+        fechaCreacion
+        fechaActualizacion
+      }
+    }
+  }
+`
 
 export const PRODUCTO_BY_ID_QUERY = `
   query ProductoById($id: Int!) {
@@ -88,6 +117,8 @@ export const PRODUCTO_BY_ID_QUERY = `
         codigoAux2
         marcaId
         descripcion
+        fechaCreacion
+        fechaActualizacion
       }
     }
   }
@@ -134,6 +165,8 @@ interface ProductoAPISimple {
   esKit?: boolean
   imagen?: string | null
   historialPrecios?: HistorialPrecioAPI[]
+  fechaCreacion?: string | null
+  fechaActualizacion?: string | null
 }
 
 export interface ProductoAPI extends ProductoAPISimple {
@@ -201,8 +234,8 @@ function mapProductoBase(p: ProductoAPISimple): Producto {
     ...parseUbicacion(p.ubicacion ?? ''),
     estado: 'activo',
     proveedor_id: '',
-    creado_en: '',
-    actualizado_en: '',
+    creado_en: p.fechaCreacion ?? '',
+    actualizado_en: p.fechaActualizacion ?? '',
   }
 }
 
@@ -222,7 +255,7 @@ export function productoToBackend(
   p: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>,
 ): ProductoAPIInput {
   const costo = dec(p.precio_costo > 0 ? p.precio_costo : 0.01)
-  const precio = dec(p.precio_venta > 0 ? p.precio_venta : costo)
+  const precio = dec(p.precio_venta > 0 ? p.precio_venta : 0)
   return {
     codigo: p.codigo_universal,
     codigoAux: p.codigos_alternativos[0] ?? '',
