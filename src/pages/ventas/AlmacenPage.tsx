@@ -6,7 +6,6 @@ import { Button } from '@/components/ui'
 import { Modal } from '@/components/ui/Modal'
 import { notify } from '@/lib/notify'
 import { useVentasStore } from '@/stores/ventasStore'
-import { TicketPreview } from '@/components/ui/TicketPreview'
 import { useSoundAlert } from '@/hooks/useSoundAlert'
 import { useVentasAlerts } from '@/hooks/useVentasAlerts'
 import type { OrdenVenta, EstadoOrden } from '@/types'
@@ -425,97 +424,130 @@ function ItemCard({
   loading,
   onListo,
   onFaltante,
-  faltanteLoading,
+  onEditCantidad,
 }: {
   item: OrdenVenta['items'][number]
   showListoBtn: boolean
   loading: boolean
   onListo: () => void
   onFaltante?: () => void
-  faltanteLoading?: boolean
+  onEditCantidad?: () => void
 }) {
   const isPendiente = item.estado === 'pendiente'
   const isListoAlmacenero = item.estado === 'listo_almacenero'
-  const isFaltante = item.estado === 'faltante'
+  const isFaltanteTotal = item.estado === 'faltante' && (!item.cantidad_recogida || item.cantidad_recogida === 0)
+  const isParcial = item.estado === 'parcial' || (item.estado === 'faltante' && !!item.cantidad_recogida && item.cantidad_recogida > 0)
+
+  const recogida = item.cantidad_recogida ?? 0
+  const pedida = item.cantidad_pedida
+  const pct = pedida > 0 ? Math.round((recogida / pedida) * 100) : 0
 
   return (
     <div className={clsx(
       'rounded-xl border overflow-hidden',
-      isFaltante ? 'border-red-200 bg-red-50/40' :
+      isFaltanteTotal ? 'border-red-200 bg-red-50/40' :
       isPendiente ? 'border-amber-200 bg-amber-50/60' :
       isListoAlmacenero ? 'border-emerald-200 bg-emerald-50/40' :
+      isParcial ? 'border-orange-300 bg-white' :
       'border-steel-100 bg-white'
     )}>
-      <div className="flex items-start gap-3 p-4">
+      <div className="flex items-start gap-3 px-4 pt-3 pb-2">
+        {/* Icono estado */}
         <div className={clsx(
-          'h-10 w-10 rounded-xl flex items-center justify-center shrink-0',
-          isFaltante ? 'bg-red-100 border border-red-200' :
+          'h-9 w-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5',
+          isFaltanteTotal ? 'bg-red-100 border border-red-200' :
           isPendiente ? 'bg-amber-100 border border-amber-200' :
           isListoAlmacenero ? 'bg-emerald-100 border border-emerald-200' :
+          isParcial ? 'bg-orange-100 border border-orange-200' :
           'bg-steel-50 border border-steel-100'
         )}>
-          {isFaltante ? (
-            <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          {isFaltanteTotal ? (
+            <svg className="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           ) : isListoAlmacenero ? (
-            <svg className="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+            <svg className="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+          ) : isParcial ? (
+            <svg className="h-4 w-4 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           ) : (
-            <svg className={clsx('h-5 w-5', isPendiente ? 'text-amber-400' : 'text-steel-300')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <svg className={clsx('h-4 w-4', isPendiente ? 'text-amber-400' : 'text-steel-300')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
           )}
         </div>
+
+        {/* Info producto */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-steel-800 leading-tight">{item.producto_nombre}</p>
-            {isPendiente && (
-              <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">⏳ Nuevo</span>
-            )}
-            {isListoAlmacenero && (
-              <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">✓ Listo</span>
-            )}
-            {isFaltante && (
-              <span className="text-[10px] font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">✗ Faltante</span>
-            )}
-            {item.es_parcial && (
-              <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">Kit parcial</span>
-            )}
-          </div>
-          {item.nota && (
-            <p className="text-[11px] text-red-500 mt-0.5 italic">{item.nota}</p>
+          <p className="font-mono text-xs text-steel-400 leading-none mb-0.5">{item.producto_codigo}</p>
+          <p className="text-sm font-bold text-steel-900 leading-snug">{item.producto_nombre}</p>
+          <p className="text-[11px] text-steel-400 mt-0.5">Pedidas: {pedida} unidades</p>
+          {item.nota && <p className="text-[11px] text-red-500 mt-0.5 italic">{item.nota}</p>}
+          {(item.producto_almacen || item.producto_estante || item.producto_fila || item.producto_columna) && (
+            <p className="text-[11px] text-steel-400 mt-0.5">
+              📦 {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}{item.producto_fila ? ` / ${item.producto_fila}` : ''}{item.producto_columna ? ` / ${item.producto_columna}` : ''}
+            </p>
           )}
-          <div className="flex flex-wrap items-center gap-2 mt-1">
-            <span className="text-[11px] font-mono text-steel-400 bg-steel-50 px-1.5 py-0.5 rounded">
-              {item.producto_codigo}
-            </span>
-            {(item.producto_almacen || item.producto_estante || item.producto_fila || item.producto_columna) && (
-              <span className="text-[11px] text-steel-400">
-                📦 {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}{item.producto_fila ? ` / ${item.producto_fila}` : ''}{item.producto_columna ? ` / ${item.producto_columna}` : ''}
-              </span>
-            )}
-          </div>
+          {item.es_parcial && (
+            <span className="inline-block mt-1 text-[10px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">Kit parcial</span>
+          )}
         </div>
-        <div className="text-right shrink-0 flex flex-col items-end gap-2">
-          <p className="text-lg font-black text-steel-800">×{item.cantidad_pedida}</p>
+
+        {/* Derecha: estado/cantidad + botones */}
+        <div className="shrink-0 flex flex-col items-end gap-1.5">
+          {isPendiente && (
+            <p className="text-xl font-black text-steel-700 tabular-nums">×{pedida}</p>
+          )}
+          {isListoAlmacenero && (
+            <div className="text-right">
+              <p className="text-base font-black text-emerald-600 tabular-nums leading-none">✓ {pedida}/{pedida}</p>
+              <p className="text-[10px] font-bold text-emerald-500">Listo</p>
+            </div>
+          )}
+          {isFaltanteTotal && (
+            <div className="text-right">
+              <p className="text-base font-black text-red-500 tabular-nums leading-none">✗ 0/{pedida}</p>
+              <p className="text-[10px] font-bold text-red-400">Faltante</p>
+            </div>
+          )}
           {showListoBtn && isPendiente && (
-            <div className="flex flex-col gap-1.5 items-end">
-              <button
-                onClick={onListo}
-                disabled={loading}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-              >
+            <div className="flex flex-col gap-1.5 items-end mt-1">
+              <button onClick={onListo} disabled={loading}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors">
                 {loading ? '…' : '✓ Listo'}
               </button>
-              <button
-                onClick={onFaltante}
-                disabled={faltanteLoading}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
-              >
-                {faltanteLoading ? '…' : '✗ Faltante'}
+              <button onClick={onFaltante}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500 text-white hover:bg-red-600 transition-colors">
+                ✗ Faltante
               </button>
             </div>
           )}
+          {isParcial && onEditCantidad && (
+            <button onClick={onEditCantidad}
+              className="text-[10px] font-bold text-orange-500 hover:text-orange-700 underline underline-offset-2 transition-colors mt-1">
+              Editar
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Barra de progreso parcial — una sola fila: barra + badge */}
+      {isParcial && (
+        <div className="flex items-center gap-2 px-3 pb-3 pt-1">
+          {/* Barra */}
+          <div className="flex-1 relative h-2 rounded-full overflow-hidden bg-orange-100">
+            <div
+              className="absolute top-0 left-0 h-full bg-orange-400 transition-all rounded-full"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          {/* Badge Parcial con conteo */}
+          <div className="shrink-0 flex items-center gap-1 bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-[10px] font-bold tabular-nums">{recogida}/{pedida} Parcial</span>
+          </div>
+        </div>
+      )}
+
       {item.es_parcial && item.piezas_orden && item.piezas_orden.length > 0 && (
         <div className="border-t border-steel-100 bg-steel-50 divide-y divide-steel-100">
           {item.piezas_orden.map(p => (
@@ -542,10 +574,12 @@ function PickingView({
   onMarcarListo: () => void
   onVolver: () => void
   onMarcarListoIndividual: (itemId: string) => Promise<void>
-  onMarcarFaltanteIndividual: (itemId: string) => Promise<void>
+  onMarcarFaltanteIndividual: (itemId: string, cantidadEncontrada: number) => Promise<void>
 }) {
   const [listoLoading, setListoLoading] = useState<Record<string, boolean>>({})
-  const [faltanteLoading, setFaltanteLoading] = useState<Record<string, boolean>>({})
+  const [faltanteModal, setFaltanteModal] = useState<{ itemId: string; cantidadPedida: number } | null>(null)
+  const [cantidadEncontrada, setCantidadEncontrada] = useState(0)
+  const [faltanteConfirmLoading, setFaltanteConfirmLoading] = useState(false)
 
   const handleListoIndividual = async (itemId: string) => {
     setListoLoading(p => ({ ...p, [itemId]: true }))
@@ -553,10 +587,21 @@ function PickingView({
     setListoLoading(p => ({ ...p, [itemId]: false }))
   }
 
-  const handleFaltanteIndividual = async (itemId: string) => {
-    setFaltanteLoading(p => ({ ...p, [itemId]: true }))
-    await onMarcarFaltanteIndividual(itemId)
-    setFaltanteLoading(p => ({ ...p, [itemId]: false }))
+  const abrirFaltanteModal = (itemId: string, cantidadPedida: number, cantidadPrevia?: number) => {
+    setCantidadEncontrada(cantidadPrevia ?? 0)
+    setFaltanteModal({ itemId, cantidadPedida })
+  }
+
+  const confirmarFaltante = async () => {
+    if (!faltanteModal) return
+    setFaltanteConfirmLoading(true)
+    if (cantidadEncontrada >= faltanteModal.cantidadPedida) {
+      await onMarcarListoIndividual(faltanteModal.itemId)
+    } else {
+      await onMarcarFaltanteIndividual(faltanteModal.itemId, cantidadEncontrada)
+    }
+    setFaltanteConfirmLoading(false)
+    setFaltanteModal(null)
   }
 
   const gruposKit = useMemo(() => {
@@ -585,6 +630,51 @@ function PickingView({
 
   return (
     <div className="flex flex-col h-full">
+      {/* Modal: ¿Cuántas encontraste? */}
+      {faltanteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 flex flex-col gap-4">
+            <p className="text-base font-bold text-steel-900 text-center">¿Cuántas encontraste?</p>
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setCantidadEncontrada(v => Math.max(0, v - 1))}
+                  className="h-9 w-9 rounded-xl bg-steel-100 text-steel-600 text-lg font-bold hover:bg-steel-200 transition-colors flex items-center justify-center"
+                >−</button>
+                <span className="text-4xl font-black text-steel-900 w-12 text-center tabular-nums">{cantidadEncontrada}</span>
+                <button
+                  onClick={() => setCantidadEncontrada(v => Math.min(faltanteModal.cantidadPedida, v + 1))}
+                  className="h-9 w-9 rounded-xl bg-steel-100 text-steel-600 text-lg font-bold hover:bg-steel-200 transition-colors flex items-center justify-center"
+                >+</button>
+              </div>
+              <p className="text-xs text-steel-400">de {faltanteModal.cantidadPedida} pedidas</p>
+            </div>
+            <div className="flex items-center justify-center gap-2 text-sm">
+              <span className="text-steel-400">→</span>
+              {cantidadEncontrada >= faltanteModal.cantidadPedida
+                ? <span className="font-bold text-emerald-600">✓ Todos encontrados — marcar como Listo</span>
+                : <span className="font-bold text-red-600">{faltanteModal.cantidadPedida - cantidadEncontrada} faltante{faltanteModal.cantidadPedida - cantidadEncontrada !== 1 ? 's' : ''}</span>
+              }
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setFaltanteModal(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-steel-500 hover:bg-steel-100 border border-steel-200 transition-colors"
+              >Cancelar</button>
+              <button
+                onClick={confirmarFaltante}
+                disabled={faltanteConfirmLoading}
+                className={clsx(
+                  'flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-colors',
+                  cantidadEncontrada >= faltanteModal.cantidadPedida
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : 'bg-red-500 hover:bg-red-600'
+                )}
+              >{faltanteConfirmLoading ? '…' : cantidadEncontrada >= faltanteModal.cantidadPedida ? '✓ Listo' : 'Confirmar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="bg-white border-b border-steel-100 px-4 py-3 shrink-0">
         <div className="flex items-center gap-3">
@@ -629,8 +719,8 @@ function PickingView({
                         showListoBtn
                         loading={!!listoLoading[item.id]}
                         onListo={() => handleListoIndividual(item.id)}
-                        onFaltante={() => handleFaltanteIndividual(item.id)}
-                        faltanteLoading={!!faltanteLoading[item.id]}
+                        onFaltante={() => abrirFaltanteModal(item.id, item.cantidad_pedida)}
+                        onEditCantidad={() => abrirFaltanteModal(item.id, item.cantidad_pedida, item.cantidad_recogida)}
                       />
                     ))}
                   </div>
@@ -671,8 +761,8 @@ function PickingView({
                   showListoBtn={!isReadOnly}
                   loading={!!listoLoading[item.id]}
                   onListo={() => handleListoIndividual(item.id)}
-                  onFaltante={() => handleFaltanteIndividual(item.id)}
-                  faltanteLoading={!!faltanteLoading[item.id]}
+                  onFaltante={() => abrirFaltanteModal(item.id, item.cantidad_pedida)}
+                  onEditCantidad={() => abrirFaltanteModal(item.id, item.cantidad_pedida, item.cantidad_recogida)}
                 />
               ))}
 
@@ -765,7 +855,6 @@ export function AlmacenPage() {
 
   const [tab, setTab] = useState<TabFiltro>('todos')
   const [pickingOrdenId, setPickingOrdenId] = useState<string | null>(null)
-  const [ticketOrden, setTicketOrden] = useState<OrdenVenta | null>(null)
   const [faltantesOrden, setFaltantesOrden] = useState<OrdenVenta | null>(null)
   const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set())
   const previousPendientesRef = useRef<Set<string>>(new Set())
@@ -896,7 +985,6 @@ export function AlmacenPage() {
       await loadOrdenes()
       playAlertSequence()
       setPickingOrdenId(null)
-      setTicketOrden({ ...ordenActual, estado: 'listo_para_escaneo', listo_en: new Date().toISOString() })
     } catch (e) {
       notify.error(e instanceof Error ? e.message : 'Error al marcar como lista')
     }
@@ -953,6 +1041,11 @@ export function AlmacenPage() {
   const handleMarcarListoIndividual = async (itemId: string) => {
     if (!pickingOrdenId) return
     try {
+      const currentOrden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)
+      const currentItem = currentOrden?.items.find(i => i.id === itemId)
+      if (currentItem?.estado === 'faltante') {
+        await api.delete(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Incompleto`)
+      }
       await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/MarcarListoIndividual`, null)
       markItemListoEnOrden(pickingOrdenId, itemId)
 
@@ -973,20 +1066,17 @@ export function AlmacenPage() {
     }
   }
 
-  const handleMarcarFaltanteIndividual = async (itemId: string) => {
+  const handleMarcarFaltanteIndividual = async (itemId: string, cantidadEncontrada: number) => {
     if (!pickingOrdenId) return
     try {
-      await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Incompleto`, { CantidadEncontrada: 0 })
-      marcarItemFaltante(pickingOrdenId, itemId, 0)
-      notify.warning('Producto marcado como faltante')
+      await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Incompleto`, { CantidadEncontrada: cantidadEncontrada })
+      await loadOrdenes()
+      notify.warning(cantidadEncontrada === 0 ? 'Producto marcado como faltante' : `Parcial: ${cantidadEncontrada} encontrado(s)`)
     } catch (e) {
       notify.error(e instanceof Error ? e.message : 'Error al marcar faltante')
     }
   }
 
-  const handleTicketClose = () => {
-    setTicketOrden(null)
-  }
 
   const pickingOrden = pickingOrdenId ? ordenes.find(o => o.id === pickingOrdenId) : null
 
@@ -1091,9 +1181,6 @@ export function AlmacenPage() {
         />
       )}
 
-      {ticketOrden && (
-        <TicketPreview orden={ticketOrden} open onClose={handleTicketClose} />
-      )}
     </MainLayout>
   )
 }

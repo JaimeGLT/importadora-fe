@@ -399,6 +399,21 @@ function parseUbicacion(ubicacion?: string | null) {
   return { almacen: ubicacion, estante: '', fila: '', columna: '' }
 }
 
+function parseCantidadRecogida(nota: string | null | undefined): number | undefined {
+  if (!nota) return undefined
+  const m = nota.match(/^Encontró (\d+) de \d+/)
+  return m ? parseInt(m[1], 10) : undefined
+}
+
+function parseNotaUsuario(nota: string | null | undefined): string | undefined {
+  if (!nota) return undefined
+  if (/^Encontró \d+ de \d+/.test(nota)) {
+    const idx = nota.indexOf(' — ')
+    return idx !== -1 ? nota.slice(idx + 3) : undefined
+  }
+  return nota
+}
+
 function backendToItemOrden(api: OrdenItemAPI): ItemOrden {
   const loc = parseUbicacion(api.producto?.ubicacion)
   const estado = ESTADO_ITEM_MAP[api.estado?.toLowerCase()] ?? 'pendiente'
@@ -415,7 +430,8 @@ function backendToItemOrden(api: OrdenItemAPI): ItemOrden {
     precio_unitario: api.precioUnitario,
     subtotal: api.precioUnitario * api.cantidad,
     estado,
-    nota: api.notaIncompleto ?? undefined,
+    nota: parseNotaUsuario(api.notaIncompleto),
+    cantidad_recogida: parseCantidadRecogida(api.notaIncompleto),
     es_parcial: api.esParcial,
     piezas_orden: api.esParcial && api.piezas?.length
       ? api.piezas.map(p => ({
