@@ -1636,7 +1636,7 @@ export function CajaPage() {
   }, [productoSeleccionado, kitCompletoQty, playBeep])
 
   const agregarPiezasAlCarrito = useCallback((
-    piezas: { producto_id: string; nombre: string; codigo: string; cantidad: number }[],
+    piezas: { producto_id: string; nombre: string; codigo: string; cantidad: number; precio: number }[],
     kitId: string,
   ) => {
     setCart(prev => {
@@ -1649,8 +1649,8 @@ export function CajaPage() {
         producto_fila: '',
         producto_columna: '',
         cantidad: p.cantidad,
-        precio_unitario: 0,
-        precio_base: 0,
+        precio_unitario: p.precio,
+        precio_base: p.precio,
         kit_id: kitId,
       }))
       return { ...prev, items: [...prev.items, ...newItems] }
@@ -1788,7 +1788,7 @@ export function CajaPage() {
         precioUnitario: pieces.reduce((s, p) => s + p.precio_unitario * p.cantidad, 0),
         id_Descuento: null,
         montoDescuento: 0,
-        piezas: pieces.map(p => ({ id_Pieza: Number(p.producto_id), cantidad: p.cantidad })),
+        piezas: pieces.map(p => ({ id_Pieza: Number(p.producto_id), cantidad: p.cantidad, PrecioUnitario: p.precio_unitario })),
       })),
     ]
 

@@ -8,7 +8,7 @@ import { notify } from '@/lib/notify'
 import { useVentasStore } from '@/stores/ventasStore'
 import { useSoundAlert } from '@/hooks/useSoundAlert'
 import { useVentasAlerts } from '@/hooks/useVentasAlerts'
-import type { OrdenVenta, EstadoOrden } from '@/types'
+import type { OrdenVenta, EstadoOrden, ItemOrden, PiezaOrden } from '@/types'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
 import { useVentasHub } from '@/hooks/useVentasHub'
@@ -105,6 +105,26 @@ function OrderCard({
         <span>·</span>
         <span className="font-semibold text-steel-700">{fmtBs(orden.total)}</span>
       </div>
+
+      {(() => {
+        const kitsCount = orden.items.filter(i => i.es_kit && !i.es_parcial).length
+        const piezasCount = orden.items.filter(i => i.es_parcial).length
+        if (!kitsCount && !piezasCount) return null
+        return (
+          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+            {kitsCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 text-[10px] font-bold border border-brand-100">
+                🧩 {kitsCount} kit{kitsCount > 1 ? 's' : ''}
+              </span>
+            )}
+            {piezasCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-100">
+                🔧 {piezasCount} piezas sueltas
+              </span>
+            )}
+          </div>
+        )
+      })()}
 
       {orden.nota && (
         <p className="mt-1.5 text-xs text-amber-600 italic bg-amber-50 px-2 py-1 rounded-lg border border-amber-100">
@@ -519,7 +539,7 @@ function ItemCard({
               </button>
             </div>
           )}
-          {isParcial && onEditCantidad && (
+          {(isParcial || isFaltanteTotal) && onEditCantidad && (
             <button onClick={onEditCantidad}
               className="text-[10px] font-bold text-orange-500 hover:text-orange-700 underline underline-offset-2 transition-colors mt-1">
               Editar
@@ -528,22 +548,25 @@ function ItemCard({
         </div>
       </div>
 
-      {/* Barra de progreso parcial — una sola fila: barra + badge */}
-      {isParcial && (
+      {/* Barra de progreso parcial / faltante */}
+      {(isParcial || isFaltanteTotal) && (
         <div className="flex items-center gap-2 px-3 pb-3 pt-1">
           {/* Barra */}
-          <div className="flex-1 relative h-2 rounded-full overflow-hidden bg-orange-100">
+          <div className={clsx('flex-1 relative h-2 rounded-full overflow-hidden', isFaltanteTotal ? 'bg-red-100' : 'bg-orange-100')}>
             <div
-              className="absolute top-0 left-0 h-full bg-orange-400 transition-all rounded-full"
+              className={clsx('absolute top-0 left-0 h-full transition-all rounded-full', isFaltanteTotal ? 'bg-red-400' : 'bg-orange-400')}
               style={{ width: `${pct}%` }}
             />
           </div>
-          {/* Badge Parcial con conteo */}
-          <div className="shrink-0 flex items-center gap-1 bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+          {/* Badge con conteo */}
+          <div className={clsx('shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full', isFaltanteTotal ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700')}>
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              {isFaltanteTotal
+                ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                : <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              }
             </svg>
-            <span className="text-[10px] font-bold tabular-nums">{recogida}/{pedida} Parcial</span>
+            <span className="text-[10px] font-bold tabular-nums">{recogida}/{pedida} {isFaltanteTotal ? 'Faltante' : 'Parcial'}</span>
           </div>
         </div>
       )}
@@ -563,23 +586,340 @@ function ItemCard({
   )
 }
 
+// ─── KitGroupCard ────────────────────────────────────────────────────────────
+
+function parsePiezaRecogida(nota: string | null | undefined): number | undefined {
+  if (!nota) return undefined
+  const m = nota.match(/^Encontró (\d+) de \d+/)
+  return m ? parseInt(m[1], 10) : undefined
+}
+
+function getPiezaEstado(p: PiezaOrden): 'listo' | 'parcial' | 'faltante' | 'pendiente' {
+  if (p.confirmado || p.listo_almacenero) return 'listo'
+  if (p.nota_incompleto) {
+    const rec = parsePiezaRecogida(p.nota_incompleto)
+    return rec != null && rec > 0 ? 'parcial' : 'faltante'
+  }
+  return 'pendiente'
+}
+
+interface KitGroupCardProps {
+  kitCompleto?: ItemOrden
+  piezasSueltas?: ItemOrden
+  ordenId: string
+  isReadOnly: boolean
+  loadingPiezas: Record<string, boolean>
+  onMarcarListoKit: (itemId: string) => void
+  onFaltanteKit: (itemId: string, cantidadPedida: number) => void
+  onConfirmarPieza: (itemId: string, pieza: PiezaOrden) => Promise<void>
+  onFaltantePieza: (itemId: string, pieza: PiezaOrden) => void
+  onListoPieza: (itemId: string, pieza: PiezaOrden) => void
+  onEditKit?: (itemId: string, cantidadPedida: number, cantidadRecogida?: number) => void
+}
+
+function KitGroupCard({
+  kitCompleto,
+  piezasSueltas,
+  isReadOnly,
+  loadingPiezas,
+  onMarcarListoKit,
+  onFaltanteKit,
+  onConfirmarPieza,
+  onFaltantePieza,
+  onListoPieza,
+  onEditKit,
+}: KitGroupCardProps) {
+  const piezas = piezasSueltas?.piezas_orden ?? []
+  const piezasListasCount = piezas.filter(p => getPiezaEstado(p) === 'listo').length
+  const piezasParcialCount = piezas.filter(p => getPiezaEstado(p) === 'parcial').length
+  const piezasPendienteCount = piezas.filter(p => getPiezaEstado(p) === 'pendiente').length
+  const piezasParcialesNombre = piezas.filter(p => p.nota_incompleto)
+
+  const kitCompletoListo = kitCompleto?.estado === 'listo_almacenero' || kitCompleto?.estado === 'completo'
+  const kitCompletoPendiente = kitCompleto?.estado === 'pendiente'
+
+  return (
+    <div className="rounded-2xl border border-steel-200 overflow-hidden bg-white shadow-sm">
+
+      {/* Sección: Kit completo */}
+      {kitCompleto && (
+        <div className={clsx('border-b border-steel-100',
+          kitCompletoListo ? 'bg-emerald-50' :
+          kitCompletoPendiente ? '' :
+          'bg-red-50'
+        )}>
+          <div className={clsx('flex items-center justify-between px-4 py-2.5 border-b',
+            kitCompletoListo ? 'border-emerald-100' :
+            kitCompletoPendiente ? 'border-steel-100' :
+            'border-red-200'
+          )}>
+            <div className="flex items-center gap-2">
+              <span className={clsx('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold',
+                kitCompletoListo ? 'bg-emerald-100 text-emerald-700' :
+                kitCompletoPendiente ? 'bg-steel-100 text-steel-600' :
+                'bg-red-100 text-red-700')}>
+                🧩 Kit completo
+              </span>
+              <span className="text-xs text-steel-500 font-mono">{kitCompleto.producto_codigo}</span>
+              <span className="text-xs text-steel-400">×{kitCompleto.cantidad_pedida} pedidos</span>
+            </div>
+            <span className="text-[10px] text-steel-400 hidden sm:block">Busca el kit armado físicamente</span>
+          </div>
+
+          <div className="px-4 py-3 flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-steel-800 truncate">{kitCompleto.producto_nombre}</p>
+              <p className="text-[11px] text-steel-400 mt-0.5">
+                {kitCompleto.cantidad_pedida} unidades pedidas · kit pre-armado
+              </p>
+            </div>
+            <div className="shrink-0">
+              {kitCompletoListo ? (
+                <div className="flex items-center gap-1.5 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-xs font-bold tabular-nums">
+                    {kitCompleto.cantidad_pedida}/{kitCompleto.cantidad_pedida} listo
+                  </span>
+                </div>
+              ) : kitCompletoPendiente && !isReadOnly ? (
+                <div className="flex flex-col gap-1.5 items-end">
+                  <button
+                    onClick={() => onMarcarListoKit(kitCompleto.id)}
+                    disabled={!!loadingPiezas[kitCompleto.id]}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                  >
+                    {loadingPiezas[kitCompleto.id] ? '…' : '✓ Listo'}
+                  </button>
+                  <button
+                    onClick={() => onFaltanteKit(kitCompleto.id, kitCompleto.cantidad_pedida)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500 text-white hover:bg-red-600 transition-colors"
+                  >
+                    ✗ Faltante
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1.5 items-end">
+                  <span className="text-xs text-steel-400 bg-steel-50 px-2 py-1 rounded-full">
+                    ×{kitCompleto.cantidad_pedida}
+                  </span>
+                  {!isReadOnly && onEditKit && (
+                    <button
+                      onClick={() => onEditKit(kitCompleto.id, kitCompleto.cantidad_pedida, kitCompleto.cantidad_recogida)}
+                      className="text-[10px] font-bold text-orange-500 hover:text-orange-700 underline underline-offset-2 transition-colors"
+                    >
+                      Editar
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          {/* Barra de progreso kit faltante */}
+          {!kitCompletoListo && !kitCompletoPendiente && kitCompleto.cantidad_recogida != null && (
+            <div className="px-4 pb-3 flex items-center gap-2">
+              <div className="flex-1 relative h-1.5 rounded-full overflow-hidden bg-red-100">
+                <div
+                  className="absolute top-0 left-0 h-full bg-red-400 rounded-full transition-all"
+                  style={{ width: `${kitCompleto.cantidad_pedida > 0 ? Math.round((kitCompleto.cantidad_recogida / kitCompleto.cantidad_pedida) * 100) : 0}%` }}
+                />
+              </div>
+              <span className="text-[10px] text-steel-400 tabular-nums shrink-0">
+                {kitCompleto.cantidad_recogida}/{kitCompleto.cantidad_pedida}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Divisor "y / o" si hay ambas secciones */}
+      {kitCompleto && piezasSueltas && (
+        <div className="flex items-center gap-3 px-4 py-2 bg-steel-50 border-y border-steel-100">
+          <div className="flex-1 h-px bg-steel-200" />
+          <span className="text-[10px] font-bold text-steel-400 uppercase tracking-wider">y / o</span>
+          <div className="flex-1 h-px bg-steel-200" />
+        </div>
+      )}
+
+      {/* Sección: Piezas sueltas */}
+      {piezasSueltas && (
+        <div className="bg-indigo-50/50">
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-indigo-100">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold">
+              🔧 Piezas sueltas
+            </span>
+            <span className="text-[10px] text-indigo-400">Desarma kits para sacar piezas</span>
+          </div>
+
+          <div className="divide-y divide-indigo-100">
+            {piezas.map(pieza => {
+              const estado = getPiezaEstado(pieza)
+              const recogida = parsePiezaRecogida(pieza.nota_incompleto)
+              const pct = pieza.cantidad > 0 && recogida != null
+                ? Math.round((recogida / pieza.cantidad) * 100)
+                : 0
+              const loadKey = `pieza-${pieza.id}`
+              const isLoading = !!loadingPiezas[loadKey]
+
+              return (
+                <div key={pieza.id} className={clsx('px-4 py-3',
+                  estado === 'listo' && 'bg-emerald-50/40',
+                  estado === 'faltante' && 'bg-red-50/40'
+                )}>
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-mono text-[10px] text-steel-400 leading-none mb-0.5">{pieza.codigo}</p>
+                      <p className="text-sm font-bold text-steel-800 leading-snug">{pieza.nombre}</p>
+                      <p className="text-[11px] text-steel-400 mt-0.5">
+                        {pieza.cantidad} unidades pedidas · sale de kit {piezasSueltas.producto_codigo}
+                      </p>
+                    </div>
+                    <div className="shrink-0 flex flex-col items-end gap-1.5">
+                      {estado === 'listo' ? (
+                        <div className="flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span className="text-[10px] font-bold tabular-nums">{pieza.cantidad}/{pieza.cantidad}</span>
+                        </div>
+                      ) : estado === 'parcial' ? (
+                        <div className="flex flex-col items-end gap-1.5">
+                          <div className="flex items-center gap-1 bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h8m-8 6h16" />
+                            </svg>
+                            <span className="text-[10px] font-bold">Parcial</span>
+                          </div>
+                          {!isReadOnly && (
+                            <button
+                              onClick={() => onFaltantePieza(piezasSueltas.id, pieza)}
+                              className="text-[10px] font-bold text-orange-500 hover:text-orange-700 underline underline-offset-2 transition-colors"
+                            >
+                              Editar
+                            </button>
+                          )}
+                        </div>
+                      ) : estado === 'faltante' ? (
+                        <div className="flex flex-col items-end gap-1.5">
+                          <div className="flex items-center gap-1 bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            <span className="text-[10px] font-bold tabular-nums">0/{pieza.cantidad}</span>
+                          </div>
+                          {!isReadOnly && (
+                            <button
+                              onClick={() => onFaltantePieza(piezasSueltas.id, pieza)}
+                              className="text-[10px] font-bold text-orange-500 hover:text-orange-700 underline underline-offset-2 transition-colors"
+                            >
+                              Editar
+                            </button>
+                          )}
+                        </div>
+                      ) : !isReadOnly ? (
+                        <div className="flex flex-col gap-1.5 items-end">
+                          <button
+                            onClick={() => onListoPieza(piezasSueltas.id, pieza)}
+                            disabled={isLoading}
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                          >
+                            {isLoading ? '…' : '✓ Listo'}
+                          </button>
+                          <button
+                            onClick={() => onFaltantePieza(piezasSueltas.id, pieza)}
+                            disabled={isLoading}
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
+                          >
+                            ✗ Faltante
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {/* Barra de progreso parcial / faltante */}
+                  {(estado === 'parcial' || estado === 'faltante') && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className={clsx('flex-1 relative h-1.5 rounded-full overflow-hidden', estado === 'faltante' ? 'bg-red-100' : 'bg-orange-100')}>
+                        <div
+                          className={clsx('absolute top-0 left-0 h-full rounded-full transition-all', estado === 'faltante' ? 'bg-red-400' : 'bg-orange-400')}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-steel-400 tabular-nums shrink-0">
+                        {estado === 'faltante' ? 0 : (recogida ?? 0)}/{pieza.cantidad}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Warning si hay piezas parciales */}
+          {piezasParcialesNombre.length > 0 && (
+            <div className="mx-3 mb-3 mt-1 rounded-xl bg-orange-50 border border-orange-200 px-3 py-2">
+              <p className="text-[11px] text-orange-700 font-medium">
+                {piezasParcialesNombre.length === 1
+                  ? `Si es parcial, la pieza "${piezasParcialesNombre[0].nombre}" tiene cantidad limitada. El cajero deberá acordar el precio con el cliente.`
+                  : `${piezasParcialesNombre.length} piezas parciales. El cajero deberá acordar los precios con el cliente.`
+                }
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Resumen piezas */}
+      {piezasSueltas && piezas.length > 0 && (
+        <div className="px-4 py-2.5 bg-indigo-100/60 border-t border-indigo-100 flex items-center justify-between">
+          <div className="flex items-center gap-3 text-[11px]">
+            <span className="text-emerald-700 font-bold">{piezasListasCount} listo</span>
+            {piezasParcialCount > 0 && <span className="text-orange-600 font-bold">{piezasParcialCount} parcial</span>}
+            {piezasPendienteCount > 0 && <span className="text-indigo-500">{piezasPendienteCount} pendiente</span>}
+          </div>
+          {!isReadOnly && piezasSueltas.estado === 'pendiente' && (
+            <button
+              onClick={() => onMarcarListoKit(piezasSueltas.id)}
+              disabled={!!loadingPiezas[piezasSueltas.id]}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+            >
+              {loadingPiezas[piezasSueltas.id] ? '…' : '✓ Listo'}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PickingView({
   orden,
   onMarcarListo,
   onVolver,
   onMarcarListoIndividual,
   onMarcarFaltanteIndividual,
+  onConfirmarPieza,
+  onFaltantePiezaIndividual,
+  onListoPiezaIndividual,
 }: {
   orden: OrdenVenta
   onMarcarListo: () => void
   onVolver: () => void
   onMarcarListoIndividual: (itemId: string) => Promise<void>
   onMarcarFaltanteIndividual: (itemId: string, cantidadEncontrada: number) => Promise<void>
+  onConfirmarPieza: (itemId: string, pieza: PiezaOrden) => Promise<void>
+  onFaltantePiezaIndividual: (itemId: string, pieza: PiezaOrden, cantidadEncontrada: number) => Promise<void>
+  onListoPiezaIndividual: (itemId: string, pieza: PiezaOrden) => Promise<void>
 }) {
   const [listoLoading, setListoLoading] = useState<Record<string, boolean>>({})
   const [faltanteModal, setFaltanteModal] = useState<{ itemId: string; cantidadPedida: number } | null>(null)
   const [cantidadEncontrada, setCantidadEncontrada] = useState(0)
   const [faltanteConfirmLoading, setFaltanteConfirmLoading] = useState(false)
+  const [piezaFaltanteModal, setPiezaFaltanteModal] = useState<{ itemId: string; pieza: PiezaOrden } | null>(null)
+  const [piezaCantidadEncontrada, setPiezaCantidadEncontrada] = useState(0)
+  const [piezaFaltanteConfirmLoading, setPiezaFaltanteConfirmLoading] = useState(false)
 
   const handleListoIndividual = async (itemId: string) => {
     setListoLoading(p => ({ ...p, [itemId]: true }))
@@ -604,18 +944,30 @@ function PickingView({
     setFaltanteModal(null)
   }
 
-  const gruposKit = useMemo(() => {
-    const grupos: Record<string, typeof orden.items> = {}
+  const confirmarPiezaFaltante = async () => {
+    if (!piezaFaltanteModal) return
+    setPiezaFaltanteConfirmLoading(true)
+    await onFaltantePiezaIndividual(piezaFaltanteModal.itemId, piezaFaltanteModal.pieza, piezaCantidadEncontrada)
+    setPiezaFaltanteConfirmLoading(false)
+    setPiezaFaltanteModal(null)
+  }
+
+  const [loadingPiezas, setLoadingPiezas] = useState<Record<string, boolean>>({})
+
+  const kitGroups = useMemo(() => {
+    const groups = new Map<string, { kitCompleto?: ItemOrden; piezasSueltas?: ItemOrden }>()
     orden.items.forEach(item => {
-      if (item.kit_id) {
-        if (!grupos[item.kit_id]) grupos[item.kit_id] = []
-        grupos[item.kit_id].push(item)
-      }
+      if (!item.es_kit && !item.es_parcial) return
+      const key = item.producto_id
+      if (!groups.has(key)) groups.set(key, {})
+      const g = groups.get(key)!
+      if (item.es_parcial) g.piezasSueltas = item
+      else g.kitCompleto = item
     })
-    return grupos
+    return groups
   }, [orden.items])
 
-  const itemsSinKit = orden.items.filter(i => !i.kit_id)
+  const itemsNormalesAll = orden.items.filter(i => !i.es_kit && !i.es_parcial)
 
   const isReadOnly = orden.estado === 'listo_para_escaneo'
   const isConFaltantes = orden.estado === 'con_faltantes'
@@ -624,9 +976,9 @@ function PickingView({
   const pendienteCount = orden.items.filter(i => i.estado === 'pendiente').length
 
   // Para con_faltantes: separar nuevos (pendiente) de ya reportados (faltante)
-  const itemsNuevos = isConFaltantes ? itemsSinKit.filter(i => i.estado === 'pendiente') : []
-  const itemsFaltantesReportados = isConFaltantes ? itemsSinKit.filter(i => i.estado === 'faltante') : []
-  const itemsNormales = isConFaltantes ? [] : itemsSinKit
+  const itemsNuevos = isConFaltantes ? itemsNormalesAll.filter(i => i.estado === 'pendiente') : []
+  const itemsFaltantesReportados = isConFaltantes ? itemsNormalesAll.filter(i => i.estado === 'faltante') : []
+  const itemsNormales = isConFaltantes ? [] : itemsNormalesAll
 
   return (
     <div className="flex flex-col h-full">
@@ -675,6 +1027,54 @@ function PickingView({
           </div>
         </div>
       )}
+      {/* Modal pieza: ¿Cuántas encontraste? */}
+      {piezaFaltanteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 flex flex-col gap-4">
+            <div className="text-center">
+              <p className="text-base font-bold text-steel-900">¿Cuántas encontraste?</p>
+              <p className="text-xs text-steel-400 mt-0.5 truncate">{piezaFaltanteModal.pieza.nombre}</p>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setPiezaCantidadEncontrada(v => Math.max(0, v - 1))}
+                  className="h-9 w-9 rounded-xl bg-steel-100 text-steel-600 text-lg font-bold hover:bg-steel-200 transition-colors flex items-center justify-center"
+                >−</button>
+                <span className="text-4xl font-black text-steel-900 w-12 text-center tabular-nums">{piezaCantidadEncontrada}</span>
+                <button
+                  onClick={() => setPiezaCantidadEncontrada(v => Math.min(piezaFaltanteModal.pieza.cantidad, v + 1))}
+                  className="h-9 w-9 rounded-xl bg-steel-100 text-steel-600 text-lg font-bold hover:bg-steel-200 transition-colors flex items-center justify-center"
+                >+</button>
+              </div>
+              <p className="text-xs text-steel-400">de {piezaFaltanteModal.pieza.cantidad} pedidas</p>
+            </div>
+            <div className="flex items-center justify-center gap-2 text-sm">
+              <span className="text-steel-400">→</span>
+              {piezaCantidadEncontrada >= piezaFaltanteModal.pieza.cantidad
+                ? <span className="font-bold text-emerald-600">✓ Todas encontradas — marcar como Listo</span>
+                : <span className="font-bold text-red-600">{piezaFaltanteModal.pieza.cantidad - piezaCantidadEncontrada} faltante{piezaFaltanteModal.pieza.cantidad - piezaCantidadEncontrada !== 1 ? 's' : ''}</span>
+              }
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPiezaFaltanteModal(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-steel-500 hover:bg-steel-100 border border-steel-200 transition-colors"
+              >Cancelar</button>
+              <button
+                onClick={confirmarPiezaFaltante}
+                disabled={piezaFaltanteConfirmLoading}
+                className={clsx(
+                  'flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-colors',
+                  piezaCantidadEncontrada >= piezaFaltanteModal.pieza.cantidad
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : 'bg-red-500 hover:bg-red-600'
+                )}
+              >{piezaFaltanteConfirmLoading ? '…' : piezaCantidadEncontrada >= piezaFaltanteModal.pieza.cantidad ? '✓ Listo' : 'Confirmar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="bg-white border-b border-steel-100 px-4 py-3 shrink-0">
         <div className="flex items-center gap-3">
@@ -687,11 +1087,34 @@ function PickingView({
             </svg>
           </button>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-sm font-black text-steel-900">{orden.numero}</h2>
-              <span className="text-xs text-steel-400 shrink-0">Cajero: {orden.cajero_nombre}</span>
+              <span className={clsx('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold',
+                STATUS_CONFIG[orden.estado].bg, STATUS_CONFIG[orden.estado].text)}>
+                {STATUS_CONFIG[orden.estado].label}
+              </span>
             </div>
-            <p className="text-[11px] text-steel-400">{orden.items.length} producto{orden.items.length !== 1 ? 's' : ''}</p>
+            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+              <span className="text-[10px] text-steel-400">{fmtTimeSince(orden.creado_en)}</span>
+              <span className="text-[10px] text-steel-300">·</span>
+              <span className="text-[10px] text-steel-400">{orden.items.length} línea{orden.items.length !== 1 ? 's' : ''}</span>
+              {kitGroups.size > 0 && (
+                <>
+                  <span className="text-[10px] text-steel-300">·</span>
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-brand-50 text-brand-700 text-[10px] font-bold">
+                    🧩 {[...kitGroups.values()].filter(g => g.kitCompleto).length} kit
+                  </span>
+                </>
+              )}
+              {[...kitGroups.values()].some(g => g.piezasSueltas) && (
+                <>
+                  <span className="text-[10px] text-steel-300">·</span>
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold">
+                    🔧 {[...kitGroups.values()].filter(g => g.piezasSueltas).map(g => g.piezasSueltas!.piezas_orden?.length ?? 0).reduce((a, b) => a + b, 0)} piezas sueltas
+                  </span>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -743,6 +1166,52 @@ function PickingView({
                         showListoBtn={false}
                         loading={false}
                         onListo={() => {}}
+                        onEditCantidad={() => abrirFaltanteModal(item.id, item.cantidad_pedida, item.cantidad_recogida)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Kits con piezas pendientes en con_faltantes */}
+              {kitGroups.size > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2 px-1">
+                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-wide">
+                      Kits ({kitGroups.size})
+                    </span>
+                    <div className="flex-1 h-px bg-indigo-200" />
+                  </div>
+                  <div className="space-y-2">
+                    {[...kitGroups.entries()].map(([kitProductoId, grupo]) => (
+                      <KitGroupCard
+                        key={kitProductoId}
+                        kitCompleto={grupo.kitCompleto}
+                        piezasSueltas={grupo.piezasSueltas}
+                        ordenId={orden.id}
+                        isReadOnly={false}
+                        loadingPiezas={loadingPiezas}
+                        onMarcarListoKit={(itemId) => handleListoIndividual(itemId)}
+                        onFaltanteKit={(itemId, cantidadPedida) => abrirFaltanteModal(itemId, cantidadPedida)}
+                        onConfirmarPieza={async (itemId, pieza) => {
+                          const key = `pieza-${pieza.id}`
+                          setLoadingPiezas(p => ({ ...p, [key]: true }))
+                          await onConfirmarPieza(itemId, pieza)
+                          setLoadingPiezas(p => ({ ...p, [key]: false }))
+                        }}
+                        onFaltantePieza={(itemId, pieza) => {
+                          setPiezaCantidadEncontrada(parsePiezaRecogida(pieza.nota_incompleto) ?? 0)
+                          setPiezaFaltanteModal({ itemId, pieza })
+                        }}
+                        onListoPieza={async (itemId, pieza) => {
+                          const key = `pieza-${pieza.id}`
+                          setLoadingPiezas(p => ({ ...p, [key]: true }))
+                          await onListoPiezaIndividual(itemId, pieza)
+                          setLoadingPiezas(p => ({ ...p, [key]: false }))
+                        }}
+                        onEditKit={(itemId, cantidadPedida, cantidadRecogida) =>
+                          abrirFaltanteModal(itemId, cantidadPedida, cantidadRecogida)
+                        }
                       />
                     ))}
                   </div>
@@ -767,40 +1236,36 @@ function PickingView({
               ))}
 
               {/* Grupos de kits */}
-              {Object.entries(gruposKit).map(([kitId, partes]) => (
-                <div key={kitId} className="rounded-xl border border-indigo-100 bg-indigo-50/50 overflow-hidden">
-                  <div className="px-4 py-2.5 bg-indigo-100 border-b border-indigo-200">
-                    <p className="text-xs font-bold text-indigo-700">Kit #{kitId}</p>
-                    <p className="text-[10px] text-indigo-500 mt-0.5">Kit — {partes.length} pieza{partes.length !== 1 ? 's' : ''}</p>
-                  </div>
-                  <div className="divide-y divide-indigo-100">
-                    {partes.map(item => (
-                      <div key={item.id} className="flex items-start gap-3 px-4 py-3">
-                        <div className="h-8 w-8 rounded-lg bg-white border border-indigo-200 flex items-center justify-center shrink-0">
-                          <svg className="h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                          </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-steel-700 leading-tight">{item.producto_nombre}</p>
-                          <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                            <span className="text-[11px] font-mono text-steel-400 bg-steel-50 px-1.5 py-0.5 rounded">
-                              {item.producto_codigo}
-                            </span>
-                            {(item.producto_almacen || item.producto_estante || item.producto_fila || item.producto_columna) && (
-                              <span className="text-[11px] text-steel-400">
-                                📦 {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}{item.producto_fila ? ` / ${item.producto_fila}` : ''}{item.producto_columna ? ` / ${item.producto_columna}` : ''}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-base font-black text-steel-800">×{item.cantidad_pedida}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              {[...kitGroups.entries()].map(([kitProductoId, grupo]) => (
+                <KitGroupCard
+                  key={kitProductoId}
+                  kitCompleto={grupo.kitCompleto}
+                  piezasSueltas={grupo.piezasSueltas}
+                  ordenId={orden.id}
+                  isReadOnly={isReadOnly}
+                  loadingPiezas={loadingPiezas}
+                  onMarcarListoKit={(itemId) => handleListoIndividual(itemId)}
+                  onFaltanteKit={(itemId, cantidadPedida) => abrirFaltanteModal(itemId, cantidadPedida)}
+                  onConfirmarPieza={async (itemId, pieza) => {
+                    const key = `pieza-${pieza.id}`
+                    setLoadingPiezas(p => ({ ...p, [key]: true }))
+                    await onConfirmarPieza(itemId, pieza)
+                    setLoadingPiezas(p => ({ ...p, [key]: false }))
+                  }}
+                  onFaltantePieza={(itemId, pieza) => {
+                    setPiezaCantidadEncontrada(parsePiezaRecogida(pieza.nota_incompleto) ?? 0)
+                    setPiezaFaltanteModal({ itemId, pieza })
+                  }}
+                  onListoPieza={async (itemId, pieza) => {
+                    const key = `pieza-${pieza.id}`
+                    setLoadingPiezas(p => ({ ...p, [key]: true }))
+                    await onListoPiezaIndividual(itemId, pieza)
+                    setLoadingPiezas(p => ({ ...p, [key]: false }))
+                  }}
+                  onEditKit={(itemId, cantidadPedida, cantidadRecogida) =>
+                    abrirFaltanteModal(itemId, cantidadPedida, cantidadRecogida)
+                  }
+                />
               ))}
             </>
           )}
@@ -1066,6 +1531,19 @@ export function AlmacenPage() {
     }
   }
 
+  const handleConfirmarPieza = async (itemId: string, pieza: PiezaOrden) => {
+    if (!pickingOrdenId) return
+    try {
+      await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Confirmar`, {
+        PrecioUnitario: pieza.precio_unitario ?? 0,
+      })
+      await loadOrdenes()
+      notify.success('Pieza confirmada')
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al confirmar pieza')
+    }
+  }
+
   const handleMarcarFaltanteIndividual = async (itemId: string, cantidadEncontrada: number) => {
     if (!pickingOrdenId) return
     try {
@@ -1074,6 +1552,57 @@ export function AlmacenPage() {
       notify.warning(cantidadEncontrada === 0 ? 'Producto marcado como faltante' : `Parcial: ${cantidadEncontrada} encontrado(s)`)
     } catch (e) {
       notify.error(e instanceof Error ? e.message : 'Error al marcar faltante')
+    }
+  }
+
+  const handleListoPiezaIndividual = async (itemId: string, pieza: PiezaOrden) => {
+    if (!pickingOrdenId) return
+    try {
+      await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`, null)
+      await loadOrdenes()
+      notify.success(`Pieza "${pieza.nombre}" marcada como lista`)
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al marcar pieza como lista')
+    }
+  }
+
+  const handleFaltantePiezaIndividual = async (itemId: string, pieza: PiezaOrden, cantidadEncontrada: number) => {
+    if (!pickingOrdenId) return
+    try {
+      if (cantidadEncontrada >= pieza.cantidad) {
+        // Encontró todas — revertir faltante y marcar pieza como lista
+        if (pieza.nota_incompleto) {
+          await api.delete(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Incompleto`)
+        }
+        // Marcar esta pieza como listo_almacenero (si no lo estaba ya)
+        if (!pieza.listo_almacenero) {
+          await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`, null)
+        }
+        await loadOrdenes()
+        // Verificar si TODAS las piezas del item están confirmadas o listas
+        const updatedOrden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)
+        const updatedItem = updatedOrden?.items.find(i => i.id === itemId)
+        const todasListas = updatedItem?.piezas_orden?.every(p => p.listo_almacenero || p.confirmado) ?? false
+        if (todasListas) {
+          await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/MarcarListoIndividual`, null)
+          markItemListoEnOrden(pickingOrdenId, itemId)
+          await loadOrdenes()
+          notify.success('Todas las piezas encontradas — ítem marcado como listo')
+        } else {
+          notify.success(`Pieza "${pieza.nombre}" encontrada`)
+        }
+      } else {
+        const nota = cantidadEncontrada > 0
+          ? `Encontró ${cantidadEncontrada} de ${pieza.cantidad}`
+          : 'Faltante'
+        await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Incompleto`, { Nota: nota })
+        await loadOrdenes()
+        notify.warning(cantidadEncontrada === 0
+          ? `Pieza "${pieza.nombre}" marcada como faltante`
+          : `Pieza "${pieza.nombre}" parcial: ${cantidadEncontrada} encontrada(s)`)
+      }
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al marcar pieza')
     }
   }
 
@@ -1098,6 +1627,9 @@ export function AlmacenPage() {
               onVolver={() => setPickingOrdenId(null)}
               onMarcarListoIndividual={handleMarcarListoIndividual}
               onMarcarFaltanteIndividual={handleMarcarFaltanteIndividual}
+              onConfirmarPieza={handleConfirmarPieza}
+              onFaltantePiezaIndividual={handleFaltantePiezaIndividual}
+              onListoPiezaIndividual={handleListoPiezaIndividual}
             />
           </div>
         ) : (

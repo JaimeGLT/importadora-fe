@@ -23,6 +23,7 @@ export interface OrdenItemPiezaAPI {
   cantidad: number
   precioUnitario: number
   confirmado: boolean
+  listoAlmacenero: boolean
   notaIncompleto: string | null
   pieza?: { nombre: string; codigoUniversal: string } | null
 }
@@ -133,6 +134,7 @@ export const MIS_ORDENES_QUERY = `
             cantidad
             precioUnitario
             confirmado
+            listoAlmacenero
             notaIncompleto
             pieza {
               nombre
@@ -208,6 +210,7 @@ export const ORDENES_PENDIENTES_QUERY = `
             cantidad
             precioUnitario
             confirmado
+            listoAlmacenero
             notaIncompleto
             pieza {
               nombre
@@ -283,6 +286,7 @@ export const MIS_ORDENES_ALMACEN_QUERY = `
             cantidad
             precioUnitario
             confirmado
+            listoAlmacenero
             notaIncompleto
             pieza {
               nombre
@@ -357,6 +361,7 @@ export const TODAS_ORDENES_QUERY = `
             cantidad
             precioUnitario
             confirmado
+            listoAlmacenero
             notaIncompleto
             pieza {
               nombre
@@ -432,6 +437,7 @@ function backendToItemOrden(api: OrdenItemAPI): ItemOrden {
     estado,
     nota: parseNotaUsuario(api.notaIncompleto),
     cantidad_recogida: parseCantidadRecogida(api.notaIncompleto),
+    es_kit: api.producto?.esKit ?? false,
     es_parcial: api.esParcial,
     piezas_orden: api.esParcial && api.piezas?.length
       ? api.piezas.map(p => ({
@@ -442,6 +448,8 @@ function backendToItemOrden(api: OrdenItemAPI): ItemOrden {
           cantidad: p.cantidad,
           precio_unitario: p.precioUnitario,
           confirmado: p.confirmado,
+          listo_almacenero: p.listoAlmacenero,
+          nota_incompleto: p.notaIncompleto,
         }))
       : undefined,
   }

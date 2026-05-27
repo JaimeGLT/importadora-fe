@@ -9,6 +9,7 @@ interface PiezaSeleccionada {
   stock: number
   cantidad: number
   cantidad_por_kit: number
+  precio: number
 }
 
 export type KitSeleccionResult =
@@ -26,6 +27,8 @@ interface KitSeleccionModalProps {
 export function KitSeleccionModal({ open, onClose, kit, onConfirm }: KitSeleccionModalProps) {
   const [cantidadKit, setCantidadKit] = useState(1)
   const [seleccionadas, setSeleccionadas] = useState<PiezaSeleccionada[]>([])
+  const [precios, setPrecios] = useState<Record<string, string>>({})
+  const [errorPrecios, setErrorPrecios] = useState(false)
 
   const stockDisponible = Math.max(0, kit.stock - (kit.stock_reservado ?? 0))
 
@@ -65,13 +68,25 @@ export function KitSeleccionModal({ open, onClose, kit, onConfirm }: KitSeleccio
   const tienePiezas = seleccionadas.length > 0
   const confirmDisabled = !tieneKit && !tienePiezas
 
+  const piezasConPrecio = (): PiezaSeleccionada[] =>
+    seleccionadas.map(s => ({ ...s, precio: parseFloat(precios[s.producto_id] ?? '0') || 0 }))
+
   const handleConfirm = () => {
+    if (tienePiezas) {
+      const sinPrecio = seleccionadas.some(s => !(parseFloat(precios[s.producto_id] ?? '0') > 0))
+      if (sinPrecio) {
+        setErrorPrecios(true)
+        return
+      }
+    }
+    setErrorPrecios(false)
+    const piezas = piezasConPrecio()
     if (tieneKit && tienePiezas) {
-      onConfirm({ tipo: 'ambos', cantidad_kit: cantidadKit, piezas: seleccionadas })
+      onConfirm({ tipo: 'ambos', cantidad_kit: cantidadKit, piezas })
     } else if (tieneKit) {
       onConfirm({ tipo: 'kit_completo', cantidad: cantidadKit })
     } else {
-      onConfirm({ tipo: 'piezas_sueltas', piezas: seleccionadas })
+      onConfirm({ tipo: 'piezas_sueltas', piezas })
     }
     handleClose()
   }
@@ -79,6 +94,8 @@ export function KitSeleccionModal({ open, onClose, kit, onConfirm }: KitSeleccio
   const handleClose = () => {
     setCantidadKit(1)
     setSeleccionadas([])
+    setPrecios({})
+    setErrorPrecios(false)
     onClose()
   }
 
@@ -162,50 +179,81 @@ export function KitSeleccionModal({ open, onClose, kit, onConfirm }: KitSeleccio
               )}
             </p>
           </div>
+          {errorPrecios && (
+            <p className="text-xs text-red-500 font-medium px-4 pb-2">Ingresá precio para todas las piezas</p>
+          )}
           {piezasKit.length === 0 ? (
             <p className="text-sm text-steel-400 text-center py-6 px-4">Este kit no tiene piezas registradas</p>
           ) : (
-            <div className="divide-y divide-steel-100 max-h-64 overflow-y-auto">
+            <div className="divide-y divide-steel-100 max-h-72 overflow-y-auto">
               {piezasKit.map(pieza => {
                 const sel = seleccionadas.find(s => s.producto_id === pieza.producto_id)
                 const checked = !!sel
                 const sinStock = pieza.stock === 0
+                const precioVal = precios[pieza.producto_id] ?? ''
+                const precioInvalido = errorPrecios && checked && !(parseFloat(precioVal) > 0)
 
                 return (
                   <div
                     key={pieza.producto_id}
-                    className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+                    className={`px-4 py-3 transition-colors ${
                       checked ? 'bg-blue-50' : sinStock ? 'opacity-50' : 'hover:bg-steel-50'
                     }`}
                   >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      disabled={sinStock && !checked}
-                      onChange={() => togglePieza(pieza.producto_id)}
-                      className="h-4 w-4 rounded border-steel-300 text-brand-600 shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-steel-800 truncate">{pieza.nombre}</p>
-                      <p className="text-[10px] text-steel-400">
-                        {pieza.codigo} · Stock: {pieza.stock} · {pieza.cantidad_por_kit}× por kit
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={sinStock && !checked}
+                        onChange={() => {
+                          togglePieza(pieza.producto_id)
+                          setErrorPrecios(false)
+                        }}
+                        className="h-4 w-4 rounded border-steel-300 text-brand-600 shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-steel-800 truncate">{pieza.nombre}</p>
+                        <p className="text-[10px] text-steel-400">
+                          {pieza.codigo} · Stock: {pieza.stock} · {pieza.cantidad_por_kit}× por kit
+                        </p>
+                      </div>
+                      {checked && (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => updateCantidadPieza(pieza.producto_id, (sel?.cantidad ?? 1) - 1)}
+                            className="h-7 w-7 rounded border border-steel-200 flex items-center justify-center text-steel-500 hover:bg-steel-100"
+                          >
+                            −
+                          </button>
+                          <span className="w-8 text-center text-sm font-medium">{sel?.cantidad ?? 1}</span>
+                          <button
+                            onClick={() => updateCantidadPieza(pieza.producto_id, (sel?.cantidad ?? 1) + 1)}
+                            className="h-7 w-7 rounded border border-steel-200 flex items-center justify-center text-steel-500 hover:bg-steel-100"
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
                     </div>
                     {checked && (
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => updateCantidadPieza(pieza.producto_id, (sel?.cantidad ?? 1) - 1)}
-                          className="h-7 w-7 rounded border border-steel-200 flex items-center justify-center text-steel-500 hover:bg-steel-100"
-                        >
-                          −
-                        </button>
-                        <span className="w-8 text-center text-sm font-medium">{sel?.cantidad ?? 1}</span>
-                        <button
-                          onClick={() => updateCantidadPieza(pieza.producto_id, (sel?.cantidad ?? 1) + 1)}
-                          className="h-7 w-7 rounded border border-steel-200 flex items-center justify-center text-steel-500 hover:bg-steel-100"
-                        >
-                          +
-                        </button>
+                      <div className="mt-2 flex items-center gap-2 pl-7">
+                        <label className="text-xs text-steel-500 shrink-0">Precio (Bs)</label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          placeholder="0.00"
+                          value={precioVal}
+                          onChange={e => {
+                            setPrecios(prev => ({ ...prev, [pieza.producto_id]: e.target.value }))
+                            setErrorPrecios(false)
+                          }}
+                          className={`w-28 rounded-lg border px-2 py-1 text-sm text-right focus:outline-none focus:ring-2 ${
+                            precioInvalido
+                              ? 'border-red-400 focus:ring-red-300'
+                              : 'border-steel-200 focus:ring-brand-300'
+                          }`}
+                        />
                       </div>
                     )}
                   </div>

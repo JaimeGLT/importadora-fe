@@ -581,8 +581,11 @@ export function EscaneoPage() {
     }
   }, [selectedOrden?.id])
 
+  // Ítems que el almacenero encontró (total o parcialmente) — van a la sección de escaneo
   const itemsParaEscanear = useMemo(
-    () => selectedOrden?.items.filter((i) => i.estado !== 'faltante') ?? [],
+    () => selectedOrden?.items.filter(i =>
+      i.estado !== 'faltante' || (i.cantidad_recogida ?? 0) > 0
+    ) ?? [],
     [selectedOrden],
   )
 
@@ -602,6 +605,8 @@ export function EscaneoPage() {
     itemsEscaneables.every(i => isItemConfirmed(i)) &&
     itemsParaEscanear.every(i => i.estado !== 'pendiente')
 
+  // Solo los faltantes totales (0 encontrados) van tachados abajo
+  // Los parciales también aparecen tachados pero solo por la cantidad faltante
   const faltanteItems = useMemo(
     () => selectedOrden?.items.filter(i => i.estado === 'faltante') ?? [],
     [selectedOrden]
@@ -609,7 +614,10 @@ export function EscaneoPage() {
   const faltantesCount = faltanteItems.length
 
   const totalSinFaltantes = useMemo(
-    () => itemsParaEscanear.reduce((s, i) => s + i.precio_unitario * i.cantidad_pedida, 0),
+    () => itemsParaEscanear.reduce((s, i) => {
+      const qty = i.estado === 'faltante' ? (i.cantidad_recogida ?? 0) : i.cantidad_pedida
+      return s + i.precio_unitario * qty
+    }, 0),
     [itemsParaEscanear]
   )
 
@@ -1051,6 +1059,9 @@ export function EscaneoPage() {
                         }
 
                         // Ítem normal
+                        const isParcialFaltante = item.estado === 'faltante' && (item.cantidad_recogida ?? 0) > 0
+                        const cantidadEscanear = isParcialFaltante ? (item.cantidad_recogida ?? 0) : item.cantidad_pedida
+
                         return (
                           <div
                             key={item.id}
@@ -1059,18 +1070,21 @@ export function EscaneoPage() {
                               isFlashing ? 'border-emerald-400 bg-emerald-100 scale-[1.01]' :
                               confirmed ? 'border-emerald-200 bg-emerald-50/40' :
                               isPendiente ? 'border-amber-100 bg-amber-50/30' :
+                              isParcialFaltante ? 'border-orange-200 bg-orange-50/30' :
                               'border-steel-200 bg-white'
                             )}
                           >
                             {/* Icono */}
                             <div className={clsx(
                               'h-8 w-8 rounded-full flex items-center justify-center shrink-0',
-                              confirmed ? 'bg-emerald-100' : isPendiente ? 'bg-amber-100' : 'bg-steel-100'
+                              confirmed ? 'bg-emerald-100' : isPendiente ? 'bg-amber-100' : isParcialFaltante ? 'bg-orange-100' : 'bg-steel-100'
                             )}>
                               {confirmed ? (
                                 <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                               ) : isPendiente ? (
                                 <svg className="h-4 w-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                              ) : isParcialFaltante ? (
+                                <svg className="h-4 w-4 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                               ) : (
                                 <svg className="h-4 w-4 text-steel-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
                               )}
@@ -1079,7 +1093,7 @@ export function EscaneoPage() {
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-mono text-steel-400 leading-none">{item.producto_codigo}</p>
                               <p className="text-sm font-semibold text-steel-800 leading-snug truncate">
-                                {item.producto_nombre} · ×{item.cantidad_pedida}
+                                {item.producto_nombre} · ×{cantidadEscanear}
                                 {isKit && !isPendiente && (
                                   <span className={clsx('ml-1.5 text-[10px] font-bold px-1 py-0.5 rounded align-middle', isParcialKit ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700')}>
                                     {isParcialKit ? 'Parcial' : 'Kit'}
@@ -1141,18 +1155,22 @@ export function EscaneoPage() {
                     <div className="px-6 pt-3 pb-4">
                       <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-3">Faltantes (no se cobran)</p>
                       <div className="space-y-2">
-                        {faltanteItems.map(item => (
-                          <div key={item.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-red-100 bg-red-50/30">
-                            <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                              <svg className="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        {faltanteItems.map(item => {
+                          const recogida = item.cantidad_recogida ?? 0
+                          const cantidadFaltante = item.cantidad_pedida - recogida
+                          return (
+                            <div key={item.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-red-100 bg-red-50/30">
+                              <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                                <svg className="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-mono text-steel-300 line-through leading-none">{item.producto_codigo}</p>
+                                <p className="text-sm text-steel-400 line-through leading-snug truncate">{item.producto_nombre} · ×{cantidadFaltante}</p>
+                              </div>
+                              <span className="px-2.5 py-1 rounded-lg bg-steel-100 text-steel-500 text-xs font-bold shrink-0">No disponible</span>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-mono text-steel-300 line-through leading-none">{item.producto_codigo}</p>
-                              <p className="text-sm text-steel-400 line-through leading-snug truncate">{item.producto_nombre} · ×{item.cantidad_pedida}</p>
-                            </div>
-                            <span className="px-2.5 py-1 rounded-lg bg-steel-100 text-steel-500 text-xs font-bold shrink-0">No disponible</span>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                   )}

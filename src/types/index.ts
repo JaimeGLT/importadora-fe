@@ -359,6 +359,8 @@ export interface PiezaOrden {
   cantidad: number
   precio_unitario?: number
   confirmado?: boolean
+  listo_almacenero?: boolean
+  nota_incompleto?: string | null
 }
 
 export interface ItemOrden {
@@ -379,6 +381,7 @@ export interface ItemOrden {
   nota?: string
   diferencia_kit?: number
   kit_id?: string
+  es_kit?: boolean
   es_parcial?: boolean
   piezas_orden?: PiezaOrden[]
 }
