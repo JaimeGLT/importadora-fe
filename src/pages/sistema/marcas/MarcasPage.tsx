@@ -57,8 +57,8 @@ export function MarcasPage() {
         updateMarca(editingMarca.id, nombre)
         notify.success('Marca actualizada')
       } else {
-        const res = await api.post<{ id: number; nombre: string }>('/marca', { nombre })
-        addMarca(backendToMarca({ id: res.id, nombre: res.nombre }))
+        const res = await api.post<{ id: number; nombre: string; prefijo: string }>('/marca', { nombre })
+        addMarca(backendToMarca({ id: res.id, nombre: res.nombre, prefijo: res.prefijo }))
         notify.success('Marca creada')
       }
       setFormOpen(false)
@@ -185,6 +185,7 @@ export function MarcasPage() {
               <table className="w-full">
                 <thead className="bg-[#f1f5f9]">
                   <tr className="border-b border-[#e2e8f0]">
+                    <th className="px-5 py-3 text-left text-[11px] font-bold text-[#9996b0] uppercase tracking-wide w-28">Prefijo</th>
                     <th className="px-5 py-3 text-left text-[11px] font-bold text-[#9996b0] uppercase tracking-wide">Nombre</th>
                     <th className="px-5 py-3 text-right text-[11px] font-bold text-[#9996b0] uppercase tracking-wide">Acciones</th>
                   </tr>
@@ -192,6 +193,11 @@ export function MarcasPage() {
                 <tbody className="divide-y divide-[#e2e8f0]">
                   {filtered.map((m) => (
                     <tr key={m.id} className="hover:bg-[#faf9ff] transition-colors">
+                      <td className="px-5 py-3.5">
+                        <span className="font-mono text-xs font-bold text-[#5a5670] bg-[#f1f5f9] border border-[#e2e8f0] px-2 py-0.5 rounded-md">
+                          {m.prefijo}
+                        </span>
+                      </td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2.5">
                           <div className="w-7 h-7 rounded-lg bg-[#dbeafe] flex items-center justify-center shrink-0">

@@ -427,6 +427,8 @@ function backendToItemOrden(api: OrdenItemAPI): ItemOrden {
     producto_id: String(api.id_Producto),
     producto_codigo: api.producto?.codigo ?? '',
     producto_nombre: api.producto?.nombre ?? '',
+    marcaId: api.producto?.marca?.id ?? null,
+    marca_nombre: api.producto?.marca?.nombre ?? '',
     producto_almacen: loc.almacen,
     producto_estante: loc.estante,
     producto_fila: loc.fila,
@@ -450,6 +452,7 @@ function backendToItemOrden(api: OrdenItemAPI): ItemOrden {
           confirmado: p.confirmado,
           listo_almacenero: p.listoAlmacenero,
           nota_incompleto: p.notaIncompleto,
+          cantidad_recogida: parseCantidadRecogida(p.notaIncompleto),
         }))
       : undefined,
   }

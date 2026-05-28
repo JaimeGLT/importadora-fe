@@ -10,15 +10,17 @@ export const MARCAS_QUERY = `
       nodes {
         id
         nombre
+        prefijo
       }
     }
   }
 `
 
-export function backendToMarca(b: { id: number; nombre: string; creado_en?: string }): Marca {
+export function backendToMarca(b: { id: number; nombre: string; prefijo?: string; creado_en?: string }): Marca {
   return {
     id: b.id,
     nombre: b.nombre,
+    prefijo: b.prefijo ?? '',
     creado_en: b.creado_en ?? '',
   }
 }

@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useVentasStore } from '@/stores/ventasStore'
+import { useMarcasStore } from '@/stores/marcasStore'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
 import { Button, Input } from '@/components/ui'
 import type { ItemOrden, PiezaOrden, Producto, AgregarItemOrdenResponse } from '@/types'
@@ -10,6 +11,7 @@ import { api } from '@/lib/api'
 import { gql } from '@/lib/graphql'
 import { PRODUCTOS_QUERY, backendToProductoSimple, type ProductoAPI } from '@/lib/queries/inventario.queries'
 import { MIS_ORDENES_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
+import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
 import { useVentasHub } from '@/hooks/useVentasHub'
 import { clsx } from 'clsx'
 
@@ -56,8 +58,13 @@ function LineSelectionModal({
                     {idx + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-semibold text-steel-800 truncate">{item.producto_nombre}</p>
+                      {item.marca_nombre && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand-50 text-brand-700 shrink-0">
+                          {item.marca_nombre}
+                        </span>
+                      )}
                       {isKit && (
                         <span className={clsx(
                           'text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0',
@@ -116,6 +123,9 @@ function ScanConfirmModal({
   const isKit = !!item.kit_id
   const isParcial = !!item.es_parcial
   const precioValido = isParcial || !isKit || (parseFloat(precio) > 0)
+  const esFaltanteParcial = item.estado === 'faltante' && (item.cantidad_recogida ?? 0) > 0
+  const cantidadMostrar = esFaltanteParcial ? item.cantidad_recogida! : item.cantidad_pedida
+  const labelCantidad = esFaltanteParcial ? 'Cantidad encontrada' : 'Cantidad pedida'
   const ubicacion = [item.producto_almacen, item.producto_estante, item.producto_fila, item.producto_columna]
     .filter(Boolean).join(' › ')
 
@@ -158,8 +168,8 @@ function ScanConfirmModal({
           </div>
 
           <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-steel-50 border border-steel-100">
-            <span className="text-xs text-steel-500">Cantidad pedida</span>
-            <span className="text-sm font-black text-steel-800">× {item.cantidad_pedida}</span>
+            <span className="text-xs text-steel-500">{labelCantidad}</span>
+            <span className="text-sm font-black text-steel-800">× {cantidadMostrar}</span>
           </div>
 
           {isKit && !isParcial && (
@@ -204,18 +214,21 @@ function ScanConfirmModal({
 
 function ScanNotInOrderModal({
   code,
-  producto,
+  productos,
   onAgregar,
   onDescartar,
   loading,
 }: {
   code: string
-  producto: Producto | null
-  onAgregar: (cantidad: number) => void
+  productos: Producto[]
+  onAgregar: (producto: Producto, cantidad: number) => void
   onDescartar: () => void
   loading: boolean
 }) {
+  const [selected, setSelected] = useState<Producto | null>(productos.length === 1 ? productos[0] : null)
   const [cantidad, setCantidad] = useState('1')
+
+  const producto = selected
   const stockDisponible = producto ? producto.stock - (producto.stock_reservado ?? 0) : 0
   const cantidadNum = parseInt(cantidad) || 0
   const puedeAgregar = producto && !producto.es_kit && cantidadNum >= 1 && cantidadNum <= stockDisponible
@@ -223,11 +236,11 @@ function ScanNotInOrderModal({
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onDescartar()
-      if (e.key === 'Enter' && puedeAgregar && !loading) onAgregar(cantidadNum)
+      if (e.key === 'Enter' && puedeAgregar && !loading) onAgregar(producto!, cantidadNum)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [puedeAgregar, loading, cantidadNum, onAgregar, onDescartar])
+  }, [puedeAgregar, loading, cantidadNum, onAgregar, onDescartar, producto])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -248,23 +261,55 @@ function ScanNotInOrderModal({
         </div>
 
         <div className="p-5 space-y-3">
-          {!producto ? (
+          {productos.length === 0 ? (
             <div className="px-3 py-2.5 rounded-lg bg-steel-50 border border-steel-100">
               <p className="text-sm text-steel-500">Código no reconocido en el inventario.</p>
             </div>
-          ) : (
+          ) : !selected && productos.length > 1 ? (
+            /* Selector de marca */
             <>
-              <div>
-                <p className="text-sm font-bold text-steel-900">{producto.nombre}</p>
-                <p className="text-xs font-mono text-steel-400 mt-0.5">{producto.codigo_universal}</p>
+              <p className="text-xs text-steel-500">Este código existe con {productos.length} marcas distintas. ¿Cuál es?</p>
+              <div className="space-y-2">
+                {productos.map(p => {
+                  const disp = p.stock - (p.stock_reservado ?? 0)
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => { setSelected(p); setCantidad('1') }}
+                      disabled={p.es_kit || disp <= 0}
+                      className="w-full text-left p-3 rounded-xl border border-steel-100 hover:border-brand-300 hover:bg-brand-50/50 transition-all disabled:opacity-40"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-steel-800 truncate">{p.nombre}</p>
+                          <p className="text-[11px] font-mono text-steel-400 mt-0.5">{p.codigo_universal}</p>
+                        </div>
+                        <span className={clsx('text-xs font-bold shrink-0', disp > 0 ? 'text-emerald-600' : 'text-red-500')}>
+                          {disp} uds.
+                        </span>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          ) : producto ? (
+            <>
+              <div className="flex items-center gap-2">
+                {productos.length > 1 && (
+                  <button onClick={() => setSelected(null)} className="p-1 rounded-lg text-steel-400 hover:text-steel-600 hover:bg-steel-100 transition-colors shrink-0">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                  </button>
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-steel-900">{producto.nombre}</p>
+                  <p className="text-xs font-mono text-steel-400 mt-0.5">{producto.codigo_universal}</p>
+                </div>
               </div>
 
               <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-steel-50 border border-steel-100">
                 <span className="text-xs text-steel-500">Stock disponible</span>
-                <span className={clsx(
-                  'text-sm font-bold',
-                  stockDisponible > 0 ? 'text-steel-800' : 'text-red-600'
-                )}>
+                <span className={clsx('text-sm font-bold', stockDisponible > 0 ? 'text-steel-800' : 'text-red-600')}>
                   {stockDisponible} uds.
                 </span>
               </div>
@@ -287,7 +332,7 @@ function ScanNotInOrderModal({
                 />
               )}
             </>
-          )}
+          ) : null}
         </div>
 
         <div className="px-5 pb-5 flex gap-2">
@@ -297,12 +342,87 @@ function ScanNotInOrderModal({
           {producto && !producto.es_kit && stockDisponible > 0 && (
             <Button
               className="flex-1"
-              onClick={() => onAgregar(cantidadNum)}
+              onClick={() => onAgregar(producto!, cantidadNum)}
               disabled={loading || !puedeAgregar}
             >
               {loading ? 'Agregando…' : 'Agregar al pedido'}
             </Button>
           )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── PiezaScanPriceModal ──────────────────────────────────────────────────────
+
+function PiezaScanPriceModal({
+  pieza,
+  onConfirm,
+  onCancel,
+  loading,
+}: {
+  pieza: PiezaOrden
+  onConfirm: (precio: number) => void
+  onCancel: () => void
+  loading: boolean
+}) {
+  const [precio, setPrecio] = useState(pieza.precio_unitario ? pieza.precio_unitario.toFixed(2) : '')
+  const precioNum = parseFloat(precio)
+  const valido = !isNaN(precioNum) && precioNum > 0
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+      if (e.key === 'Enter' && !loading && valido) onConfirm(precioNum)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [loading, valido, precioNum, onConfirm, onCancel])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !loading && onCancel()} />
+      <div className="relative z-10 w-full max-w-sm bg-white rounded-xl shadow-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-steel-100">
+          <div className="flex items-center gap-2 mb-0.5">
+            <h3 className="text-sm font-bold text-steel-900">Confirmar pieza</h3>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-100 text-violet-700">
+              Pieza de kit
+            </span>
+          </div>
+          <p className="text-xs font-mono text-steel-400">{pieza.codigo}</p>
+        </div>
+
+        <div className="p-5 space-y-3">
+          <p className="text-base font-bold text-steel-900">{pieza.nombre}</p>
+          <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-steel-50 border border-steel-100">
+            <span className="text-xs text-steel-500">Cantidad</span>
+            <span className="text-sm font-black text-steel-800">× {pieza.cantidad}</span>
+          </div>
+          <Input
+            label="Precio unitario (Bs)"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="0.00"
+            value={precio}
+            onChange={e => setPrecio(e.target.value)}
+            autoFocus
+          />
+        </div>
+
+        <div className="px-5 pb-5 flex gap-2">
+          <Button variant="secondary" className="flex-1" onClick={onCancel} disabled={loading}>
+            Cancelar
+          </Button>
+          <Button
+            className="flex-1"
+            onClick={() => onConfirm(precioNum)}
+            disabled={loading || !valido}
+          >
+            {loading ? 'Confirmando…' : 'Confirmar'}
+          </Button>
         </div>
       </div>
     </div>
@@ -479,6 +599,7 @@ function AgregarProductoModal({
 export function EscaneoPage() {
   const { isTokenReady } = useAuth()
   const { ordenes, setOrdenes, updateOrden, addItemToOrden, removeItemFromOrden, updateItemQtyInOrden, markItemListoEnOrden, updateItemEstadoEnOrden } = useVentasStore()
+  const { marcas, setMarcas } = useMarcasStore()
   const [selectedOrdenId, setSelectedOrdenId] = useState<string | null>(null)
   const [loadingOrdenes, setLoadingOrdenes] = useState(false)
   const [confirmedItemIds, setConfirmedItemIds] = useState<Set<string>>(new Set())
@@ -496,15 +617,27 @@ export function EscaneoPage() {
   const [piezaLoading, setPiezaLoading] = useState<Record<number, boolean>>({})
   const [confirmedPiezaPrices, setConfirmedPiezaPrices] = useState<Record<number, number>>({})
   const [confirmedPiezaIds, setConfirmedPiezaIds] = useState<Set<number>>(new Set())
-  const [notInOrderProducto, setNotInOrderProducto] = useState<Producto | null>(null)
+  const [notInOrderProductos, setNotInOrderProductos] = useState<Producto[]>([])
+  const [pendingNotInOrderMarcaId, setPendingNotInOrderMarcaId] = useState<number | null>(null)
+  const [pendingPiezaScan, setPendingPiezaScan] = useState<{ item: ItemOrden; pieza: PiezaOrden } | null>(null)
+  const [scanCounts, setScanCounts] = useState<Record<string, number>>({})
   const scanInputRef = useRef<HTMLInputElement>(null)
 
-  // Buscar producto por código cuando se escanea algo fuera de la orden
+  // Cargar marcas al montar si el store está vacío (necesario para detección de prefijos)
   useEffect(() => {
-    if (!pendingNotInOrderCode || !isTokenReady) { setNotInOrderProducto(null); return }
+    if (!isTokenReady || marcas.length > 0) return
+    gql<{ marca: { nodes: Array<{ id: number; nombre: string; prefijo: string }> } }>(MARCAS_QUERY)
+      .then(res => setMarcas((res.marca?.nodes ?? []).map(backendToMarca)))
+      .catch(() => {})
+  }, [isTokenReady, marcas.length, setMarcas])
+
+  // Buscar productos por código cuando se escanea algo fuera de la orden
+  useEffect(() => {
+    if (!pendingNotInOrderCode || !isTokenReady) { setNotInOrderProductos([]); return }
     const code = pendingNotInOrderCode
+    const marcaFiltro = pendingNotInOrderMarcaId
     gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTOS_QUERY, {
-      first: 1,
+      first: 10,
       where: {
         or: [
           { codigo: { eq: code } },
@@ -513,9 +646,16 @@ export function EscaneoPage() {
         ],
       },
     })
-      .then(res => setNotInOrderProducto((res.productos?.nodes ?? []).map(backendToProductoSimple)[0] ?? null))
-      .catch(() => setNotInOrderProducto(null))
-  }, [pendingNotInOrderCode, isTokenReady])
+      .then(res => {
+        let productos = (res.productos?.nodes ?? []).map(backendToProductoSimple)
+        // Si se escaneó con prefijo de marca, filtrar directamente por esa marca
+        if (marcaFiltro !== null) {
+          productos = productos.filter(p => p.marcaId === marcaFiltro)
+        }
+        setNotInOrderProductos(productos)
+      })
+      .catch(() => setNotInOrderProductos([]))
+  }, [pendingNotInOrderCode, pendingNotInOrderMarcaId, isTokenReady])
 
   const { joinGrupo } = useVentasHub({
     onItemListoParaScaneo: useCallback((p: { ordenId: number; itemId: number }) => {
@@ -583,9 +723,15 @@ export function EscaneoPage() {
 
   // Ítems que el almacenero encontró (total o parcialmente) — van a la sección de escaneo
   const itemsParaEscanear = useMemo(
-    () => selectedOrden?.items.filter(i =>
-      i.estado !== 'faltante' || (i.cantidad_recogida ?? 0) > 0
-    ) ?? [],
+    () => selectedOrden?.items.filter(i => {
+      if (i.estado !== 'faltante') return true
+      if (i.es_parcial && i.piezas_orden?.length)
+        return i.piezas_orden.some(p =>
+          (p.listo_almacenero && !p.nota_incompleto) ||
+          (!!p.nota_incompleto && (p.cantidad_recogida ?? 0) > 0)
+        )
+      return (i.cantidad_recogida ?? 0) > 0
+    }) ?? [],
     [selectedOrden],
   )
 
@@ -596,7 +742,9 @@ export function EscaneoPage() {
 
   const isItemConfirmed = (item: ItemOrden) => {
     if (item.es_parcial && item.piezas_orden?.length) {
-      return item.piezas_orden.every(p => confirmedPiezaIds.has(p.id) || !!p.confirmado)
+      return item.piezas_orden.every(p =>
+        confirmedPiezaIds.has(p.id) || !!p.confirmado || !!p.nota_incompleto
+      )
     }
     return confirmedItemIds.has(item.id)
   }
@@ -608,10 +756,24 @@ export function EscaneoPage() {
   // Solo los faltantes totales (0 encontrados) van tachados abajo
   // Los parciales también aparecen tachados pero solo por la cantidad faltante
   const faltanteItems = useMemo(
-    () => selectedOrden?.items.filter(i => i.estado === 'faltante') ?? [],
+    () => selectedOrden?.items.filter(i => i.estado === 'faltante' && !i.es_parcial) ?? [],
     [selectedOrden]
   )
-  const faltantesCount = faltanteItems.length
+
+  const faltantePiezas = useMemo(() => {
+    const result: Array<{ itemNombre: string; pieza: PiezaOrden }> = []
+    for (const item of selectedOrden?.items ?? []) {
+      if (!item.es_parcial || !item.piezas_orden?.length) continue
+      for (const pieza of item.piezas_orden) {
+        if (pieza.nota_incompleto && !(pieza.cantidad_recogida ?? 0)) {
+          result.push({ itemNombre: item.producto_nombre, pieza })
+        }
+      }
+    }
+    return result
+  }, [selectedOrden])
+
+  const faltantesCount = faltanteItems.length + faltantePiezas.length
 
   const totalSinFaltantes = useMemo(
     () => itemsParaEscanear.reduce((s, i) => {
@@ -661,7 +823,7 @@ export function EscaneoPage() {
 
   const handleConfirmarPieza = async (item: ItemOrden, pieza: PiezaOrden) => {
     if (!selectedOrden) return
-    const precio = parseFloat(piezaPrecios[pieza.id] ?? '')
+    const precio = parseFloat(piezaPrecios[pieza.id] ?? String(pieza.precio_unitario ?? ''))
     if (isNaN(precio) || precio <= 0) { notify.warning('Ingresa un precio válido'); return }
     setPiezaLoading(prev => ({ ...prev, [pieza.id]: true }))
     try {
@@ -733,14 +895,30 @@ export function EscaneoPage() {
   const handleScan = (code: string) => {
     if (!selectedOrden) return
     // Guard: ignore scan if any modal is open
-    if (pendingConfirmItem || pendingNotInOrderCode !== null || selectMultipleMatches.length > 0) return
+    if (pendingConfirmItem || pendingNotInOrderCode !== null || selectMultipleMatches.length > 0 || pendingPiezaScan) return
 
-    const codeLower = code.toLowerCase().trim()
-    const matched = itemsEscaneables.filter(
-      (i) =>
-        i.producto_codigo.toLowerCase() === codeLower ||
-        i.producto_id.toLowerCase() === codeLower,
-    )
+    // Detectar formato PREFIJO-CODIGOUNIVERSAL
+    const dashIdx = code.indexOf('-')
+    let resolvedCode = code
+    let resolvedMarcaId: number | null = null
+    if (dashIdx > 0) {
+      const prefix = code.slice(0, dashIdx).toUpperCase()
+      const rawCode = code.slice(dashIdx + 1)
+      const marcaByPrefijo = marcas.find(m => m.prefijo.toUpperCase() === prefix)
+      if (marcaByPrefijo) {
+        resolvedCode = rawCode
+        resolvedMarcaId = marcaByPrefijo.id
+      }
+    }
+
+    const codeLower = resolvedCode.toLowerCase().trim()
+    const matched = itemsEscaneables.filter((i) => {
+      const codeMatch = i.producto_codigo.toLowerCase() === codeLower || i.producto_id.toLowerCase() === codeLower
+      if (!codeMatch) return false
+      // Si se detectó prefijo de marca, filtrar también por marcaId
+      if (resolvedMarcaId !== null) return i.marcaId === resolvedMarcaId
+      return true
+    })
 
     if (matched.length > 1) {
       setSelectMultipleMatches(matched)
@@ -749,21 +927,74 @@ export function EscaneoPage() {
 
     if (matched.length === 1) {
       const item = matched[0]
+      // Ítems parciales: el código del kit padre no es escaneable directamente
+      if (item.es_parcial) {
+        notify.warning('Escanea el código de cada pieza individualmente')
+        return
+      }
       if (confirmedItemIds.has(item.id)) {
         notify.warning('Este ítem ya fue confirmado')
         return
       }
-      // Kit no-parcial: auto-confirmar sin modal
+      // Kit no-parcial: una pasada confirma todo
       if (item.kit_id && !item.es_parcial) {
         autoConfirmarItem(item)
         return
       }
-      setPendingConfirmItem(item)
+      // Kit parcial: abrir modal
+      if (item.kit_id && item.es_parcial) {
+        setPendingConfirmItem(item)
+        return
+      }
+      // Producto regular: contar de a 1
+      const targetQty = item.estado === 'faltante'
+        ? (item.cantidad_recogida ?? 0)
+        : item.cantidad_pedida
+      const current = scanCounts[item.id] ?? 0
+      const next = current + 1
+
+      playConfirmBeep()
+      setFlashItemId(item.id)
+      setTimeout(() => setFlashItemId(null), 600)
+
+      if (next >= targetQty) {
+        // Última unidad → confirmar en backend y limpiar contador
+        setScanCounts(prev => { const n = { ...prev }; delete n[item.id]; return n })
+        autoConfirmarItem(item)
+      } else {
+        setScanCounts(prev => ({ ...prev, [item.id]: next }))
+      }
       return
     }
 
-    // Not found in order
-    setPendingNotInOrderCode(code)
+    // Buscar si el código pertenece a una pieza de un kit parcial
+    const piezaFound = itemsEscaneables
+      .flatMap(i => (i.piezas_orden ?? []).map(p => ({ item: i, pieza: p })))
+      .find(({ pieza }) => pieza.codigo.toLowerCase() === codeLower)
+
+    if (piezaFound) {
+      const { item, pieza } = piezaFound
+      if (confirmedPiezaIds.has(pieza.id) || pieza.confirmado) {
+        notify.warning(`${pieza.nombre} ya fue confirmada`)
+        return
+      }
+      if (pieza.nota_incompleto && !(pieza.cantidad_recogida ?? 0)) {
+        notify.warning(`${pieza.nombre} está marcada como faltante`)
+        return
+      }
+      if (pieza.precio_unitario && pieza.precio_unitario > 0) {
+        // Precio conocido → auto-confirmar
+        handleConfirmarPieza(item, pieza)
+      } else {
+        // Sin precio → pedir precio
+        setPendingPiezaScan({ item, pieza })
+      }
+      return
+    }
+
+    // Not found in order — si hay prefijo de marca, la query filtrará por esa marca (sin selector)
+    setPendingNotInOrderMarcaId(resolvedMarcaId)
+    setPendingNotInOrderCode(resolvedCode)
   }
 
   const handleSelectMatch = (item: ItemOrden) => {
@@ -798,23 +1029,23 @@ export function EscaneoPage() {
     }
   }
 
-  const handleAgregarItem = async (cantidad: number) => {
-    if (!pendingNotInOrderCode || !selectedOrden || !notInOrderProducto) return
+  const handleAgregarItem = async (producto: Producto, cantidad: number) => {
+    if (!pendingNotInOrderCode || !selectedOrden) return
     setAgregarLoading(true)
     try {
       const res = await api.post<AgregarItemOrdenResponse>(
         `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
-        { Id_Producto: parseInt(notInOrderProducto.id), Cantidad: cantidad }
+        { Id_Producto: parseInt(producto.id), Cantidad: cantidad }
       )
       const newItem: ItemOrden = {
         id: String(res.id),
         producto_id: String(res.id_Producto),
         producto_codigo: res.producto.codigo,
         producto_nombre: res.producto.nombre,
-        producto_almacen: notInOrderProducto.almacen,
-        producto_estante: notInOrderProducto.estante,
-        producto_fila: notInOrderProducto.fila,
-        producto_columna: notInOrderProducto.columna,
+        producto_almacen: producto.almacen,
+        producto_estante: producto.estante,
+        producto_fila: producto.fila,
+        producto_columna: producto.columna,
         cantidad_pedida: res.cantidad,
         precio_unitario: res.precioUnitario,
         subtotal: res.precioUnitario * res.cantidad,
@@ -823,6 +1054,7 @@ export function EscaneoPage() {
       addItemToOrden(selectedOrden.id, newItem)
       notify.info(`${newItem.producto_nombre} agregado a la orden`)
       setPendingNotInOrderCode(null)
+      setPendingNotInOrderMarcaId(null)
       setPendingConfirmItem(newItem)
     } catch (err) {
       notify.error(err instanceof Error ? err.message : 'Error al agregar')
@@ -888,6 +1120,8 @@ export function EscaneoPage() {
                     setConfirmedItemIds(new Set())
                     setPendingConfirmItem(null)
                     setPendingNotInOrderCode(null)
+                    setPendingNotInOrderMarcaId(null)
+                    setScanCounts({})
                   }}
                   className={clsx(
                     'w-full text-left p-4 rounded-xl border transition-all',
@@ -995,68 +1229,87 @@ export function EscaneoPage() {
                         const isConfirmandoEliminar = confirmEliminar === item.id
                         const isFlashing = flashItemId === item.id
 
-                        // Kit parcial — expandido con filas por pieza
+                        // Piezas sueltas — cada pieza como fila independiente, sin header del kit padre
                         if (item.es_parcial && item.piezas_orden?.length) {
                           return (
-                            <div
-                              key={item.id}
-                              className={clsx(
-                                'rounded-xl border overflow-hidden transition-all duration-300',
-                                confirmed ? 'border-emerald-200 bg-emerald-50/50' : 'border-violet-200 bg-violet-50/30',
-                              )}
-                            >
-                              <div className="flex items-center justify-between gap-3 px-4 py-3 bg-violet-100/60 border-b border-violet-200">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-200 text-violet-700 shrink-0">Kit Parcial</span>
-                                    <p className="text-sm font-bold text-steel-800">{item.producto_nombre}</p>
-                                  </div>
-                                  <p className="text-xs text-steel-400 font-mono mt-0.5">{item.producto_codigo}</p>
-                                </div>
-                                <span className="text-sm font-bold text-steel-700 shrink-0">×{item.cantidad_pedida}</span>
-                              </div>
-                              <div className="divide-y divide-violet-100">
-                                {item.piezas_orden.map((pieza) => {
-                                  const piezaConfirmada = confirmedPiezaIds.has(pieza.id) || !!pieza.confirmado
-                                  const loadingPieza = !!piezaLoading[pieza.id]
-                                  return (
-                                    <div key={pieza.id} className="flex items-center gap-3 px-4 py-2.5">
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-semibold text-steel-700">{pieza.nombre}</p>
-                                        <p className="text-[10px] font-mono text-steel-400">{pieza.codigo}</p>
-                                      </div>
-                                      <span className="text-xs text-steel-500 shrink-0">×{pieza.cantidad}</span>
-                                      {piezaConfirmada ? (
-                                        <span className="text-xs font-bold px-2 py-1 rounded-lg bg-emerald-100 text-emerald-700 shrink-0">
-                                          ✓ Bs {(confirmedPiezaPrices[pieza.id] ?? pieza.precio_unitario ?? 0).toFixed(2)}
-                                        </span>
+                            <Fragment key={item.id}>
+                              {item.piezas_orden.map((pieza) => {
+                                const piezaConfirmada = confirmedPiezaIds.has(pieza.id) || !!pieza.confirmado
+                                const esPiezaFaltante = !!pieza.nota_incompleto && !(pieza.cantidad_recogida ?? 0)
+                                const esPiezaParcial = !!pieza.nota_incompleto && (pieza.cantidad_recogida ?? 0) > 0
+                                const cantidadConfirmar = esPiezaParcial ? pieza.cantidad_recogida! : pieza.cantidad
+                                const cantidadFaltante = esPiezaParcial ? pieza.cantidad - pieza.cantidad_recogida! : 0
+                                const loadingPieza = !!piezaLoading[pieza.id]
+                                if (esPiezaFaltante) return null
+                                return (
+                                  <div
+                                    key={pieza.id}
+                                    className={clsx(
+                                      'flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-300',
+                                      esPiezaFaltante ? 'border-red-100 bg-red-50/30' :
+                                      esPiezaParcial ? 'border-amber-200 bg-amber-50/30' :
+                                      piezaConfirmada ? 'border-emerald-200 bg-emerald-50/40' :
+                                      'border-steel-200 bg-white'
+                                    )}
+                                  >
+                                    <div className={clsx(
+                                      'h-8 w-8 rounded-full flex items-center justify-center shrink-0',
+                                      esPiezaFaltante ? 'bg-red-100' : esPiezaParcial ? 'bg-amber-100' : piezaConfirmada ? 'bg-emerald-100' : 'bg-steel-100'
+                                    )}>
+                                      {esPiezaFaltante ? (
+                                        <svg className="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                      ) : esPiezaParcial ? (
+                                        <svg className="h-4 w-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+                                      ) : piezaConfirmada ? (
+                                        <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                                       ) : (
-                                        <div className="flex items-center gap-1.5 shrink-0">
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            placeholder="Bs"
-                                            value={piezaPrecios[pieza.id] ?? ''}
-                                            onChange={(e) => setPiezaPrecios(prev => ({ ...prev, [pieza.id]: e.target.value }))}
-                                            className="w-20 px-2 py-1 text-xs border border-violet-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-violet-400"
-                                          />
-                                          <button
-                                            onClick={() => handleConfirmarPieza(item, pieza)}
-                                            disabled={loadingPieza}
-                                            className="px-2 py-1 text-[11px] font-bold rounded-lg bg-violet-500 text-white hover:bg-violet-600 disabled:opacity-50 transition-colors"
-                                          >
-                                            {loadingPieza ? '…' : '✓'}
-                                          </button>
-                                        </div>
+                                        <svg className="h-4 w-4 text-steel-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
                                       )}
                                     </div>
-                                  )
-                                })}
-                              </div>
-                            </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-mono text-steel-400 leading-none">{pieza.codigo}</p>
+                                      <p className="text-sm font-semibold text-steel-800 leading-snug truncate">
+                                        {pieza.nombre} · ×{cantidadConfirmar}
+                                      </p>
+                                      {esPiezaParcial && (
+                                        <p className="text-xs text-amber-600 leading-none mt-0.5">×{cantidadFaltante} faltantes</p>
+                                      )}
+                                    </div>
+                                    {esPiezaFaltante ? (
+                                      <span className="px-2.5 py-1 rounded-lg bg-steel-100 text-steel-500 text-xs font-bold shrink-0">No disponible</span>
+                                    ) : piezaConfirmada ? (
+                                      <span className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-bold shrink-0">
+                                        ✓ Bs {(confirmedPiezaPrices[pieza.id] ?? pieza.precio_unitario ?? 0).toFixed(2)}
+                                      </span>
+                                    ) : (
+                                      <div className="flex items-center gap-1.5 shrink-0">
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          placeholder="Bs"
+                                          value={piezaPrecios[pieza.id] ?? (pieza.precio_unitario ? pieza.precio_unitario.toFixed(2) : '')}
+                                          onChange={(e) => setPiezaPrecios(prev => ({ ...prev, [pieza.id]: e.target.value }))}
+                                          className="w-20 px-2 py-1 text-xs border border-steel-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-steel-400"
+                                        />
+                                        <button
+                                          onClick={() => handleConfirmarPieza(item, pieza)}
+                                          disabled={loadingPieza}
+                                          className="px-2 py-1 text-[11px] font-bold rounded-lg bg-steel-700 text-white hover:bg-steel-800 disabled:opacity-50 transition-colors"
+                                        >
+                                          {loadingPieza ? '…' : '✓'}
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </Fragment>
                           )
                         }
+
+                        // Fallback: es_parcial sin piezas cargadas — no mostrar botón confirmar
+                        if (item.es_parcial) return null
 
                         // Ítem normal
                         const isParcialFaltante = item.estado === 'faltante' && (item.cantidad_recogida ?? 0) > 0
@@ -1100,6 +1353,11 @@ export function EscaneoPage() {
                                   </span>
                                 )}
                               </p>
+                              {!confirmed && !isKit && (scanCounts[item.id] ?? 0) > 0 && (
+                                <p className="text-[11px] font-bold text-blue-600 mt-0.5">
+                                  {scanCounts[item.id]}/{cantidadEscanear} escaneados
+                                </p>
+                              )}
                             </div>
                             {/* Acciones */}
                             {confirmed ? (
@@ -1151,7 +1409,7 @@ export function EscaneoPage() {
                   </div>
 
                   {/* ── FALTANTES ── */}
-                  {faltanteItems.length > 0 && (
+                  {(faltanteItems.length > 0 || faltantePiezas.length > 0) && (
                     <div className="px-6 pt-3 pb-4">
                       <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-3">Faltantes (no se cobran)</p>
                       <div className="space-y-2">
@@ -1171,6 +1429,18 @@ export function EscaneoPage() {
                             </div>
                           )
                         })}
+                        {faltantePiezas.map(({ itemNombre, pieza }) => (
+                          <div key={`pieza-faltante-${pieza.id}`} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-red-100 bg-red-50/30">
+                            <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                              <svg className="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-mono text-steel-300 line-through leading-none">{pieza.codigo}</p>
+                              <p className="text-sm text-steel-400 line-through leading-snug truncate">{itemNombre} — {pieza.nombre} · ×{pieza.cantidad}</p>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-lg bg-steel-100 text-steel-500 text-xs font-bold shrink-0">No disponible</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
@@ -1228,10 +1498,11 @@ export function EscaneoPage() {
       {pendingNotInOrderCode !== null && (
         <ScanNotInOrderModal
           code={pendingNotInOrderCode}
-          producto={notInOrderProducto}
+          productos={notInOrderProductos}
           onAgregar={handleAgregarItem}
           onDescartar={() => {
             setPendingNotInOrderCode(null)
+            setPendingNotInOrderMarcaId(null)
             scanInputRef.current?.focus()
           }}
           loading={agregarLoading}
@@ -1243,6 +1514,23 @@ export function EscaneoPage() {
           onAgregar={handleAgregarProducto}
           onClose={() => setShowAgregarModal(false)}
           loading={agregarLoading}
+        />
+      )}
+
+      {pendingPiezaScan && (
+        <PiezaScanPriceModal
+          pieza={pendingPiezaScan.pieza}
+          onConfirm={(precio) => {
+            setPiezaPrecios(prev => ({ ...prev, [pendingPiezaScan.pieza.id]: String(precio) }))
+            handleConfirmarPieza(pendingPiezaScan.item, pendingPiezaScan.pieza)
+            setPendingPiezaScan(null)
+            scanInputRef.current?.focus()
+          }}
+          onCancel={() => {
+            setPendingPiezaScan(null)
+            scanInputRef.current?.focus()
+          }}
+          loading={!!piezaLoading[pendingPiezaScan.pieza.id]}
         />
       )}
     </MainLayout>

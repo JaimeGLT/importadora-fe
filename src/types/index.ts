@@ -361,6 +361,7 @@ export interface PiezaOrden {
   confirmado?: boolean
   listo_almacenero?: boolean
   nota_incompleto?: string | null
+  cantidad_recogida?: number
 }
 
 export interface ItemOrden {
@@ -372,6 +373,8 @@ export interface ItemOrden {
   producto_estante: string
   producto_fila: string
   producto_columna: string
+  marcaId?: number | null
+  marca_nombre?: string
   cantidad_pedida: number
   cantidad_recogida?: number
   precio_unitario: number
@@ -431,6 +434,7 @@ export interface OrdenVenta {
 export interface Marca {
   id: number
   nombre: string
+  prefijo: string
   creado_en: string
 }
 
