@@ -4,12 +4,12 @@ import { useVentasStore } from '@/stores/ventasStore'
 import { useMarcasStore } from '@/stores/marcasStore'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
 import { Button, Input } from '@/components/ui'
-import type { ItemOrden, PiezaOrden, Producto, AgregarItemOrdenResponse } from '@/types'
+import type { ItemOrden, PiezaOrden, Producto, AgregarItemOrdenResponse, PiezaKit } from '@/types'
 import { playConfirmBeep } from '@/lib/sounds'
 import { notify } from '@/lib/notify'
 import { api } from '@/lib/api'
 import { gql } from '@/lib/graphql'
-import { PRODUCTOS_QUERY, backendToProductoSimple, type ProductoAPI } from '@/lib/queries/inventario.queries'
+import { PRODUCTOS_QUERY, PRODUCTO_BY_ID_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI } from '@/lib/queries/inventario.queries'
 import { MIS_ORDENES_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
 import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
 import { fmtCodigo } from '@/lib/formatCodigo'
@@ -435,12 +435,17 @@ function PiezaScanPriceModal({
 
 // ─── AgregarProductoModal ─────────────────────────────────────────────────────
 
+type AgregarRequest =
+  | { tipo: 'producto'; producto: Producto; cantidad: number }
+  | { tipo: 'kit_completo'; producto: Producto; cantidad: number }
+  | { tipo: 'piezas_sueltas'; kitProducto: Producto; piezas: { pieza: PiezaKit; cantidad: number }[] }
+
 function AgregarProductoModal({
   onAgregar,
   onClose,
   loading,
 }: {
-  onAgregar: (producto: Producto, cantidad: number) => void
+  onAgregar: (req: AgregarRequest) => void
   onClose: () => void
   loading: boolean
 }) {
@@ -451,6 +456,10 @@ function AgregarProductoModal({
   const [buscando, setBuscando] = useState(false)
   const [seleccionado, setSeleccionado] = useState<Producto | null>(null)
   const [cantidad, setCantidad] = useState('1')
+  const [kitDetalle, setKitDetalle] = useState<Producto | null>(null)
+  const [fetchingKit, setFetchingKit] = useState(false)
+  const [vistaKit, setVistaKit] = useState<'opciones' | 'piezas'>('opciones')
+  const [piezasConfig, setPiezasConfig] = useState<{ pieza: PiezaKit; cantidad: number }[]>([])
 
   useEffect(() => {
     if (!query.trim() || !isTokenReady) { setResultados([]); return }
@@ -469,7 +478,7 @@ function AgregarProductoModal({
             ],
           },
         })
-        setResultados((res.productos?.nodes ?? []).map(backendToProductoSimple).filter(p => !p.es_kit))
+        setResultados((res.productos?.nodes ?? []).map(backendToProductoSimple))
       } catch {
         setResultados([])
       } finally {
@@ -479,14 +488,66 @@ function AgregarProductoModal({
     return () => clearTimeout(timer)
   }, [query, isTokenReady])
 
+  const handleSelectProducto = async (p: Producto) => {
+    setSeleccionado(p)
+    setCantidad('1')
+    setKitDetalle(null)
+    setVistaKit('opciones')
+    if (p.es_kit) {
+      setFetchingKit(true)
+      try {
+        const res = await gql<{ productos: { nodes: ProductoAPI[] } }>(
+          PRODUCTO_BY_ID_QUERY, { id: parseInt(p.id) }
+        )
+        const full = backendToProducto(res.productos?.nodes?.[0])
+        setKitDetalle(full)
+        setPiezasConfig((full.piezas_kit ?? []).map(pz => ({ pieza: pz, cantidad: pz.cantidad_por_kit })))
+      } catch {
+        notify.error('Error al cargar piezas del kit')
+        setSeleccionado(null)
+      } finally {
+        setFetchingKit(false)
+      }
+    }
+  }
+
   const cantidadNum = parseInt(cantidad) || 0
   const disp = seleccionado ? Math.max(0, seleccionado.stock - (seleccionado.stock_reservado ?? 0)) : 0
-  const puedeAgregar = seleccionado && cantidadNum >= 1 && cantidadNum <= disp
+
+  const puedeAgregar = (() => {
+    if (!seleccionado) return false
+    if (seleccionado.es_kit) {
+      if (fetchingKit || !kitDetalle) return false
+      if (vistaKit === 'opciones') return cantidadNum >= 1 && cantidadNum <= disp
+      return piezasConfig.some(p => p.cantidad > 0)
+    }
+    return cantidadNum >= 1 && cantidadNum <= disp
+  })()
+
+  const handleConfirmar = () => {
+    if (!seleccionado) return
+    if (seleccionado.es_kit && kitDetalle) {
+      if (vistaKit === 'opciones') {
+        onAgregar({ tipo: 'kit_completo', producto: seleccionado, cantidad: cantidadNum })
+      } else {
+        onAgregar({ tipo: 'piezas_sueltas', kitProducto: seleccionado, piezas: piezasConfig.filter(p => p.cantidad > 0) })
+      }
+    } else {
+      onAgregar({ tipo: 'producto', producto: seleccionado, cantidad: cantidadNum })
+    }
+  }
+
+  const resetSeleccion = () => {
+    setSeleccionado(null)
+    setKitDetalle(null)
+    setVistaKit('opciones')
+    setPiezasConfig([])
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !loading && onClose()} />
-      <div className="relative z-10 w-full max-w-md bg-white rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[80vh]">
+      <div className="relative z-10 w-full max-w-md bg-white rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
         <div className="px-5 py-4 border-b border-steel-100 flex items-center justify-between shrink-0">
           <div>
             <h3 className="text-sm font-bold text-steel-900">Agregar producto</h3>
@@ -539,16 +600,23 @@ function AgregarProductoModal({
                     return (
                       <button
                         key={p.id}
-                        onClick={() => { setSeleccionado(p); setCantidad('1') }}
-                        disabled={dispP === 0}
+                        onClick={() => handleSelectProducto(p)}
+                        disabled={!p.es_kit && dispP === 0}
                         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-steel-50 transition-colors text-left disabled:opacity-40"
                       >
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-mono text-xs font-black text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">{fmtCodigo(p.codigo_universal, p.marcaId, marcas)}</span>
+                            {p.es_kit && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">KIT</span>
+                            )}
                           </div>
                           <p className="text-sm font-medium text-steel-700 truncate mt-0.5">{p.nombre}</p>
-                          <p className={clsx('text-[11px] font-semibold mt-0.5', dispP === 0 ? 'text-red-500' : 'text-emerald-600')}>{dispP} disponibles</p>
+                          {p.es_kit ? (
+                            <p className="text-[11px] font-semibold mt-0.5 text-purple-600">Kit de productos</p>
+                          ) : (
+                            <p className={clsx('text-[11px] font-semibold mt-0.5', dispP === 0 ? 'text-red-500' : 'text-emerald-600')}>{dispP} disponibles</p>
+                          )}
                         </div>
                         <svg className="h-4 w-4 text-steel-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -560,6 +628,103 @@ function AgregarProductoModal({
               )}
             </div>
           </>
+        ) : seleccionado.es_kit ? (
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            {/* Kit header */}
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-purple-50 border border-purple-100">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs font-black text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">{fmtCodigo(seleccionado.codigo_universal, seleccionado.marcaId, marcas)}</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">KIT</span>
+                </div>
+                <p className="text-sm font-semibold text-steel-800 mt-1">{seleccionado.nombre}</p>
+              </div>
+              <button onClick={resetSeleccion} className="p-1.5 text-steel-400 hover:text-steel-600 hover:bg-white rounded-lg transition-colors shrink-0">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {fetchingKit ? (
+              <div className="space-y-2 animate-pulse">
+                {[1,2,3].map(i => <div key={i} className="h-10 rounded-lg bg-steel-100" />)}
+              </div>
+            ) : kitDetalle ? (
+              <>
+                {/* Selector de tipo */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setVistaKit('opciones')}
+                    className={clsx(
+                      'flex-1 py-2 rounded-xl text-sm font-semibold border transition-colors',
+                      vistaKit === 'opciones'
+                        ? 'bg-purple-600 text-white border-purple-600'
+                        : 'bg-white text-steel-600 border-steel-200 hover:border-purple-300'
+                    )}
+                  >
+                    Kit completo
+                  </button>
+                  <button
+                    onClick={() => setVistaKit('piezas')}
+                    className={clsx(
+                      'flex-1 py-2 rounded-xl text-sm font-semibold border transition-colors',
+                      vistaKit === 'piezas'
+                        ? 'bg-purple-600 text-white border-purple-600'
+                        : 'bg-white text-steel-600 border-steel-200 hover:border-purple-300'
+                    )}
+                  >
+                    Piezas sueltas
+                  </button>
+                </div>
+
+                {vistaKit === 'opciones' ? (
+                  <Input
+                    label={`Cantidad de kits (máx. ${disp})`}
+                    type="number"
+                    min="1"
+                    max={disp}
+                    value={cantidad}
+                    onChange={e => setCantidad(e.target.value)}
+                    autoFocus
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-steel-500 uppercase tracking-wide">Piezas del kit</p>
+                    {piezasConfig.length === 0 ? (
+                      <p className="text-sm text-steel-400 text-center py-4">Este kit no tiene piezas registradas</p>
+                    ) : (
+                      piezasConfig.map((pc, idx) => {
+                        const dispPieza = Math.max(0, pc.pieza.stock_actual - pc.pieza.stock_reservado)
+                        return (
+                          <div key={pc.pieza.id} className="flex items-center gap-3 p-3 rounded-xl bg-steel-50 border border-steel-100">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-steel-800 truncate">{pc.pieza.nombre}</p>
+                              <p className="text-[11px] font-mono text-steel-400">{pc.pieza.codigo_universal}</p>
+                              <p className={clsx('text-[11px] font-semibold mt-0.5', dispPieza === 0 ? 'text-red-500' : 'text-emerald-600')}>
+                                {dispPieza} disp.
+                              </p>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              max={dispPieza}
+                              value={pc.cantidad}
+                              onChange={e => {
+                                const val = Math.max(0, parseInt(e.target.value) || 0)
+                                setPiezasConfig(prev => prev.map((x, i) => i === idx ? { ...x, cantidad: val } : x))
+                              }}
+                              className="w-16 text-center text-sm font-bold border border-steel-200 rounded-lg py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            />
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                )}
+              </>
+            ) : null}
+          </div>
         ) : (
           <div className="p-5 space-y-4">
             <div className="flex items-start gap-3 p-3 rounded-xl bg-steel-50 border border-steel-100">
@@ -568,7 +733,7 @@ function AgregarProductoModal({
                 <p className="text-sm font-semibold text-steel-800 mt-1">{seleccionado.nombre}</p>
                 <p className="text-xs text-emerald-600 font-semibold mt-0.5">{disp} disponibles</p>
               </div>
-              <button onClick={() => setSeleccionado(null)} className="p-1.5 text-steel-400 hover:text-steel-600 hover:bg-steel-100 rounded-lg transition-colors shrink-0">
+              <button onClick={resetSeleccion} className="p-1.5 text-steel-400 hover:text-steel-600 hover:bg-steel-100 rounded-lg transition-colors shrink-0">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -589,7 +754,7 @@ function AgregarProductoModal({
         <div className="px-5 pb-5 pt-3 flex gap-2 border-t border-steel-100 shrink-0">
           <Button variant="secondary" className="flex-1" onClick={onClose} disabled={loading}>Cancelar</Button>
           {seleccionado && (
-            <Button className="flex-1" onClick={() => onAgregar(seleccionado, cantidadNum)} disabled={loading || !puedeAgregar}>
+            <Button className="flex-1" onClick={handleConfirmar} disabled={loading || !puedeAgregar}>
               {loading ? 'Agregando…' : 'Agregar al pedido'}
             </Button>
           )}
@@ -854,31 +1019,58 @@ export function EscaneoPage() {
     }
   }
 
-  const handleAgregarProducto = async (producto: Producto, cantidad: number) => {
+  const handleAgregarProducto = async (req: AgregarRequest) => {
     if (!selectedOrden) return
     setAgregarLoading(true)
     try {
-      const res = await api.post<AgregarItemOrdenResponse>(
-        `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
-        { Id_Producto: parseInt(producto.id), Cantidad: cantidad }
-      )
-      const newItem: ItemOrden = {
-        id: String(res.id),
-        producto_id: String(res.id_Producto),
-        producto_codigo: res.producto.codigo,
-        producto_nombre: res.producto.nombre,
-        producto_almacen: producto.almacen,
-        producto_estante: producto.estante,
-        producto_fila: producto.fila,
-        producto_columna: producto.columna,
-        cantidad_pedida: res.cantidad,
-        precio_unitario: res.precioUnitario,
-        subtotal: res.precioUnitario * res.cantidad,
-        estado: 'pendiente',
+      if (req.tipo === 'piezas_sueltas') {
+        for (const { pieza, cantidad } of req.piezas) {
+          const res = await api.post<AgregarItemOrdenResponse>(
+            `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
+            { Id_Producto: pieza.id_producto, Cantidad: cantidad }
+          )
+          const newItem: ItemOrden = {
+            id: String(res.id),
+            producto_id: String(res.id_Producto),
+            producto_codigo: res.producto.codigo,
+            producto_nombre: res.producto.nombre,
+            producto_almacen: '',
+            producto_estante: '',
+            producto_fila: '',
+            producto_columna: '',
+            cantidad_pedida: res.cantidad,
+            precio_unitario: res.precioUnitario,
+            subtotal: res.precioUnitario * res.cantidad,
+            estado: 'pendiente',
+            kit_id: req.kitProducto.id,
+          }
+          addItemToOrden(selectedOrden.id, newItem)
+        }
+        notify.success(`Piezas de ${req.kitProducto.nombre} agregadas — almacén notificado`)
+      } else {
+        const { producto, cantidad } = req
+        const res = await api.post<AgregarItemOrdenResponse>(
+          `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
+          { Id_Producto: parseInt(producto.id), Cantidad: cantidad }
+        )
+        const newItem: ItemOrden = {
+          id: String(res.id),
+          producto_id: String(res.id_Producto),
+          producto_codigo: res.producto.codigo,
+          producto_nombre: res.producto.nombre,
+          producto_almacen: producto.almacen,
+          producto_estante: producto.estante,
+          producto_fila: producto.fila,
+          producto_columna: producto.columna,
+          cantidad_pedida: res.cantidad,
+          precio_unitario: res.precioUnitario,
+          subtotal: res.precioUnitario * res.cantidad,
+          estado: 'pendiente',
+        }
+        addItemToOrden(selectedOrden.id, newItem)
+        notify.success(`${newItem.producto_nombre} agregado — almacén notificado`)
       }
-      addItemToOrden(selectedOrden.id, newItem)
       setShowAgregarModal(false)
-      notify.success(`${newItem.producto_nombre} agregado — almacén notificado`)
       scanInputRef.current?.focus()
     } catch (err) {
       notify.error(err instanceof Error ? err.message : 'Error al agregar')
