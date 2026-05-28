@@ -13,6 +13,9 @@ import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
 import { useVentasHub } from '@/hooks/useVentasHub'
 import { ORDENES_PENDIENTES_QUERY, MIS_ORDENES_ALMACEN_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
+import { useMarcasStore } from '@/stores/marcasStore'
+import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
+import { fmtCodigo } from '@/lib/formatCodigo'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -224,6 +227,7 @@ function FaltantesModal({
   onConfirm: (items: ItemFaltante[], piezasFaltantes: PiezaFaltante[]) => void
   onRevertir: (itemId: string, piezaId?: number) => Promise<void>
 }) {
+  const { marcas } = useMarcasStore()
   const [selItems, setSelItems] = useState<Set<string>>(new Set())
   const [cantidades, setCantidades] = useState<Record<string, number>>({}) // itemId → cantidadEncontrada
   const [selPiezas, setSelPiezas] = useState<Set<string>>(new Set()) // key: `${itemId}-${piezaId}`
@@ -351,7 +355,7 @@ function FaltantesModal({
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-steel-800 truncate">{item.producto_nombre}</p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[11px] font-mono text-steel-400 bg-steel-50 px-1.5 py-0.5 rounded">{item.producto_codigo}</span>
+                          <span className="text-[11px] font-mono text-steel-400 bg-steel-50 px-1.5 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
                           {(item.producto_almacen || item.producto_estante) && (
                             <span className="text-[11px] text-steel-400">
                               📦 {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}
@@ -402,7 +406,7 @@ function FaltantesModal({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-red-700 truncate">{item.producto_nombre}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[11px] font-mono text-red-400">{item.producto_codigo}</span>
+                        <span className="text-[11px] font-mono text-red-400">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
                         {item.nota && <span className="text-[10px] text-red-400 italic">— {item.nota}</span>}
                       </div>
                     </div>
@@ -453,6 +457,7 @@ function ItemCard({
   onFaltante?: () => void
   onEditCantidad?: () => void
 }) {
+  const { marcas } = useMarcasStore()
   const isPendiente = item.estado === 'pendiente'
   const isListoAlmacenero = item.estado === 'listo_almacenero'
   const isFaltanteTotal = item.estado === 'faltante' && (!item.cantidad_recogida || item.cantidad_recogida === 0)
@@ -496,7 +501,7 @@ function ItemCard({
 
         {/* Info producto */}
         <div className="flex-1 min-w-0">
-          <p className="font-mono text-xs text-steel-400 leading-none mb-0.5">{item.producto_codigo}</p>
+          <p className="font-mono text-xs text-steel-400 leading-none mb-0.5">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</p>
           <p className="text-sm font-bold text-steel-900 leading-snug">{item.producto_nombre}</p>
           <p className="text-[11px] text-steel-400 mt-0.5">Pedidas: {pedida} unidades</p>
           {item.nota && <p className="text-[11px] text-red-500 mt-0.5 italic">{item.nota}</p>}
@@ -629,6 +634,7 @@ function KitGroupCard({
   onListoPieza,
   onEditKit,
 }: KitGroupCardProps) {
+  const { marcas } = useMarcasStore()
   const piezas = piezasSueltas?.piezas_orden ?? []
   const piezasListasCount = piezas.filter(p => getPiezaEstado(p) === 'listo').length
   const piezasParcialCount = piezas.filter(p => getPiezaEstado(p) === 'parcial').length
@@ -660,7 +666,7 @@ function KitGroupCard({
                 'bg-red-100 text-red-700')}>
                 🧩 Kit completo
               </span>
-              <span className="text-xs text-steel-500 font-mono">{kitCompleto.producto_codigo}</span>
+              <span className="text-xs text-steel-500 font-mono">{fmtCodigo(kitCompleto.producto_codigo, kitCompleto.marcaId, marcas)}</span>
               <span className="text-xs text-steel-400">×{kitCompleto.cantidad_pedida} pedidos</span>
             </div>
             <span className="text-[10px] text-steel-400 hidden sm:block">Busca el kit armado físicamente</span>
@@ -772,7 +778,7 @@ function KitGroupCard({
                       <p className="font-mono text-[10px] text-steel-400 leading-none mb-0.5">{pieza.codigo}</p>
                       <p className="text-sm font-bold text-steel-800 leading-snug">{pieza.nombre}</p>
                       <p className="text-[11px] text-steel-400 mt-0.5">
-                        {pieza.cantidad} unidades pedidas · sale de kit {piezasSueltas.producto_codigo}
+                        {pieza.cantidad} unidades pedidas · sale de kit {fmtCodigo(piezasSueltas.producto_codigo, piezasSueltas.marcaId, marcas)}
                       </p>
                     </div>
                     <div className="shrink-0 flex flex-col items-end gap-1.5">
@@ -1315,8 +1321,17 @@ function PickingView({
 export function AlmacenPage() {
   const { user, isTokenReady } = useAuth()
   const { ordenes, updateOrden, setOrdenes, removeItemFromOrden, updateItemQtyInOrden, markItemListoEnOrden, marcarItemFaltante } = useVentasStore()
+  const { marcas, setMarcas } = useMarcasStore()
   const { playBeep, playAlertSequence } = useSoundAlert()
   useVentasAlerts()
+
+  // Cargar marcas si el store está vacío (necesario para mostrar prefijos)
+  useEffect(() => {
+    if (!isTokenReady || marcas.length > 0) return
+    gql<{ marca: { nodes: Array<{ id: number; nombre: string; prefijo: string }> } }>(MARCAS_QUERY)
+      .then(res => setMarcas((res.marca?.nodes ?? []).map(backendToMarca)))
+      .catch(() => {})
+  }, [isTokenReady, marcas.length, setMarcas])
 
   const [tab, setTab] = useState<TabFiltro>('todos')
   const [pickingOrdenId, setPickingOrdenId] = useState<string | null>(null)

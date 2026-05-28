@@ -19,6 +19,9 @@ import {
   type DescuentoAPI, type MargenGananciaAPI, type ConfigVentaAPI, type TipoCambioAPI,
 } from '@/lib/queries/config.queries'
 import { useVentasHub } from '@/hooks/useVentasHub'
+import { useMarcasStore } from '@/stores/marcasStore'
+import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
+import { fmtCodigo } from '@/lib/formatCodigo'
 import type { Producto, OrdenVenta, MetodoPago, Cliente, PagoOrden } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -285,6 +288,7 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
   onDecrementProducto: (productoId: string) => void
 }) {
   const { isTokenReady } = useAuth()
+  const { marcas } = useMarcasStore()
   const [query, setQuery] = useState('')
   const [resultados, setResultados] = useState<Producto[]>([])
   const [loading, setLoading] = useState(false)
@@ -397,7 +401,7 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="font-mono text-sm font-black text-[#1d4ed8] bg-[#eff6ff] px-2 py-0.5 rounded">{p.codigo_universal}</span>
+                      <span className="font-mono text-sm font-black text-[#1d4ed8] bg-[#eff6ff] px-2 py-0.5 rounded">{fmtCodigo(p.codigo_universal, p.marcaId, marcas)}</span>
                       {p.es_kit && (
                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-black bg-violet-100 text-violet-700 border border-violet-200">
                           <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -477,6 +481,7 @@ function CartItem({
   onRemoveItem: (itemIdx: number) => void
   onEditPrice: (producto_id: string) => void
 }) {
+  const { marcas } = useMarcasStore()
   const [editingQty, setEditingQty] = useState(false)
   const [qtyValue, setQtyValue] = useState(String(item.cantidad))
 
@@ -497,11 +502,11 @@ function CartItem({
             <div className="flex items-center gap-2">
               {item.descuento_nombre ? (
                 <div className="flex items-center gap-1.5">
-                  <span className="font-mono text-sm font-bold text-[#1d4ed8] bg-[#eff6ff] px-2 py-0.5 rounded">{item.producto_codigo}</span>
+                  <span className="font-mono text-sm font-bold text-[#1d4ed8] bg-[#eff6ff] px-2 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">{item.descuento_nombre} -{item.descuento_porcentaje}%</span>
                 </div>
               ) : (
-                <span className="font-mono text-sm font-bold text-[#1d4ed8] bg-[#eff6ff] px-2 py-0.5 rounded">{item.producto_codigo}</span>
+                <span className="font-mono text-sm font-bold text-[#1d4ed8] bg-[#eff6ff] px-2 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
               )}
             </div>
             <button
@@ -679,6 +684,7 @@ function OrdersModal({
   open: boolean
   onClose: () => void
 }) {
+  const { marcas } = useMarcasStore()
   const [showCanceladas, setShowCanceladas] = useState(false)
   const listos = ordenes.filter(o => o.estado === 'esperando_pago')
   const otras = ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada' && o.estado !== 'esperando_pago')
@@ -866,7 +872,7 @@ function CancelarOrdenModal({
             {orden.items.map(item => (
               <div key={item.id} className="flex items-center justify-between px-4 py-2.5">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xs font-mono text-[#9996b0] bg-[#f1f5f9] px-1.5 py-0.5 rounded shrink-0">{item.producto_codigo}</span>
+                  <span className="text-xs font-mono text-[#9996b0] bg-[#f1f5f9] px-1.5 py-0.5 rounded shrink-0">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
                   <span className="text-xs text-[#5a5670] truncate">{item.producto_nombre}</span>
                 </div>
                 <span className="text-xs font-semibold text-[#5a5670] ml-2 shrink-0">×{item.cantidad_pedida}</span>
@@ -911,7 +917,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
   onConfirm: (pagos: PagoOrden[], monto_recibido: number, billing: BillingData) => void
   onClose: () => void
 }) {
-
+  const { marcas } = useMarcasStore()
   const itemsDespachados = orden.items.filter(i => i.estado === 'completo' || i.estado === 'parcial')
   const itemsFaltantes = orden.items.filter(i => i.estado === 'faltante')
   const totalReal = itemsDespachados.reduce((s, i) => {
@@ -1076,7 +1082,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
             <div key={i.id} className="flex justify-between text-sm gap-2">
               <div className="flex-1 min-w-0">
                 <p className="text-[#5a5670] truncate">{i.producto_nombre}</p>
-                <p className="text-[10px] font-mono text-[#9996b0]">{i.producto_codigo} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
+                <p className="text-[10px] font-mono text-[#9996b0]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
               </div>
               <span className="font-semibold text-[#1e1b2e] shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
             </div>
@@ -1085,7 +1091,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
             <div key={i.id} className="flex justify-between text-sm gap-2 opacity-50">
               <div className="flex-1 min-w-0">
                 <p className="text-[#9996b0] truncate line-through">{i.producto_nombre}</p>
-                <p className="text-[10px] font-mono text-[#9996b0]">{i.producto_codigo} · ×{i.cantidad_pedida}</p>
+                <p className="text-[10px] font-mono text-[#9996b0]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_pedida}</p>
               </div>
               <span className="text-[#9996b0] shrink-0">N/A</span>
             </div>
@@ -1343,6 +1349,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
 }
 
 function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => void }) {
+  const { marcas } = useMarcasStore()
   const isFactura = orden.tipoDocumento === 'factura'
   const itemsDespachados = orden.items.filter(i => i.estado === 'completo' || i.estado === 'parcial')
   const itemsFaltantes = orden.items.filter(i => i.estado === 'faltante')
@@ -1391,7 +1398,7 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
             <div key={i.id} className="flex justify-between text-sm gap-2">
               <div className="flex-1 min-w-0">
                 <p className="text-[#5a5670] truncate">{i.producto_nombre}</p>
-                <p className="text-[10px] font-mono text-[#9996b0]">{i.producto_codigo} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
+                <p className="text-[10px] font-mono text-[#9996b0]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
               </div>
               <span className="font-semibold shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
             </div>
@@ -1400,7 +1407,7 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
             <div key={i.id} className="flex justify-between text-sm gap-2 opacity-40">
               <div className="flex-1 min-w-0">
                 <p className="text-[#9996b0] truncate line-through">{i.producto_nombre}</p>
-                <p className="text-[10px] font-mono text-[#9996b0]">{i.producto_codigo} · ×{i.cantidad_pedida}</p>
+                <p className="text-[10px] font-mono text-[#9996b0]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_pedida}</p>
               </div>
               <span className="text-[#9996b0] shrink-0">N/A</span>
             </div>
@@ -1444,6 +1451,7 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
 export function CajaPage() {
   const { user, isTokenReady } = useAuth()
   const { ordenes, setOrdenes, updateOrden } = useVentasStore()
+  const { marcas, setMarcas } = useMarcasStore()
   const { playAlertSequence, playBeep } = useSoundAlert()
 
   const { cart, setCart, clearCart } = useCajaStore()
@@ -1473,6 +1481,13 @@ export function CajaPage() {
   const listosCount = misOrdenes.filter(o => o.estado === 'esperando_pago').length
   const alertedFaltantes = useRef<Set<string>>(new Set())
   const alertedListo = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (!isTokenReady || marcas.length > 0) return
+    gql<{ marca: { nodes: Array<{ id: number; nombre: string; prefijo: string }> } }>(MARCAS_QUERY)
+      .then(res => setMarcas((res.marca?.nodes ?? []).map(backendToMarca)))
+      .catch(() => {})
+  }, [isTokenReady, marcas.length, setMarcas])
 
   useEffect(() => {
     if (!isTokenReady) return
@@ -1615,6 +1630,7 @@ export function CajaPage() {
       return { ...prev, items: [...prev.items, {
         producto_id: productoSeleccionado.id,
         producto_codigo: productoSeleccionado.codigo_universal,
+        marcaId: productoSeleccionado.marcaId ?? null,
         producto_nombre: productoSeleccionado.nombre,
         producto_almacen: productoSeleccionado.almacen,
         producto_estante: productoSeleccionado.estante,
@@ -1714,6 +1730,7 @@ export function CajaPage() {
       return { ...prev, items: [...prev.items, {
         producto_id: productoSeleccionado.id,
         producto_codigo: productoSeleccionado.codigo_universal,
+        marcaId: productoSeleccionado.marcaId ?? null,
         producto_nombre: productoSeleccionado.nombre,
         producto_almacen: productoSeleccionado.almacen,
         producto_estante: productoSeleccionado.estante,

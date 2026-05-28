@@ -12,6 +12,7 @@ import { gql } from '@/lib/graphql'
 import { PRODUCTOS_QUERY, backendToProductoSimple, type ProductoAPI } from '@/lib/queries/inventario.queries'
 import { MIS_ORDENES_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
 import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
+import { fmtCodigo } from '@/lib/formatCodigo'
 import { useVentasHub } from '@/hooks/useVentasHub'
 import { clsx } from 'clsx'
 
@@ -26,6 +27,7 @@ function LineSelectionModal({
   onSelect: (item: ItemOrden) => void
   onClose: () => void
 }) {
+  const { marcas } = useMarcasStore()
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -74,7 +76,7 @@ function LineSelectionModal({
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] font-mono text-steel-400 mt-0.5">{item.producto_codigo}</p>
+                    <p className="text-[11px] font-mono text-steel-400 mt-0.5">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</p>
                     {isKit && (
                       <div className="mt-1.5 px-2 py-1.5 rounded-lg bg-steel-50 border border-steel-100">
                         <p className="text-[10px] text-steel-400">
@@ -119,6 +121,7 @@ function ScanConfirmModal({
   onCancel: () => void
   loading: boolean
 }) {
+  const { marcas } = useMarcasStore()
   const [precio, setPrecio] = useState('')
   const isKit = !!item.kit_id
   const isParcial = !!item.es_parcial
@@ -156,7 +159,7 @@ function ScanConfirmModal({
               </span>
             )}
           </div>
-          <p className="text-xs text-steel-400">{item.producto_codigo}</p>
+          <p className="text-xs text-steel-400">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</p>
         </div>
 
         <div className="p-5 space-y-3">
@@ -225,6 +228,7 @@ function ScanNotInOrderModal({
   onDescartar: () => void
   loading: boolean
 }) {
+  const { marcas } = useMarcasStore()
   const [selected, setSelected] = useState<Producto | null>(productos.length === 1 ? productos[0] : null)
   const [cantidad, setCantidad] = useState('1')
 
@@ -282,7 +286,7 @@ function ScanNotInOrderModal({
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-steel-800 truncate">{p.nombre}</p>
-                          <p className="text-[11px] font-mono text-steel-400 mt-0.5">{p.codigo_universal}</p>
+                          <p className="text-[11px] font-mono text-steel-400 mt-0.5">{fmtCodigo(p.codigo_universal, p.marcaId, marcas)}</p>
                         </div>
                         <span className={clsx('text-xs font-bold shrink-0', disp > 0 ? 'text-emerald-600' : 'text-red-500')}>
                           {disp} uds.
@@ -303,7 +307,7 @@ function ScanNotInOrderModal({
                 )}
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-steel-900">{producto.nombre}</p>
-                  <p className="text-xs font-mono text-steel-400 mt-0.5">{producto.codigo_universal}</p>
+                  <p className="text-xs font-mono text-steel-400 mt-0.5">{fmtCodigo(producto.codigo_universal, producto.marcaId, marcas)}</p>
                 </div>
               </div>
 
@@ -441,6 +445,7 @@ function AgregarProductoModal({
   loading: boolean
 }) {
   const { isTokenReady } = useAuth()
+  const { marcas } = useMarcasStore()
   const [query, setQuery] = useState('')
   const [resultados, setResultados] = useState<Producto[]>([])
   const [buscando, setBuscando] = useState(false)
@@ -540,7 +545,7 @@ function AgregarProductoModal({
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-black text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">{p.codigo_universal}</span>
+                            <span className="font-mono text-xs font-black text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">{fmtCodigo(p.codigo_universal, p.marcaId, marcas)}</span>
                           </div>
                           <p className="text-sm font-medium text-steel-700 truncate mt-0.5">{p.nombre}</p>
                           <p className={clsx('text-[11px] font-semibold mt-0.5', dispP === 0 ? 'text-red-500' : 'text-emerald-600')}>{dispP} disponibles</p>
@@ -559,7 +564,7 @@ function AgregarProductoModal({
           <div className="p-5 space-y-4">
             <div className="flex items-start gap-3 p-3 rounded-xl bg-steel-50 border border-steel-100">
               <div className="flex-1 min-w-0">
-                <span className="font-mono text-xs font-black text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">{seleccionado.codigo_universal}</span>
+                <span className="font-mono text-xs font-black text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">{fmtCodigo(seleccionado.codigo_universal, seleccionado.marcaId, marcas)}</span>
                 <p className="text-sm font-semibold text-steel-800 mt-1">{seleccionado.nombre}</p>
                 <p className="text-xs text-emerald-600 font-semibold mt-0.5">{disp} disponibles</p>
               </div>
@@ -1344,7 +1349,7 @@ export function EscaneoPage() {
                             </div>
                             {/* Info */}
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-mono text-steel-400 leading-none">{item.producto_codigo}</p>
+                              <p className="text-xs font-mono text-steel-400 leading-none">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</p>
                               <p className="text-sm font-semibold text-steel-800 leading-snug truncate">
                                 {item.producto_nombre} · ×{cantidadEscanear}
                                 {isKit && !isPendiente && (
@@ -1422,7 +1427,7 @@ export function EscaneoPage() {
                                 <svg className="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-mono text-steel-300 line-through leading-none">{item.producto_codigo}</p>
+                                <p className="text-xs font-mono text-steel-300 line-through leading-none">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</p>
                                 <p className="text-sm text-steel-400 line-through leading-snug truncate">{item.producto_nombre} · ×{cantidadFaltante}</p>
                               </div>
                               <span className="px-2.5 py-1 rounded-lg bg-steel-100 text-steel-500 text-xs font-bold shrink-0">No disponible</span>

@@ -12,6 +12,7 @@ export interface CartItem {
   cantidad: number
   precio_unitario: number
   precio_base: number
+  marcaId?: number | null
   producto_imagen?: string
   descuento_id?: string
   descuento_nombre?: string
