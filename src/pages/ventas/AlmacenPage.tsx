@@ -678,6 +678,11 @@ function KitGroupCard({
               <p className="text-[11px] text-steel-400 mt-0.5">
                 {kitCompleto.cantidad_pedida} unidades pedidas · kit pre-armado
               </p>
+              {(kitCompleto.producto_almacen || kitCompleto.producto_estante || kitCompleto.producto_fila || kitCompleto.producto_columna) && (
+                <p className="text-[11px] text-steel-400 mt-0.5">
+                  📦 {kitCompleto.producto_almacen}{kitCompleto.producto_estante ? ` / ${kitCompleto.producto_estante}` : ''}{kitCompleto.producto_fila ? ` / ${kitCompleto.producto_fila}` : ''}{kitCompleto.producto_columna ? ` / ${kitCompleto.producto_columna}` : ''}
+                </p>
+              )}
             </div>
             <div className="shrink-0">
               {kitCompletoListo ? (
@@ -775,11 +780,16 @@ function KitGroupCard({
                 )}>
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="font-mono text-[10px] text-steel-400 leading-none mb-0.5">{pieza.codigo}</p>
+                      <p className="font-mono text-[10px] text-steel-400 leading-none mb-0.5">{fmtCodigo(pieza.codigo, pieza.marcaId, marcas)}</p>
                       <p className="text-sm font-bold text-steel-800 leading-snug">{pieza.nombre}</p>
                       <p className="text-[11px] text-steel-400 mt-0.5">
                         {pieza.cantidad} unidades pedidas · sale de kit {fmtCodigo(piezasSueltas.producto_codigo, piezasSueltas.marcaId, marcas)}
                       </p>
+                      {(piezasSueltas.producto_almacen || piezasSueltas.producto_estante || piezasSueltas.producto_fila || piezasSueltas.producto_columna) && (
+                        <p className="text-[11px] text-steel-400 mt-0.5">
+                          📦 {piezasSueltas.producto_almacen}{piezasSueltas.producto_estante ? ` / ${piezasSueltas.producto_estante}` : ''}{piezasSueltas.producto_fila ? ` / ${piezasSueltas.producto_fila}` : ''}{piezasSueltas.producto_columna ? ` / ${piezasSueltas.producto_columna}` : ''}
+                        </p>
+                      )}
                     </div>
                     <div className="shrink-0 flex flex-col items-end gap-1.5">
                       {estado === 'listo' ? (

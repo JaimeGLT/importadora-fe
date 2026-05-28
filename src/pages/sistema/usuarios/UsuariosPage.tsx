@@ -47,6 +47,20 @@ function IcoClock() {
     </svg>
   )
 }
+function IcoCalendar() {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>
+    </svg>
+  )
+}
+function IcoGlobe() {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+    </svg>
+  )
+}
 function IcoSearch() {
   return (
     <svg className="h-4 w-4 text-steel-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -67,11 +81,16 @@ const ROL_LABELS: Record<string, string> = {
 function fmtBloqueo(bloqueadoHasta: string | null): string | null {
   if (!bloqueadoHasta) return null
   const d = new Date(bloqueadoHasta)
-  if (d.getFullYear() > 9000) return null // permanent lock — no countdown
+  if (d.getFullYear() > 9000) return null
   return d.toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' })
 }
 
-// ─── HorarioModal ─────────────────────────────────────────────────────────────
+function localISOString(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// ─── HorarioModal (individual recurrente) ────────────────────────────────────
 
 function HorarioModal({
   usuario,
@@ -84,7 +103,7 @@ function HorarioModal({
 }) {
   const [horaInicio, setHoraInicio] = useState(usuario.horario?.horaInicio ?? '20:00')
   const [horaFin,    setHoraFin]    = useState(usuario.horario?.horaFin    ?? '08:00')
-  const [saving,  setSaving]  = useState(false)
+  const [saving,   setSaving]   = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   const cruzaMedianoche = horaInicio > horaFin
@@ -134,7 +153,7 @@ function HorarioModal({
               <IcoClock />
             </div>
             <div>
-              <p className="font-semibold text-steel-900 text-sm">Horario de bloqueo</p>
+              <p className="font-semibold text-steel-900 text-sm">Horario de bloqueo recurrente</p>
               <p className="text-[11px] text-steel-400">{usuario.nombre} {usuario.apellido}</p>
             </div>
             <button onClick={onClose} className="ml-auto text-steel-300 hover:text-steel-600 p-1">
@@ -145,7 +164,7 @@ function HorarioModal({
 
         <form onSubmit={handleSave} className="px-6 py-5 space-y-4">
           <p className="text-[11px] text-steel-500">
-            El usuario quedará bloqueado automáticamente cada día en este rango. Se repite sin necesidad de acción manual.
+            El usuario quedará bloqueado automáticamente cada día en este rango.
           </p>
 
           <div className="grid grid-cols-2 gap-3">
@@ -174,7 +193,7 @@ function HorarioModal({
           {cruzaMedianoche && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-100">
               <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-              <p className="text-[11px] text-amber-700">Cruza medianoche: bloqueado de {horaInicio} a las {horaFin} del día siguiente.</p>
+              <p className="text-[11px] text-amber-700">Cruza medianoche: de {horaInicio} a las {horaFin} del día siguiente.</p>
             </div>
           )}
 
@@ -203,6 +222,238 @@ function HorarioModal({
               className="flex-1 h-10 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50"
             >
               {saving ? 'Guardando…' : 'Guardar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── HorarioGlobalModal ───────────────────────────────────────────────────────
+
+function HorarioGlobalModal({
+  horarioActual,
+  onClose,
+  onSuccess,
+}: {
+  horarioActual: HorarioAPI | null
+  onClose: () => void
+  onSuccess: (h: HorarioAPI | null) => void
+}) {
+  const [horaInicio, setHoraInicio] = useState(horarioActual?.horaInicio ?? '20:00')
+  const [horaFin,    setHoraFin]    = useState(horarioActual?.horaFin    ?? '08:00')
+  const [saving,   setSaving]   = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const cruzaMedianoche = horaInicio > horaFin
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      await api.post('/Usuario/horario-global', { horaInicio, horaFin })
+      notify.success('Horario global guardado', {
+        description: `Todos los no-admins bloqueados de ${horaInicio} a ${horaFin} cada día`,
+      })
+      onSuccess({ horaInicio, horaFin, activo: true })
+      onClose()
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al guardar')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('¿Eliminar el horario de cierre global? Los usuarios bloqueados por este horario serán desbloqueados.')) return
+    setDeleting(true)
+    try {
+      await api.delete('/Usuario/horario-global')
+      notify.success('Horario global eliminado')
+      onSuccess(null)
+      onClose()
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al eliminar')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.35)' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-steel-100">
+        <div className="px-6 pt-5 pb-4 border-b border-steel-100">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-violet-50 text-violet-500 flex items-center justify-center shrink-0">
+              <IcoGlobe />
+            </div>
+            <div>
+              <p className="font-semibold text-steel-900 text-sm">Horario de cierre global</p>
+              <p className="text-[11px] text-steel-400">Se aplica a todos los usuarios excepto admins</p>
+            </div>
+            <button onClick={onClose} className="ml-auto text-steel-300 hover:text-steel-600 p-1">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleSave} className="px-6 py-5 space-y-4">
+          <p className="text-[11px] text-steel-500">
+            Todos los días, los no-admins quedarán bloqueados automáticamente en este rango horario.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-steel-600 mb-1.5">Desde</label>
+              <input
+                type="time"
+                value={horaInicio}
+                onChange={e => setHoraInicio(e.target.value)}
+                className="w-full h-11 px-3 rounded-xl border border-steel-200 bg-white text-steel-900 text-sm focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition-all"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-steel-600 mb-1.5">Hasta</label>
+              <input
+                type="time"
+                value={horaFin}
+                onChange={e => setHoraFin(e.target.value)}
+                className="w-full h-11 px-3 rounded-xl border border-steel-200 bg-white text-steel-900 text-sm focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition-all"
+                required
+              />
+            </div>
+          </div>
+
+          {cruzaMedianoche && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-100">
+              <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              <p className="text-[11px] text-amber-700">Cruza medianoche: de {horaInicio} a las {horaFin} del día siguiente.</p>
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-1">
+            {horarioActual && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting || saving}
+                className="h-10 px-3 rounded-xl border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+              >
+                {deleting ? '…' : 'Eliminar'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving || deleting}
+              className="flex-1 h-10 rounded-xl border border-steel-200 text-sm font-medium text-steel-600 hover:bg-steel-50 transition-colors disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving || deleting}
+              className="flex-1 h-10 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 active:scale-[0.98] transition-all disabled:opacity-50"
+            >
+              {saving ? 'Guardando…' : 'Guardar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── BloquearHastaModal (individual, fecha de fin) ────────────────────────────
+
+function BloquearHastaModal({
+  usuario,
+  onClose,
+  onSuccess,
+}: {
+  usuario: UsuarioAPI
+  onClose: () => void
+  onSuccess: (u: UsuarioAPI) => void
+}) {
+  const [hasta, setHasta] = useState(() => {
+    const d = new Date()
+    d.setHours(d.getHours() + 2, 0, 0, 0)
+    return localISOString(d)
+  })
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const hastaDate = new Date(hasta)
+    if (hastaDate <= new Date()) {
+      notify.error('La fecha debe ser en el futuro')
+      return
+    }
+    setSaving(true)
+    try {
+      await api.post(`/Usuario/${usuario.id}/bloquear-hasta`, { hasta: hastaDate.toISOString() })
+      notify.success(`${usuario.nombre} bloqueado`, {
+        description: `Hasta ${hastaDate.toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' })}`,
+      })
+      onSuccess({ ...usuario, activo: false, bloqueadoHasta: hastaDate.toISOString() })
+      onClose()
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al bloquear usuario')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.35)' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-steel-100">
+        <div className="px-6 pt-5 pb-4 border-b border-steel-100">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center shrink-0">
+              <IcoCalendar />
+            </div>
+            <div>
+              <p className="font-semibold text-steel-900 text-sm">Bloquear hasta fecha</p>
+              <p className="text-[11px] text-steel-400">{usuario.nombre} {usuario.apellido}</p>
+            </div>
+            <button onClick={onClose} className="ml-auto text-steel-300 hover:text-steel-600 p-1">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </div>
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-steel-600 mb-1.5">Bloqueado hasta</label>
+            <input
+              type="datetime-local"
+              value={hasta}
+              onChange={e => setHasta(e.target.value)}
+              min={localISOString(new Date())}
+              className="w-full h-11 px-3.5 rounded-xl border border-steel-200 bg-white text-steel-900 text-sm focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-all"
+              required
+            />
+            <p className="text-[11px] text-steel-400 mt-1">
+              El usuario no podrá ingresar hasta esa fecha y hora.
+            </p>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={onClose} disabled={saving}
+              className="flex-1 h-10 rounded-xl border border-steel-200 text-sm font-medium text-steel-600 hover:bg-steel-50 transition-colors disabled:opacity-50">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex-1 h-10 rounded-xl bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 active:scale-[0.98] transition-all disabled:opacity-50">
+              {saving ? 'Bloqueando…' : 'Bloquear'}
             </button>
           </div>
         </form>
@@ -348,26 +599,43 @@ function CrearUsuarioModal({ onClose, onSuccess }: { onClose: () => void; onSucc
 // ─── ProgramarBloqueoModal ────────────────────────────────────────────────────
 
 function ProgramarBloqueoModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [desde, setDesde] = useState('')
   const [hasta, setHasta] = useState(() => {
     const d = new Date()
     d.setHours(d.getHours() + 2, 0, 0, 0)
-    return d.toISOString().slice(0, 16)
+    return localISOString(d)
   })
   const [saving, setSaving] = useState(false)
+
+  const desdeDate = desde ? new Date(desde) : null
+  const esProgamado = desdeDate !== null && desdeDate > new Date()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const hastaDate = new Date(hasta)
     if (hastaDate <= new Date()) {
-      notify.error('La hora debe ser en el futuro')
+      notify.error('La hora de fin debe ser en el futuro')
+      return
+    }
+    if (desdeDate && desdeDate >= hastaDate) {
+      notify.error('"Desde" debe ser anterior a "Hasta"')
       return
     }
     setSaving(true)
     try {
-      await api.post('/Usuario/programar-bloqueo', { hasta: hastaDate.toISOString() })
-      notify.success('Bloqueo programado', {
-        description: `Los usuarios estarán bloqueados hasta ${hastaDate.toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' })}`,
+      await api.post('/Usuario/programar-bloqueo', {
+        desde: desdeDate ? desdeDate.toISOString() : undefined,
+        hasta: hastaDate.toISOString(),
       })
+      if (esProgamado) {
+        notify.success('Bloqueo programado', {
+          description: `Comenzará ${desdeDate!.toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' })} hasta ${hastaDate.toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' })}`,
+        })
+      } else {
+        notify.success('Bloqueo aplicado', {
+          description: `Usuarios bloqueados hasta ${hastaDate.toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' })}`,
+        })
+      }
       onSuccess()
       onClose()
     } catch (e) {
@@ -390,8 +658,8 @@ function ProgramarBloqueoModal({ onClose, onSuccess }: { onClose: () => void; on
               <IcoClock />
             </div>
             <div>
-              <p className="font-semibold text-steel-900 text-sm">Programar bloqueo</p>
-              <p className="text-[11px] text-steel-400">Los usuarios no podrán ingresar hasta la hora indicada</p>
+              <p className="font-semibold text-steel-900 text-sm">Programar bloqueo global</p>
+              <p className="text-[11px] text-steel-400">Afecta a todos los no-admins</p>
             </div>
             <button onClick={onClose} className="ml-auto text-steel-300 hover:text-steel-600 p-1">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -400,19 +668,39 @@ function ProgramarBloqueoModal({ onClose, onSuccess }: { onClose: () => void; on
         </div>
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-steel-600 mb-1.5">Bloquear hasta</label>
+            <label className="block text-xs font-semibold text-steel-600 mb-1.5">
+              Desde <span className="font-normal text-steel-400">(opcional — vacío = ahora mismo)</span>
+            </label>
+            <input
+              type="datetime-local"
+              value={desde}
+              onChange={e => setDesde(e.target.value)}
+              min={localISOString(new Date())}
+              className="w-full h-11 px-3.5 rounded-xl border border-steel-200 bg-white text-steel-900 text-sm focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-steel-600 mb-1.5">Hasta *</label>
             <input
               type="datetime-local"
               value={hasta}
               onChange={e => setHasta(e.target.value)}
-              min={new Date().toISOString().slice(0, 16)}
+              min={localISOString(new Date())}
               className="w-full h-11 px-3.5 rounded-xl border border-steel-200 bg-white text-steel-900 text-sm focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all"
               required
             />
-            <p className="text-[11px] text-steel-400 mt-1">
-              Los usuarios sin rol Admin quedarán bloqueados automáticamente hasta esa hora.
-            </p>
           </div>
+          {esProgamado && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50 border border-blue-100">
+              <svg className="h-4 w-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <p className="text-[11px] text-blue-700">
+                El bloqueo comenzará automáticamente a las {desdeDate!.toLocaleString('es-BO', { timeStyle: 'short' })}.
+              </p>
+            </div>
+          )}
+          <p className="text-[11px] text-steel-400">
+            Los administradores no serán afectados.
+          </p>
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose} disabled={saving}
               className="flex-1 h-10 rounded-xl border border-steel-200 text-sm font-medium text-steel-600 hover:bg-steel-50 transition-colors disabled:opacity-50">
@@ -420,11 +708,58 @@ function ProgramarBloqueoModal({ onClose, onSuccess }: { onClose: () => void; on
             </button>
             <button type="submit" disabled={saving}
               className="flex-1 h-10 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 active:scale-[0.98] transition-all disabled:opacity-50">
-              {saving ? 'Guardando…' : 'Confirmar'}
+              {saving ? 'Guardando…' : esProgamado ? 'Programar' : 'Aplicar ahora'}
             </button>
           </div>
         </form>
       </div>
+    </div>
+  )
+}
+
+// ─── HorarioGlobalCard ────────────────────────────────────────────────────────
+
+function HorarioGlobalCard({
+  horario,
+  onConfigure,
+}: {
+  horario: HorarioAPI | null
+  onConfigure: () => void
+}) {
+  return (
+    <div
+      className="flex items-center justify-between px-5 py-4 rounded-xl mb-3"
+      style={{ background: horario ? '#F3F0FF' : '#F8F8F8', border: '1px solid', borderColor: horario ? '#DDD6FE' : '#E8EDF3' }}
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: horario ? '#EDE9FE' : '#EFEFEF', color: horario ? '#7C3AED' : '#9CA3AF' }}
+        >
+          <IcoGlobe />
+        </div>
+        <div>
+          <p className="text-[13px] font-semibold text-steel-800">Horario de cierre global</p>
+          {horario ? (
+            <p className="text-[11px] text-violet-700">
+              Activo · Todos los días de {horario.horaInicio} a {horario.horaFin}
+            </p>
+          ) : (
+            <p className="text-[11px] text-steel-400">Sin horario configurado</p>
+          )}
+        </div>
+      </div>
+      <button
+        onClick={onConfigure}
+        className="h-8 px-3 rounded-lg text-[12px] font-semibold border transition-colors"
+        style={{
+          background: horario ? '#EDE9FE' : '#F0F0F0',
+          color: horario ? '#7C3AED' : '#6B7280',
+          borderColor: horario ? '#DDD6FE' : '#E0E0E0',
+        }}
+      >
+        {horario ? 'Editar' : 'Configurar'}
+      </button>
     </div>
   )
 }
@@ -434,19 +769,26 @@ function ProgramarBloqueoModal({ onClose, onSuccess }: { onClose: () => void; on
 export function UsuariosPage() {
   const { user: me } = useAuth()
   const [usuarios, setUsuarios] = useState<UsuarioAPI[]>([])
+  const [horarioGlobal, setHorarioGlobal] = useState<HorarioAPI | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filtro, setFiltro] = useState<'todos' | 'activo' | 'inactivo'>('todos')
   const [showProgramar, setShowProgramar] = useState(false)
   const [showCrear, setShowCrear] = useState(false)
+  const [showHorarioGlobal, setShowHorarioGlobal] = useState(false)
   const [toggling, setToggling] = useState<string | null>(null)
   const [desactivandoTodos, setDesactivandoTodos] = useState(false)
   const [horarioUsuario, setHorarioUsuario] = useState<UsuarioAPI | null>(null)
+  const [bloquearHastaUsuario, setBloquearHastaUsuario] = useState<UsuarioAPI | null>(null)
 
   const load = useCallback(async () => {
     try {
-      const data = await api.get<UsuarioAPI[]>('/Usuario')
+      const [data, global] = await Promise.all([
+        api.get<UsuarioAPI[]>('/Usuario'),
+        api.get<HorarioAPI | null>('/Usuario/horario-global'),
+      ])
       setUsuarios(data ?? [])
+      setHorarioGlobal(global ?? null)
     } catch {
       notify.error('Error cargando usuarios')
     } finally {
@@ -479,13 +821,11 @@ export function UsuariosPage() {
   const handleToggle = async (u: UsuarioAPI) => {
     if (toggling) return
     setToggling(u.id)
-    // optimistic
     setUsuarios(prev => prev.map(x => x.id === u.id ? { ...x, activo: !x.activo, bloqueadoHasta: null } : x))
     try {
       await api.patch(`/Usuario/${u.id}/toggle`)
       notify.success(u.activo ? `${u.nombre} desactivado` : `${u.nombre} activado`)
     } catch (e) {
-      // revert
       setUsuarios(prev => prev.map(x => x.id === u.id ? u : x))
       notify.error(e instanceof Error ? e.message : 'Error al cambiar estado')
     } finally {
@@ -497,12 +837,16 @@ export function UsuariosPage() {
     setUsuarios(prev => prev.map(u => u.id === updated.id ? updated : u))
   }
 
+  const handleBloquearHastaSuccess = (updated: UsuarioAPI) => {
+    setUsuarios(prev => prev.map(u => u.id === updated.id ? updated : u))
+  }
+
   const handleDesactivarTodos = async () => {
-    if (!confirm('¿Desactivar a todos los usuarios (excepto tu cuenta)? Podrás reactivarlos individualmente.')) return
+    if (!confirm('¿Desactivar a todos los usuarios (excepto administradores)? Podrás reactivarlos individualmente.')) return
     setDesactivandoTodos(true)
     try {
       await api.post('/Usuario/desactivar-todos')
-      notify.success('Todos los usuarios desactivados')
+      notify.success('Todos los no-admins desactivados')
       await load()
     } catch (e) {
       notify.error(e instanceof Error ? e.message : 'Error')
@@ -542,11 +886,16 @@ export function UsuariosPage() {
           }
         />
 
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-3 gap-3 mb-3">
           <MetricCard label="Total" value={stats.total} sublabel="usuarios registrados" />
           <MetricCard label="Activos" value={stats.activos} bg="#C9F5E5" valueColor="#0A6645" sublabelColor="#2A8A60" sublabel="pueden iniciar sesión" />
           <MetricCard label="Inactivos" value={stats.inactivos} bg="#FFE5E5" valueColor="#991B1B" sublabelColor="#CC2222" sublabel="sin acceso" />
         </div>
+
+        <HorarioGlobalCard
+          horario={horarioGlobal}
+          onConfigure={() => setShowHorarioGlobal(true)}
+        />
 
         <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <div className="relative flex-1">
@@ -584,7 +933,7 @@ export function UsuariosPage() {
             {/* Desktop */}
             <div className="hidden lg:block">
               <div className="grid items-center px-5 pb-2 mb-1"
-                   style={{ gridTemplateColumns: '1fr 200px 130px 130px 44px', gap: '0 16px' }}>
+                   style={{ gridTemplateColumns: '1fr 200px 130px 130px 92px', gap: '0 16px' }}>
                 {['Usuario', 'Correo', 'Rol', 'Estado', ''].map(h => (
                   <span key={h} className="text-[11px] font-semibold uppercase tracking-wider text-steel-400">{h}</span>
                 ))}
@@ -598,6 +947,7 @@ export function UsuariosPage() {
                     toggling={toggling === u.id}
                     onToggle={() => handleToggle(u)}
                     onHorario={() => setHorarioUsuario(u)}
+                    onBloquearHasta={() => setBloquearHastaUsuario(u)}
                   />
                 ))}
               </div>
@@ -613,6 +963,7 @@ export function UsuariosPage() {
                   toggling={toggling === u.id}
                   onToggle={() => handleToggle(u)}
                   onHorario={() => setHorarioUsuario(u)}
+                  onBloquearHasta={() => setBloquearHastaUsuario(u)}
                 />
               ))}
             </div>
@@ -634,11 +985,27 @@ export function UsuariosPage() {
         />
       )}
 
+      {showHorarioGlobal && (
+        <HorarioGlobalModal
+          horarioActual={horarioGlobal}
+          onClose={() => setShowHorarioGlobal(false)}
+          onSuccess={setHorarioGlobal}
+        />
+      )}
+
       {horarioUsuario && (
         <HorarioModal
           usuario={horarioUsuario}
           onClose={() => setHorarioUsuario(null)}
           onSuccess={handleHorarioSuccess}
+        />
+      )}
+
+      {bloquearHastaUsuario && (
+        <BloquearHastaModal
+          usuario={bloquearHastaUsuario}
+          onClose={() => setBloquearHastaUsuario(null)}
+          onSuccess={handleBloquearHastaSuccess}
         />
       )}
     </MainLayout>
@@ -653,6 +1020,7 @@ interface RowProps {
   toggling: boolean
   onToggle: () => void
   onHorario: () => void
+  onBloquearHasta: () => void
 }
 
 function Toggle({ activo, toggling, onToggle, disabled }: { activo: boolean; toggling: boolean; onToggle: () => void; disabled: boolean }) {
@@ -677,13 +1045,13 @@ function Toggle({ activo, toggling, onToggle, disabled }: { activo: boolean; tog
   )
 }
 
-function UsuarioRow({ usuario: u, isSelf, toggling, onToggle, onHorario }: RowProps) {
+function UsuarioRow({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloquearHasta }: RowProps) {
   const hasta = fmtBloqueo(u.bloqueadoHasta)
   return (
     <div
       className="grid items-center px-5 py-3.5 rounded-xl transition-opacity"
       style={{
-        gridTemplateColumns: '1fr 200px 130px 130px 44px',
+        gridTemplateColumns: '1fr 200px 130px 130px 92px',
         gap: '0 16px',
         background: '#FFFFFF',
         border: '1px solid #E8EDF3',
@@ -713,21 +1081,35 @@ function UsuarioRow({ usuario: u, isSelf, toggling, onToggle, onHorario }: RowPr
           )}
         </div>
       </div>
-      <button
-        onClick={onHorario}
-        title={u.horario ? `Horario: ${u.horario.horaInicio}–${u.horario.horaFin}` : 'Sin horario recurrente'}
-        className={clsx(
-          'h-8 w-8 rounded-lg flex items-center justify-center transition-colors',
-          u.horario ? 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200' : 'bg-steel-100 text-steel-400 hover:bg-steel-200'
-        )}
-      >
-        <IcoClock />
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={onBloquearHasta}
+          disabled={isSelf}
+          title={isSelf ? undefined : u.activo ? 'Bloquear hasta fecha' : 'Cambiar fecha de bloqueo'}
+          className={clsx(
+            'h-8 w-[42px] rounded-lg flex items-center justify-center transition-colors',
+            isSelf ? 'opacity-30 cursor-not-allowed bg-steel-100 text-steel-400'
+              : 'bg-orange-50 text-orange-500 hover:bg-orange-100'
+          )}
+        >
+          <IcoCalendar />
+        </button>
+        <button
+          onClick={onHorario}
+          title={u.horario ? `Horario recurrente: ${u.horario.horaInicio}–${u.horario.horaFin}` : 'Sin horario recurrente'}
+          className={clsx(
+            'h-8 w-[42px] rounded-lg flex items-center justify-center transition-colors',
+            u.horario ? 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200' : 'bg-steel-100 text-steel-400 hover:bg-steel-200'
+          )}
+        >
+          <IcoClock />
+        </button>
+      </div>
     </div>
   )
 }
 
-function UsuarioCard({ usuario: u, isSelf, toggling, onToggle, onHorario }: RowProps) {
+function UsuarioCard({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloquearHasta }: RowProps) {
   const hasta = fmtBloqueo(u.bloqueadoHasta)
   return (
     <div
@@ -759,18 +1141,32 @@ function UsuarioCard({ usuario: u, isSelf, toggling, onToggle, onHorario }: RowP
             )}
           </div>
         </div>
-        <button
-          onClick={onHorario}
-          className={clsx(
-            'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors',
-            u.horario
-              ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-              : 'bg-steel-100 text-steel-500 hover:bg-steel-200'
-          )}
-        >
-          <IcoClock />
-          {u.horario ? `${u.horario.horaInicio}–${u.horario.horaFin}` : 'Horario'}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={onBloquearHasta}
+            disabled={isSelf}
+            className={clsx(
+              'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors',
+              isSelf ? 'opacity-30 cursor-not-allowed bg-steel-100 text-steel-400'
+                : 'bg-orange-50 text-orange-600 hover:bg-orange-100'
+            )}
+          >
+            <IcoCalendar />
+            Bloquear
+          </button>
+          <button
+            onClick={onHorario}
+            className={clsx(
+              'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors',
+              u.horario
+                ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                : 'bg-steel-100 text-steel-500 hover:bg-steel-200'
+            )}
+          >
+            <IcoClock />
+            {u.horario ? `${u.horario.horaInicio}–${u.horario.horaFin}` : 'Horario'}
+          </button>
+        </div>
       </div>
     </div>
   )

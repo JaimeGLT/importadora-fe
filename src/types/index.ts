@@ -356,6 +356,7 @@ export interface PiezaOrden {
   id_pieza: number
   nombre: string
   codigo: string
+  marcaId?: number | null
   cantidad: number
   precio_unitario?: number
   confirmado?: boolean

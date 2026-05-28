@@ -447,6 +447,7 @@ function backendToItemOrden(api: OrdenItemAPI): ItemOrden {
           id_pieza: p.id_Pieza,
           nombre: p.pieza?.nombre ?? `Pieza #${p.id_Pieza}`,
           codigo: p.pieza?.codigoUniversal ?? '',
+          marcaId: api.producto?.marca?.id ?? null,
           cantidad: p.cantidad,
           precio_unitario: p.precioUnitario,
           confirmado: p.confirmado,

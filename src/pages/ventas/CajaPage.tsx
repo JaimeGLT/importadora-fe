@@ -1078,15 +1078,28 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
     <Modal open onClose={onClose} title={`Cobrar ${orden.numero}`} size="md">
       <div className="space-y-4 pt-1">
         <div className="space-y-1">
-          {itemsDespachados.map(i => (
-            <div key={i.id} className="flex justify-between text-sm gap-2">
-              <div className="flex-1 min-w-0">
-                <p className="text-[#5a5670] truncate">{i.producto_nombre}</p>
-                <p className="text-[10px] font-mono text-[#9996b0]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
+          {itemsDespachados.map(i => {
+            if (i.es_parcial && i.piezas_orden?.length) {
+              return i.piezas_orden.filter(p => p.confirmado).map(p => (
+                <div key={`${i.id}-${p.id}`} className="flex justify-between text-sm gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[#5a5670] truncate">{p.nombre}</p>
+                    <p className="text-[10px] font-mono text-[#9996b0]">{fmtCodigo(p.codigo, p.marcaId, marcas)} · ×{p.cantidad}</p>
+                  </div>
+                  <span className="font-semibold text-[#1e1b2e] shrink-0">{fmtBs((p.precio_unitario ?? 0) * p.cantidad)}</span>
+                </div>
+              ))
+            }
+            return (
+              <div key={i.id} className="flex justify-between text-sm gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[#5a5670] truncate">{i.producto_nombre}</p>
+                  <p className="text-[10px] font-mono text-[#9996b0]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
+                </div>
+                <span className="font-semibold text-[#1e1b2e] shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
               </div>
-              <span className="font-semibold text-[#1e1b2e] shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
-            </div>
-          ))}
+            )
+          })}
           {itemsFaltantes.map(i => (
             <div key={i.id} className="flex justify-between text-sm gap-2 opacity-50">
               <div className="flex-1 min-w-0">
@@ -1394,15 +1407,28 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
         )}
 
         <div className="space-y-1.5">
-          {itemsDespachados.map(i => (
-            <div key={i.id} className="flex justify-between text-sm gap-2">
-              <div className="flex-1 min-w-0">
-                <p className="text-[#5a5670] truncate">{i.producto_nombre}</p>
-                <p className="text-[10px] font-mono text-[#9996b0]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
+          {itemsDespachados.map(i => {
+            if (i.es_parcial && i.piezas_orden?.length) {
+              return i.piezas_orden.filter(p => p.confirmado).map(p => (
+                <div key={`${i.id}-${p.id}`} className="flex justify-between text-sm gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[#5a5670] truncate">{p.nombre}</p>
+                    <p className="text-[10px] font-mono text-[#9996b0]">{fmtCodigo(p.codigo, p.marcaId, marcas)} · ×{p.cantidad}</p>
+                  </div>
+                  <span className="font-semibold shrink-0">{fmtBs((p.precio_unitario ?? 0) * p.cantidad)}</span>
+                </div>
+              ))
+            }
+            return (
+              <div key={i.id} className="flex justify-between text-sm gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[#5a5670] truncate">{i.producto_nombre}</p>
+                  <p className="text-[10px] font-mono text-[#9996b0]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
+                </div>
+                <span className="font-semibold shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
               </div>
-              <span className="font-semibold shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
-            </div>
-          ))}
+            )
+          })}
           {itemsFaltantes.map(i => (
             <div key={i.id} className="flex justify-between text-sm gap-2 opacity-40">
               <div className="flex-1 min-w-0">

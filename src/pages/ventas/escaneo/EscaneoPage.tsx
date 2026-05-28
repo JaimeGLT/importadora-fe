@@ -395,7 +395,7 @@ function PiezaScanPriceModal({
               Pieza de kit
             </span>
           </div>
-          <p className="text-xs font-mono text-steel-400">{pieza.codigo}</p>
+          <p className="text-xs font-mono text-steel-400">{fmtCodigo(pieza.codigo, pieza.marcaId, marcas)}</p>
         </div>
 
         <div className="p-5 space-y-3">
@@ -782,10 +782,17 @@ export function EscaneoPage() {
 
   const totalSinFaltantes = useMemo(
     () => itemsParaEscanear.reduce((s, i) => {
+      if (i.es_parcial && i.piezas_orden?.length) {
+        return s + i.piezas_orden.reduce((ps, p) => {
+          const precio = confirmedPiezaPrices[p.id] ?? p.precio_unitario ?? 0
+          const qty = p.nota_incompleto ? (p.cantidad_recogida ?? 0) : p.cantidad
+          return ps + precio * qty
+        }, 0)
+      }
       const qty = i.estado === 'faltante' ? (i.cantidad_recogida ?? 0) : i.cantidad_pedida
       return s + i.precio_unitario * qty
     }, 0),
-    [itemsParaEscanear]
+    [itemsParaEscanear, confirmedPiezaPrices]
   )
 
   const setItemLoadingState = (itemId: string, val: boolean) =>
@@ -926,6 +933,32 @@ export function EscaneoPage() {
     })
 
     if (matched.length > 1) {
+      if (resolvedMarcaId !== null) {
+        const firstPending = matched.find(i => !confirmedItemIds.has(i.id) && !i.es_parcial)
+        if (firstPending) {
+          if (firstPending.kit_id && !firstPending.es_parcial) {
+            autoConfirmarItem(firstPending)
+          } else {
+            const targetQty = firstPending.estado === 'faltante'
+              ? (firstPending.cantidad_recogida ?? 0)
+              : firstPending.cantidad_pedida
+            const current = scanCounts[firstPending.id] ?? 0
+            const next = current + 1
+            playConfirmBeep()
+            setFlashItemId(firstPending.id)
+            setTimeout(() => setFlashItemId(null), 600)
+            if (next >= targetQty) {
+              setScanCounts(prev => { const n = { ...prev }; delete n[firstPending.id]; return n })
+              autoConfirmarItem(firstPending)
+            } else {
+              setScanCounts(prev => ({ ...prev, [firstPending.id]: next }))
+            }
+          }
+          return
+        }
+        notify.warning('Todos los ítems para este producto ya fueron confirmados')
+        return
+      }
       setSelectMultipleMatches(matched)
       return
     }
@@ -1272,7 +1305,7 @@ export function EscaneoPage() {
                                       )}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-mono text-steel-400 leading-none">{pieza.codigo}</p>
+                                      <p className="text-xs font-mono text-steel-400 leading-none">{fmtCodigo(pieza.codigo, pieza.marcaId, marcas)}</p>
                                       <p className="text-sm font-semibold text-steel-800 leading-snug truncate">
                                         {pieza.nombre} · ×{cantidadConfirmar}
                                       </p>
@@ -1284,7 +1317,7 @@ export function EscaneoPage() {
                                       <span className="px-2.5 py-1 rounded-lg bg-steel-100 text-steel-500 text-xs font-bold shrink-0">No disponible</span>
                                     ) : piezaConfirmada ? (
                                       <span className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-bold shrink-0">
-                                        ✓ Bs {(confirmedPiezaPrices[pieza.id] ?? pieza.precio_unitario ?? 0).toFixed(2)}
+                                        ✓ Bs {((confirmedPiezaPrices[pieza.id] ?? pieza.precio_unitario ?? 0) * cantidadConfirmar).toFixed(2)}
                                       </span>
                                     ) : (
                                       <div className="flex items-center gap-1.5 shrink-0">
@@ -1440,7 +1473,7 @@ export function EscaneoPage() {
                               <svg className="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-mono text-steel-300 line-through leading-none">{pieza.codigo}</p>
+                              <p className="text-xs font-mono text-steel-300 line-through leading-none">{fmtCodigo(pieza.codigo, pieza.marcaId, marcas)}</p>
                               <p className="text-sm text-steel-400 line-through leading-snug truncate">{itemNombre} — {pieza.nombre} · ×{pieza.cantidad}</p>
                             </div>
                             <span className="px-2.5 py-1 rounded-lg bg-steel-100 text-steel-500 text-xs font-bold shrink-0">No disponible</span>
