@@ -240,6 +240,7 @@ export function InventarioPage() {
   const searchDebounce                          = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [sorting, setSorting] = useState<SortingState>([])
+  const [exportando, setExportando] = useState(false)
 
   const dateStr = useMemo(() => {
     return new Date().toLocaleDateString('es-BO', {
@@ -374,6 +375,26 @@ export function InventarioPage() {
       notify.error('Error al cargar productos para importación')
     } finally {
       setLoadingAllProductos(false)
+    }
+  }
+
+  const handleExportar = async () => {
+    setExportando(true)
+    try {
+      const blob = await api.download('/Producto/exportar')
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `inventario_${new Date().toISOString().slice(0, 10)}.xlsx`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      notify.success('Excel exportado')
+    } catch {
+      notify.error('Error al exportar inventario')
+    } finally {
+      setExportando(false)
     }
   }
 
@@ -639,6 +660,17 @@ export function InventarioPage() {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0">
+              <button
+                onClick={() => void handleExportar()}
+                disabled={exportando}
+                className="px-[18px] py-2.5 bg-white border border-[#D8D4D0] rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium text-[#4A4744] hover:bg-[#F7F7F7] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {exportando
+                  ? <i className="ti ti-loader-2 text-base animate-spin" />
+                  : <i className="ti ti-table-export text-base" />
+                }
+                {exportando ? 'Exportando...' : 'Exportar'}
+              </button>
               <button
                 onClick={() => void handleOpenImport()}
                 className="px-[18px] py-2.5 bg-white border border-[#D8D4D0] rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium text-[#4A4744] hover:bg-[#F7F7F7] transition-all"

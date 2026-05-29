@@ -111,9 +111,20 @@ async function requestNoIntercept<T>(path: string, options: RequestOptions = {})
   return JSON.parse(text) as T
 }
 
+async function requestBlob(path: string): Promise<Blob> {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    credentials: 'include',
+    method: 'GET',
+  })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  return response.blob()
+}
+
 export const api = {
   get: <T>(path: string, options?: RequestOptions) =>
     requestWithInterceptor<T>(path, { method: 'GET', ...options }),
+
+  download: (path: string) => requestBlob(path),
 
   post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     requestWithInterceptor<T>(path, { method: 'POST', body, ...options }),
