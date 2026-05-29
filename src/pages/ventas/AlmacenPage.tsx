@@ -37,13 +37,13 @@ type TabFiltro = 'todos' | 'pendiente_almacenero' | 'en_preparacion' | 'listo_pa
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<EstadoOrden, { label: string; bg: string; text: string; dot: string }> = {
-  pendiente_almacenero: { label: 'Pendiente',       bg: 'bg-amber-50',   text: 'text-amber-700',  dot: 'bg-amber-400' },
-  en_preparacion:       { label: 'En preparación',  bg: 'bg-blue-50',    text: 'text-blue-700',   dot: 'bg-blue-400' },
-  listo_para_escaneo:   { label: 'Para escanear',   bg: 'bg-indigo-50',  text: 'text-indigo-700', dot: 'bg-indigo-400' },
-  con_faltantes:        { label: 'Con faltantes',   bg: 'bg-orange-50',  text: 'text-orange-700', dot: 'bg-orange-400' },
-  esperando_pago:       { label: 'Esperando pago',  bg: 'bg-violet-50',  text: 'text-violet-700', dot: 'bg-violet-400' },
-  completada:           { label: 'Completada',      bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-400' },
-  cancelada:            { label: 'Cancelada',       bg: 'bg-red-50',     text: 'text-red-500',    dot: 'bg-red-400' },
+  pendiente_almacenero: { label: 'Pendiente',       bg: 'bg-[#F5E0A8]',   text: 'text-[#7A5200]',  dot: 'bg-[#B47A1F]' },
+  en_preparacion:       { label: 'En preparación',  bg: 'bg-[#DBEAFE]',   text: 'text-[#1D4ED8]',  dot: 'bg-[#3B82F6]' },
+  listo_para_escaneo:   { label: 'Para escanear',   bg: 'bg-[#EDE9FE]',   text: 'text-[#5B21B6]',  dot: 'bg-[#7C3AED]' },
+  con_faltantes:        { label: 'Con faltantes',   bg: 'bg-[#F5E0A8]',   text: 'text-[#7A5200]',  dot: 'bg-[#B47A1F]' },
+  esperando_pago:       { label: 'Esperando pago',  bg: 'bg-[#F3E8FF]',   text: 'text-[#7E22CE]',  dot: 'bg-[#A855F7]' },
+  completada:           { label: 'Completada',      bg: 'bg-[#B8DCCA]',   text: 'text-[#1E5C38]',  dot: 'bg-[#3F7A52]' },
+  cancelada:            { label: 'Cancelada',       bg: 'bg-[#F5C9C0]',   text: 'text-[#8A1E12]',  dot: 'bg-[#B23A2A]' },
 }
 
 // ─── OrderCard (lista) ───────────────────────────────────────────────────────
@@ -70,43 +70,42 @@ function OrderCard({
   return (
     <div
       className={clsx(
-        'bg-white rounded-2xl border shadow-sm p-4 transition-all duration-300',
-        isNew && 'ring-2 ring-brand-400 ring-offset-2 animate-pulse-once',
-        isLate && orden.estado === 'pendiente_almacenero' ? 'border-red-200' : 'border-steel-100',
+        'bg-white rounded-xl border p-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md',
+        isNew && 'ring-2 ring-[#D4A333] ring-offset-2',
+        isLate && orden.estado === 'pendiente_almacenero' ? 'border-[#B23A2A]' : 'border-[#D0CBC4]',
       )}
     >
       <div className="flex items-center justify-between gap-3 mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-base font-black text-steel-900">{orden.numero}</span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-base font-black text-[#2D2B2A]">{orden.numero}</span>
           <span className={clsx('inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold', status.bg, status.text)}>
-            <span className={clsx('h-1.5 w-1.5 rounded-full', status.dot, orden.estado === 'pendiente_almacenero' && 'animate-pulse')} />
+            <span className={clsx('h-1.5 w-1.5 rounded-full shrink-0', status.dot, orden.estado === 'pendiente_almacenero' && 'animate-pulse')} />
             {status.label}
           </span>
           {isLate && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-[10px] font-bold">
-              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F5C9C0] text-[#8A1E12] text-[10px] font-bold">
+              <i className="ti ti-alert-triangle text-[11px]" />
               Urgente
             </span>
           )}
           {hasPendientes && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold animate-pulse">
-              ⏳ {pendientesCount} nuevo{pendientesCount !== 1 ? 's' : ''}
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F5E0A8] text-[#7A5200] text-[10px] font-bold animate-pulse">
+              <i className="ti ti-clock text-[11px]" />
+              {pendientesCount} nuevo{pendientesCount !== 1 ? 's' : ''}
             </span>
           )}
         </div>
-        <span className={clsx('text-xs font-medium tabular-nums', isLate ? 'text-red-500' : 'text-steel-400')}>
+        <span className={clsx('text-xs font-medium tabular-nums shrink-0', isLate ? 'text-[#B23A2A]' : 'text-[#7A7571]')}>
           {fmtTimeSince(orden.creado_en)}
         </span>
       </div>
 
-      <div className="flex items-center gap-3 text-xs text-steel-500 mb-1">
-        <span className="font-medium text-steel-700">{orden.cajero_nombre}</span>
+      <div className="flex items-center gap-3 text-xs text-[#7A7571] mb-1">
+        <span className="font-medium text-[#4A4744]">{orden.cajero_nombre}</span>
         <span>·</span>
         <span>{orden.items.length} prod.</span>
         <span>·</span>
-        <span className="font-semibold text-steel-700">{fmtBs(orden.total)}</span>
+        <span className="font-semibold text-[#4A4744]">{fmtBs(orden.total)}</span>
       </div>
 
       {(() => {
@@ -116,13 +115,15 @@ function OrderCard({
         return (
           <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
             {kitsCount > 0 && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 text-[10px] font-bold border border-brand-100">
-                🧩 {kitsCount} kit{kitsCount > 1 ? 's' : ''}
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F4ECDB] text-[#780e18] text-[10px] font-bold border border-[#E8D4B8]">
+                <i className="ti ti-stack text-[11px]" />
+                {kitsCount} kit{kitsCount > 1 ? 's' : ''}
               </span>
             )}
             {piezasCount > 0 && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-100">
-                🔧 {piezasCount} piezas sueltas
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#DBEAFE] text-[#1D4ED8] text-[10px] font-bold border border-[#BFDBFE]">
+                <i className="ti ti-tool text-[11px]" />
+                {piezasCount} piezas sueltas
               </span>
             )}
           </div>
@@ -130,23 +131,22 @@ function OrderCard({
       })()}
 
       {orden.nota && (
-        <p className="mt-1.5 text-xs text-amber-600 italic bg-amber-50 px-2 py-1 rounded-lg border border-amber-100">
-          📝 {orden.nota}
+        <p className="mt-1.5 text-xs text-[#7A5200] italic bg-[#F5E0A8] px-2.5 py-1.5 rounded-lg border border-[#B47A1F]/30 flex items-start gap-1.5">
+          <i className="ti ti-note text-[12px] shrink-0 mt-0.5" />
+          {orden.nota}
         </p>
       )}
 
       {tomadaPorOtro && orden.estado === 'en_preparacion' && (
-        <div className="mt-3 flex items-center gap-2 p-2.5 rounded-xl bg-steel-50 border border-steel-100">
-          <div className="h-8 w-8 rounded-full bg-steel-200 flex items-center justify-center text-xs font-bold text-steel-600">
+        <div className="mt-3 flex items-center gap-2 p-2.5 rounded-xl bg-[#F0EFEC] border border-[#E8E5E2]">
+          <div className="h-8 w-8 rounded-full bg-[#E8E5E2] flex items-center justify-center text-xs font-bold text-[#4A4744]">
             {(orden.almacenero_nombre ?? '?').charAt(0).toUpperCase()}
           </div>
           <div className="flex-1">
-            <p className="text-xs font-semibold text-steel-600">{orden.almacenero_nombre ?? 'Desconocido'}</p>
-            <p className="text-[10px] text-steel-400">está preparando esta orden</p>
+            <p className="text-xs font-semibold text-[#4A4744]">{orden.almacenero_nombre ?? 'Desconocido'}</p>
+            <p className="text-[10px] text-[#7A7571]">está preparando esta orden</p>
           </div>
-          <svg className="h-4 w-4 text-steel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-          </svg>
+          <i className="ti ti-lock text-[#7A7571] text-[16px]" />
         </div>
       )}
 
@@ -154,53 +154,45 @@ function OrderCard({
         {orden.estado === 'pendiente_almacenero' && (
           <button
             onClick={() => onTomar(orden)}
-            className="w-full py-2.5 rounded-xl bg-steel-900 text-white text-xs font-bold hover:bg-steel-800 active:bg-steel-950 transition-all flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-xl bg-[#2D2B2A] text-white text-xs font-bold hover:bg-[#4A4744] active:bg-[#1A1918] transition-all flex items-center justify-center gap-2"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-            </svg>
+            <i className="ti ti-package text-[14px]" />
             Tomar orden
           </button>
         )}
         {orden.estado === 'en_preparacion' && esMia && (
           <button
             onClick={() => onTomar(orden)}
-            className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 active:bg-blue-800 transition-all flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-xl bg-[#1D4ED8] text-white text-xs font-bold hover:bg-[#1E40AF] active:bg-[#1E3A8A] transition-all flex items-center justify-center gap-2"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
+            <i className="ti ti-edit text-[14px]" />
             Continuar preparación
           </button>
         )}
         {orden.estado === 'listo_para_escaneo' && (
           <button
             onClick={() => onTomar(orden)}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-50 rounded-xl border border-indigo-100 hover:bg-indigo-100 transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#EDE9FE] rounded-xl border border-[#DDD6FE] hover:bg-[#DDD6FE] transition-colors"
           >
-            <div className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce" />
-            <p className="text-xs text-indigo-700 font-bold">Lista — esperando escaneo · Ver detalle</p>
+            <div className="h-2 w-2 rounded-full bg-[#7C3AED] animate-bounce" />
+            <p className="text-xs text-[#5B21B6] font-bold">Lista — esperando escaneo · Ver detalle</p>
           </button>
         )}
         {(orden.estado === 'listo_para_escaneo' || orden.estado === 'con_faltantes') && hasPendientes && (
           <button
             onClick={() => onTomar(orden)}
-            className="w-full py-2.5 rounded-xl bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 active:bg-amber-700 transition-all flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-xl bg-[#B47A1F] text-white text-xs font-bold hover:bg-[#7A5200] active:bg-[#5C3D00] transition-all flex items-center justify-center gap-2"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-            </svg>
+            <i className="ti ti-package text-[14px]" />
             Ir a buscar {pendientesCount} producto{pendientesCount !== 1 ? 's' : ''} faltante{pendientesCount !== 1 ? 's' : ''}
           </button>
         )}
         {orden.estado === 'con_faltantes' && !hasPendientes && (
           <button
             onClick={() => onTomar(orden)}
-            className="w-full py-2.5 rounded-xl bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 active:bg-orange-700 transition-all flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-xl bg-[#B23A2A] text-white text-xs font-bold hover:bg-[#8A1E12] active:bg-[#6B1410] transition-all flex items-center justify-center gap-2"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
+            <i className="ti ti-clipboard-list text-[14px]" />
             Ver orden con faltantes
           </button>
         )}
@@ -229,8 +221,8 @@ function FaltantesModal({
 }) {
   const { marcas } = useMarcasStore()
   const [selItems, setSelItems] = useState<Set<string>>(new Set())
-  const [cantidades, setCantidades] = useState<Record<string, number>>({}) // itemId → cantidadEncontrada
-  const [selPiezas, setSelPiezas] = useState<Set<string>>(new Set()) // key: `${itemId}-${piezaId}`
+  const [cantidades, setCantidades] = useState<Record<string, number>>({})
+  const [selPiezas, setSelPiezas] = useState<Set<string>>(new Set())
   const [confirmando, setConfirmando] = useState(false)
   const [revertiendoId, setRevertiendoId] = useState<string | null>(null)
 
@@ -275,8 +267,8 @@ function FaltantesModal({
   function CheckBox({ checked }: { checked: boolean }) {
     return (
       <div className={clsx('h-5 w-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all',
-        checked ? 'bg-red-500 border-red-500' : 'border-steel-200')}>
-        {checked && <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+        checked ? 'bg-[#B23A2A] border-[#B23A2A]' : 'border-[#E8E5E2]')}>
+        {checked && <i className="ti ti-check text-white text-[12px]" />}
       </div>
     )
   }
@@ -297,25 +289,25 @@ function FaltantesModal({
       }
     >
       <div className="space-y-4">
-        <p className="text-xs text-steel-500">
+        <p className="text-xs text-[#7A7571]">
           Marca los productos o piezas que no encontraste. El stock reservado será liberado.
         </p>
 
         {itemsDisponibles.length > 0 && (
           <div>
-            <p className="text-[10px] font-bold text-steel-400 uppercase tracking-wide mb-2">
+            <p className="text-[10px] font-bold text-[#7A7571] uppercase tracking-wide mb-2">
               Disponibles ({itemsDisponibles.length})
             </p>
             <div className="space-y-1.5">
               {itemsDisponibles.map(item => {
                 if (item.es_parcial && item.piezas_orden?.length) {
                   return (
-                    <div key={item.id} className="rounded-xl border border-steel-100 bg-white overflow-hidden">
-                      <div className="px-3 py-2 bg-indigo-50 border-b border-indigo-100">
-                        <p className="text-xs font-bold text-indigo-700">{item.producto_nombre}</p>
-                        <p className="text-[10px] text-indigo-500">Kit parcial — selecciona las piezas faltantes</p>
+                    <div key={item.id} className="rounded-xl border border-[#E8E5E2] bg-white overflow-hidden">
+                      <div className="px-3 py-2 bg-[#F0F4FF] border-b border-[#DBEAFE]">
+                        <p className="text-xs font-bold text-[#1D4ED8]">{item.producto_nombre}</p>
+                        <p className="text-[10px] text-[#3B82F6]">Kit parcial — selecciona las piezas faltantes</p>
                       </div>
-                      <div className="divide-y divide-steel-100">
+                      <div className="divide-y divide-[#E8E5E2]">
                         {item.piezas_orden.map(p => {
                           const key = `${item.id}-${p.id}`
                           const checked = selPiezas.has(key)
@@ -324,14 +316,14 @@ function FaltantesModal({
                               key={p.id}
                               onClick={() => togglePieza(item.id, p.id)}
                               className={clsx('flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors',
-                                checked ? 'bg-red-50' : 'hover:bg-steel-50')}
+                                checked ? 'bg-[#FDF1EE]' : 'hover:bg-[#F7F7F7]')}
                             >
                               <CheckBox checked={checked} />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-steel-800 truncate">{p.nombre}</p>
-                                <span className="text-[11px] font-mono text-steel-400">{p.codigo}</span>
+                                <p className="text-sm font-medium text-[#2D2B2A] truncate">{p.nombre}</p>
+                                <span className="text-[11px] font-mono text-[#7A7571]">{p.codigo}</span>
                               </div>
-                              <span className="text-sm font-bold text-steel-600 shrink-0">×{p.cantidad}</span>
+                              <span className="text-sm font-bold text-[#4A4744] shrink-0">×{p.cantidad}</span>
                             </div>
                           )
                         })}
@@ -345,7 +337,7 @@ function FaltantesModal({
                   <div
                     key={item.id}
                     className={clsx('rounded-xl border transition-all',
-                      checked ? 'bg-red-50 border-red-200' : 'bg-white border-steel-100 hover:border-red-100')}
+                      checked ? 'bg-[#FDF1EE] border-[#F5C9C0]' : 'bg-white border-[#E8E5E2] hover:border-[#F5C9C0]')}
                   >
                     <div
                       onClick={() => toggleItem(item.id)}
@@ -353,33 +345,34 @@ function FaltantesModal({
                     >
                       <CheckBox checked={checked} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-steel-800 truncate">{item.producto_nombre}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[11px] font-mono text-steel-400 bg-steel-50 px-1.5 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
+                        <p className="text-sm font-semibold text-[#2D2B2A] truncate">{item.producto_nombre}</p>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className="text-[11px] font-mono text-[#7A7571] bg-[#F0EFEC] px-1.5 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
                           {(item.producto_almacen || item.producto_estante) && (
-                            <span className="text-[11px] text-steel-400">
-                              📦 {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}
-                              {item.producto_fila ? ` / ${item.producto_fila}` : ''}{item.producto_columna ? ` / ${item.producto_columna}` : ''}
+                            <span className="text-[11px] text-[#7A7571] flex items-center gap-0.5">
+                              <i className="ti ti-map-pin text-[10px]" />
+                              {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}
+                              {item.produto_fila ? ` / ${item.produto_fila}` : ''}{item.produto_columna ? ` / ${item.produto_columna}` : ''}
                             </span>
                           )}
                         </div>
                       </div>
-                      <span className="text-sm font-bold text-steel-600 shrink-0">×{item.cantidad_pedida}</span>
+                      <span className="text-sm font-bold text-[#4A4744] shrink-0">×{item.cantidad_pedida}</span>
                     </div>
                     {checked && (
                       <div className="px-3 pb-2.5 flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                        <span className="text-xs text-red-600 font-medium shrink-0">Cantidad encontrada:</span>
+                        <span className="text-xs text-[#B23A2A] font-medium shrink-0">Cantidad encontrada:</span>
                         <input
                           type="number"
                           min={0}
                           max={item.cantidad_pedida - 1}
                           value={cantEncontrada}
                           onChange={e => setCantidad(item.id, Math.min(item.cantidad_pedida - 1, Math.max(0, Number(e.target.value))))}
-                          className="w-16 text-center text-sm font-bold border border-red-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-red-300"
+                          className="w-16 text-center text-sm font-bold border border-[#F5C9C0] rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-[#B23A2A]/30"
                         />
-                        <span className="text-xs text-steel-400">de {item.cantidad_pedida}</span>
+                        <span className="text-xs text-[#7A7571]">de {item.cantidad_pedida}</span>
                         {cantEncontrada === 0 && (
-                          <span className="text-[10px] text-red-500 font-medium ml-1">ninguno</span>
+                          <span className="text-[10px] text-[#B23A2A] font-medium ml-1">ninguno</span>
                         )}
                       </div>
                     )}
@@ -392,22 +385,20 @@ function FaltantesModal({
 
         {itemsFaltantes.length > 0 && (
           <div>
-            <p className="text-[10px] font-bold text-red-400 uppercase tracking-wide mb-2">
+            <p className="text-[10px] font-bold text-[#B23A2A] uppercase tracking-wide mb-2">
               Ya reportados ({itemsFaltantes.length})
             </p>
             <div className="space-y-1">
               {itemsFaltantes.map(item => {
                 const isRev = revertiendoId === item.id
                 return (
-                  <div key={item.id} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-red-50 border border-red-100">
-                    <svg className="h-4 w-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                  <div key={item.id} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-[#FDF1EE] border border-[#F5C9C0]">
+                    <i className="ti ti-x text-[#B23A2A] text-[16px] shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-red-700 truncate">{item.producto_nombre}</p>
+                      <p className="text-sm font-semibold text-[#8A1E12] truncate">{item.producto_nombre}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[11px] font-mono text-red-400">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
-                        {item.nota && <span className="text-[10px] text-red-400 italic">— {item.nota}</span>}
+                        <span className="text-[11px] font-mono text-[#B23A2A]">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
+                        {item.nota && <span className="text-[10px] text-[#B23A2A] italic">— {item.nota}</span>}
                       </div>
                     </div>
                     <button
@@ -417,12 +408,12 @@ function FaltantesModal({
                         setRevertiendoId(null)
                       }}
                       disabled={isRev || confirmando}
-                      className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-100 transition-colors disabled:opacity-40"
+                      className="p-1.5 rounded-lg text-[#B23A2A] hover:text-[#8A1E12] hover:bg-[#F5C9C0] transition-colors disabled:opacity-40"
                       title="Deshacer faltante"
                     >
                       {isRev
-                        ? <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4}/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                        : <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"/></svg>
+                        ? <i className="ti ti-loader-2 text-[16px] animate-spin" />
+                        : <i className="ti ti-arrow-back-up text-[16px]" />
                       }
                     </button>
                   </div>
@@ -433,7 +424,7 @@ function FaltantesModal({
         )}
 
         {orden.items.length === 0 && (
-          <p className="text-sm text-steel-400 text-center py-4">No hay productos en esta orden</p>
+          <p className="text-sm text-[#7A7571] text-center py-4">No hay productos en esta orden</p>
         )}
       </div>
     </Modal>
@@ -470,83 +461,82 @@ function ItemCard({
   return (
     <div className={clsx(
       'rounded-xl border overflow-hidden',
-      isFaltanteTotal ? 'border-red-200 bg-red-50/40' :
-      isPendiente ? 'border-amber-200 bg-amber-50/60' :
-      isListoAlmacenero ? 'border-emerald-200 bg-emerald-50/40' :
-      isParcial ? 'border-orange-300 bg-white' :
-      'border-steel-100 bg-white'
+      isFaltanteTotal ? 'border-[#F5C9C0] bg-[#FDF1EE]' :
+      isPendiente ? 'border-[#F5E0A8] bg-[#FFFBF0]' :
+      isListoAlmacenero ? 'border-[#B8DCCA] bg-[#F0FAF5]' :
+      isParcial ? 'border-[#F5E0A8] bg-white' :
+      'border-[#E8E5E2] bg-white'
     )}>
       <div className="flex items-start gap-3 px-4 pt-3 pb-2">
         {/* Icono estado */}
         <div className={clsx(
           'h-9 w-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5',
-          isFaltanteTotal ? 'bg-red-100 border border-red-200' :
-          isPendiente ? 'bg-amber-100 border border-amber-200' :
-          isListoAlmacenero ? 'bg-emerald-100 border border-emerald-200' :
-          isParcial ? 'bg-orange-100 border border-orange-200' :
-          'bg-steel-50 border border-steel-100'
+          isFaltanteTotal ? 'bg-[#F5C9C0] border border-[#F5C9C0]' :
+          isPendiente ? 'bg-[#F5E0A8] border border-[#F5E0A8]' :
+          isListoAlmacenero ? 'bg-[#B8DCCA] border border-[#B8DCCA]' :
+          isParcial ? 'bg-[#F5E0A8] border border-[#F5E0A8]' :
+          'bg-[#F0EFEC] border border-[#E8E5E2]'
         )}>
           {isFaltanteTotal ? (
-            <svg className="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            <i className="ti ti-x text-[#B23A2A] text-[16px]" />
           ) : isListoAlmacenero ? (
-            <svg className="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+            <i className="ti ti-check text-[#3F7A52] text-[16px]" />
           ) : isParcial ? (
-            <svg className="h-4 w-4 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <i className="ti ti-clock text-[#B47A1F] text-[16px]" />
           ) : (
-            <svg className={clsx('h-4 w-4', isPendiente ? 'text-amber-400' : 'text-steel-300')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
+            <i className={clsx('text-[16px]', isPendiente ? 'ti ti-package text-[#B47A1F]' : 'ti ti-package text-[#7A7571]')} />
           )}
         </div>
 
         {/* Info producto */}
         <div className="flex-1 min-w-0">
-          <p className="font-mono text-xs text-steel-400 leading-none mb-0.5">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</p>
-          <p className="text-sm font-bold text-steel-900 leading-snug">{item.producto_nombre}</p>
-          <p className="text-[11px] text-steel-400 mt-0.5">Pedidas: {pedida} unidades</p>
-          {item.nota && <p className="text-[11px] text-red-500 mt-0.5 italic">{item.nota}</p>}
+          <p className="font-mono text-xs text-[#7A7571] leading-none mb-0.5">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</p>
+          <p className="text-sm font-bold text-[#2D2B2A] leading-snug">{item.producto_nombre}</p>
+          <p className="text-[11px] text-[#7A7571] mt-0.5">Pedidas: {pedida} unidades</p>
+          {item.nota && <p className="text-[11px] text-[#B23A2A] mt-0.5 italic">{item.nota}</p>}
           {(item.producto_almacen || item.producto_estante || item.producto_fila || item.producto_columna) && (
-            <p className="text-[11px] text-steel-400 mt-0.5">
-              📦 {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}{item.producto_fila ? ` / ${item.producto_fila}` : ''}{item.producto_columna ? ` / ${item.producto_columna}` : ''}
+            <p className="text-[11px] text-[#7A7571] mt-0.5 flex items-center gap-0.5">
+              <i className="ti ti-map-pin text-[10px]" />
+              {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}{item.producto_fila ? ` / ${item.producto_fila}` : ''}{item.producto_columna ? ` / ${item.producto_columna}` : ''}
             </p>
           )}
           {item.es_parcial && (
-            <span className="inline-block mt-1 text-[10px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">Kit parcial</span>
+            <span className="inline-block mt-1 text-[10px] font-bold bg-[#DBEAFE] text-[#1D4ED8] px-1.5 py-0.5 rounded-full">Kit parcial</span>
           )}
         </div>
 
         {/* Derecha: estado/cantidad + botones */}
         <div className="shrink-0 flex flex-col items-end gap-1.5">
           {isPendiente && (
-            <p className="text-xl font-black text-steel-700 tabular-nums">×{pedida}</p>
+            <p className="text-xl font-black text-[#4A4744] tabular-nums">×{pedida}</p>
           )}
           {isListoAlmacenero && (
             <div className="text-right">
-              <p className="text-base font-black text-emerald-600 tabular-nums leading-none">✓ {pedida}/{pedida}</p>
-              <p className="text-[10px] font-bold text-emerald-500">Listo</p>
+              <p className="text-base font-black text-[#3F7A52] tabular-nums leading-none">{pedida}/{pedida}</p>
+              <p className="text-[10px] font-bold text-[#3F7A52]">Listo</p>
             </div>
           )}
           {isFaltanteTotal && (
             <div className="text-right">
-              <p className="text-base font-black text-red-500 tabular-nums leading-none">✗ 0/{pedida}</p>
-              <p className="text-[10px] font-bold text-red-400">Faltante</p>
+              <p className="text-base font-black text-[#B23A2A] tabular-nums leading-none">0/{pedida}</p>
+              <p className="text-[10px] font-bold text-[#B23A2A]">Faltante</p>
             </div>
           )}
           {showListoBtn && isPendiente && (
             <div className="flex flex-col gap-1.5 items-end mt-1">
               <button onClick={onListo} disabled={loading}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors">
-                {loading ? '…' : '✓ Listo'}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#3F7A52] text-white hover:bg-[#1E5C38] disabled:opacity-50 transition-colors">
+                {loading ? '…' : 'Listo'}
               </button>
               <button onClick={onFaltante}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500 text-white hover:bg-red-600 transition-colors">
-                ✗ Faltante
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#B23A2A] text-white hover:bg-[#8A1E12] transition-colors">
+                Faltante
               </button>
             </div>
           )}
           {(isParcial || isFaltanteTotal) && onEditCantidad && (
             <button onClick={onEditCantidad}
-              className="text-[10px] font-bold text-orange-500 hover:text-orange-700 underline underline-offset-2 transition-colors mt-1">
+              className="text-[10px] font-bold text-[#B47A1F] hover:text-[#7A5200] underline underline-offset-2 transition-colors mt-1">
               Editar
             </button>
           )}
@@ -556,33 +546,26 @@ function ItemCard({
       {/* Barra de progreso parcial / faltante */}
       {(isParcial || isFaltanteTotal) && (
         <div className="flex items-center gap-2 px-3 pb-3 pt-1">
-          {/* Barra */}
-          <div className={clsx('flex-1 relative h-2 rounded-full overflow-hidden', isFaltanteTotal ? 'bg-red-100' : 'bg-orange-100')}>
+          <div className={clsx('flex-1 relative h-2 rounded-full overflow-hidden', isFaltanteTotal ? 'bg-[#F5C9C0]' : 'bg-[#F5E0A8]')}>
             <div
-              className={clsx('absolute top-0 left-0 h-full transition-all rounded-full', isFaltanteTotal ? 'bg-red-400' : 'bg-orange-400')}
+              className={clsx('absolute top-0 left-0 h-full transition-all rounded-full', isFaltanteTotal ? 'bg-[#B23A2A]' : 'bg-[#B47A1F]')}
               style={{ width: `${pct}%` }}
             />
           </div>
-          {/* Badge con conteo */}
-          <div className={clsx('shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full', isFaltanteTotal ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700')}>
-            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              {isFaltanteTotal
-                ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                : <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              }
-            </svg>
+          <div className={clsx('shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full', isFaltanteTotal ? 'bg-[#F5C9C0] text-[#8A1E12]' : 'bg-[#F5E0A8] text-[#7A5200]')}>
+            <i className={clsx('text-[11px]', isFaltanteTotal ? 'ti ti-x' : 'ti ti-clock')} />
             <span className="text-[10px] font-bold tabular-nums">{recogida}/{pedida} {isFaltanteTotal ? 'Faltante' : 'Parcial'}</span>
           </div>
         </div>
       )}
 
       {item.es_parcial && item.piezas_orden && item.piezas_orden.length > 0 && (
-        <div className="border-t border-steel-100 bg-steel-50 divide-y divide-steel-100">
+        <div className="border-t border-[#E8E5E2] bg-[#F7F7F7] divide-y divide-[#E8E5E2]">
           {item.piezas_orden.map(p => (
             <div key={p.id_pieza} className="flex items-center gap-2 px-4 py-2">
-              <span className="text-[10px] font-mono text-steel-400 bg-white px-1 py-0.5 rounded border border-steel-200 shrink-0">{p.codigo}</span>
-              <span className="text-xs text-steel-700 flex-1 min-w-0 truncate">{p.nombre}</span>
-              <span className="text-xs font-bold text-steel-800 shrink-0">×{p.cantidad}</span>
+              <span className="text-[10px] font-mono text-[#7A7571] bg-white px-1 py-0.5 rounded border border-[#E8E5E2] shrink-0">{p.codigo}</span>
+              <span className="text-xs text-[#4A4744] flex-1 min-w-0 truncate">{p.nombre}</span>
+              <span className="text-xs font-bold text-[#2D2B2A] shrink-0">×{p.cantidad}</span>
             </div>
           ))}
         </div>
@@ -645,51 +628,51 @@ function KitGroupCard({
   const kitCompletoPendiente = kitCompleto?.estado === 'pendiente'
 
   return (
-    <div className="rounded-2xl border border-steel-200 overflow-hidden bg-white shadow-sm">
+    <div className="rounded-xl border border-[#D0CBC4] overflow-hidden bg-white">
 
       {/* Sección: Kit completo */}
       {kitCompleto && (
-        <div className={clsx('border-b border-steel-100',
-          kitCompletoListo ? 'bg-emerald-50' :
+        <div className={clsx('border-b border-[#E8E5E2]',
+          kitCompletoListo ? 'bg-[#F0FAF5]' :
           kitCompletoPendiente ? '' :
-          'bg-red-50'
+          'bg-[#FDF1EE]'
         )}>
           <div className={clsx('flex items-center justify-between px-4 py-2.5 border-b',
-            kitCompletoListo ? 'border-emerald-100' :
-            kitCompletoPendiente ? 'border-steel-100' :
-            'border-red-200'
+            kitCompletoListo ? 'border-[#B8DCCA]' :
+            kitCompletoPendiente ? 'border-[#E8E5E2]' :
+            'border-[#F5C9C0]'
           )}>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className={clsx('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold',
-                kitCompletoListo ? 'bg-emerald-100 text-emerald-700' :
-                kitCompletoPendiente ? 'bg-steel-100 text-steel-600' :
-                'bg-red-100 text-red-700')}>
-                🧩 Kit completo
+                kitCompletoListo ? 'bg-[#B8DCCA] text-[#1E5C38]' :
+                kitCompletoPendiente ? 'bg-[#F0EFEC] text-[#4A4744]' :
+                'bg-[#F5C9C0] text-[#8A1E12]')}>
+                <i className="ti ti-stack text-[10px]" />
+                Kit completo
               </span>
-              <span className="text-xs text-steel-500 font-mono">{fmtCodigo(kitCompleto.producto_codigo, kitCompleto.marcaId, marcas)}</span>
-              <span className="text-xs text-steel-400">×{kitCompleto.cantidad_pedida} pedidos</span>
+              <span className="text-xs text-[#7A7571] font-mono">{fmtCodigo(kitCompleto.producto_codigo, kitCompleto.marcaId, marcas)}</span>
+              <span className="text-xs text-[#7A7571]">×{kitCompleto.cantidad_pedida} pedidos</span>
             </div>
-            <span className="text-[10px] text-steel-400 hidden sm:block">Busca el kit armado físicamente</span>
+            <span className="text-[10px] text-[#7A7571] hidden sm:block">Busca el kit armado físicamente</span>
           </div>
 
           <div className="px-4 py-3 flex items-center gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-steel-800 truncate">{kitCompleto.producto_nombre}</p>
-              <p className="text-[11px] text-steel-400 mt-0.5">
+              <p className="text-sm font-bold text-[#2D2B2A] truncate">{kitCompleto.producto_nombre}</p>
+              <p className="text-[11px] text-[#7A7571] mt-0.5">
                 {kitCompleto.cantidad_pedida} unidades pedidas · kit pre-armado
               </p>
               {(kitCompleto.producto_almacen || kitCompleto.producto_estante || kitCompleto.producto_fila || kitCompleto.producto_columna) && (
-                <p className="text-[11px] text-steel-400 mt-0.5">
-                  📦 {kitCompleto.producto_almacen}{kitCompleto.producto_estante ? ` / ${kitCompleto.producto_estante}` : ''}{kitCompleto.producto_fila ? ` / ${kitCompleto.producto_fila}` : ''}{kitCompleto.producto_columna ? ` / ${kitCompleto.producto_columna}` : ''}
+                <p className="text-[11px] text-[#7A7571] mt-0.5 flex items-center gap-0.5">
+                  <i className="ti ti-map-pin text-[10px]" />
+                  {kitCompleto.producto_almacen}{kitCompleto.producto_estante ? ` / ${kitCompleto.producto_estante}` : ''}{kitCompleto.producto_fila ? ` / ${kitCompleto.producto_fila}` : ''}{kitCompleto.producto_columna ? ` / ${kitCompleto.producto_columna}` : ''}
                 </p>
               )}
             </div>
             <div className="shrink-0">
               {kitCompletoListo ? (
-                <div className="flex items-center gap-1.5 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
+                <div className="flex items-center gap-1.5 bg-[#B8DCCA] text-[#1E5C38] px-2.5 py-1 rounded-full">
+                  <i className="ti ti-check text-[13px]" />
                   <span className="text-xs font-bold tabular-nums">
                     {kitCompleto.cantidad_pedida}/{kitCompleto.cantidad_pedida} listo
                   </span>
@@ -699,26 +682,26 @@ function KitGroupCard({
                   <button
                     onClick={() => onMarcarListoKit(kitCompleto.id)}
                     disabled={!!loadingPiezas[kitCompleto.id]}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#3F7A52] text-white hover:bg-[#1E5C38] disabled:opacity-50 transition-colors"
                   >
-                    {loadingPiezas[kitCompleto.id] ? '…' : '✓ Listo'}
+                    {loadingPiezas[kitCompleto.id] ? '…' : 'Listo'}
                   </button>
                   <button
                     onClick={() => onFaltanteKit(kitCompleto.id, kitCompleto.cantidad_pedida)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500 text-white hover:bg-red-600 transition-colors"
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#B23A2A] text-white hover:bg-[#8A1E12] transition-colors"
                   >
-                    ✗ Faltante
+                    Faltante
                   </button>
                 </div>
               ) : (
                 <div className="flex flex-col gap-1.5 items-end">
-                  <span className="text-xs text-steel-400 bg-steel-50 px-2 py-1 rounded-full">
+                  <span className="text-xs text-[#7A7571] bg-[#F0EFEC] px-2 py-1 rounded-full">
                     ×{kitCompleto.cantidad_pedida}
                   </span>
                   {!isReadOnly && onEditKit && (
                     <button
                       onClick={() => onEditKit(kitCompleto.id, kitCompleto.cantidad_pedida, kitCompleto.cantidad_recogida)}
-                      className="text-[10px] font-bold text-orange-500 hover:text-orange-700 underline underline-offset-2 transition-colors"
+                      className="text-[10px] font-bold text-[#B47A1F] hover:text-[#7A5200] underline underline-offset-2 transition-colors"
                     >
                       Editar
                     </button>
@@ -730,13 +713,13 @@ function KitGroupCard({
           {/* Barra de progreso kit faltante */}
           {!kitCompletoListo && !kitCompletoPendiente && kitCompleto.cantidad_recogida != null && (
             <div className="px-4 pb-3 flex items-center gap-2">
-              <div className="flex-1 relative h-1.5 rounded-full overflow-hidden bg-red-100">
+              <div className="flex-1 relative h-1.5 rounded-full overflow-hidden bg-[#F5C9C0]">
                 <div
-                  className="absolute top-0 left-0 h-full bg-red-400 rounded-full transition-all"
+                  className="absolute top-0 left-0 h-full bg-[#B23A2A] rounded-full transition-all"
                   style={{ width: `${kitCompleto.cantidad_pedida > 0 ? Math.round((kitCompleto.cantidad_recogida / kitCompleto.cantidad_pedida) * 100) : 0}%` }}
                 />
               </div>
-              <span className="text-[10px] text-steel-400 tabular-nums shrink-0">
+              <span className="text-[10px] text-[#7A7571] tabular-nums shrink-0">
                 {kitCompleto.cantidad_recogida}/{kitCompleto.cantidad_pedida}
               </span>
             </div>
@@ -746,24 +729,25 @@ function KitGroupCard({
 
       {/* Divisor "y / o" si hay ambas secciones */}
       {kitCompleto && piezasSueltas && (
-        <div className="flex items-center gap-3 px-4 py-2 bg-steel-50 border-y border-steel-100">
-          <div className="flex-1 h-px bg-steel-200" />
-          <span className="text-[10px] font-bold text-steel-400 uppercase tracking-wider">y / o</span>
-          <div className="flex-1 h-px bg-steel-200" />
+        <div className="flex items-center gap-3 px-4 py-2 bg-[#F0EFEC] border-y border-[#E8E5E2]">
+          <div className="flex-1 h-px bg-[#D0CBC4]" />
+          <span className="text-[10px] font-bold text-[#7A7571] uppercase tracking-wider">y / o</span>
+          <div className="flex-1 h-px bg-[#D0CBC4]" />
         </div>
       )}
 
       {/* Sección: Piezas sueltas */}
       {piezasSueltas && (
-        <div className="bg-indigo-50/50">
-          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-indigo-100">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold">
-              🔧 Piezas sueltas
+        <div className="bg-[#F7F7F7]">
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#E8E5E2]">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F4ECDB] text-[#780e18] text-[10px] font-bold">
+              <i className="ti ti-tool text-[10px]" />
+              Piezas sueltas
             </span>
-            <span className="text-[10px] text-indigo-400">Desarma kits para sacar piezas</span>
+            <span className="text-[10px] text-[#7A7571]">Desarma kits para sacar piezas</span>
           </div>
 
-          <div className="divide-y divide-indigo-100">
+          <div className="divide-y divide-[#E8E5E2]">
             {piezas.map(pieza => {
               const estado = getPiezaEstado(pieza)
               const recogida = parsePiezaRecogida(pieza.nota_incompleto)
@@ -775,42 +759,39 @@ function KitGroupCard({
 
               return (
                 <div key={pieza.id} className={clsx('px-4 py-3',
-                  estado === 'listo' && 'bg-emerald-50/40',
-                  estado === 'faltante' && 'bg-red-50/40'
+                  estado === 'listo' && 'bg-[#F0FAF5]',
+                  estado === 'faltante' && 'bg-[#FDF1EE]'
                 )}>
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="font-mono text-[10px] text-steel-400 leading-none mb-0.5">{fmtCodigo(pieza.codigo, pieza.marcaId, marcas)}</p>
-                      <p className="text-sm font-bold text-steel-800 leading-snug">{pieza.nombre}</p>
-                      <p className="text-[11px] text-steel-400 mt-0.5">
+                      <p className="font-mono text-[10px] text-[#7A7571] leading-none mb-0.5">{fmtCodigo(pieza.codigo, pieza.marcaId, marcas)}</p>
+                      <p className="text-sm font-bold text-[#2D2B2A] leading-snug">{pieza.nombre}</p>
+                      <p className="text-[11px] text-[#7A7571] mt-0.5">
                         {pieza.cantidad} unidades pedidas · sale de kit {fmtCodigo(piezasSueltas.producto_codigo, piezasSueltas.marcaId, marcas)}
                       </p>
                       {(piezasSueltas.producto_almacen || piezasSueltas.producto_estante || piezasSueltas.producto_fila || piezasSueltas.producto_columna) && (
-                        <p className="text-[11px] text-steel-400 mt-0.5">
-                          📦 {piezasSueltas.producto_almacen}{piezasSueltas.producto_estante ? ` / ${piezasSueltas.producto_estante}` : ''}{piezasSueltas.producto_fila ? ` / ${piezasSueltas.producto_fila}` : ''}{piezasSueltas.producto_columna ? ` / ${piezasSueltas.producto_columna}` : ''}
+                        <p className="text-[11px] text-[#7A7571] mt-0.5 flex items-center gap-0.5">
+                          <i className="ti ti-map-pin text-[10px]" />
+                          {piezasSueltas.producto_almacen}{piezasSueltas.producto_estante ? ` / ${piezasSueltas.producto_estante}` : ''}{piezasSueltas.producto_fila ? ` / ${piezasSueltas.producto_fila}` : ''}{piezasSueltas.producto_columna ? ` / ${piezasSueltas.producto_columna}` : ''}
                         </p>
                       )}
                     </div>
                     <div className="shrink-0 flex flex-col items-end gap-1.5">
                       {estado === 'listo' ? (
-                        <div className="flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
-                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
+                        <div className="flex items-center gap-1 bg-[#B8DCCA] text-[#1E5C38] px-2 py-0.5 rounded-full">
+                          <i className="ti ti-check text-[11px]" />
                           <span className="text-[10px] font-bold tabular-nums">{pieza.cantidad}/{pieza.cantidad}</span>
                         </div>
                       ) : estado === 'parcial' ? (
                         <div className="flex flex-col items-end gap-1.5">
-                          <div className="flex items-center gap-1 bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
-                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h8m-8 6h16" />
-                            </svg>
+                          <div className="flex items-center gap-1 bg-[#F5E0A8] text-[#7A5200] px-2 py-0.5 rounded-full">
+                            <i className="ti ti-list text-[11px]" />
                             <span className="text-[10px] font-bold">Parcial</span>
                           </div>
                           {!isReadOnly && (
                             <button
                               onClick={() => onFaltantePieza(piezasSueltas.id, pieza)}
-                              className="text-[10px] font-bold text-orange-500 hover:text-orange-700 underline underline-offset-2 transition-colors"
+                              className="text-[10px] font-bold text-[#B47A1F] hover:text-[#7A5200] underline underline-offset-2 transition-colors"
                             >
                               Editar
                             </button>
@@ -818,16 +799,14 @@ function KitGroupCard({
                         </div>
                       ) : estado === 'faltante' ? (
                         <div className="flex flex-col items-end gap-1.5">
-                          <div className="flex items-center gap-1 bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
-                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
+                          <div className="flex items-center gap-1 bg-[#F5C9C0] text-[#8A1E12] px-2 py-0.5 rounded-full">
+                            <i className="ti ti-x text-[11px]" />
                             <span className="text-[10px] font-bold tabular-nums">0/{pieza.cantidad}</span>
                           </div>
                           {!isReadOnly && (
                             <button
                               onClick={() => onFaltantePieza(piezasSueltas.id, pieza)}
-                              className="text-[10px] font-bold text-orange-500 hover:text-orange-700 underline underline-offset-2 transition-colors"
+                              className="text-[10px] font-bold text-[#B47A1F] hover:text-[#7A5200] underline underline-offset-2 transition-colors"
                             >
                               Editar
                             </button>
@@ -838,16 +817,16 @@ function KitGroupCard({
                           <button
                             onClick={() => onListoPieza(piezasSueltas.id, pieza)}
                             disabled={isLoading}
-                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#3F7A52] text-white hover:bg-[#1E5C38] disabled:opacity-50 transition-colors"
                           >
-                            {isLoading ? '…' : '✓ Listo'}
+                            {isLoading ? '…' : 'Listo'}
                           </button>
                           <button
                             onClick={() => onFaltantePieza(piezasSueltas.id, pieza)}
                             disabled={isLoading}
-                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#B23A2A] text-white hover:bg-[#8A1E12] disabled:opacity-50 transition-colors"
                           >
-                            ✗ Faltante
+                            Faltante
                           </button>
                         </div>
                       ) : null}
@@ -857,13 +836,13 @@ function KitGroupCard({
                   {/* Barra de progreso parcial / faltante */}
                   {(estado === 'parcial' || estado === 'faltante') && (
                     <div className="mt-2 flex items-center gap-2">
-                      <div className={clsx('flex-1 relative h-1.5 rounded-full overflow-hidden', estado === 'faltante' ? 'bg-red-100' : 'bg-orange-100')}>
+                      <div className={clsx('flex-1 relative h-1.5 rounded-full overflow-hidden', estado === 'faltante' ? 'bg-[#F5C9C0]' : 'bg-[#F5E0A8]')}>
                         <div
-                          className={clsx('absolute top-0 left-0 h-full rounded-full transition-all', estado === 'faltante' ? 'bg-red-400' : 'bg-orange-400')}
+                          className={clsx('absolute top-0 left-0 h-full rounded-full transition-all', estado === 'faltante' ? 'bg-[#B23A2A]' : 'bg-[#B47A1F]')}
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      <span className="text-[10px] text-steel-400 tabular-nums shrink-0">
+                      <span className="text-[10px] text-[#7A7571] tabular-nums shrink-0">
                         {estado === 'faltante' ? 0 : (recogida ?? 0)}/{pieza.cantidad}
                       </span>
                     </div>
@@ -875,8 +854,8 @@ function KitGroupCard({
 
           {/* Warning si hay piezas parciales */}
           {piezasParcialesNombre.length > 0 && (
-            <div className="mx-3 mb-3 mt-1 rounded-xl bg-orange-50 border border-orange-200 px-3 py-2">
-              <p className="text-[11px] text-orange-700 font-medium">
+            <div className="mx-3 mb-3 mt-1 rounded-xl bg-[#F5E0A8] border border-[#B47A1F]/30 px-3 py-2">
+              <p className="text-[11px] text-[#7A5200] font-medium">
                 {piezasParcialesNombre.length === 1
                   ? `Si es parcial, la pieza "${piezasParcialesNombre[0].nombre}" tiene cantidad limitada. El cajero deberá acordar el precio con el cliente.`
                   : `${piezasParcialesNombre.length} piezas parciales. El cajero deberá acordar los precios con el cliente.`
@@ -889,19 +868,19 @@ function KitGroupCard({
 
       {/* Resumen piezas */}
       {piezasSueltas && piezas.length > 0 && (
-        <div className="px-4 py-2.5 bg-indigo-100/60 border-t border-indigo-100 flex items-center justify-between">
+        <div className="px-4 py-2.5 bg-[#F0EFEC] border-t border-[#E8E5E2] flex items-center justify-between">
           <div className="flex items-center gap-3 text-[11px]">
-            <span className="text-emerald-700 font-bold">{piezasListasCount} listo</span>
-            {piezasParcialCount > 0 && <span className="text-orange-600 font-bold">{piezasParcialCount} parcial</span>}
-            {piezasPendienteCount > 0 && <span className="text-indigo-500">{piezasPendienteCount} pendiente</span>}
+            <span className="text-[#3F7A52] font-bold">{piezasListasCount} listo</span>
+            {piezasParcialCount > 0 && <span className="text-[#B47A1F] font-bold">{piezasParcialCount} parcial</span>}
+            {piezasPendienteCount > 0 && <span className="text-[#4A4744]">{piezasPendienteCount} pendiente</span>}
           </div>
           {!isReadOnly && piezasSueltas.estado === 'pendiente' && (
             <button
               onClick={() => onMarcarListoKit(piezasSueltas.id)}
               disabled={!!loadingPiezas[piezasSueltas.id]}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#3F7A52] text-white hover:bg-[#1E5C38] disabled:opacity-50 transition-colors"
             >
-              {loadingPiezas[piezasSueltas.id] ? '…' : '✓ Listo'}
+              {loadingPiezas[piezasSueltas.id] ? '…' : 'Listo'}
             </button>
           )}
         </div>
@@ -991,7 +970,6 @@ function PickingView({
   const todosConEstado = orden.items.every(i => i.estado !== 'pendiente')
   const pendienteCount = orden.items.filter(i => i.estado === 'pendiente').length
 
-  // Para con_faltantes: separar nuevos (pendiente) de ya reportados (faltante)
   const itemsNuevos = isConFaltantes ? itemsNormalesAll.filter(i => i.estado === 'pendiente') : []
   const itemsFaltantesReportados = isConFaltantes ? itemsNormalesAll.filter(i => i.estado === 'faltante') : []
   const itemsNormales = isConFaltantes ? [] : itemsNormalesAll
@@ -1000,34 +978,38 @@ function PickingView({
     <div className="flex flex-col h-full">
       {/* Modal: ¿Cuántas encontraste? */}
       {faltanteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 flex flex-col gap-4">
-            <p className="text-base font-bold text-steel-900 text-center">¿Cuántas encontraste?</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(45,43,42,0.45)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs p-6 flex flex-col gap-4 border border-[#E8E5E2]">
+            <p className="text-base font-bold text-[#2D2B2A] text-center">¿Cuántas encontraste?</p>
             <div className="flex flex-col items-center gap-1">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setCantidadEncontrada(v => Math.max(0, v - 1))}
-                  className="h-9 w-9 rounded-xl bg-steel-100 text-steel-600 text-lg font-bold hover:bg-steel-200 transition-colors flex items-center justify-center"
-                >−</button>
-                <span className="text-4xl font-black text-steel-900 w-12 text-center tabular-nums">{cantidadEncontrada}</span>
+                  className="h-9 w-9 rounded-xl bg-[#F0EFEC] text-[#4A4744] text-lg font-bold hover:bg-[#E8E5E2] transition-colors flex items-center justify-center"
+                >
+                  <i className="ti ti-minus text-[14px]" />
+                </button>
+                <span className="text-4xl font-black text-[#2D2B2A] w-12 text-center tabular-nums">{cantidadEncontrada}</span>
                 <button
                   onClick={() => setCantidadEncontrada(v => Math.min(faltanteModal.cantidadPedida, v + 1))}
-                  className="h-9 w-9 rounded-xl bg-steel-100 text-steel-600 text-lg font-bold hover:bg-steel-200 transition-colors flex items-center justify-center"
-                >+</button>
+                  className="h-9 w-9 rounded-xl bg-[#F0EFEC] text-[#4A4744] text-lg font-bold hover:bg-[#E8E5E2] transition-colors flex items-center justify-center"
+                >
+                  <i className="ti ti-plus text-[14px]" />
+                </button>
               </div>
-              <p className="text-xs text-steel-400">de {faltanteModal.cantidadPedida} pedidas</p>
+              <p className="text-xs text-[#7A7571]">de {faltanteModal.cantidadPedida} pedidas</p>
             </div>
             <div className="flex items-center justify-center gap-2 text-sm">
-              <span className="text-steel-400">→</span>
+              <i className="ti ti-arrow-right text-[#7A7571] text-[14px]" />
               {cantidadEncontrada >= faltanteModal.cantidadPedida
-                ? <span className="font-bold text-emerald-600">✓ Todos encontrados — marcar como Listo</span>
-                : <span className="font-bold text-red-600">{faltanteModal.cantidadPedida - cantidadEncontrada} faltante{faltanteModal.cantidadPedida - cantidadEncontrada !== 1 ? 's' : ''}</span>
+                ? <span className="font-bold text-[#3F7A52]">Todos encontrados — marcar como Listo</span>
+                : <span className="font-bold text-[#B23A2A]">{faltanteModal.cantidadPedida - cantidadEncontrada} faltante{faltanteModal.cantidadPedida - cantidadEncontrada !== 1 ? 's' : ''}</span>
               }
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setFaltanteModal(null)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-steel-500 hover:bg-steel-100 border border-steel-200 transition-colors"
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-[#4A4744] hover:bg-[#F0EFEC] border border-[#E8E5E2] transition-colors"
               >Cancelar</button>
               <button
                 onClick={confirmarFaltante}
@@ -1035,47 +1017,51 @@ function PickingView({
                 className={clsx(
                   'flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-colors',
                   cantidadEncontrada >= faltanteModal.cantidadPedida
-                    ? 'bg-emerald-600 hover:bg-emerald-700'
-                    : 'bg-red-500 hover:bg-red-600'
+                    ? 'bg-[#3F7A52] hover:bg-[#1E5C38]'
+                    : 'bg-[#B23A2A] hover:bg-[#8A1E12]'
                 )}
-              >{faltanteConfirmLoading ? '…' : cantidadEncontrada >= faltanteModal.cantidadPedida ? '✓ Listo' : 'Confirmar'}</button>
+              >{faltanteConfirmLoading ? '…' : cantidadEncontrada >= faltanteModal.cantidadPedida ? 'Listo' : 'Confirmar'}</button>
             </div>
           </div>
         </div>
       )}
       {/* Modal pieza: ¿Cuántas encontraste? */}
       {piezaFaltanteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 flex flex-col gap-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(45,43,42,0.45)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs p-6 flex flex-col gap-4 border border-[#E8E5E2]">
             <div className="text-center">
-              <p className="text-base font-bold text-steel-900">¿Cuántas encontraste?</p>
-              <p className="text-xs text-steel-400 mt-0.5 truncate">{piezaFaltanteModal.pieza.nombre}</p>
+              <p className="text-base font-bold text-[#2D2B2A]">¿Cuántas encontraste?</p>
+              <p className="text-xs text-[#7A7571] mt-0.5 truncate">{piezaFaltanteModal.pieza.nombre}</p>
             </div>
             <div className="flex flex-col items-center gap-1">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setPiezaCantidadEncontrada(v => Math.max(0, v - 1))}
-                  className="h-9 w-9 rounded-xl bg-steel-100 text-steel-600 text-lg font-bold hover:bg-steel-200 transition-colors flex items-center justify-center"
-                >−</button>
-                <span className="text-4xl font-black text-steel-900 w-12 text-center tabular-nums">{piezaCantidadEncontrada}</span>
+                  className="h-9 w-9 rounded-xl bg-[#F0EFEC] text-[#4A4744] text-lg font-bold hover:bg-[#E8E5E2] transition-colors flex items-center justify-center"
+                >
+                  <i className="ti ti-minus text-[14px]" />
+                </button>
+                <span className="text-4xl font-black text-[#2D2B2A] w-12 text-center tabular-nums">{piezaCantidadEncontrada}</span>
                 <button
                   onClick={() => setPiezaCantidadEncontrada(v => Math.min(piezaFaltanteModal.pieza.cantidad, v + 1))}
-                  className="h-9 w-9 rounded-xl bg-steel-100 text-steel-600 text-lg font-bold hover:bg-steel-200 transition-colors flex items-center justify-center"
-                >+</button>
+                  className="h-9 w-9 rounded-xl bg-[#F0EFEC] text-[#4A4744] text-lg font-bold hover:bg-[#E8E5E2] transition-colors flex items-center justify-center"
+                >
+                  <i className="ti ti-plus text-[14px]" />
+                </button>
               </div>
-              <p className="text-xs text-steel-400">de {piezaFaltanteModal.pieza.cantidad} pedidas</p>
+              <p className="text-xs text-[#7A7571]">de {piezaFaltanteModal.pieza.cantidad} pedidas</p>
             </div>
             <div className="flex items-center justify-center gap-2 text-sm">
-              <span className="text-steel-400">→</span>
+              <i className="ti ti-arrow-right text-[#7A7571] text-[14px]" />
               {piezaCantidadEncontrada >= piezaFaltanteModal.pieza.cantidad
-                ? <span className="font-bold text-emerald-600">✓ Todas encontradas — marcar como Listo</span>
-                : <span className="font-bold text-red-600">{piezaFaltanteModal.pieza.cantidad - piezaCantidadEncontrada} faltante{piezaFaltanteModal.pieza.cantidad - piezaCantidadEncontrada !== 1 ? 's' : ''}</span>
+                ? <span className="font-bold text-[#3F7A52]">Todas encontradas — marcar como Listo</span>
+                : <span className="font-bold text-[#B23A2A]">{piezaFaltanteModal.pieza.cantidad - piezaCantidadEncontrada} faltante{piezaFaltanteModal.pieza.cantidad - piezaCantidadEncontrada !== 1 ? 's' : ''}</span>
               }
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setPiezaFaltanteModal(null)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-steel-500 hover:bg-steel-100 border border-steel-200 transition-colors"
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-[#4A4744] hover:bg-[#F0EFEC] border border-[#E8E5E2] transition-colors"
               >Cancelar</button>
               <button
                 onClick={confirmarPiezaFaltante}
@@ -1083,50 +1069,51 @@ function PickingView({
                 className={clsx(
                   'flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-colors',
                   piezaCantidadEncontrada >= piezaFaltanteModal.pieza.cantidad
-                    ? 'bg-emerald-600 hover:bg-emerald-700'
-                    : 'bg-red-500 hover:bg-red-600'
+                    ? 'bg-[#3F7A52] hover:bg-[#1E5C38]'
+                    : 'bg-[#B23A2A] hover:bg-[#8A1E12]'
                 )}
-              >{piezaFaltanteConfirmLoading ? '…' : piezaCantidadEncontrada >= piezaFaltanteModal.pieza.cantidad ? '✓ Listo' : 'Confirmar'}</button>
+              >{piezaFaltanteConfirmLoading ? '…' : piezaCantidadEncontrada >= piezaFaltanteModal.pieza.cantidad ? 'Listo' : 'Confirmar'}</button>
             </div>
           </div>
         </div>
       )}
       {/* Header */}
-      <div className="bg-white border-b border-steel-100 px-4 py-3 shrink-0">
+      <div className="bg-[#F7F7F7]/90 backdrop-blur-md border-b border-[#E8E5E2] px-4 py-3 shrink-0">
         <div className="flex items-center gap-3">
           <button
             onClick={onVolver}
-            className="p-1.5 rounded-lg text-steel-400 hover:text-steel-600 hover:bg-steel-100 transition-colors shrink-0"
+            className="p-1.5 rounded-lg text-[#7A7571] hover:text-[#2D2B2A] hover:bg-[#E8E5E2] transition-colors shrink-0"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
+            <i className="ti ti-chevron-left text-[18px]" />
           </button>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-sm font-black text-steel-900">{orden.numero}</h2>
-              <span className={clsx('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold',
+              <h2 className="text-sm font-black text-[#2D2B2A]">{orden.numero}</h2>
+              <span className={clsx('inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold',
                 STATUS_CONFIG[orden.estado].bg, STATUS_CONFIG[orden.estado].text)}>
+                <span className={clsx('h-1.5 w-1.5 rounded-full shrink-0', STATUS_CONFIG[orden.estado].dot)} />
                 {STATUS_CONFIG[orden.estado].label}
               </span>
             </div>
             <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-              <span className="text-[10px] text-steel-400">{fmtTimeSince(orden.creado_en)}</span>
-              <span className="text-[10px] text-steel-300">·</span>
-              <span className="text-[10px] text-steel-400">{orden.items.length} línea{orden.items.length !== 1 ? 's' : ''}</span>
+              <span className="text-[10px] text-[#7A7571]">{fmtTimeSince(orden.creado_en)}</span>
+              <span className="text-[10px] text-[#D0CBC4]">·</span>
+              <span className="text-[10px] text-[#7A7571]">{orden.items.length} línea{orden.items.length !== 1 ? 's' : ''}</span>
               {kitGroups.size > 0 && (
                 <>
-                  <span className="text-[10px] text-steel-300">·</span>
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-brand-50 text-brand-700 text-[10px] font-bold">
-                    🧩 {[...kitGroups.values()].filter(g => g.kitCompleto).length} kit
+                  <span className="text-[10px] text-[#D0CBC4]">·</span>
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-[#F4ECDB] text-[#780e18] text-[10px] font-bold">
+                    <i className="ti ti-stack text-[10px]" />
+                    {[...kitGroups.values()].filter(g => g.kitCompleto).length} kit
                   </span>
                 </>
               )}
               {[...kitGroups.values()].some(g => g.piezasSueltas) && (
                 <>
-                  <span className="text-[10px] text-steel-300">·</span>
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold">
-                    🔧 {[...kitGroups.values()].filter(g => g.piezasSueltas).map(g => g.piezasSueltas!.piezas_orden?.length ?? 0).reduce((a, b) => a + b, 0)} piezas sueltas
+                  <span className="text-[10px] text-[#D0CBC4]">·</span>
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-[#DBEAFE] text-[#1D4ED8] text-[10px] font-bold">
+                    <i className="ti ti-tool text-[10px]" />
+                    {[...kitGroups.values()].filter(g => g.piezasSueltas).map(g => g.piezasSueltas!.piezas_orden?.length ?? 0).reduce((a, b) => a + b, 0)} piezas sueltas
                   </span>
                 </>
               )}
@@ -1136,7 +1123,7 @@ function PickingView({
       </div>
 
       {/* Items list */}
-      <div className="flex-1 overflow-y-auto px-3 pt-2">
+      <div className="flex-1 overflow-y-auto px-3 pt-2 bg-[#F7F7F7]">
         <div className="space-y-3 pb-2">
 
           {/* Modo con_faltantes: dos secciones */}
@@ -1145,10 +1132,10 @@ function PickingView({
               {itemsNuevos.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-2 px-1">
-                    <span className="text-[10px] font-black text-amber-600 uppercase tracking-wide">
+                    <span className="text-[10px] font-black text-[#B47A1F] uppercase tracking-wide">
                       Productos nuevos a buscar ({itemsNuevos.length})
                     </span>
-                    <div className="flex-1 h-px bg-amber-200" />
+                    <div className="flex-1 h-px bg-[#F5E0A8]" />
                   </div>
                   <div className="space-y-2">
                     {itemsNuevos.map(item => (
@@ -1169,10 +1156,10 @@ function PickingView({
               {itemsFaltantesReportados.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-2 px-1">
-                    <span className="text-[10px] font-black text-red-500 uppercase tracking-wide">
+                    <span className="text-[10px] font-black text-[#B23A2A] uppercase tracking-wide">
                       Faltantes que ya reportaste ({itemsFaltantesReportados.length})
                     </span>
-                    <div className="flex-1 h-px bg-red-200" />
+                    <div className="flex-1 h-px bg-[#F5C9C0]" />
                   </div>
                   <div className="space-y-2">
                     {itemsFaltantesReportados.map(item => (
@@ -1193,10 +1180,10 @@ function PickingView({
               {kitGroups.size > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-2 px-1">
-                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-wide">
+                    <span className="text-[10px] font-black text-[#1D4ED8] uppercase tracking-wide">
                       Kits ({kitGroups.size})
                     </span>
-                    <div className="flex-1 h-px bg-indigo-200" />
+                    <div className="flex-1 h-px bg-[#BFDBFE]" />
                   </div>
                   <div className="space-y-2">
                     {[...kitGroups.entries()].map(([kitProductoId, grupo]) => (
@@ -1289,17 +1276,17 @@ function PickingView({
       </div>
 
       {/* Footer */}
-      <div className="border-t border-steel-100 bg-white px-4 py-3 shrink-0">
+      <div className="border-t border-[#E8E5E2] bg-white px-4 py-3 shrink-0">
         {isReadOnly ? (
           <div className="flex items-center justify-center gap-2 py-1">
-            <div className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce" />
-            <span className="text-xs text-indigo-700 font-bold">Orden enviada a escaneo — solo lectura</span>
+            <div className="h-2 w-2 rounded-full bg-[#7C3AED] animate-bounce" />
+            <span className="text-xs text-[#5B21B6] font-bold">Orden enviada a escaneo — solo lectura</span>
           </div>
         ) : (
           <>
             <div className="flex items-center gap-2">
-              <div className={clsx('h-2 w-2 rounded-full', todosConEstado ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse')} />
-              <span className="text-xs text-steel-600 font-medium">
+              <div className={clsx('h-2 w-2 rounded-full', todosConEstado ? 'bg-[#3F7A52]' : 'bg-[#B47A1F] animate-pulse')} />
+              <span className="text-xs text-[#4A4744] font-medium">
                 {todosConEstado
                   ? 'Todos los productos marcados'
                   : `${pendienteCount} producto${pendienteCount !== 1 ? 's' : ''} por marcar`}
@@ -1312,11 +1299,11 @@ function PickingView({
                 className={clsx(
                   'px-5 py-2.5 rounded-xl text-sm font-bold transition-all',
                   todosConEstado
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800'
-                    : 'bg-steel-100 text-steel-400 cursor-not-allowed'
+                    ? 'bg-[#3F7A52] text-white hover:bg-[#1E5C38] active:bg-[#16472E]'
+                    : 'bg-[#F0EFEC] text-[#7A7571] cursor-not-allowed'
                 )}
               >
-                ✓ Marcar como lista
+                Marcar como lista
               </button>
             </div>
           </>
@@ -1335,7 +1322,6 @@ export function AlmacenPage() {
   const { playBeep, playAlertSequence } = useSoundAlert()
   useVentasAlerts()
 
-  // Cargar marcas si el store está vacío (necesario para mostrar prefijos)
   useEffect(() => {
     if (!isTokenReady || marcas.length > 0) return
     gql<{ marca: { nodes: Array<{ id: number; nombre: string; prefijo: string }> } }>(MARCAS_QUERY)
@@ -1376,7 +1362,7 @@ export function AlmacenPage() {
     return () => clearInterval(poll)
   }, [isTokenReady, loadOrdenes])
 
-  const { isConnected } = useVentasHub({
+  const { isConnected, joinGrupo } = useVentasHub({
     onNuevaOrden: () => loadOrdenes(),
     onOrdenAceptada: () => loadOrdenes(),
     onOrdenLista: () => loadOrdenes(),
@@ -1407,6 +1393,12 @@ export function AlmacenPage() {
       })
     },
   }, isTokenReady, ['Almaceneros'])
+
+  useEffect(() => {
+    if (pickingOrdenId) {
+      joinGrupo(`orden-${pickingOrdenId}`)
+    }
+  }, [pickingOrdenId, joinGrupo])
 
   const [, setTick] = useState(0)
   useEffect(() => {
@@ -1539,7 +1531,6 @@ export function AlmacenPage() {
       await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/MarcarListoIndividual`, null)
       markItemListoEnOrden(pickingOrdenId, itemId)
 
-      // Zustand set es síncrono → leer estado post-mark
       const updatedOrden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)
       if (updatedOrden?.estado === 'con_faltantes') {
         const remainingPendientes = updatedOrden.items.filter(i => i.estado === 'pendiente').length
@@ -1595,16 +1586,13 @@ export function AlmacenPage() {
     if (!pickingOrdenId) return
     try {
       if (cantidadEncontrada >= pieza.cantidad) {
-        // Encontró todas — revertir faltante y marcar pieza como lista
         if (pieza.nota_incompleto) {
           await api.delete(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Incompleto`)
         }
-        // Marcar esta pieza como listo_almacenero (si no lo estaba ya)
         if (!pieza.listo_almacenero) {
           await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`, null)
         }
         await loadOrdenes()
-        // Verificar si TODAS las piezas del item están confirmadas o listas
         const updatedOrden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)
         const updatedItem = updatedOrden?.items.find(i => i.id === itemId)
         const todasListas = updatedItem?.piezas_orden?.every(p => p.listo_almacenero || p.confirmado) ?? false
@@ -1631,19 +1619,18 @@ export function AlmacenPage() {
     }
   }
 
-
   const pickingOrden = pickingOrdenId ? ordenes.find(o => o.id === pickingOrdenId) : null
 
   const TABS: { key: TabFiltro; label: string }[] = [
-    { key: 'todos',                 label: 'Todos' },
-    { key: 'pendiente_almacenero',  label: 'Pendiente' },
-    { key: 'en_preparacion',        label: 'En preparación' },
+    { key: 'todos',                label: 'Todos' },
+    { key: 'pendiente_almacenero', label: 'Pendiente' },
+    { key: 'en_preparacion',       label: 'En preparación' },
     { key: 'listo_para_escaneo',   label: 'Para escanear' },
   ]
 
   return (
     <MainLayout>
-      <div className="flex flex-col h-screen overflow-hidden bg-steel-50">
+      <div className="flex flex-col h-screen overflow-hidden bg-[#F7F7F7]">
         {pickingOrden ? (
           <div className="flex-1 overflow-hidden flex flex-col">
             <PickingView
@@ -1659,37 +1646,49 @@ export function AlmacenPage() {
           </div>
         ) : (
           <>
-            <div className="bg-white border-b border-steel-100 px-6 py-3 shrink-0">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-base font-bold text-steel-900">Almacén</h1>
-                  <p className="text-xs text-steel-400">Órdenes de picking</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className={clsx('h-2 w-2 rounded-full', isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400')} />
-                  <span className="text-xs text-steel-500">{user?.nombre}</span>
+            {/* TopBar */}
+            <header className="bg-[#F7F7F7]/85 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full h-[62px] px-5 border-b border-[#E8E5E2] shrink-0">
+              <div className="flex items-center gap-2 text-sm text-[#7A7571]">
+                <span>Ventas</span>
+                <span className="text-[10px] opacity-40">/</span>
+                <strong className="text-[#2D2B2A] font-semibold">Almacén</strong>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-[#D8D4D0]">
+                  <div className={clsx('h-1.5 w-1.5 rounded-full', isConnected ? 'bg-[#3F7A52] animate-pulse' : 'bg-[#B47A1F]')} />
+                  <span className="text-xs text-[#4A4744] font-medium">{user?.nombre}</span>
                 </div>
               </div>
-            </div>
+            </header>
 
-            <div className="bg-white border-b border-steel-100 px-4 shrink-0">
-              <div className="flex gap-1">
+            {/* Page content */}
+            <div className="flex-1 overflow-y-auto px-5 py-5">
+              {/* Page Header */}
+              <div className="mb-5">
+                <h2 className="font-semibold text-[28px] text-[#2D2B2A] leading-none tracking-[-0.022em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  Almacén
+                </h2>
+                <p className="text-[13px] text-[#7A7571] mt-1">Órdenes de picking</p>
+              </div>
+
+              {/* Tab bar */}
+              <div className="flex gap-1 bg-white border border-[#E8E5E2] rounded-xl p-1 w-fit mb-5 overflow-x-auto">
                 {TABS.map(t => (
                   <button
                     key={t.key}
                     onClick={() => setTab(t.key)}
                     className={clsx(
-                      'px-3 py-2.5 text-xs font-bold transition-colors border-b-2 -mb-px',
+                      'px-4 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap',
                       tab === t.key
-                        ? 'text-brand-600 border-brand-600'
-                        : 'text-steel-400 border-transparent hover:text-steel-600',
+                        ? 'bg-[#780e18] text-white shadow-sm'
+                        : 'text-[#7A7571] hover:text-[#2D2B2A] hover:bg-[#F0EFEC]',
                     )}
                   >
                     {t.label}
                     {counts[t.key] > 0 && (
                       <span className={clsx(
                         'ml-1.5 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full text-[10px] font-black',
-                        tab === t.key ? 'bg-brand-100 text-brand-700' : 'bg-steel-100 text-steel-500',
+                        tab === t.key ? 'bg-white/20 text-white' : 'bg-[#F0EFEC] text-[#4A4744]',
                       )}>
                         {counts[t.key]}
                       </span>
@@ -1697,21 +1696,20 @@ export function AlmacenPage() {
                   </button>
                 ))}
               </div>
-            </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
+              {/* Orders list */}
               {filteredOrdenes.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center px-6">
-                  <svg className="h-12 w-12 text-steel-200 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
-                  <p className="text-sm font-semibold text-steel-500">Sin órdenes</p>
-                  <p className="text-xs text-steel-400 mt-1">
-                    {tab === 'todos' ? 'No hay órdenes activas' : `No hay órdenes en estado "${tab}"`}
+                <div className="flex flex-col items-center justify-center py-20 text-center px-6">
+                  <div className="w-12 h-12 rounded-xl bg-white border border-[#E8E5E2] flex items-center justify-center mb-4">
+                    <i className="ti ti-package text-[#7A7571] text-xl" />
+                  </div>
+                  <p className="text-sm font-semibold text-[#2D2B2A] mb-1">Sin órdenes</p>
+                  <p className="text-xs text-[#7A7571] font-medium max-w-xs">
+                    {tab === 'todos' ? 'No hay órdenes activas' : `No hay órdenes en este estado`}
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3 max-w-2xl mx-auto">
+                <div className="space-y-3 max-w-[680px] mx-auto">
                   {filteredOrdenes.map(o => (
                     <OrderCard
                       key={o.id}

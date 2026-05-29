@@ -26,6 +26,7 @@ export function useVentasHub(
   const connRef = useRef<HubConnection | null>(null)
   const initialGruposRef = useRef(initialGrupos)
   initialGruposRef.current = initialGrupos
+  const joinedGruposRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     if (!isReady) return
@@ -55,6 +56,9 @@ export function useVentasHub(
       for (const g of initialGruposRef.current ?? []) {
         await conn.invoke('UnirseAGrupo', g).catch(() => {})
       }
+      for (const g of joinedGruposRef.current) {
+        await conn.invoke('UnirseAGrupo', g).catch(() => {})
+      }
     })
     conn.onclose(() => setIsConnected(false))
 
@@ -62,6 +66,9 @@ export function useVentasHub(
       .then(async () => {
         setIsConnected(true)
         for (const g of initialGruposRef.current ?? []) {
+          await conn.invoke('UnirseAGrupo', g).catch(() => {})
+        }
+        for (const g of joinedGruposRef.current) {
           await conn.invoke('UnirseAGrupo', g).catch(() => {})
         }
       })
@@ -74,6 +81,7 @@ export function useVentasHub(
   }, [isReady])
 
   const joinGrupo = useCallback(async (grupo: string) => {
+    joinedGruposRef.current.add(grupo)
     if (connRef.current?.state === HubConnectionState.Connected) {
       await connRef.current.invoke('UnirseAGrupo', grupo).catch(() => {})
     }

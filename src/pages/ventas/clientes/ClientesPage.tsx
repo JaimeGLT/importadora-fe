@@ -1,74 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout } from '@/components/layout/MainLayout'
-import { Button, Input, Modal, ConfirmModal, WarmMetric } from '@/components/ui'
+import { Button, Input, Modal, ConfirmModal } from '@/components/ui'
 import { notify } from '@/lib/notify'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
 import { CLIENTES_QUERY, backendToCliente, type ClienteAPI } from '@/lib/queries/clientes.queries'
-import { AutopartsWatermark } from '@/pages/inventario/AutopartsWatermark'
 import type { Cliente } from '@/types'
-
-// ─── Icons ────────────────────────────────────────────────────────────────────
-
-function IcoCal() {
-  return (
-    <svg className="w-[15px] h-[15px] text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>
-    </svg>
-  )
-}
-function IcoBell() {
-  return (
-    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
-    </svg>
-  )
-}
-function IcoSettings() {
-  return (
-    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3"/>
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-    </svg>
-  )
-}
-function IcoPlus() {
-  return (
-    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
-      <path d="M12 5v14M5 12h14"/>
-    </svg>
-  )
-}
-function IcoSearch() {
-  return (
-    <svg className="h-4 w-4 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
-    </svg>
-  )
-}
-function IcoUser() {
-  return (
-    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-      <circle cx="12" cy="7" r="4"/>
-    </svg>
-  )
-}
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function MetricsSkeleton() {
   return (
-    <div className="grid grid-cols-3 gap-3 md:gap-5 mb-7 md:mb-11">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-[14px] mb-[22px]">
       {[1, 2, 3].map(i => (
-        <div key={i} className="rounded-2xl border border-hair p-4 md:p-7 bg-white/82 animate-pulse">
-          <div className="flex items-center justify-between mb-4">
-            <div className="h-3 w-24 rounded bg-cream-2" />
-            <div className="h-[34px] w-[34px] rounded-[10px] bg-cream-2" />
+        <div key={i} className="bg-white rounded-xl border border-[#D0CBC4] p-[18px] animate-pulse">
+          <div className="flex items-start justify-between mb-[14px]">
+            <div className="w-9 h-9 rounded-lg bg-[#F0EFEC]" />
+            <div className="h-5 w-16 rounded-full bg-[#F0EFEC]" />
           </div>
-          <div className="h-9 w-32 rounded bg-cream-2" />
-          <div className="h-3 w-20 rounded bg-hair mt-2" />
+          <div className="h-9 w-24 rounded bg-[#F0EFEC]" />
+          <div className="h-3 w-20 rounded bg-[#E8E5E2] mt-2" />
         </div>
       ))}
     </div>
@@ -77,15 +29,17 @@ function MetricsSkeleton() {
 
 function TableSkeleton() {
   return (
-    <div className="divide-y divide-hair">
+    <div className="divide-y divide-[#E8E5E2]">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 px-[22px] py-4 animate-pulse">
-          <div className="h-9 w-9 rounded-xl bg-cream-2 shrink-0" />
+        <div key={i} className="flex items-center gap-4 px-6 py-3.5 animate-pulse">
           <div className="flex-1 space-y-1.5">
-            <div className="h-[13px] w-48 rounded bg-cream-2" />
-            <div className="h-3 w-32 rounded bg-hair" />
+            <div className="h-3 w-28 rounded bg-[#F0EFEC]" />
+            <div className="h-2.5 w-40 rounded bg-[#E8E5E2]" />
           </div>
-          <div className="h-3 w-20 rounded bg-cream-2" />
+          <div className="h-2.5 w-20 rounded bg-[#F0EFEC]" />
+          <div className="flex gap-1.5">
+            {[0, 1].map(j => <div key={j} className="h-8 w-8 rounded-[6px] bg-[#F0EFEC]" />)}
+          </div>
         </div>
       ))}
     </div>
@@ -96,20 +50,19 @@ function TableSkeleton() {
 
 function EmptyState({ onNew }: { onNew: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-[60px] px-5 text-center text-muted">
-      <div className="h-[38px] w-[38px] rounded-lg bg-cream-2 border border-hair flex items-center justify-center mb-4">
-        <svg className="h-5 w-5 text-muted-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
+    <div className="flex flex-col items-center justify-center py-16 px-5 text-center">
+      <div className="w-12 h-12 rounded-lg bg-white border border-[#E8E5E2] flex items-center justify-center mb-4">
+        <i className="ti ti-users text-[#7A7571] text-xl" />
       </div>
-      <p className="text-sm font-medium text-ink-2 mb-1">Sin clientes</p>
-      <p className="text-xs text-muted max-w-xs mb-5">
+      <p className="text-sm font-semibold text-[#2D2B2A] mb-1">Sin clientes</p>
+      <p className="text-xs text-[#7A7571] font-medium max-w-xs mb-5">
         Agrega el primer cliente del sistema.
       </p>
       <button
         onClick={onNew}
-        className="h-[38px] px-4 rounded-[10px] bg-terra text-white text-sm font-semibold flex items-center gap-2 hover:bg-terra-deep transition-colors">
-        <IcoPlus /> Nuevo cliente
+        className="px-5 py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-lg flex items-center gap-2 text-sm font-semibold transition-all shadow-sm">
+        <i className="ti ti-plus text-base" />
+        Nuevo cliente
       </button>
     </div>
   )
@@ -227,115 +180,147 @@ export function ClientesPage() {
 
   return (
     <MainLayout>
-      <div className="relative px-4 sm:px-8 md:px-14 py-5 md:py-9 pb-10 md:pb-20 min-h-screen"
-           style={{ background: 'linear-gradient(180deg, #F4EFE6 0%, #FAF8F5 200px, #FAF8F5 100%)' }}>
+      <div className="bg-[#F7F7F7] min-h-screen">
 
-        <div className="relative z-[1]">
-          <AutopartsWatermark />
-
-          {/* ── Topbar ──────────────────────────────────────────────────── */}
-          <div className="flex items-center justify-between mb-9">
-            <div className="flex items-center gap-1.5 text-[12.5px] text-muted tracking-[0.02em]">
-              <span>Operaciones</span>
-              <span className="opacity-50">/</span>
-              <span>Ventas</span>
-              <span className="opacity-50">/</span>
-              <span className="text-ink">Clientes</span>
+        {/* ── TopBar ──────────────────────────────────────────────────────── */}
+        <header className="bg-[#F7F7F7]/85 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full h-[62px] px-7 border-b border-[#E8E5E2]">
+          <div className="flex items-center gap-2 text-sm text-[#7A7571]">
+            <span>Operaciones</span>
+            <span className="text-[10px] opacity-40">/</span>
+            <span>Ventas</span>
+            <span className="text-[10px] opacity-40">/</span>
+            <strong className="text-[#2D2B2A] font-semibold">Clientes</strong>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <div className="hidden sm:flex bg-white px-3.5 py-1.5 rounded-lg items-center gap-2 border border-[#D8D4D0]">
+              <i className="ti ti-calendar text-[#7A7571] text-[15px]" />
+              <span className="text-xs text-[#4A4744]">{dateStr}</span>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex h-[38px] px-3.5 border border-hair bg-paper rounded-[10px] items-center gap-2 text-[13px] text-ink-2">
-                <IcoCal /><span>{dateStr}</span>
-              </div>
-              <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors relative"
-                      title="Notificaciones">
-                <IcoBell />
-                <span className="absolute top-[9px] right-[10px] w-[7px] h-[7px] rounded-full bg-terra border-2 border-paper" />
+            <div className="flex items-center gap-1.5">
+              <button
+                className="w-[34px] h-[34px] flex items-center justify-center rounded-full bg-white border border-[#D8D4D0] text-[#4A4744] hover:bg-[#F7F7F7] transition-colors relative"
+                title="Notificaciones"
+              >
+                <i className="ti ti-bell text-[15px]" />
+                <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#B23A2A]" />
               </button>
-              <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors"
-                      title="Configuración">
-                <IcoSettings />
+              <button
+                className="w-[34px] h-[34px] flex items-center justify-center rounded-full bg-white border border-[#D8D4D0] text-[#4A4744] hover:bg-[#F7F7F7] transition-colors"
+                title="Configuración"
+              >
+                <i className="ti ti-settings text-[15px]" />
               </button>
             </div>
           </div>
+        </header>
 
-          {/* ── Header ──────────────────────────────────────────────────── */}
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-8 mb-7 md:mb-10">
+        <div className="px-7 py-[26px] max-w-[1320px] mx-auto w-full">
+
+          {/* ── Page Header ─────────────────────────────────────────────── */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
-              <h1 className="font-serif text-[44px] md:text-[72px] leading-[0.95] tracking-[-0.025em] m-0 mb-2.5 text-ink">
-                Clientes<em className="italic text-terra">.</em>
-              </h1>
-              <p className="text-base text-muted max-w-[520px]">
-                Gestión de clientes del sistema — registra y administra la información de tus clientes.
+              <h2 className="font-semibold text-[30px] text-[#2D2B2A] leading-none tracking-[-0.022em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                Clientes
+              </h2>
+              <p className="text-[13.5px] text-[#7A7571] mt-1.5">
+                Gestión de clientes del sistema
               </p>
             </div>
-            <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+            <div className="flex items-center gap-2.5 shrink-0">
               <button
                 onClick={openNew}
-                className="h-[46px] px-[22px] rounded-[12px] text-sm font-semibold flex items-center gap-2 bg-terra text-white hover:bg-terra-deep transition-all hover:-translate-y-px active:translate-y-0"
-                style={{ boxShadow: '0 1px 2px rgba(200,80,31,0.3), 0 6px 16px -8px rgba(200,80,31,0.5)' }}>
-                <IcoPlus /> <span>Nuevo cliente</span>
+                className="px-[18px] py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold active:scale-95 transition-all shadow-sm"
+              >
+                <i className="ti ti-plus text-base" />
+                Nuevo cliente
               </button>
             </div>
           </div>
 
-          {/* ── Metrics ─────────────────────────────────────────────────── */}
+          {/* ── Metrics Grid ─────────────────────────────────────────────── */}
           {loading ? <MetricsSkeleton /> : (
-            <div className="grid grid-cols-3 gap-3 md:gap-5 mb-7 md:mb-11">
-              <WarmMetric
-                label="Total clientes"
-                value={kpi.total.toLocaleString('es-BO')}
-                icon={<IcoUser />}
-                sublabel="en sistema"
-              />
-              <WarmMetric
-                label="Con teléfono"
-                value={kpi.conTelefono.toLocaleString('es-BO')}
-                icon={
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                }
-                sublabel="registrados"
-              />
-              <WarmMetric
-                label="Mostrando"
-                value={kpi.busqueda.toLocaleString('es-BO')}
-                icon={
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                }
-                sublabel={search ? 'resultados' : 'del sistema'}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-[14px] mb-[22px]">
+
+              {/* Total clientes */}
+              <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#780e18] p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+                <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-[#780e18] opacity-[0.08]" />
+                <div className="flex items-start justify-between mb-[14px]">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#780e18] to-[#D4A333] flex items-center justify-center shrink-0">
+                    <i className="ti ti-users text-white text-[16px]" />
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#B8DCCA] text-[#1E5C38]">
+                    <i className="ti ti-circle-check text-[10px]" />
+                    sistema
+                  </span>
+                </div>
+                <div className="font-semibold text-[32px] text-[#2D2B2A] leading-none tracking-[-0.025em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  {kpi.total.toLocaleString('es-BO')}
+                </div>
+                <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Total clientes</div>
+              </div>
+
+              {/* Con teléfono */}
+              <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#3F7A52] p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+                <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-[#3F7A52] opacity-[0.08]" />
+                <div className="flex items-start justify-between mb-[14px]">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#3F7A52] to-[#6BAF80] flex items-center justify-center shrink-0">
+                    <i className="ti ti-phone text-white text-[16px]" />
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#B8DCCA] text-[#1E5C38]">
+                    registrados
+                  </span>
+                </div>
+                <div className="font-semibold text-[32px] text-[#2D2B2A] leading-none tracking-[-0.025em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  {kpi.conTelefono.toLocaleString('es-BO')}
+                </div>
+                <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Con teléfono</div>
+              </div>
+
+              {/* Mostrando */}
+              <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#D4A333] p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+                <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-[#D4A333] opacity-[0.12]" />
+                <div className="flex items-start justify-between mb-[14px]">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#D4A333] to-[#B4881C] flex items-center justify-center shrink-0">
+                    <i className="ti ti-search text-[#2D2010] text-[16px]" />
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#F5E0A8] text-[#7A5200]">
+                    {search ? 'resultados' : 'del sistema'}
+                  </span>
+                </div>
+                <div className="font-semibold text-[32px] text-[#2D2B2A] leading-none tracking-[-0.025em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  {kpi.busqueda.toLocaleString('es-BO')}
+                </div>
+                <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Mostrando</div>
+              </div>
+
             </div>
           )}
 
-          {/* ── Table card ──────────────────────────────────────────────── */}
-          <div className="rounded-[18px] border border-hair overflow-hidden"
-               style={{ background: 'rgba(255,255,255,0.86)', backdropFilter: 'blur(2px)' }}>
+          {/* ── Table Container ──────────────────────────────────────────── */}
+          <div className="bg-white rounded-xl border border-[#D0CBC4] overflow-hidden">
 
             {/* Toolbar */}
-            <div className="flex items-center gap-3.5 px-4 md:px-7 py-4 md:py-[22px] border-b border-hair flex-wrap">
-              <div>
-                <span className="font-serif text-[28px] leading-[1] tracking-[-0.01em] text-ink">Clientes</span>
-                <span className="text-base text-muted ml-2.5 font-normal">
+            <div className="px-[22px] py-[18px] border-b border-[#D0CBC4] flex flex-wrap justify-between items-center gap-4">
+              <div className="flex items-center gap-3">
+                <h3 className="text-[17px] font-semibold text-[#2D2B2A] tracking-[-0.01em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  Clientes
+                </h3>
+                <span className="bg-[#F4ECDB] text-[#780e18] text-xs font-semibold px-2.5 py-0.5 rounded-full">
                   {totalCount > 0 ? totalCount : filtered.length}
                 </span>
               </div>
-              <div className="ml-auto flex items-center gap-2">
-                <div className="h-10 flex items-center gap-2.5 px-3.5 border border-hair rounded-[10px] bg-cream min-w-0 w-full sm:w-auto sm:min-w-[260px] md:min-w-[320px] transition-colors focus-within:border-terra focus-within:bg-paper">
-                  <IcoSearch />
-                  <input
-                    className="flex-1 min-w-0 bg-transparent border-none outline-none text-sm text-ink placeholder-muted-2"
-                    placeholder="Buscar por nombre o teléfono…"
-                    value={search}
-                    onChange={e => handleSearch(e.target.value)}
-                  />
-                </div>
+              <div className="flex items-center gap-2 bg-[#FBFBFA] border border-[#D8D4D0] rounded-lg px-3.5 w-full sm:w-auto sm:min-w-[280px] focus-within:border-[#780e18] transition-colors">
+                <i className="ti ti-search text-[#7A7571] text-[13px] shrink-0" />
+                <input
+                  className="flex-1 py-2 bg-transparent text-[13px] text-[#2D2B2A] font-normal placeholder:text-[#7A7571] outline-none border-none"
+                  placeholder="Buscar por nombre o teléfono…"
+                  value={search}
+                  onChange={e => handleSearch(e.target.value)}
+                />
               </div>
             </div>
 
-            {/* Table */}
+            {/* Table / skeleton / empty */}
             {loading ? (
               <TableSkeleton />
             ) : filtered.length === 0 ? (
@@ -344,50 +329,39 @@ export function ClientesPage() {
               <>
                 {/* ── Desktop table ── */}
                 <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-sm table-fixed">
+                  <table className="w-full text-left border-collapse table-fixed">
                     <colgroup>
                       <col style={{ width: 80 }} />
-                      <col style={{ width: 200 }} />
-                      <col style={{ width: 150 }} />
+                      <col style={{ width: 220 }} />
+                      <col style={{ width: 160 }} />
                       <col style={{ width: 120 }} />
                     </colgroup>
-                    <thead>
-                      <tr className="border-b border-hair" style={{ background: 'rgba(250,248,245,0.7)' }}>
-                        {['ID', 'Cliente', 'Teléfono', 'Acciones'].map(h => (
-                          <th key={h} className="px-[22px] py-4 text-[11.5px] font-semibold text-muted uppercase tracking-[0.1em] text-left">
+                    <thead className="bg-[#F5F0EB]">
+                      <tr>
+                        {['ID', 'Cliente', 'Teléfono', ''].map((h, i) => (
+                          <th key={i} className="px-[22px] py-[11px] text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-left border-b border-[#D0CBC4]">
                             {h}
                           </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.map((c, idx) => (
-                        <tr key={c.id}
-                          className="border-b border-hair transition-colors"
-                          style={{
-                            background: idx % 2 === 0 ? 'rgba(255,255,255,0.55)' : 'rgba(250,250,248,0.45)',
-                          }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(244,239,230,0.8)')}
-                          onMouseLeave={e => (e.currentTarget.style.background = idx % 2 === 0 ? 'rgba(255,255,255,0.55)' : 'rgba(250,250,248,0.45)')}
-                        >
-                          <td className="px-[22px] py-[7px] text-[13px] text-muted font-mono">#{c.id}</td>
-                          <td className="px-[22px] py-[7px]">
-                            <div className="text-[14px] font-semibold text-ink truncate">{c.nombre} {c.apellido}</div>
+                      {filtered.map(c => (
+                        <tr key={c.id} className="border-t border-[#E8E5E2] hover:bg-[#FAF5EE] transition-colors">
+                          <td className="px-[22px] py-3.5 text-[13px] text-[#7A7571] font-mono">#{c.id}</td>
+                          <td className="px-[22px] py-3.5">
+                            <div className="text-[14px] font-semibold text-[#2D2B2A] truncate">{c.nombre} {c.apellido}</div>
                           </td>
-                          <td className="px-[22px] py-[7px] text-[13px] text-steel-600">{c.telefono || '—'}</td>
-                          <td className="px-[22px] py-[7px]">
-                            <div className="flex justify-end gap-1">
+                          <td className="px-[22px] py-3.5 text-[13px] text-[#4A4744]">{c.telefono || '—'}</td>
+                          <td className="px-[22px] py-3.5">
+                            <div className="flex justify-end gap-1.5">
                               <button onClick={() => openEdit(c)} title="Editar"
-                                className="p-[7px] rounded-lg text-muted hover:text-ink hover:bg-cream-2 transition-colors">
-                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
+                                className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#E8D4B8] hover:text-[#780e18] hover:border-[#780e18] transition-all">
+                                <i className="ti ti-edit text-[14px]" />
                               </button>
                               <button onClick={() => setConfirmDelete(c)} title="Eliminar"
-                                className="p-[7px] rounded-lg text-muted hover:text-red-600 hover:bg-red-50 transition-colors">
-                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
+                                className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#F5C9C0] hover:text-[#8A1E12] hover:border-[#B23A2A] transition-all">
+                                <i className="ti ti-trash text-[14px]" />
                               </button>
                             </div>
                           </td>
@@ -400,21 +374,19 @@ export function ClientesPage() {
                 {/* ── Mobile cards ── */}
                 <div className="md:hidden">
                   {filtered.map(c => (
-                    <div key={c.id} className="flex items-center justify-between px-4 py-3.5 border-b border-hair">
+                    <div key={c.id} className="flex items-center justify-between px-4 py-3.5 border-b border-[#E8E5E2] last:border-0">
                       <div>
-                        <div className="text-[13px] font-semibold text-ink">#{c.id} — {c.nombre} {c.apellido}</div>
-                        <div className="text-[11px] text-muted mt-0.5">{c.telefono || 'Sin teléfono'}</div>
+                        <div className="text-[13px] font-semibold text-[#2D2B2A]">#{c.id} — {c.nombre} {c.apellido}</div>
+                        <div className="text-[11px] text-[#7A7571] mt-0.5">{c.telefono || 'Sin teléfono'}</div>
                       </div>
-                      <div className="flex gap-1">
-                        <button onClick={() => openEdit(c)} className="p-2 rounded-lg text-steel-400 hover:text-brand-600 hover:bg-brand-50">
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
+                      <div className="flex gap-1.5">
+                        <button onClick={() => openEdit(c)}
+                          className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#E8D4B8] hover:text-[#780e18] hover:border-[#780e18] transition-all">
+                          <i className="ti ti-edit text-[14px]" />
                         </button>
-                        <button onClick={() => setConfirmDelete(c)} className="p-2 rounded-lg text-steel-400 hover:text-red-600 hover:bg-red-50">
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
+                        <button onClick={() => setConfirmDelete(c)}
+                          className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#F5C9C0] hover:text-[#8A1E12] hover:border-[#B23A2A] transition-all">
+                          <i className="ti ti-trash text-[14px]" />
                         </button>
                       </div>
                     </div>
@@ -425,8 +397,8 @@ export function ClientesPage() {
 
             {/* Footer */}
             {!loading && filtered.length > 0 && (
-              <div className="px-4 md:px-7 py-4 border-t border-hair bg-cream flex flex-col sm:flex-row items-center justify-between gap-3">
-                <span className="text-[12.5px] text-muted">
+              <div className="px-[22px] py-[14px] bg-[#F5F0EB] border-t border-[#D0CBC4] flex flex-col sm:flex-row items-center justify-between gap-3">
+                <span className="text-[12.5px] text-[#7A7571]">
                   Mostrando {filtered.length} de {totalCount} clientes
                 </span>
                 <div className="flex items-center gap-3">
@@ -434,7 +406,7 @@ export function ClientesPage() {
                     <button
                       onClick={() => loadClientes(endCursor)}
                       disabled={loadingMore}
-                      className="h-9 px-4 rounded-[10px] text-[13px] font-semibold bg-paper border border-hair text-ink hover:border-ink transition-colors disabled:opacity-50"
+                      className="h-9 px-4 rounded-lg text-[13px] font-semibold bg-white border border-[#D8D4D0] text-[#4A4744] hover:bg-[#F0EFEC] transition-colors disabled:opacity-50"
                     >
                       {loadingMore ? 'Cargando...' : 'Cargar más'}
                     </button>
@@ -443,24 +415,25 @@ export function ClientesPage() {
               </div>
             )}
           </div>
+
         </div>
-
-        <ClienteFormModal
-          open={formOpen}
-          onClose={() => { setFormOpen(false); setEditingCliente(null) }}
-          onSave={handleSave}
-          cliente={editingCliente}
-        />
-
-        <ConfirmModal
-          open={!!confirmDelete}
-          onClose={() => setConfirmDelete(null)}
-          onConfirm={() => void handleDelete()}
-          title="Eliminar cliente"
-          message={`¿Eliminar a "${confirmDelete?.nombre} ${confirmDelete?.apellido}"? Esta acción no se puede deshacer.`}
-          loading={deleting}
-        />
       </div>
+
+      <ClienteFormModal
+        open={formOpen}
+        onClose={() => { setFormOpen(false); setEditingCliente(null) }}
+        onSave={handleSave}
+        cliente={editingCliente}
+      />
+
+      <ConfirmModal
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => void handleDelete()}
+        title="Eliminar cliente"
+        message={`¿Eliminar a "${confirmDelete?.nombre} ${confirmDelete?.apellido}"? Esta acción no se puede deshacer.`}
+        loading={deleting}
+      />
     </MainLayout>
   )
 }
@@ -498,7 +471,7 @@ export function ClienteFormModal({ open, onClose, onSave, cliente }: ClienteForm
     <Modal open={open} onClose={onClose} title={cliente ? 'Editar cliente' : 'Nuevo cliente'}>
       <form onSubmit={handleSubmit} className="space-y-4 pt-1">
         <div>
-          <label className="block text-xs font-semibold text-steel-600 mb-1.5">Nombre *</label>
+          <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Nombre *</label>
           <Input
             type="text"
             placeholder="Nombre del cliente"
@@ -509,7 +482,7 @@ export function ClienteFormModal({ open, onClose, onSave, cliente }: ClienteForm
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-steel-600 mb-1.5">Apellido *</label>
+          <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Apellido *</label>
           <Input
             type="text"
             placeholder="Apellido del cliente"
@@ -519,7 +492,7 @@ export function ClienteFormModal({ open, onClose, onSave, cliente }: ClienteForm
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-steel-600 mb-1.5">Teléfono</label>
+          <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Teléfono <span className="font-normal text-[#7A7571]">(opcional)</span></label>
           <Input
             type="text"
             placeholder="Número de teléfono"
