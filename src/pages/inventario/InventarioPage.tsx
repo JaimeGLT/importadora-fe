@@ -46,31 +46,31 @@ declare module '@tanstack/react-table' {
 function StockBadgeMd3({ stock, stockMinimo }: { stock: number; stockMinimo: number }) {
   if (stock === 0) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-[#fee2e2] text-[#dc2626]">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#dc2626] shrink-0" />
+      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-[#F5C9C0] text-[#8A1E12]">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#B23A2A] shrink-0" />
         Sin stock
       </span>
     )
   }
   if (stock <= stockMinimo) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-[#fee2e2] text-[#dc2626]">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#dc2626] shrink-0" />
+      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-[#F5C9C0] text-[#8A1E12]">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#B23A2A] shrink-0" />
         Stock bajo
       </span>
     )
   }
   if (stock <= stockMinimo * 2) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-[#fff7ed] text-[#ea580c]">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#ea580c] shrink-0" />
+      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-[#F5E0A8] text-[#7A5200]">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#B47A1F] shrink-0" />
         Limitado
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-[#d1fae5] text-[#059669]">
-      <span className="w-1.5 h-1.5 rounded-full bg-[#059669] shrink-0" />
+    <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-[#B8DCCA] text-[#1E5C38]">
+      <span className="w-1.5 h-1.5 rounded-full bg-[#2A6040] shrink-0" />
       En stock
     </span>
   )
@@ -84,13 +84,13 @@ function ProductThumb({ src, nombre }: { src?: string; nombre: string }) {
     return (
       <img
         src={src} alt={nombre} onError={() => setErr(true)}
-        className="w-[42px] h-[42px] rounded-xl border-[1.5px] border-[#e2e8f0] object-cover"
+        className="w-[42px] h-[42px] rounded-lg border border-[#E8E5E2] object-cover"
       />
     )
   }
   return (
-    <div className="w-[42px] h-[42px] bg-[#f1f5f9] rounded-xl border-[1.5px] border-[#e2e8f0] flex items-center justify-center">
-      <i className="ti ti-photo text-[#9996b0] text-[18px]" />
+    <div className="w-[42px] h-[42px] bg-[#F0EFEC] rounded-lg border border-[#E8E5E2] flex items-center justify-center">
+      <i className="ti ti-photo text-[#7A7571] text-[18px]" />
     </div>
   )
 }
@@ -99,20 +99,20 @@ function ProductThumb({ src, nombre }: { src?: string; nombre: string }) {
 
 function TableSkeleton() {
   return (
-    <div className="divide-y divide-[#e2e8f0]">
+    <div className="divide-y divide-[#D0CBC4]">
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="flex items-center gap-4 px-5 py-3.5 animate-pulse">
-          <div className="w-[42px] h-[42px] rounded-xl bg-[#f1f5f9] shrink-0" />
+          <div className="w-[42px] h-[42px] rounded-lg bg-[#F0EFEC] shrink-0" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-3 w-28 rounded bg-[#f1f5f9]" />
-            <div className="h-2.5 w-40 rounded bg-[#e2e8f0]" />
+            <div className="h-3 w-28 rounded bg-[#F0EFEC]" />
+            <div className="h-2.5 w-40 rounded bg-[#E8E5E2]" />
           </div>
-          <div className="h-2.5 w-20 rounded bg-[#f1f5f9]" />
-          <div className="h-5 w-20 rounded-full bg-[#f1f5f9]" />
-          <div className="h-2.5 w-20 rounded bg-[#f1f5f9]" />
-          <div className="h-2.5 w-16 rounded bg-[#e2e8f0]" />
+          <div className="h-2.5 w-20 rounded bg-[#F0EFEC]" />
+          <div className="h-5 w-20 rounded-full bg-[#F0EFEC]" />
+          <div className="h-2.5 w-20 rounded bg-[#F0EFEC]" />
+          <div className="h-2.5 w-16 rounded bg-[#E8E5E2]" />
           <div className="flex gap-1.5">
-            {[0, 1, 2].map(j => <div key={j} className="h-8 w-8 rounded-[10px] bg-[#f1f5f9]" />)}
+            {[0, 1, 2].map(j => <div key={j} className="h-8 w-8 rounded-[8px] bg-[#F0EFEC]" />)}
           </div>
         </div>
       ))}
@@ -125,20 +125,20 @@ function TableSkeleton() {
 function EmptyState({ onNew, searching }: { onNew: () => void; searching: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-5 text-center">
-      <div className="w-12 h-12 rounded-xl bg-white border-[1.5px] border-[#e2e8f0] flex items-center justify-center mb-4">
-        <i className="ti ti-package text-[#9996b0] text-xl" />
+      <div className="w-12 h-12 rounded-lg bg-white border border-[#E8E5E2] flex items-center justify-center mb-4">
+        <i className="ti ti-package text-[#7A7571] text-xl" />
       </div>
-      <p className="text-sm font-bold text-[#1e1b2e] mb-1">
+      <p className="text-sm font-semibold text-[#2D2B2A] mb-1">
         {searching ? 'Sin resultados' : 'Sin productos'}
       </p>
-      <p className="text-xs text-[#9996b0] font-semibold max-w-xs mb-5">
+      <p className="text-xs text-[#7A7571] font-medium max-w-xs mb-5">
         {searching
           ? 'No hay productos que coincidan con esta búsqueda.'
           : 'Agrega tu primer producto o importa desde Excel.'}
       </p>
       {!searching && (
         <button onClick={onNew}
-          className="px-5 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white rounded-xl flex items-center gap-2 text-sm font-bold transition-all shadow-md">
+          className="px-5 py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-lg flex items-center gap-2 text-sm font-semibold transition-all shadow-sm">
           <i className="ti ti-plus text-base" />
           Nuevo producto
         </button>
@@ -153,46 +153,46 @@ function MobileProductRow({ p, marcaNombre, onTap }: { p: Producto; marcaNombre:
   return (
     <div
       className={clsx(
-        'flex items-center gap-3 px-4 py-3 border-b border-[#e2e8f0] last:border-0 active:bg-[#f1f5f9] transition-colors cursor-pointer',
-        p.es_kit && 'border-l-[3px] border-l-[#1d4ed8]',
+        'flex items-center gap-3 px-4 py-3 border-b border-[#E8E5E2] last:border-0 active:bg-[#FBFAF7] transition-colors cursor-pointer',
+        p.es_kit && 'border-l-[3px] border-l-[#D4A333]',
       )}
       onClick={onTap}
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
       <ProductThumb src={p.imagen} nombre={p.nombre} />
       <div className="flex-1 min-w-0">
-        <div className="font-mono font-bold text-[13px] text-[#1e1b2e] tracking-[0.05em] leading-tight">
+        <div className="font-mono font-semibold text-[13px] text-[#2D2B2A] tracking-[0.05em] leading-tight">
           {p.codigo_universal}
         </div>
-        <div className="text-[11.5px] text-[#9996b0] font-semibold truncate leading-tight mt-0.5">{p.nombre}</div>
+        <div className="text-[11.5px] text-[#7A7571] font-medium truncate leading-tight mt-0.5">{p.nombre}</div>
         {marcaNombre && (
-          <div className="text-[10.5px] text-[#9996b0] mt-0.5">{marcaNombre}</div>
+          <div className="text-[10.5px] text-[#7A7571] mt-0.5">{marcaNombre}</div>
         )}
       </div>
       <div className="flex flex-col items-end gap-1.5 shrink-0">
         <StockBadgeMd3 stock={p.stock} stockMinimo={p.stock_minimo} />
-        <span className="font-mono text-[12px] font-bold text-[#1e1b2e]">
+        <span className="font-mono text-[12px] font-medium text-[#2D2B2A]">
           Bs. {p.precio_venta.toFixed(2)}
         </span>
       </div>
-      <i className="ti ti-chevron-right text-[#9996b0] text-lg ml-1" />
+      <i className="ti ti-chevron-right text-[#7A7571] text-lg ml-1" />
     </div>
   )
 }
 
 function MobileSkeletonRows() {
   return (
-    <div className="divide-y divide-[#e2e8f0]">
+    <div className="divide-y divide-[#D0CBC4]">
       {Array.from({ length: 7 }).map((_, i) => (
         <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
-          <div className="w-[42px] h-[42px] rounded-xl bg-[#f1f5f9] shrink-0" />
+          <div className="w-[42px] h-[42px] rounded-lg bg-[#F0EFEC] shrink-0" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-3 w-24 rounded bg-[#f1f5f9]" />
-            <div className="h-2.5 w-36 rounded bg-[#e2e8f0]" />
+            <div className="h-3 w-24 rounded bg-[#F0EFEC]" />
+            <div className="h-2.5 w-36 rounded bg-[#E8E5E2]" />
           </div>
           <div className="flex flex-col items-end gap-1.5 shrink-0">
-            <div className="h-5 w-16 rounded-full bg-[#f1f5f9]" />
-            <div className="h-2.5 w-14 rounded bg-[#e2e8f0]" />
+            <div className="h-5 w-16 rounded-full bg-[#F0EFEC]" />
+            <div className="h-2.5 w-14 rounded bg-[#E8E5E2]" />
           </div>
         </div>
       ))}
@@ -433,12 +433,12 @@ export function InventarioPage() {
         const p = info.row.original
         return (
           <div>
-            <div className="font-mono font-bold text-[15px] text-[#1e1b2e] tracking-[0.05em] leading-tight">
+            <div className="font-mono font-semibold text-[14px] text-[#2D2B2A] tracking-[0.04em] leading-tight">
               {p.codigo_universal || '—'}
             </div>
-            <div className="text-xs text-[#9996b0] font-medium truncate max-w-[180px] mt-0.5">{p.nombre}</div>
+            <div className="text-xs text-[#7A7571] font-normal truncate max-w-[180px] mt-0.5">{p.nombre}</div>
             {p.es_kit && (
-              <span className="text-[9px] font-bold text-[#1d4ed8] uppercase tracking-wider">Kit</span>
+              <span className="text-[9px] font-semibold text-[#D4A333] uppercase tracking-wider">Kit</span>
             )}
           </div>
         )
@@ -454,11 +454,11 @@ export function InventarioPage() {
         const nombre = getMarcaNombre(p.marcaId, marcas)
         return (
           <div>
-            <div className="inline-flex items-center gap-1.5 bg-[#dbeafe] text-[#1d4ed8] text-xs font-bold px-2.5 py-0.5 rounded-full mb-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#1d4ed8] shrink-0" />
+            <div className="inline-flex items-center gap-1.5 bg-[#E8D4B8] text-[#780e18] text-xs font-semibold px-2.5 py-0.5 rounded-full mb-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#780e18] shrink-0" />
               {nombre || '—'}
             </div>
-            <div className="text-[10px] text-[#9996b0] font-medium flex items-center gap-1">
+            <div className="text-[10px] text-[#7A7571] font-normal flex items-center gap-1">
               <i className="ti ti-map-pin text-[10px]" />
               <span>{p.almacen} {p.estante} {p.fila} {p.columna}</span>
             </div>
@@ -479,14 +479,14 @@ export function InventarioPage() {
         const isWarn = p.stock > p.stock_minimo && p.stock <= p.stock_minimo * 2
         return (
           <div>
-            <div className="font-mono font-black text-[15px] text-[#1e1b2e] leading-none">{p.stock.toLocaleString('es-BO')}</div>
-            <div className="w-[60px] h-[5px] bg-[#e2e8f0] rounded-full overflow-hidden mt-1.5">
+            <div className="font-mono font-semibold text-[14px] text-[#2D2B2A] leading-none">{p.stock.toLocaleString('es-BO')}</div>
+            <div className="w-[60px] h-[5px] bg-[#DDD8D3] rounded-full overflow-hidden mt-1.5">
               <div
                 className={clsx(
                   'h-full rounded-full',
-                  isOk ? 'bg-gradient-to-r from-[#059669] to-[#0284c7]'
-                  : isWarn ? 'bg-gradient-to-r from-[#ea580c] to-[#f59e0b]'
-                  : 'bg-gradient-to-r from-[#ea580c] to-[#f97316]'
+                  isOk ? 'bg-gradient-to-r from-[#3F7A52] to-[#6BAF80]'
+                  : isWarn ? 'bg-gradient-to-r from-[#B47A1F] to-[#D4A333]'
+                  : 'bg-gradient-to-r from-[#B23A2A] to-[#D45040]'
                 )}
                 style={{ width: `${pct}%` }}
               />
@@ -512,8 +512,8 @@ export function InventarioPage() {
       meta: { align: 'left' },
       cell: (info) => (
         <div>
-          <div className="font-mono font-bold text-[13px] text-[#1e1b2e]">Bs. {info.getValue().toFixed(2)}</div>
-          <div className="text-[11px] text-[#9996b0] font-medium mt-0.5">PVP Unitario</div>
+          <div className="font-mono font-medium text-[13px] text-[#2D2B2A]">Bs. {info.getValue().toFixed(2)}</div>
+          <div className="text-[11px] text-[#7A7571] font-normal mt-0.5">PVP Unitario</div>
         </div>
       ),
     }),
@@ -527,13 +527,13 @@ export function InventarioPage() {
         const margen = sale > 0 && cost > 0 ? Math.round(((sale - cost) / sale) * 100) : null
         return (
           <div>
-            <div className="font-mono text-[13px] text-[#5a5670] font-semibold">Bs. {cost.toFixed(2)}</div>
+            <div className="font-mono text-[13px] text-[#4A4744] font-normal">Bs. {cost.toFixed(2)}</div>
             {margen !== null && (
               <div className={clsx(
-                'inline-block text-[11px] font-bold px-2 py-0.5 rounded-full mt-1',
-                margen > 0 ? 'bg-[#d1fae5] text-[#059669]'
-                : margen < 0 ? 'bg-[#fee2e2] text-[#dc2626]'
-                : 'bg-[#fff7ed] text-[#ea580c]'
+                'inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full mt-1',
+                margen > 0 ? 'bg-[#B8DCCA] text-[#1E5C38]'
+                : margen < 0 ? 'bg-[#F5C9C0] text-[#8A1E12]'
+                : 'bg-[#F5E0A8] text-[#7A5200]'
               )}>
                 {margen}% margen
               </div>
@@ -555,23 +555,23 @@ export function InventarioPage() {
             <button
               onClick={() => handleEdit(p)}
               title="Editar"
-              className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#dbeafe] hover:text-[#1d4ed8] hover:border-[#1d4ed8] transition-all"
+              className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#E8D4B8] hover:text-[#780e18] hover:border-[#780e18] transition-all"
             >
-              <i className="ti ti-edit text-[15px]" />
+              <i className="ti ti-edit text-[14px]" />
             </button>
             <button
               onClick={() => setEtiquetaProducto(p)}
               title="Etiqueta"
-              className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#dbeafe] hover:text-[#1d4ed8] hover:border-[#1d4ed8] transition-all"
+              className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#E8D4B8] hover:text-[#780e18] hover:border-[#780e18] transition-all"
             >
-              <i className="ti ti-printer text-[15px]" />
+              <i className="ti ti-printer text-[14px]" />
             </button>
             <button
               onClick={() => setConfirmDelete(p)}
               title="Eliminar"
-              className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#fee2e2] hover:text-[#dc2626] hover:border-[#dc2626] transition-all"
+              className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#F5C9C0] hover:text-[#8A1E12] hover:border-[#B23A2A] transition-all"
             >
-              <i className="ti ti-trash text-[15px]" />
+              <i className="ti ti-trash text-[14px]" />
             </button>
           </div>
         )
@@ -594,69 +594,61 @@ export function InventarioPage() {
 
   return (
     <MainLayout>
-      <div className="bg-[#f1f5f9] min-h-screen">
+      <div className="bg-[#F7F7F7] min-h-screen">
 
         {/* ── TopBar ──────────────────────────────────────────────────────── */}
-        <header className="bg-[#f1f5f9] sticky top-0 z-40 flex justify-between items-center w-full h-[62px] px-7 border-b border-[#e2e8f0]">
-          <div className="flex items-center gap-2 text-sm text-[#9996b0] font-semibold">
+        <header className="bg-[#F7F7F7]/85 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full h-[62px] px-7 border-b border-[#E8E5E2]">
+          <div className="flex items-center gap-2 text-sm text-[#7A7571]">
             <span>Operaciones</span>
             <span className="text-[10px] opacity-40">/</span>
-            <strong className="text-[#1e1b2e] font-bold">Inventario</strong>
+            <strong className="text-[#2D2B2A] font-semibold">Inventario</strong>
           </div>
           <div className="flex items-center gap-2.5">
-            <div className="hidden sm:flex bg-white px-3.5 py-1.5 rounded-xl items-center gap-2 border-[1.5px] border-[#e2e8f0]">
-              <i className="ti ti-calendar text-[#9996b0] text-[15px]" />
-              <span className="text-xs font-semibold text-[#5a5670]">{dateStr}</span>
+            <div className="hidden sm:flex bg-white px-3.5 py-1.5 rounded-lg items-center gap-2 border border-[#D8D4D0]">
+              <i className="ti ti-calendar text-[#7A7571] text-[15px]" />
+              <span className="text-xs text-[#4A4744]">{dateStr}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <button
-                className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] transition-colors relative"
+                className="w-[34px] h-[34px] flex items-center justify-center rounded-full bg-white border border-[#D8D4D0] text-[#4A4744] hover:bg-[#F7F7F7] transition-colors relative"
                 title="Notificaciones"
               >
-                <i className="ti ti-bell text-[18px]" />
-                <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#dc2626]" />
+                <i className="ti ti-bell text-[15px]" />
+                <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#B23A2A]" />
               </button>
               <button
-                className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] transition-colors"
+                className="w-[34px] h-[34px] flex items-center justify-center rounded-full bg-white border border-[#D8D4D0] text-[#4A4744] hover:bg-[#F7F7F7] transition-colors"
                 title="Configuración"
               >
-                <i className="ti ti-settings text-[18px]" />
+                <i className="ti ti-settings text-[15px]" />
               </button>
             </div>
           </div>
         </header>
 
-        <div className="px-7 py-6 max-w-[1400px] mx-auto">
+        <div className="px-7 py-[26px] max-w-[1320px] mx-auto w-full">
 
           {/* ── Page Header ─────────────────────────────────────────────── */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-            <div className="flex items-center gap-3.5">
-              <div
-                className="w-12 h-12 bg-gradient-to-br from-[#0284c7] to-[#ea580c] rounded-2xl flex items-center justify-center text-white shrink-0"
-                style={{ boxShadow: '0 6px 18px rgba(2,132,199,0.28)' }}
-              >
-                <i className="ti ti-package text-2xl" />
-              </div>
-              <div>
-                <h2 className="font-black text-[34px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
-                  Inventario
-                </h2>
-                <p className="text-sm text-[#9996b0] font-semibold mt-0.5">
-                  Gestión de repuestos y autopartes
-                </p>
-              </div>
+            <div>
+              <h2 className="font-semibold text-[30px] text-[#2D2B2A] leading-none tracking-[-0.022em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                Inventario
+              </h2>
+              <p className="text-[13.5px] text-[#7A7571] mt-1.5">
+                Gestión de repuestos y autopartes
+              </p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0">
               <button
                 onClick={() => void handleOpenImport()}
-                className="px-[18px] py-2.5 bg-white border-[1.5px] border-[#e2e8f0] rounded-xl flex items-center justify-center gap-1.5 text-sm font-bold text-[#5a5670] hover:bg-[#f1f5f9] transition-all"
+                className="px-[18px] py-2.5 bg-white border border-[#D8D4D0] rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium text-[#4A4744] hover:bg-[#F7F7F7] transition-all"
               >
                 <i className="ti ti-upload text-base" />
                 Importar
               </button>
               <button
                 onClick={handleNew}
-                className="px-[18px] py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white rounded-xl flex items-center justify-center gap-1.5 text-sm font-bold active:scale-95 transition-all shadow-md"
+                className="px-[18px] py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold active:scale-95 transition-all shadow-sm"
               >
                 <i className="ti ti-plus text-base" />
                 Nuevo producto
@@ -665,109 +657,123 @@ export function InventarioPage() {
           </div>
 
           {/* ── Metrics Grid ─────────────────────────────────────────────── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[14px] mb-[22px]">
 
             {/* Total Productos */}
-            <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200">
-              <div className="absolute -top-5 -right-5 w-20 h-20 rounded-full bg-[#3b82f6] opacity-10" />
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0284c7] to-[#60a5fa] flex items-center justify-center text-white mb-3.5">
-                <i className="ti ti-box text-xl" />
+            <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#780e18] p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+              <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-[#780e18] opacity-[0.08]" />
+              <div className="flex items-start justify-between mb-[14px]">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#780e18] to-[#D4A333] flex items-center justify-center shrink-0">
+                  <i className="ti ti-box text-white text-[16px]" />
+                </div>
+                <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#B8DCCA] text-[#1E5C38]">
+                  <i className="ti ti-circle-check text-[10px]" />
+                  catálogo
+                </span>
               </div>
-              <div className="font-black text-[30px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
+              <div className="font-semibold text-[32px] text-[#2D2B2A] leading-none tracking-[-0.025em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                 {kpi.total.toLocaleString('es-BO')}
               </div>
-              <div className="text-xs font-semibold text-[#9996b0] mt-1">Total productos</div>
-              <div className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#0284c7] mt-2">
-                <i className="ti ti-circle-check text-[11px]" />
-                en catálogo
-              </div>
+              <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Total productos</div>
             </div>
 
             {/* Stock Crítico */}
             <div className={clsx(
-              'rounded-2xl border-[1.5px] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200',
-              kpi.stockBajo > 0 ? 'bg-[#dc2626]/5 border-[#dc2626]/30' : 'bg-white border-[#e2e8f0]'
+              'rounded-xl border border-l-4 p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200',
+              kpi.stockBajo > 0
+                ? 'bg-[#FDF1EE] border-[#D0CBC4] border-l-[#B23A2A]'
+                : 'bg-white border-[#D0CBC4] border-l-[#3F7A52]'
             )}>
-              <div className="absolute -top-5 -right-5 w-20 h-20 rounded-full bg-[#dc2626] opacity-10" />
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#dc2626] to-[#ff9090] flex items-center justify-center text-white mb-3.5">
-                <i className="ti ti-alert-triangle text-xl" />
+              <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-[#B23A2A] opacity-[0.08]" />
+              <div className="flex items-start justify-between mb-[14px]">
+                <div className={clsx(
+                  'w-9 h-9 rounded-lg flex items-center justify-center shrink-0',
+                  kpi.stockBajo > 0
+                    ? 'bg-gradient-to-br from-[#B23A2A] to-[#E07060]'
+                    : 'bg-gradient-to-br from-[#3F7A52] to-[#6BAF80]'
+                )}>
+                  <i className={clsx('text-white text-[16px]', kpi.stockBajo > 0 ? 'ti ti-alert-triangle' : 'ti ti-circle-check')} />
+                </div>
+                <span className={clsx(
+                  'inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full',
+                  kpi.stockBajo > 0 ? 'bg-[#F5C9C0] text-[#8A1E12]' : 'bg-[#B8DCCA] text-[#1E5C38]'
+                )}>
+                  {kpi.stockBajo > 0 ? 'Requiere acción' : 'Todo bien'}
+                </span>
               </div>
               <div
-                className={clsx('font-black text-[30px] leading-none', kpi.stockBajo > 0 ? 'text-[#dc2626]' : 'text-[#1e1b2e]')}
-                style={{ fontFamily: 'Nunito, sans-serif' }}
+                className={clsx('font-semibold text-[32px] leading-none tracking-[-0.025em]', kpi.stockBajo > 0 ? 'text-[#B23A2A]' : 'text-[#2D2B2A]')}
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
               >
                 {kpi.stockBajo}
               </div>
-              <div className="text-xs font-semibold text-[#9996b0] mt-1">Stock crítico</div>
-              <div className={clsx(
-                'inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full mt-2',
-                kpi.stockBajo > 0 ? 'bg-[#fee2e2] text-[#dc2626]' : 'bg-[#d1fae5] text-[#059669]'
-              )}>
-                <i className={clsx('text-[11px]', kpi.stockBajo > 0 ? 'ti ti-mood-sad' : 'ti ti-mood-smile')} />
-                {kpi.stockBajo > 0 ? 'requiere acción' : 'todo bien'}
-              </div>
+              <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Stock crítico</div>
             </div>
 
             {/* Valor Almacén */}
-            <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200">
-              <div className="absolute -top-5 -right-5 w-20 h-20 rounded-full bg-[#059669] opacity-10" />
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#059669] to-[#4eddc4] flex items-center justify-center text-white mb-3.5">
-                <i className="ti ti-currency-dollar text-xl" />
+            <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#3F7A52] p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+              <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-[#3F7A52] opacity-[0.08]" />
+              <div className="flex items-start justify-between mb-[14px]">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#3F7A52] to-[#6BAF80] flex items-center justify-center shrink-0">
+                  <i className="ti ti-currency-dollar text-white text-[16px]" />
+                </div>
+                <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#B8DCCA] text-[#1E5C38]">
+                  al costo
+                </span>
               </div>
               <div
-                className="font-black text-[22px] text-[#1e1b2e] leading-none flex items-baseline gap-1"
-                style={{ fontFamily: 'Nunito, sans-serif' }}
+                className="font-semibold text-[26px] text-[#2D2B2A] leading-none tracking-[-0.025em] flex items-baseline gap-1"
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
               >
-                <span className="text-sm font-bold text-[#059669]">Bs.</span>
+                <span className="text-[13px] font-semibold text-[#3F7A52]">Bs.</span>
                 {fmtBs(kpi.totalValor)}
               </div>
-              <div className="text-xs font-semibold text-[#9996b0] mt-1">Valor almacén</div>
-              <div className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#d1fae5] text-[#059669] mt-2">
-                <i className="ti ti-trending-up text-[11px]" />
-                al costo
-              </div>
+              <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Valor almacén</div>
             </div>
 
             {/* Unidades Totales */}
-            <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200">
-              <div className="absolute -top-5 -right-5 w-20 h-20 rounded-full bg-[#0284c7] opacity-10" />
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0284c7] to-[#81aaff] flex items-center justify-center text-white mb-3.5">
-                <i className="ti ti-stack text-xl" />
+            <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#D4A333] p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+              <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-[#D4A333] opacity-[0.12]" />
+              <div className="flex items-start justify-between mb-[14px]">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#D4A333] to-[#B4881C] flex items-center justify-center shrink-0">
+                  <i className="ti ti-stack text-[#2D2010] text-[16px]" />
+                </div>
+                <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#F5E0A8] text-[#7A5200]">
+                  <i className="ti ti-building-warehouse text-[10px]" />
+                  físico
+                </span>
               </div>
-              <div className="font-black text-[30px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
+              <div className="font-semibold text-[32px] text-[#2D2B2A] leading-none tracking-[-0.025em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                 {kpi.totalUnidades.toLocaleString('es-BO')}
               </div>
-              <div className="text-xs font-semibold text-[#9996b0] mt-1">Unidades en stock</div>
-              <div className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#0284c7] mt-2">
-                <i className="ti ti-building-warehouse text-[11px]" />
-                físico
-              </div>
+              <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Unidades en stock</div>
             </div>
 
           </div>
 
           {/* ── Table Container ──────────────────────────────────────────── */}
-          <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] overflow-hidden">
+          <div className="bg-white rounded-xl border border-[#D0CBC4] overflow-hidden">
 
             {/* Toolbar */}
-            <div className="px-5 py-[18px] border-b border-[#e2e8f0] flex flex-wrap justify-between items-center gap-4">
-              <h3
-                className="text-lg font-extrabold text-[#1e1b2e] flex items-center gap-2"
-                style={{ fontFamily: 'Nunito, sans-serif' }}
-              >
-                Productos
-                <span className="bg-[#dbeafe] text-[#1d4ed8] text-xs font-bold px-2.5 py-0.5 rounded-full">
+            <div className="px-[22px] py-[18px] border-b border-[#D0CBC4] flex flex-wrap justify-between items-center gap-4">
+              <div className="flex items-center gap-3">
+                <h3 className="text-[17px] font-semibold text-[#2D2B2A] tracking-[-0.01em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  Matriz de productos
+                </h3>
+                <span className="bg-[#F4ECDB] text-[#780e18] text-xs font-semibold px-2.5 py-0.5 rounded-full">
                   {totalCount > 0 ? totalCount : displayProducts.length}
                 </span>
-              </h3>
-              <div className="flex items-center gap-2 bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] rounded-xl px-3.5 w-full sm:w-auto sm:min-w-[250px] focus-within:border-[#1d4ed8] transition-colors">
-                <i className="ti ti-search text-[#9996b0] text-base shrink-0" />
-                <input
-                  className="flex-1 py-2 bg-transparent text-sm text-[#1e1b2e] font-semibold placeholder:text-[#9996b0] outline-none border-none"
-                  placeholder="Buscar código, nombre o marca…"
-                  value={searchTerm}
-                  onChange={e => handleSearch(e.target.value)}
-                />
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 bg-[#FBFBFA] border border-[#D8D4D0] rounded-lg px-3.5 w-full sm:w-auto sm:min-w-[260px] focus-within:border-[#780e18] transition-colors">
+                  <i className="ti ti-search text-[#7A7571] text-[13px] shrink-0" />
+                  <input
+                    className="flex-1 py-2 bg-transparent text-[13px] text-[#2D2B2A] font-normal placeholder:text-[#7A7571] outline-none border-none"
+                    placeholder="Buscar SKU, repuesto, marca…"
+                    value={searchTerm}
+                    onChange={e => handleSearch(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
 
@@ -789,7 +795,7 @@ export function InventarioPage() {
                         <col key={h.id} style={{ width: h.column.getSize() }} />
                       ))}
                     </colgroup>
-                    <thead className="bg-[#f1f5f9]">
+                    <thead className="bg-[#F5F0EB]">
                       {table.getHeaderGroups().map((hg) => (
                         <tr key={hg.id}>
                           {hg.headers.map((header) => {
@@ -800,10 +806,10 @@ export function InventarioPage() {
                               <th
                                 key={header.id}
                                 className={clsx(
-                                  'px-4 py-3 text-[11px] font-bold text-[#9996b0] uppercase tracking-wide select-none whitespace-nowrap',
+                                  'px-4 py-[11px] text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.12em] select-none whitespace-nowrap border-b border-[#D0CBC4]',
                                   align === 'center' && 'text-center',
                                   align === 'right'  && 'text-right',
-                                  canSort && 'cursor-pointer hover:text-[#5a5670] transition-colors',
+                                  canSort && 'cursor-pointer hover:text-[#4A4744] transition-colors',
                                 )}
                                 onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                               >
@@ -832,7 +838,7 @@ export function InventarioPage() {
                       {table.getRowModel().rows.map((row) => (
                         <tr
                           key={row.id}
-                          className="border-t border-[#e2e8f0] hover:bg-[#faf9ff] transition-colors"
+                          className="border-t border-[#E8E5E2] hover:bg-[#FAF5EE] transition-colors"
                         >
                           {row.getVisibleCells().map((cell, cellIdx) => {
                             const align = (cell.column.columnDef.meta as ColumnMeta<Producto, unknown> | undefined)?.align ?? 'left'
@@ -841,10 +847,10 @@ export function InventarioPage() {
                               <td
                                 key={cell.id}
                                 className={clsx(
-                                  'px-4 py-3.5 align-middle text-sm',
+                                  'px-4 py-[14px] align-middle text-sm',
                                   align === 'center' && 'text-center',
                                   align === 'right'  && 'text-right',
-                                  cellIdx === 0 && isKit && 'border-l-[3px] border-l-[#1d4ed8]',
+                                  cellIdx === 0 && isKit && 'border-l-[3px] border-l-[#D4A333]',
                                 )}
                               >
                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -873,7 +879,7 @@ export function InventarioPage() {
 
             {/* Footer */}
             {!loading && (
-              <div className="px-5 py-3.5 bg-[#f1f5f9] border-t border-[#e2e8f0]">
+              <div className="px-[22px] py-[14px] bg-[#F5F0EB] border-t border-[#D0CBC4]">
                 <ServerPagination
                   totalCount={totalCount}
                   page={page}
