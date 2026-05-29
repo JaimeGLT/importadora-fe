@@ -53,7 +53,6 @@ export function backendToImportacionSimple(b: {
     codigoAux2: string
     nombre: string
     descripcion: string
-    marca: { id: number; nombre: string } | null
     unidad_Medida: string
     ubicacion: string
     stock_Actual: number
@@ -84,7 +83,7 @@ export function backendToImportacionSimple(b: {
       codigos_adicionales: [d.codigoAux, d.codigoAux2].filter(Boolean),
       nombre: d.nombre,
       descripcion: d.descripcion ?? '',
-      marca: typeof d.marca === 'string' ? d.marca : (d.marca?.nombre ?? ''),
+      marca: '',
       unidad: (d.unidad_Medida as ItemImportacion['unidad']) ?? 'pieza',
       ubicacion: d.ubicacion ?? 'Almacén Central',
       precio_fob_usd: 0,
@@ -153,10 +152,6 @@ export const PROVEEDOR_IMPORTACIONES_QUERY = `
           codigoAux2
           nombre
           descripcion
-          marca {
-            id
-            nombre
-          }
           unidad_Medida
           ubicacion
           stock_Actual

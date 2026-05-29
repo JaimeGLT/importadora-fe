@@ -39,10 +39,10 @@ const COLS = [
 
 function ProductosTable({ items, tipoCambio }: { items: ItemImportacion[]; tipoCambio: number }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-steel-200">
+    <div className="overflow-x-auto rounded-xl border border-[#E8E5E2]">
       <table className="w-full text-[12px]">
         <thead>
-          <tr style={{ background: '#F8FAFC' }}>
+          <tr style={{ background: '#F5F0EB' }}>
             {COLS.map((col, i) => (
               <th
                 key={col.key}
@@ -50,10 +50,10 @@ function ProductosTable({ items, tipoCambio }: { items: ItemImportacion[]; tipoC
                   width: col.w,
                   padding: '10px 12px',
                   textAlign: 'left',
-                  borderBottom: '1px solid #E8EDF3',
-                  borderRight: i < COLS.length - 1 ? '1px solid #F1F5F9' : undefined,
+                  borderBottom: '1px solid #D0CBC4',
+                  borderRight: i < COLS.length - 1 ? '1px solid #E8E5E2' : undefined,
                 }}
-                className="text-[10px] font-semibold uppercase tracking-wider text-steel-500"
+                className="text-[10px] font-semibold uppercase tracking-wider text-[#5C5654]"
               >
                 {col.label}
               </th>
@@ -64,43 +64,43 @@ function ProductosTable({ items, tipoCambio }: { items: ItemImportacion[]; tipoC
           {items.map((item, rowIdx) => (
             <tr
               key={item.id}
-              style={{ background: rowIdx % 2 === 0 ? '#FFFFFF' : '#FAFBFC' }}
-              className="hover:bg-blue-50/40 transition-colors"
+              style={{ background: rowIdx % 2 === 0 ? '#FFFFFF' : '#FAF5EE' }}
+              className="hover:bg-[#F5F0EB] transition-colors"
             >
-              <td style={{ padding: '10px 12px', borderBottom: '1px solid #F1F5F9', borderRight: '1px solid #F1F5F9' }}>
-                <span className="font-mono text-[11px] text-steel-700 whitespace-nowrap">{item.codigo_proveedor}</span>
+              <td style={{ padding: '10px 12px', borderBottom: '1px solid #E8E5E2', borderRight: '1px solid #E8E5E2' }}>
+                <span className="font-mono text-[11px] text-[#2D2B2A] whitespace-nowrap">{item.codigo_proveedor}</span>
               </td>
-              <td style={{ padding: '10px 12px', borderBottom: '1px solid #F1F5F9', borderRight: '1px solid #F1F5F9' }}>
+              <td style={{ padding: '10px 12px', borderBottom: '1px solid #E8E5E2', borderRight: '1px solid #E8E5E2' }}>
                 <div className="flex flex-col gap-0.5">
-                  <span className="font-medium text-steel-800">{item.nombre}</span>
+                  <span className="font-medium text-[#2D2B2A]">{item.nombre}</span>
                   {item.ubicacion && (
-                    <span className="text-[10px] text-steel-400">{item.ubicacion}</span>
+                    <span className="text-[10px] text-[#7A7571]">{item.ubicacion}</span>
                   )}
                 </div>
               </td>
-              <td style={{ padding: '10px 12px', borderBottom: '1px solid #F1F5F9', borderRight: '1px solid #F1F5F9' }}>
-                <span className="font-mono text-[11px] text-steel-500">{item.codigos_adicionales[0] ?? '—'}</span>
+              <td style={{ padding: '10px 12px', borderBottom: '1px solid #E8E5E2', borderRight: '1px solid #E8E5E2' }}>
+                <span className="font-mono text-[11px] text-[#4A4744]">{item.codigos_adicionales[0] ?? '—'}</span>
               </td>
-              <td style={{ padding: '10px 12px', borderBottom: '1px solid #F1F5F9', borderRight: '1px solid #F1F5F9' }}>
-                <span className="font-mono text-[11px] text-steel-500">{item.codigos_adicionales[1] ?? '—'}</span>
+              <td style={{ padding: '10px 12px', borderBottom: '1px solid #E8E5E2', borderRight: '1px solid #E8E5E2' }}>
+                <span className="font-mono text-[11px] text-[#4A4744]">{item.codigos_adicionales[1] ?? '—'}</span>
               </td>
-              <td style={{ padding: '10px 12px', borderBottom: '1px solid #F1F5F9', borderRight: '1px solid #F1F5F9' }}>
-                <span className="text-steel-700">{item.marca ?? '—'}</span>
+              <td style={{ padding: '10px 12px', borderBottom: '1px solid #E8E5E2', borderRight: '1px solid #E8E5E2' }}>
+                <span className="text-[#4A4744]">{item.marca ?? '—'}</span>
               </td>
-              <td style={{ padding: '10px 12px', borderBottom: '1px solid #F1F5F9', borderRight: '1px solid #F1F5F9', maxWidth: 160 }}>
-                <span className="text-steel-500 truncate block">{item.descripcion ?? '—'}</span>
+              <td style={{ padding: '10px 12px', borderBottom: '1px solid #E8E5E2', borderRight: '1px solid #E8E5E2', maxWidth: 160 }}>
+                <span className="text-[#7A7571] truncate block">{item.descripcion ?? '—'}</span>
               </td>
-              <td style={{ padding: '10px 12px', borderBottom: '1px solid #F1F5F9', borderRight: '1px solid #F1F5F9', textAlign: 'center' }}>
-                <span className="font-semibold tabular-nums text-steel-800">{item.cantidad}</span>
+              <td style={{ padding: '10px 12px', borderBottom: '1px solid #E8E5E2', borderRight: '1px solid #E8E5E2', textAlign: 'center' }}>
+                <span className="font-semibold tabular-nums text-[#2D2B2A]">{item.cantidad}</span>
               </td>
-              <td style={{ padding: '10px 12px', borderBottom: '1px solid #F1F5F9', borderRight: '1px solid #F1F5F9', textAlign: 'right' }}>
-                <span className="tabular-nums text-steel-700">Bs {fmtBs(item.costo_unitario_total_bs)}</span>
+              <td style={{ padding: '10px 12px', borderBottom: '1px solid #E8E5E2', borderRight: '1px solid #E8E5E2', textAlign: 'right' }}>
+                <span className="tabular-nums text-[#4A4744]">Bs {fmtBs(item.costo_unitario_total_bs)}</span>
               </td>
-              <td style={{ padding: '10px 12px', borderBottom: '1px solid #F1F5F9', borderRight: '1px solid #F1F5F9', textAlign: 'right' }}>
-                <span className="tabular-nums font-semibold text-steel-800">Bs {fmtBs(item.precio_venta_final)}</span>
+              <td style={{ padding: '10px 12px', borderBottom: '1px solid #E8E5E2', borderRight: '1px solid #E8E5E2', textAlign: 'right' }}>
+                <span className="tabular-nums font-semibold text-[#2D2B2A]">Bs {fmtBs(item.precio_venta_final)}</span>
               </td>
-              <td style={{ padding: '10px 12px', borderBottom: '1px solid #F1F5F9', textAlign: 'right' }}>
-                <span className="tabular-nums text-steel-500">{tipoCambio.toFixed(2)}</span>
+              <td style={{ padding: '10px 12px', borderBottom: '1px solid #E8E5E2', textAlign: 'right' }}>
+                <span className="tabular-nums text-[#7A7571]">{tipoCambio.toFixed(2)}</span>
               </td>
             </tr>
           ))}
@@ -115,11 +115,10 @@ function ProductosTable({ items, tipoCambio }: { items: ItemImportacion[]; tipoC
 function DetalleImportacion({ imp, onBack }: { imp: Importacion; onBack: () => void }) {
   return (
     <div>
-      {/* Encabezado */}
       <div className="flex items-center gap-3 mb-4">
         <button
           onClick={onBack}
-          className="p-1.5 rounded-lg text-steel-400 hover:text-steel-700 hover:bg-steel-100 transition-colors"
+          className="p-1.5 rounded-lg text-[#7A7571] hover:text-[#2D2B2A] hover:bg-[#F5F0EB] transition-colors"
           title="Volver al historial"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -128,9 +127,9 @@ function DetalleImportacion({ imp, onBack }: { imp: Importacion; onBack: () => v
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-[14px] font-semibold text-steel-800">{imp.numero}</p>
+            <p className="text-[14px] font-semibold text-[#2D2B2A]">{imp.numero}</p>
           </div>
-          <p className="text-[11px] text-steel-400 mt-0.5">
+          <p className="text-[11px] text-[#7A7571] mt-0.5">
             {fmtDate(imp.fecha_creacion)} · {imp.items.length} producto{imp.items.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -139,23 +138,22 @@ function DetalleImportacion({ imp, onBack }: { imp: Importacion; onBack: () => v
       {/* Resumen costos */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-5">
         {[
-          { label: 'FOB total',  value: fmtUSD(imp.fob_total_usd) },
-          { label: 'Flete',      value: fmtUSD(imp.flete_usd) },
-          { label: 'Aduana',     value: `Bs ${fmtBs(imp.aduana_bs)}` },
-          { label: 'Transporte', value: `Bs ${fmtBs(imp.transporte_interno_bs)}` },
+          { label: 'FOB total',   value: fmtUSD(imp.fob_total_usd) },
+          { label: 'Flete',       value: fmtUSD(imp.flete_usd) },
+          { label: 'Aduana',      value: `Bs ${fmtBs(imp.aduana_bs)}` },
+          { label: 'Transporte',  value: `Bs ${fmtBs(imp.transporte_interno_bs)}` },
           { label: 'Tipo cambio', value: `Bs ${imp.tipo_cambio.toFixed(2)}` },
         ].map((m) => (
-          <div key={m.label} className="rounded-lg px-3 py-2.5" style={{ background: '#F8FAFC', border: '1px solid #E8EDF3' }}>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-steel-400 mb-0.5">{m.label}</p>
-            <p className="text-[13px] font-semibold text-steel-800">{m.value}</p>
+          <div key={m.label} className="rounded-lg px-3 py-2.5 bg-[#FAF5EE] border border-[#E8E5E2]">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[#7A7571] mb-0.5">{m.label}</p>
+            <p className="text-[13px] font-semibold text-[#2D2B2A]">{m.value}</p>
           </div>
         ))}
       </div>
 
-      {/* Tabla */}
       {imp.items.length === 0 ? (
         <div className="py-10 text-center">
-          <p className="text-[13px] text-steel-400">Sin productos registrados en esta importación</p>
+          <p className="text-[13px] text-[#7A7571]">Sin productos registrados en esta importación</p>
         </div>
       ) : (
         <ProductosTable items={imp.items} tipoCambio={imp.tipo_cambio} />
@@ -182,44 +180,43 @@ export function CatalogoProveedorModal({ open, onClose, proveedor, importaciones
       {loading ? (
         <div className="py-16 text-center">
           <div className="animate-pulse flex flex-col gap-3 items-center">
-            <div className="h-8 w-48 rounded bg-steel-100" />
-            <div className="h-4 w-32 rounded bg-steel-50" />
+            <div className="h-8 w-48 rounded bg-[#F5F0EB]" />
+            <div className="h-4 w-32 rounded bg-[#EDE8E3]" />
           </div>
-          <p className="text-[12px] text-steel-400 mt-3">Cargando importaciones...</p>
+          <p className="text-[12px] text-[#7A7571] mt-3">Cargando importaciones...</p>
         </div>
       ) : selected ? (
         <DetalleImportacion imp={selected} onBack={() => setSelected(null)} />
       ) : imps.length === 0 ? (
         <div className="py-16 text-center">
-          <svg className="h-12 w-12 text-steel-200 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-          </svg>
-          <p className="text-[13px] font-medium text-steel-600 mb-1">Sin importaciones registradas</p>
-          <p className="text-[12px] text-steel-400">Las importaciones de este proveedor aparecerán aquí</p>
+          <div className="w-12 h-12 rounded-xl bg-white border border-[#D0CBC4] flex items-center justify-center mx-auto mb-4">
+            <i className="ti ti-package text-[#7A7571] text-xl" />
+          </div>
+          <p className="text-[13px] font-semibold text-[#2D2B2A] mb-1">Sin importaciones registradas</p>
+          <p className="text-[12px] text-[#7A7571]">Las importaciones de este proveedor aparecerán aquí</p>
         </div>
       ) : (
         <div className="space-y-2">
           {imps.map((imp) => (
             <button key={imp.id} onClick={() => setSelected(imp)} className="w-full text-left group">
               <div
-                className="flex items-center gap-4 px-5 py-4 rounded-xl transition-colors group-hover:border-brand-200"
-                style={{ background: '#FFFFFF', border: '1px solid #E8EDF3', boxShadow: '0 1px 3px rgba(15,23,42,0.04)' }}
+                className="flex items-center gap-4 px-5 py-4 rounded-xl bg-white border border-[#D0CBC4] transition-all group-hover:border-[#780e18] group-hover:bg-[#FAF5EE]"
+                style={{ boxShadow: '0 1px 3px rgba(45,43,42,0.04)' }}
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-steel-800 group-hover:text-brand-700 transition-colors">
+                  <p className="text-[13px] font-semibold text-[#2D2B2A] group-hover:text-[#780e18] transition-colors">
                     {imp.numero}
                   </p>
-                  <p className="text-[11px] text-steel-400 mt-0.5">
+                  <p className="text-[11px] text-[#7A7571] mt-0.5">
                     {fmtDate(imp.fecha_creacion)} · {imp.items.length} producto{imp.items.length !== 1 ? 's' : ''}
                   </p>
                 </div>
                 <div className="hidden sm:block text-right shrink-0">
-                  <p className="text-[13px] font-semibold tabular-nums text-steel-800">{fmtUSD(imp.fob_total_usd)}</p>
-                  <p className="text-[10px] text-steel-400">FOB</p>
+                  <p className="text-[13px] font-semibold tabular-nums text-[#2D2B2A]">{fmtUSD(imp.fob_total_usd)}</p>
+                  <p className="text-[10px] text-[#7A7571]">FOB</p>
                 </div>
                 <svg
-                  className="h-4 w-4 text-steel-300 group-hover:text-brand-500 transition-colors shrink-0"
+                  className="h-4 w-4 text-[#D0CBC4] group-hover:text-[#780e18] transition-colors shrink-0"
                   fill="none" viewBox="0 0 24 24" stroke="currentColor"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

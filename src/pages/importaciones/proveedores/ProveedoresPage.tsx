@@ -150,20 +150,20 @@ export function ProveedoresPage() {
 
   return (
     <MainLayout>
-      <div className="bg-[#f1f5f9] min-h-screen">
+      <div className="bg-[#F7F7F7] min-h-screen">
 
         {/* TopBar */}
-        <header className="bg-[#f1f5f9] sticky top-0 z-40 flex justify-between items-center w-full h-[62px] px-7 border-b border-[#e2e8f0]">
-          <div className="flex items-center gap-2 text-sm text-[#9996b0] font-semibold">
+        <header className="bg-[#F7F7F7] sticky top-0 z-40 flex justify-between items-center w-full h-[62px] px-7 border-b border-[#D0CBC4]">
+          <div className="flex items-center gap-2 text-sm text-[#7A7571] font-semibold">
             <span>Importaciones</span>
             <span className="text-[10px] opacity-40">/</span>
-            <strong className="text-[#1e1b2e] font-bold">Proveedores</strong>
+            <strong className="text-[#2D2B2A] font-bold">Proveedores</strong>
           </div>
           <div className="flex items-center gap-1.5">
-            <button className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] transition-colors">
+            <button className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border border-[#D0CBC4] text-[#4A4744] hover:bg-[#F5F0EB] transition-colors">
               <i className="ti ti-bell text-[18px]" />
             </button>
-            <button className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] transition-colors">
+            <button className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border border-[#D0CBC4] text-[#4A4744] hover:bg-[#F5F0EB] transition-colors">
               <i className="ti ti-settings text-[18px]" />
             </button>
           </div>
@@ -175,73 +175,70 @@ export function ProveedoresPage() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div className="flex items-center gap-3.5">
               <div
-                className="w-12 h-12 bg-gradient-to-br from-[#0284c7] to-[#7c3aed] rounded-2xl flex items-center justify-center text-white shrink-0"
-                style={{ boxShadow: '0 6px 18px rgba(2,132,199,0.28)' }}
+                className="w-12 h-12 bg-gradient-to-br from-[#780e18] to-[#D4A333] rounded-2xl flex items-center justify-center text-white shrink-0"
+                style={{ boxShadow: '0 6px 18px rgba(120,14,24,0.28)' }}
               >
                 <i className="ti ti-building-store text-2xl" />
               </div>
               <div>
-                <h2 className="font-black text-[34px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                <h2
+                  className="font-semibold text-[30px] text-[#2D2B2A] leading-none"
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                >
                   Proveedores
                 </h2>
-                <p className="text-sm text-[#9996b0] font-semibold mt-0.5">
+                <p className="text-[13.5px] text-[#7A7571] mt-1.5">
                   Registro de proveedores internacionales
                 </p>
               </div>
             </div>
             <button
               onClick={openNew}
-              className="px-[18px] py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white rounded-xl flex items-center justify-center gap-1.5 text-sm font-bold active:scale-95 transition-all shadow-md w-full md:w-auto"
+              className="px-[18px] py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold active:scale-95 transition-all shadow-sm w-full md:w-auto"
             >
               <i className="ti ti-plus text-base" />
               Nuevo proveedor
             </button>
           </div>
 
-          {/* Metrics */}
-          <div className="grid grid-cols-2 gap-3.5 mb-6">
-            <MetricCard
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 gap-[14px] mb-6">
+            <KpiCard
               label="Proveedores activos"
               value={totalActivos}
-              sublabel="en operación"
               iconClass="ti ti-circle-check"
-              gradFrom="#0284c7"
-              gradTo="#60a5fa"
-              badgeBg="#e0f2fe"
-              badgeColor="#0284c7"
               badgeText="activos"
               badgeIcon="ti ti-circle-check"
+              badgeBg="#B8DCCA"
+              badgeColor="#1E5C38"
             />
-            <MetricCard
+            <KpiCard
               label="Total registrados"
               value={proveedores.length}
-              sublabel="en sistema"
               iconClass="ti ti-building-store"
-              gradFrom="#5a5670"
-              gradTo="#9996b0"
-              badgeBg="#f1f5f9"
-              badgeColor="#5a5670"
               badgeText="total"
               badgeIcon="ti ti-database"
+              badgeBg="#EDE8E3"
+              badgeColor="#4A4744"
             />
           </div>
 
           {/* Table container */}
-          <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] overflow-hidden">
+          <div className="bg-white rounded-xl border border-[#D0CBC4] overflow-hidden">
 
             {/* Toolbar */}
-            <div className="px-5 py-[18px] border-b border-[#e2e8f0] flex flex-wrap justify-between items-center gap-3">
-              <h3 className="text-lg font-extrabold text-[#1e1b2e] flex items-center gap-2" style={{ fontFamily: 'Nunito, sans-serif' }}>
-                Lista
-                <span className="bg-[#dbeafe] text-[#1d4ed8] text-xs font-bold px-2.5 py-0.5 rounded-full">
+            <div className="px-[22px] py-[18px] border-b border-[#D0CBC4] flex flex-wrap justify-between items-center gap-3">
+              <h3 className="text-[15px] font-semibold text-[#2D2B2A] flex items-center gap-2">
+                Lista de proveedores
+                <span className="bg-[#F5E8D4] text-[#780e18] text-[11px] font-semibold px-2 py-0.5 rounded-full">
                   {filtered.length}
                 </span>
               </h3>
               <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <div className="flex items-center gap-2 bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] rounded-xl px-3.5 w-full sm:min-w-[260px] focus-within:border-[#1d4ed8] transition-colors">
-                  <i className="ti ti-search text-[#9996b0] text-base shrink-0" />
+                <div className="flex items-center gap-2 bg-[#F5F0EB] border border-[#D0CBC4] rounded-lg px-3.5 w-full sm:min-w-[260px] focus-within:border-[#780e18] transition-colors">
+                  <i className="ti ti-search text-[#7A7571] text-base shrink-0" />
                   <input
-                    className="flex-1 py-2 bg-transparent text-sm text-[#1e1b2e] font-semibold placeholder:text-[#9996b0] outline-none border-none"
+                    className="flex-1 py-2 bg-transparent text-sm text-[#2D2B2A] placeholder:text-[#7A7571] outline-none border-none"
                     placeholder="Nombre, país o contacto…"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
@@ -253,10 +250,10 @@ export function ProveedoresPage() {
                       key={val}
                       onClick={() => setFilterEstado(val)}
                       className={clsx(
-                        'px-3 py-1.5 rounded-xl text-[12px] font-bold border-[1.5px] transition-colors',
+                        'px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors',
                         filterEstado === val
-                          ? 'bg-[#1d4ed8] text-white border-[#1d4ed8]'
-                          : 'bg-white text-[#5a5670] border-[#e2e8f0] hover:bg-[#f1f5f9]',
+                          ? 'bg-[#780e18] text-white border-[#780e18]'
+                          : 'bg-white text-[#4A4744] border-[#E8E5E2] hover:bg-[#F5F0EB]',
                       )}
                     >
                       {label}
@@ -276,14 +273,14 @@ export function ProveedoresPage() {
                 {/* Desktop */}
                 <div className="hidden lg:block">
                   <div
-                    className="grid items-center px-5 py-3 bg-[#f1f5f9] border-b border-[#e2e8f0]"
+                    className="grid items-center px-5 py-[11px] bg-[#F5F0EB] border-b border-[#D0CBC4]"
                     style={{ gridTemplateColumns: '1fr 110px 100px 140px 120px 88px', gap: '0 16px' }}
                   >
                     {['Proveedor', 'País', 'Moneda', 'Términos pago', 'Contacto', ''].map((h) => (
-                      <span key={h} className="text-[11px] font-bold uppercase tracking-wide text-[#9996b0]">{h}</span>
+                      <span key={h} className="text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.12em]">{h}</span>
                     ))}
                   </div>
-                  <div className="divide-y divide-[#e2e8f0]">
+                  <div className="divide-y divide-[#E8E5E2]">
                     {filtered.map((p) => (
                       <ProveedorRow
                         key={p.id}
@@ -297,7 +294,7 @@ export function ProveedoresPage() {
                 </div>
 
                 {/* Mobile */}
-                <div className="lg:hidden divide-y divide-[#e2e8f0]">
+                <div className="lg:hidden divide-y divide-[#E8E5E2]">
                   {filtered.map((p) => (
                     <ProveedorCard
                       key={p.id}
@@ -349,46 +346,46 @@ function ProveedorRow({ prov, onEdit, onDelete, onHistorial }: RowProps) {
   return (
     <div
       className={clsx(
-        'grid items-center px-5 py-3.5 hover:bg-[#faf9ff] transition-colors',
+        'grid items-center px-5 py-[14px] hover:bg-[#FAF5EE] transition-colors',
         prov.estado === 'inactivo' && 'opacity-60',
       )}
       style={{ gridTemplateColumns: COL, gap: '0 16px' }}
     >
       <div className="min-w-0">
-        <p className="font-bold text-[13px] text-[#1e1b2e] truncate">{prov.nombre}</p>
-        <p className="text-[11px] text-[#9996b0] font-semibold mt-0.5 truncate">{prov.email}</p>
+        <p className="font-semibold text-[13px] text-[#2D2B2A] truncate">{prov.nombre}</p>
+        <p className="text-[11px] text-[#7A7571] mt-0.5 truncate">{prov.email}</p>
       </div>
 
-      <p className="text-[12px] text-[#5a5670] font-semibold truncate">{prov.pais}</p>
+      <p className="text-[12px] text-[#4A4744] truncate">{prov.pais}</p>
 
-      <span className="inline-flex items-center gap-1 bg-[#dbeafe] text-[#1d4ed8] text-[11px] font-bold px-2.5 py-0.5 rounded-full w-fit">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#1d4ed8] shrink-0" />
+      <span className="inline-flex items-center gap-1 bg-[#F5E8D4] text-[#780e18] text-[11px] font-semibold px-2.5 py-0.5 rounded-full w-fit">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#780e18] shrink-0" />
         {prov.moneda}
       </span>
 
-      <p className="text-[11px] text-[#5a5670] font-medium truncate">{prov.terminos_pago}</p>
+      <p className="text-[11px] text-[#4A4744] truncate">{prov.terminos_pago}</p>
 
-      <p className="text-[11px] text-[#9996b0] truncate">{prov.contacto}</p>
+      <p className="text-[11px] text-[#7A7571] truncate">{prov.contacto}</p>
 
       <div className="flex items-center gap-1 justify-end">
         <button
           onClick={onHistorial}
           title="Ver historial"
-          className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#dbeafe] hover:text-[#1d4ed8] hover:border-[#1d4ed8] transition-all"
+          className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#E8D4B8] hover:text-[#780e18] hover:border-[#780e18] transition-all"
         >
           <i className="ti ti-file-text text-[15px]" />
         </button>
         <button
           onClick={onEdit}
           title="Editar proveedor"
-          className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#dbeafe] hover:text-[#1d4ed8] hover:border-[#1d4ed8] transition-all"
+          className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#E8D4B8] hover:text-[#780e18] hover:border-[#780e18] transition-all"
         >
           <i className="ti ti-edit text-[15px]" />
         </button>
         <button
           onClick={onDelete}
           title="Eliminar proveedor"
-          className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#fee2e2] hover:text-[#dc2626] hover:border-[#dc2626] transition-all"
+          className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#F5C9C0] hover:text-[#8A1E12] hover:border-[#D45040] transition-all"
         >
           <i className="ti ti-trash text-[15px]" />
         </button>
@@ -401,34 +398,34 @@ function ProveedorCard({ prov, onEdit, onDelete, onHistorial }: RowProps) {
   return (
     <div
       className={clsx(
-        'px-4 py-4 hover:bg-[#faf9ff] transition-colors',
+        'px-4 py-4 hover:bg-[#FAF5EE] transition-colors',
         prov.estado === 'inactivo' && 'opacity-60',
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="font-bold text-[13px] text-[#1e1b2e] truncate">{prov.nombre}</p>
-          <p className="text-[11px] text-[#9996b0] font-semibold mt-0.5">{prov.pais}</p>
+          <p className="font-semibold text-[13px] text-[#2D2B2A] truncate">{prov.nombre}</p>
+          <p className="text-[11px] text-[#7A7571] mt-0.5">{prov.pais}</p>
         </div>
-        <span className="shrink-0 inline-flex items-center gap-1 bg-[#dbeafe] text-[#1d4ed8] text-[11px] font-bold px-2.5 py-0.5 rounded-full">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#1d4ed8] shrink-0" />
+        <span className="shrink-0 inline-flex items-center gap-1 bg-[#F5E8D4] text-[#780e18] text-[11px] font-semibold px-2.5 py-0.5 rounded-full">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#780e18] shrink-0" />
           {prov.moneda}
         </span>
       </div>
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5">
-        <span className="text-[11px] text-[#9996b0] font-medium">
-          Pago: <span className="text-[#5a5670] font-semibold">{prov.terminos_pago}</span>
+        <span className="text-[11px] text-[#7A7571]">
+          Pago: <span className="text-[#4A4744] font-medium">{prov.terminos_pago}</span>
         </span>
-        <span className="text-[11px] text-[#9996b0] font-medium">
-          Contacto: <span className="text-[#5a5670] font-semibold">{prov.contacto}</span>
+        <span className="text-[11px] text-[#7A7571]">
+          Contacto: <span className="text-[#4A4744] font-medium">{prov.contacto}</span>
         </span>
       </div>
 
-      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[#e2e8f0]">
+      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[#E8E5E2]">
         <button
           onClick={onHistorial}
-          className="flex items-center gap-1.5 text-[12px] text-[#1d4ed8] hover:text-[#1e40af] font-bold transition-colors"
+          className="flex items-center gap-1.5 text-[12px] text-[#780e18] hover:text-[#5a0b12] font-semibold transition-colors"
         >
           <i className="ti ti-file-text text-[15px]" />
           Ver historial
@@ -437,14 +434,14 @@ function ProveedorCard({ prov, onEdit, onDelete, onHistorial }: RowProps) {
         <button
           onClick={onEdit}
           title="Editar"
-          className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#dbeafe] hover:text-[#1d4ed8] hover:border-[#1d4ed8] transition-all"
+          className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#E8D4B8] hover:text-[#780e18] hover:border-[#780e18] transition-all"
         >
           <i className="ti ti-edit text-[15px]" />
         </button>
         <button
           onClick={onDelete}
           title="Eliminar"
-          className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#fee2e2] hover:text-[#dc2626] hover:border-[#dc2626] transition-all"
+          className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#F5C9C0] hover:text-[#8A1E12] hover:border-[#D45040] transition-all"
         >
           <i className="ti ti-trash text-[15px]" />
         </button>
@@ -456,16 +453,16 @@ function ProveedorCard({ prov, onEdit, onDelete, onHistorial }: RowProps) {
 function EmptyState({ onNew }: { onNew: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-5 text-center">
-      <div className="w-12 h-12 rounded-xl bg-white border-[1.5px] border-[#e2e8f0] flex items-center justify-center mb-4">
-        <i className="ti ti-building-store text-[#9996b0] text-xl" />
+      <div className="w-12 h-12 rounded-xl bg-white border border-[#D0CBC4] flex items-center justify-center mb-4">
+        <i className="ti ti-building-store text-[#7A7571] text-xl" />
       </div>
-      <p className="text-sm font-bold text-[#1e1b2e] mb-1">Sin proveedores registrados</p>
-      <p className="text-xs text-[#9996b0] font-semibold max-w-xs mb-5">
+      <p className="text-sm font-semibold text-[#2D2B2A] mb-1">Sin proveedores registrados</p>
+      <p className="text-xs text-[#7A7571] max-w-xs mb-5">
         Agrega tu primer proveedor internacional
       </p>
       <button
         onClick={onNew}
-        className="px-5 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white rounded-xl flex items-center gap-2 text-sm font-bold transition-all shadow-md"
+        className="px-5 py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-lg flex items-center gap-2 text-sm font-semibold transition-all shadow-sm"
       >
         <i className="ti ti-plus text-base" />
         Nuevo proveedor
@@ -474,42 +471,40 @@ function EmptyState({ onNew }: { onNew: () => void }) {
   )
 }
 
-interface MetricCardProps {
+interface KpiCardProps {
   label: string
   value: number | string
-  sublabel: string
   iconClass: string
-  gradFrom: string
-  gradTo: string
-  badgeBg: string
-  badgeColor: string
   badgeText: string
   badgeIcon: string
+  badgeBg: string
+  badgeColor: string
 }
 
-function MetricCard({ label, value, sublabel: _sublabel, iconClass, gradFrom, gradTo, badgeBg, badgeColor, badgeText, badgeIcon }: MetricCardProps) {
+function KpiCard({ label, value, iconClass, badgeText, badgeIcon, badgeBg, badgeColor }: KpiCardProps) {
   return (
-    <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200">
-      <div
-        className="absolute -top-5 -right-5 w-20 h-20 rounded-full opacity-10"
-        style={{ background: gradFrom }}
-      />
-      <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center text-white mb-3.5"
-        style={{ background: `linear-gradient(135deg, ${gradFrom}, ${gradTo})` }}
-      >
-        <i className={`${iconClass} text-xl`} />
+    <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#780e18] p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+      <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-[#780e18] opacity-[0.08]" />
+      <div className="flex items-start justify-between mb-[14px]">
+        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#780e18] to-[#D4A333] flex items-center justify-center shrink-0">
+          <i className={`${iconClass} text-white text-[16px]`} />
+        </div>
+        <span
+          className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full"
+          style={{ background: badgeBg, color: badgeColor }}
+        >
+          <i className={`${badgeIcon} text-[10px]`} />
+          {badgeText}
+        </span>
       </div>
-      <div className="font-black text-[30px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
-        {value}
-      </div>
-      <div className="text-xs font-semibold text-[#9996b0] mt-1">{label}</div>
       <div
-        className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full mt-2"
-        style={{ background: badgeBg, color: badgeColor }}
+        className="font-semibold text-[32px] text-[#2D2B2A]"
+        style={{ fontFamily: "'DM Sans', sans-serif" }}
       >
-        <i className={`${badgeIcon} text-[11px]`} />
-        {badgeText}
+        {typeof value === 'number' ? value.toLocaleString('es-BO') : value}
+      </div>
+      <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">
+        {label}
       </div>
     </div>
   )
@@ -517,18 +512,18 @@ function MetricCard({ label, value, sublabel: _sublabel, iconClass, gradFrom, gr
 
 function ListSkeleton() {
   return (
-    <div className="divide-y divide-[#e2e8f0]">
+    <div className="divide-y divide-[#E8E5E2]">
       {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 px-5 py-3.5 animate-pulse">
+        <div key={i} className="flex items-center gap-4 px-5 py-[14px] animate-pulse">
           <div className="flex-1 space-y-1.5">
-            <div className="h-3 w-36 rounded bg-[#f1f5f9]" />
-            <div className="h-2.5 w-48 rounded bg-[#e2e8f0]" />
+            <div className="h-3 w-36 rounded bg-[#F5F0EB]" />
+            <div className="h-2.5 w-48 rounded bg-[#EDE8E3]" />
           </div>
-          <div className="h-2.5 w-20 rounded bg-[#f1f5f9]" />
-          <div className="h-5 w-16 rounded-full bg-[#f1f5f9]" />
-          <div className="h-2.5 w-24 rounded bg-[#f1f5f9]" />
+          <div className="h-2.5 w-20 rounded bg-[#F5F0EB]" />
+          <div className="h-5 w-16 rounded-full bg-[#F5F0EB]" />
+          <div className="h-2.5 w-24 rounded bg-[#F5F0EB]" />
           <div className="flex gap-1.5">
-            {[0, 1, 2].map(j => <div key={j} className="h-8 w-8 rounded-[10px] bg-[#f1f5f9]" />)}
+            {[0, 1, 2].map(j => <div key={j} className="h-8 w-8 rounded-[6px] bg-[#EDE8E3]" />)}
           </div>
         </div>
       ))}
