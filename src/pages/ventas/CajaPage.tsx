@@ -37,12 +37,12 @@ const fmtTimeSince = (iso: string) => {
 }
 
 const ESTADO_ORDEN_CONFIG: Record<string, { label: string; cls: string; dot: string }> = {
-  pendiente_almacenero: { label: 'Pendiente',      cls: 'bg-amber-100 text-amber-700', dot: 'bg-amber-400' },
-  en_preparacion:       { label: 'Preparando',     cls: 'bg-blue-100 text-blue-700', dot: 'bg-blue-400' },
-  listo_para_escaneo:   { label: 'Escaneando',     cls: 'bg-indigo-100 text-indigo-700', dot: 'bg-indigo-400' },
-  con_faltantes:        { label: 'Con faltantes',  cls: 'bg-orange-100 text-orange-700', dot: 'bg-orange-400' },
-  esperando_pago:       { label: 'Listo para cobrar', cls: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-400' },
-  cancelada:            { label: 'Cancelada',      cls: 'bg-red-100 text-red-500', dot: 'bg-red-400' },
+  pendiente_almacenero: { label: 'Pendiente',         cls: 'bg-[#F5E0A8] text-[#7A5200]',     dot: 'bg-[#B47A1F]' },
+  en_preparacion:       { label: 'Preparando',        cls: 'bg-[#F4ECDB] text-[#780e18]',     dot: 'bg-[#780e18]' },
+  listo_para_escaneo:   { label: 'Escaneando',        cls: 'bg-[#F4ECDB] text-[#780e18]',     dot: 'bg-[#780e18]' },
+  con_faltantes:        { label: 'Con faltantes',     cls: 'bg-[#F5E0A8] text-[#7A5200]',     dot: 'bg-[#B47A1F]' },
+  esperando_pago:       { label: 'Listo para cobrar', cls: 'bg-[#B8DCCA] text-[#1E5C38]',     dot: 'bg-[#3F7A52]' },
+  cancelada:            { label: 'Cancelada',         cls: 'bg-[#F5C9C0] text-[#8A1E12]',     dot: 'bg-[#B23A2A]' },
 }
 
 // ─── FlyingBall ────────────────────────────────────────────────────────────────
@@ -80,16 +80,16 @@ function FlyingBall({ fromRect, toRect, itemCount, onComplete }: FlyingBallProps
         }}
       >
         <div
-          className="h-12 w-12 rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#1e40af] shadow-xl flex items-center justify-center text-white font-black text-lg relative"
+          className="h-12 w-12 rounded-full bg-gradient-to-br from-[#780e18] to-[#D4A333] shadow-xl flex items-center justify-center text-white font-black text-lg relative"
           style={{
-            boxShadow: '0 0 0 4px rgba(29, 78, 216, 0.3), 0 0 20px rgba(29, 78, 216, 0.5)',
+            boxShadow: '0 0 0 4px rgba(120, 14, 24, 0.3), 0 0 20px rgba(120, 14, 24, 0.5)',
           }}
         >
           <span className="relative z-10">{itemCount}</span>
-          <div className="absolute inset-0 rounded-full bg-[#60a5fa] animate-ping opacity-30" />
+          <div className="absolute inset-0 rounded-full bg-[#D4A333] animate-ping opacity-30" />
         </div>
         <svg
-          className="absolute -right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[#1d4ed8]"
+          className="absolute -right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[#D4A333]"
           style={{ animation: 'dash 0.2s ease-in-out infinite' }}
           fill="none"
           viewBox="0 0 24 24"
@@ -100,7 +100,7 @@ function FlyingBall({ fromRect, toRect, itemCount, onComplete }: FlyingBallProps
         </svg>
       </div>
       <div
-        className="absolute w-3 h-3 rounded-full bg-[#60a5fa] opacity-40"
+        className="absolute w-3 h-3 rounded-full bg-[#D4A333] opacity-40"
         style={{ animation: 'trail 0.3s ease-out infinite alternate' }}
       />
       <style>{`
@@ -122,13 +122,13 @@ function FlyingBall({ fromRect, toRect, itemCount, onComplete }: FlyingBallProps
 
 // ─── Select Price Modal ─────────────────────────────────────────────────────────
 
-const COLOR_STYLES: Record<string, { bg: string; text: string; border: string }> = {
-  emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-  blue:    { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200' },
-  amber:   { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200' },
-  purple:  { bg: 'bg-purple-50',  text: 'text-purple-700',  border: 'border-purple-200' },
-  rose:    { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200' },
-  cyan:    { bg: 'bg-cyan-50',    text: 'text-cyan-700',    border: 'border-cyan-200' },
+const DESCUENTO_COLORS: Record<string, { bg: string; border: string; accent: string; text: string; badge: string }> = {
+  emerald: { bg: 'bg-[#EAF4EE]',     border: 'border-[#D0CBC4]', accent: '#3F7A52', text: 'text-[#1E5C38]', badge: 'bg-[#B8DCCA] text-[#1E5C38]' },
+  blue:    { bg: 'bg-[#E8EEF8]',     border: 'border-[#D0CBC4]', accent: '#3055A4', text: 'text-[#1A3875]', badge: 'bg-[#C8D8F8] text-[#1A3875]' },
+  amber:   { bg: 'bg-[#F4ECDB]/70',  border: 'border-[#D0CBC4]', accent: '#D4A333', text: 'text-[#7A5200]', badge: 'bg-[#F5E0A8] text-[#7A5200]' },
+  purple:  { bg: 'bg-[#EDE8F5]',     border: 'border-[#D0CBC4]', accent: '#6B4DAA', text: 'text-[#3D1D7A]', badge: 'bg-[#D8C8F0] text-[#3D1D7A]' },
+  rose:    { bg: 'bg-[#F5C9C0]/30',  border: 'border-[#D0CBC4]', accent: '#B23A2A', text: 'text-[#8A1E12]', badge: 'bg-[#F5C9C0] text-[#8A1E12]' },
+  cyan:    { bg: 'bg-[#E0F4F8]',     border: 'border-[#D0CBC4]', accent: '#0E7090', text: 'text-[#0A4D60]', badge: 'bg-[#B0E0F0] text-[#0A4D60]' },
 }
 
 function PrecioCard({
@@ -140,30 +140,52 @@ function PrecioCard({
   descuento?: DescuentoConfig
   onSelect: () => void
 }) {
-  const styles = descuento ? COLOR_STYLES[descuento.color] || COLOR_STYLES.emerald : { bg: 'bg-white', text: 'text-[#1e1b2e]', border: 'border-[#e2e8f0]' }
+  const c = descuento ? (DESCUENTO_COLORS[descuento.color] ?? DESCUENTO_COLORS.emerald) : null
   const precioFinal = descuento ? calcularPrecioConDescuento(precio, descuento.porcentaje) : precio
 
   return (
     <button
       onClick={onSelect}
       className={clsx(
-        'w-full flex items-center justify-between px-3 py-2.5 rounded-xl border-2 transition-all hover:shadow-md',
-        styles.bg, styles.border
+        'w-full flex items-center justify-between px-4 py-3 rounded-xl border border-l-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md relative overflow-hidden group',
+        c ? [c.bg, c.border] : 'bg-white border-[#D0CBC4]',
       )}
+      style={{ borderLeftColor: c ? c.accent : '#780e18' }}
     >
-      <div className="flex items-center gap-2">
+      <div className="absolute -top-3 -right-3 w-14 h-14 rounded-full opacity-[0.07]"
+        style={{ background: c ? c.accent : '#780e18' }} />
+      <div className="flex items-center gap-2.5 relative z-10">
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+          style={{ background: `${c ? c.accent : '#780e18'}20` }}>
+          <i className={clsx('text-[14px]', descuento ? 'ti ti-tag' : 'ti ti-currency-dollar')}
+            style={{ color: c ? c.accent : '#780e18' }} />
+        </div>
         {descuento ? (
-          <>
-            <span className={clsx('font-bold text-sm', styles.text)}>{descuento.nombre}</span>
-            <span className={clsx('text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/70', styles.text)}>-{descuento.porcentaje}%</span>
-          </>
+          <div>
+            <p className={clsx('text-sm font-bold leading-tight', c!.text)}>{descuento.nombre}</p>
+            <span className={clsx('inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-full mt-0.5', c!.badge)}>
+              -{descuento.porcentaje}% descuento
+            </span>
+          </div>
         ) : (
-          <span className="text-sm font-bold text-[#5a5670]">Precio base</span>
+          <div>
+            <p className="text-sm font-bold text-[#2D2B2A] leading-tight">Precio base</p>
+            <p className="text-[10px] text-[#7A7571] font-medium mt-0.5">Sin descuento</p>
+          </div>
         )}
       </div>
-      <div className="text-right">
-        <span className={clsx('text-base font-black', styles.text)}>{fmtBs(precioFinal)}</span>
-        {descuento && <p className="text-[10px] text-[#9996b0] line-through">Bs {precio.toFixed(2)}</p>}
+      <div className="flex items-center gap-2 relative z-10">
+        <div className="text-right">
+          <p className={clsx('font-mono font-black text-[17px] leading-none', c ? c.text : 'text-[#2D2B2A]')}>
+            {fmtBs(precioFinal)}
+          </p>
+          {descuento && (
+            <p className="text-[11px] text-[#7A7571] line-through mt-0.5 font-mono">
+              Bs {precio.toFixed(2)}
+            </p>
+          )}
+        </div>
+        <i className="ti ti-chevron-right text-[16px] text-[#7A7571] group-hover:translate-x-0.5 transition-transform" />
       </div>
     </button>
   )
@@ -192,6 +214,7 @@ function SelectPriceModal({
   isEdit?: boolean
   onClose: () => void
 }) {
+  const { marcas } = useMarcasStore()
   const activeDescuentos = descuentos.filter(d => d.activo)
 
   const precioImportacion = producto.precio_venta
@@ -203,45 +226,77 @@ function SelectPriceModal({
   const precioADisplay = usarDolar ? precioDolarHoy : precioImportacion
 
   const allCodes = [producto.codigo_universal, ...producto.codigos_alternativos.filter(Boolean)]
+  const stockDisp = Math.max(0, producto.stock - (producto.stock_reservado ?? 0))
+  const stockCls = stockDisp === 0 ? 'text-[#B23A2A] bg-[#F5C9C0]' : stockDisp <= producto.stock_minimo ? 'text-[#7A5200] bg-[#F5E0A8]' : 'text-[#1E5C38] bg-[#B8DCCA]'
 
   const handleSelect = (precio: number, descuento?: DescuentoConfig) => {
+    const final = descuento ? calcularPrecioConDescuento(precio, descuento.porcentaje) : precio
     if (isEdit && onAddAnother) {
-      onAddAnother(descuento ? calcularPrecioConDescuento(precio, descuento.porcentaje) : precio, descuento?.id, descuento?.nombre, descuento?.porcentaje)
+      onAddAnother(final, descuento?.id, descuento?.nombre, descuento?.porcentaje)
     } else {
-      onSelect(descuento ? calcularPrecioConDescuento(precio, descuento.porcentaje) : precio, descuento?.id, descuento?.nombre, descuento?.porcentaje)
+      onSelect(final, descuento?.id, descuento?.nombre, descuento?.porcentaje)
     }
   }
 
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Cambiar precio' : 'Seleccionar precio'} size="sm">
-      <div className="space-y-4">
-        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#f1f5f9] border border-[#e2e8f0]">
-          {producto.imagen ? (
-            <img src={producto.imagen} alt={producto.nombre} className="h-14 w-14 rounded-lg object-cover bg-white border border-[#e2e8f0] shrink-0" />
-          ) : (
-            <div className="h-14 w-14 rounded-lg bg-white border border-[#e2e8f0] flex items-center justify-center shrink-0">
-              <svg className="h-6 w-6 text-[#9996b0]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-              </svg>
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap gap-1 mb-1">
-              {allCodes.slice(0, 3).map((code, i) => (
-                <span key={i} className={clsx(
-                  'inline-flex items-center px-2 py-0.5 rounded font-mono font-black text-xs',
-                  i === 0 ? 'bg-[#1d4ed8] text-white' : 'bg-[#1e1b2e] text-[#f1f5f9]'
-                )}>
-                  {code}
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
+      style={{ background: 'rgba(45,43,42,0.45)' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden border border-[#E8E5E2]">
+
+        {/* Header */}
+        <div className="px-5 pt-5 pb-4 border-b border-[#E8E5E2] bg-[#F5F0EB]">
+          <div className="flex items-start gap-3">
+            {producto.imagen ? (
+              <img
+                src={producto.imagen} alt={producto.nombre}
+                className="h-12 w-12 rounded-xl object-cover bg-white border border-[#E8E5E2] shrink-0"
+              />
+            ) : (
+              <div className="h-12 w-12 rounded-xl bg-white border border-[#E8E5E2] flex items-center justify-center shrink-0">
+                <i className="ti ti-photo text-[#7A7571] text-[20px]" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap gap-1 mb-1">
+                {allCodes.slice(0, 3).map((code, i) => (
+                  <span key={i} className={clsx(
+                    'inline-flex items-center px-2 py-0.5 rounded-md font-mono font-bold text-[11px]',
+                    i === 0 ? 'bg-[#780e18] text-white' : 'bg-[#2D2B2A] text-[#F7F7F7]'
+                  )}>
+                    {i === 0 ? fmtCodigo(producto.codigo_universal, producto.marcaId, marcas) : code}
+                  </span>
+                ))}
+              </div>
+              <p className="text-[13px] font-medium text-[#4A4744] truncate leading-tight">{producto.nombre}</p>
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className={clsx('inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full', stockCls)}>
+                  <span className="w-1 h-1 rounded-full bg-current" />
+                  {stockDisp} disponibles
                 </span>
-              ))}
+                {isEdit && (
+                  <span className="text-[10px] font-semibold text-[#7A7571] bg-white px-2 py-0.5 rounded-full border border-[#E8E5E2]">
+                    Cambiar precio
+                  </span>
+                )}
+              </div>
             </div>
-            <p className="text-sm font-medium text-[#5a5670] truncate">{producto.nombre}</p>
+            <button
+              onClick={onClose}
+              className="text-[#7A7571] hover:text-[#2D2B2A] transition-colors p-1.5 rounded-lg hover:bg-[#E8E5E2] shrink-0"
+            >
+              <i className="ti ti-x text-[18px]" />
+            </button>
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <p className="text-[10px] font-bold text-[#9996b0] uppercase tracking-widest px-1">Precios disponibles</p>
+        {/* Body */}
+        <div className="px-5 py-4 space-y-2">
+          <p className="text-[10px] font-bold text-[#7A7571] uppercase tracking-[0.12em] mb-3">
+            {isEdit ? 'Selecciona el nuevo precio' : 'Selecciona el precio'}
+          </p>
 
           <PrecioCard precio={precioADisplay} onSelect={() => handleSelect(precioADisplay)} />
 
@@ -255,28 +310,18 @@ function SelectPriceModal({
           ))}
         </div>
 
-        {isEdit && onAddAnother && (
-          <div className="border-t border-[#e2e8f0] pt-4">
-            <p className="text-[10px] font-semibold text-[#9996b0] uppercase tracking-widest px-1 mb-2">¿Actualizar precio y agregar más?</p>
-            <div className="space-y-1.5">
-              <PrecioCard precio={precioADisplay} onSelect={() => handleSelect(precioADisplay)} />
-              {activeDescuentos.map(d => (
-                <PrecioCard
-                  key={d.id}
-                  precio={precioADisplay}
-                  descuento={d}
-                  onSelect={() => handleSelect(precioADisplay, d)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Footer */}
+        <div className="px-5 pb-5">
+          <button
+            onClick={onClose}
+            className="w-full h-10 rounded-xl border border-[#E8E5E2] text-sm font-semibold text-[#4A4744] hover:bg-[#F0EFEC] transition-colors"
+          >
+            Cancelar
+          </button>
+        </div>
 
-        <Button variant="secondary" onClick={onClose} className="w-full">
-          {isEdit ? 'Cerrar' : 'Cancelar'}
-        </Button>
       </div>
-    </Modal>
+    </div>
   )
 }
 
@@ -330,21 +375,19 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 pt-3 pb-2 border-b border-[#e2e8f0]">
+      <div className="px-4 pt-3 pb-2 border-b border-[#D0CBC4]">
         <div className="relative">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9996b0] pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-[#7A7571] text-[14px] pointer-events-none" />
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Buscar por código, nombre o marca..."
-            className="w-full pl-9 pr-4 py-2.5 text-sm bg-[#f1f5f9] border border-[#e2e8f0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1d4ed8] placeholder:text-[#9996b0]"
+            className="w-full pl-9 pr-4 py-2.5 text-sm bg-[#FBFBFA] border border-[#D8D4D0] rounded-xl focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 placeholder:text-[#7A7571]"
           />
           {query && (
-            <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9996b0] hover:text-[#5a5670]">
+            <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7A7571] hover:text-[#2D2B2A]">
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -354,102 +397,102 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
       </div>
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="divide-y divide-[#f1f5f9] px-4">
+          <div className="divide-y divide-[#E8E5E2] px-4">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3 py-3 animate-pulse">
-                <div className="h-10 w-10 rounded-lg bg-[#f1f5f9]" />
+                <div className="h-10 w-10 rounded-lg bg-[#F0EFEC]" />
                 <div className="flex-1 space-y-1.5">
-                  <div className="h-3 w-24 rounded bg-[#f1f5f9]" />
-                  <div className="h-2 w-40 rounded bg-[#f1f5f9]" />
+                  <div className="h-3 w-24 rounded bg-[#F0EFEC]" />
+                  <div className="h-2 w-40 rounded bg-[#E8E5E2]" />
                 </div>
-                <div className="h-4 w-20 rounded bg-[#f1f5f9]" />
+                <div className="h-4 w-20 rounded bg-[#F0EFEC]" />
               </div>
             ))}
           </div>
         ) : query.trim() === '' ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
-            <svg className="h-10 w-10 text-[#e2e8f0] mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <p className="text-sm text-[#9996b0]">Escribe para buscar productos</p>
+            <i className="ti ti-search text-[#E8E5E2] text-[40px] mb-3" />
+            <p className="text-sm text-[#7A7571]">Escribe para buscar productos</p>
           </div>
         ) : resultados.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
-            <p className="text-sm text-[#9996b0] font-medium">Sin resultados</p>
-            <p className="text-xs text-[#9996b0] mt-1">"{query}"</p>
+            <p className="text-sm text-[#7A7571] font-medium">Sin resultados</p>
+            <p className="text-xs text-[#7A7571] mt-1">"{query}"</p>
           </div>
         ) : (
-          <div className="divide-y divide-[#f1f5f9]">
+          <div className="divide-y divide-[#E8E5E2]">
             {resultados.map(p => {
               const disp = stockDisponible(p)
-              const stockCls = disp === 0 ? 'text-red-500' : disp <= p.stock_minimo ? 'text-amber-500' : 'text-emerald-600'
+              const stockCls = disp === 0 ? 'text-[#B23A2A]' : disp <= p.stock_minimo ? 'text-[#B47A1F]' : 'text-[#3F7A52]'
               return (
-                <div key={p.id} className={clsx(
-                  'flex items-center gap-3 px-4 py-3 transition-colors',
-                  !p.es_kit && getCartQty(p.id) > 0
-                    ? 'bg-[#dbeafe] border-l-4 border-[#1d4ed8] hover:bg-[#bfdbfe]'
-                    : 'hover:bg-[#f1f5f9]'
-                )}>
+                <div
+                  key={p.id}
+                  onClick={() => { if (disp > 0 || p.es_kit) onSelectProducto(p) }}
+                  className={clsx(
+                    'flex items-center gap-3 px-4 py-3 transition-colors',
+                    disp === 0 && !p.es_kit ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+                    p.es_kit
+                      ? 'border-l-[3px] border-l-[#D4A333] hover:bg-[#FAF5EE]'
+                      : getCartQty(p.id) > 0
+                        ? 'bg-[#F4ECDB]/60 border-l-[3px] border-l-[#D4A333] hover:bg-[#F4ECDB]'
+                        : 'hover:bg-[#FAF5EE]'
+                  )}
+                >
                   {p.imagen ? (
-                    <img src={p.imagen} alt={p.nombre} className="h-10 w-10 rounded-lg object-cover bg-[#f1f5f9] border border-[#e2e8f0] shrink-0" />
+                    <img src={p.imagen} alt={p.nombre} className="h-10 w-10 rounded-lg object-cover bg-[#F0EFEC] border border-[#E8E5E2] shrink-0" />
                   ) : (
-                    <div className="h-10 w-10 rounded-lg bg-[#f1f5f9] border border-[#e2e8f0] shrink-0 flex items-center justify-center">
-                      <svg className="h-5 w-5 text-[#9996b0]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                      </svg>
+                    <div className="h-10 w-10 rounded-lg bg-[#F0EFEC] border border-[#E8E5E2] shrink-0 flex items-center justify-center">
+                      <i className="ti ti-photo text-[#7A7571] text-[18px]" />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="font-mono text-sm font-black text-[#1d4ed8] bg-[#eff6ff] px-2 py-0.5 rounded">{fmtCodigo(p.codigo_universal, p.marcaId, marcas)}</span>
+                      <span className="font-mono text-sm font-bold text-[#780e18] bg-[#F4ECDB] px-2 py-0.5 rounded">{fmtCodigo(p.codigo_universal, p.marcaId, marcas)}</span>
                       {p.es_kit && (
-                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-black bg-violet-100 text-violet-700 border border-violet-200">
-                          <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                          </svg>
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#F4ECDB] text-[#780e18] border border-[#D4A333]/30">
+                          <i className="ti ti-stack text-[10px]" />
                           KIT
                         </span>
                       )}
                     </div>
-                    <p className="text-sm font-medium text-[#5a5670] truncate">{p.nombre}</p>
+                    <p className="text-sm font-medium text-[#4A4744] truncate">{p.nombre}</p>
                     <div className="flex items-center gap-3 mt-1">
                       <span className={`text-[11px] font-semibold ${stockCls}`}>{disp} disponibles</span>
-                      {p.almacen && <span className="text-[11px] text-[#9996b0]">📦 {p.almacen} {p.estante} {p.fila} {p.columna}</span>}
+                      {p.almacen && (
+                        <span className="text-[11px] text-[#7A7571] flex items-center gap-0.5">
+                          <i className="ti ti-map-pin text-[10px]" />
+                          {p.almacen} {p.estante} {p.fila} {p.columna}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center shrink-0">
                     {p.es_kit ? (
                       <button
-                        onClick={() => onSelectProducto(p)}
-                        className="h-7 w-7 rounded-lg flex items-center justify-center bg-[#1d4ed8] text-white hover:bg-[#1e40af] transition-colors"
+                        onClick={e => { e.stopPropagation(); onSelectProducto(p) }}
+                        className="h-7 w-7 rounded-lg flex items-center justify-center bg-[#D4A333] text-[#2D2010] hover:bg-[#B4881C] transition-colors"
                       >
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                        </svg>
+                        <i className="ti ti-plus text-[13px]" />
                       </button>
                     ) : (
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => onDecrementProducto(p.id)}
+                          onClick={e => { e.stopPropagation(); onDecrementProducto(p.id) }}
                           disabled={getCartQty(p.id) === 0}
-                          className="h-7 w-7 rounded-lg flex items-center justify-center bg-[#f1f5f9] text-[#5a5670] hover:bg-[#e2e8f0] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          className="h-7 w-7 rounded-lg flex items-center justify-center bg-[#F0EFEC] text-[#4A4744] hover:bg-[#E8E5E2] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         >
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
-                          </svg>
+                          <i className="ti ti-minus text-[13px]" />
                         </button>
-                        <span className="w-5 text-center text-sm font-semibold text-[#1e293b]">{getCartQty(p.id)}</span>
+                        <span className="w-5 text-center text-sm font-semibold text-[#2D2B2A]">{getCartQty(p.id)}</span>
                         <button
-                          onClick={() => onSelectProducto(p)}
+                          onClick={e => { e.stopPropagation(); onSelectProducto(p) }}
                           disabled={disp === 0}
                           className={clsx(
                             'h-7 w-7 rounded-lg flex items-center justify-center transition-colors',
-                            disp === 0 ? 'bg-[#f1f5f9] text-[#9996b0] cursor-not-allowed' : 'bg-[#1d4ed8] text-white hover:bg-[#1e40af]'
+                            disp === 0 ? 'bg-[#F0EFEC] text-[#7A7571] cursor-not-allowed' : 'bg-[#D4A333] text-[#2D2010] hover:bg-[#B4881C]'
                           )}
                         >
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                          </svg>
+                          <i className="ti ti-plus text-[13px]" />
                         </button>
                       </div>
                     )}
@@ -486,15 +529,13 @@ function CartItem({
   const [qtyValue, setQtyValue] = useState(String(item.cantidad))
 
   return (
-    <div className="px-4 py-3">
+    <div className={clsx('px-4 py-3', item.kit_id && 'border-l-[3px] border-l-[#D4A333]')}>
       <div className="flex items-start gap-3">
         {item.producto_imagen ? (
-          <img src={item.producto_imagen} alt={item.producto_nombre} className="h-12 w-12 rounded-lg object-cover bg-[#f1f5f9] border shrink-0" />
+          <img src={item.producto_imagen} alt={item.producto_nombre} className="h-12 w-12 rounded-lg object-cover bg-[#F0EFEC] border border-[#E8E5E2] shrink-0" />
         ) : (
-          <div className="h-12 w-12 rounded-lg bg-[#f1f5f9] border shrink-0 flex items-center justify-center">
-            <svg className="h-5 w-5 text-[#9996b0]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
+          <div className="h-12 w-12 rounded-lg bg-[#F0EFEC] border border-[#E8E5E2] shrink-0 flex items-center justify-center">
+            <i className="ti ti-photo text-[#7A7571] text-[18px]" />
           </div>
         )}
         <div className="flex-1 min-w-0">
@@ -502,27 +543,25 @@ function CartItem({
             <div className="flex items-center gap-2">
               {item.descuento_nombre ? (
                 <div className="flex items-center gap-1.5">
-                  <span className="font-mono text-sm font-bold text-[#1d4ed8] bg-[#eff6ff] px-2 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">{item.descuento_nombre} -{item.descuento_porcentaje}%</span>
+                  <span className="font-mono text-sm font-bold text-[#780e18] bg-[#F4ECDB] px-2 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#B8DCCA] text-[#1E5C38]">{item.descuento_nombre} -{item.descuento_porcentaje}%</span>
                 </div>
               ) : (
-                <span className="font-mono text-sm font-bold text-[#1d4ed8] bg-[#eff6ff] px-2 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
+                <span className="font-mono text-sm font-bold text-[#780e18] bg-[#F4ECDB] px-2 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
               )}
             </div>
             <button
               onClick={() => onEditPrice(item.producto_id)}
-              className="p-1.5 text-[#9996b0] hover:text-[#1d4ed8] hover:bg-[#eff6ff] rounded-lg transition-colors"
+              className="p-1.5 text-[#7A7571] hover:text-[#780e18] hover:bg-[#F4ECDB] rounded-lg transition-colors"
               title="Cambiar precio"
             >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
+              <i className="ti ti-edit text-[14px]" />
             </button>
           </div>
-          <p className="text-xs text-[#9996b0] mt-0.5 truncate">{item.producto_nombre}</p>
+          <p className="text-xs text-[#7A7571] mt-0.5 truncate">{item.producto_nombre}</p>
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-1">
-              <button onClick={() => onQtyChange(idx, -1)} className="h-7 w-7 rounded-lg border border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] flex items-center justify-center text-base font-bold transition-colors">−</button>
+              <button onClick={() => onQtyChange(idx, -1)} className="h-7 w-7 rounded-lg border border-[#E8E5E2] text-[#4A4744] hover:bg-[#F0EFEC] flex items-center justify-center text-base font-bold transition-colors">−</button>
               {editingQty ? (
                 <input
                   type="number"
@@ -558,7 +597,7 @@ function CartItem({
                       setEditingQty(false)
                     }
                   }}
-                  className="w-14 h-7 px-2 text-center text-sm font-bold border border-[#1d4ed8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1d4ed8]"
+                  className="w-14 h-7 px-2 text-center text-sm font-bold border border-[#780e18] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#780e18]/20"
                 />
               ) : (
                 <button
@@ -566,20 +605,18 @@ function CartItem({
                     setQtyValue(String(item.cantidad))
                     setEditingQty(true)
                   }}
-                  className="h-7 w-10 text-center text-sm font-bold text-[#1e1b2e] hover:bg-[#f1f5f9] rounded-lg transition-colors"
+                  className="h-7 w-10 text-center text-sm font-bold text-[#2D2B2A] hover:bg-[#F0EFEC] rounded-lg transition-colors"
                 >
                   {item.cantidad}
                 </button>
               )}
-              <button onClick={() => onQtyChange(idx, +1)} disabled={item.cantidad >= disp} className={clsx('h-7 w-7 rounded-lg border flex items-center justify-center text-base font-bold transition-colors', item.cantidad >= disp ? 'border-[#e2e8f0] text-[#9996b0] cursor-not-allowed' : 'border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9]')}>+</button>
+              <button onClick={() => onQtyChange(idx, +1)} disabled={item.cantidad >= disp} className={clsx('h-7 w-7 rounded-lg border flex items-center justify-center text-base font-bold transition-colors', item.cantidad >= disp ? 'border-[#E8E5E2] text-[#7A7571] cursor-not-allowed' : 'border-[#E8E5E2] text-[#4A4744] hover:bg-[#F0EFEC]')}>+</button>
             </div>
-            <span className="text-sm font-bold text-[#1e1b2e]">{fmtBs(item.precio_unitario * item.cantidad)}</span>
+            <span className="text-sm font-bold text-[#2D2B2A]">{fmtBs(item.precio_unitario * item.cantidad)}</span>
           </div>
         </div>
-        <button onClick={() => onRemoveItem(idx)} className="text-[#9996b0] hover:text-red-500 transition-colors shrink-0">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+        <button onClick={() => onRemoveItem(idx)} className="text-[#7A7571] hover:text-[#B23A2A] transition-colors shrink-0">
+          <i className="ti ti-x text-[16px]" />
         </button>
       </div>
     </div>
@@ -598,14 +635,14 @@ function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChan
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-[#e2e8f0] shrink-0 flex items-center justify-between gap-3">
+      <div className="px-4 py-3 border-b border-[#D0CBC4] shrink-0 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <p className="text-[10px] font-bold text-[#9996b0] uppercase tracking-widest shrink-0">Carrito de venta</p>
+          <p className="text-[10px] font-bold text-[#7A7571] uppercase tracking-widest shrink-0">Carrito de venta</p>
         </div>
         {cart.items.length > 0 && (
           <button
             onClick={() => setConfirmCancelar(true)}
-            className="shrink-0 text-[11px] font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
+            className="shrink-0 text-[11px] font-semibold text-[#B23A2A] hover:text-[#8A1E12] hover:bg-[#F5C9C0]/40 px-2 py-1 rounded-lg transition-colors"
           >
             Cancelar
           </button>
@@ -621,14 +658,12 @@ function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChan
       <div className="flex-1 overflow-y-auto">
         {cart.items.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
-            <svg className="h-12 w-12 text-[#e2e8f0] mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            <p className="text-sm text-[#9996b0]">Carrito vacío</p>
-            <p className="text-xs text-[#9996b0] mt-1">Agrega productos desde la búsqueda</p>
+            <i className="ti ti-shopping-cart text-[#E8E5E2] text-[48px] mb-3" />
+            <p className="text-sm text-[#7A7571]">Carrito vacío</p>
+            <p className="text-xs text-[#7A7571] mt-1">Agrega productos desde la búsqueda</p>
           </div>
         ) : (
-          <div className="divide-y divide-[#f1f5f9]">
+          <div className="divide-y divide-[#E8E5E2]">
             {cart.items.map((item, idx) => {
               const disp = stockDisponible(item.producto_id)
               return (
@@ -647,19 +682,21 @@ function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChan
         )}
       </div>
       {cart.items.length > 0 && (
-        <div className="border-t border-[#e2e8f0] px-4 py-3 space-y-3 shrink-0">
-          <input type="text" value={cart.nota} onChange={e => onNotaChange(e.target.value)} placeholder="Nota para almacén (opcional)" className="w-full text-xs px-3 py-2.5 bg-[#f1f5f9] border border-[#e2e8f0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1d4ed8] placeholder:text-[#9996b0]" maxLength={100} />
+        <div className="border-t border-[#D0CBC4] px-4 py-3 space-y-3 shrink-0">
+          <input type="text" value={cart.nota} onChange={e => onNotaChange(e.target.value)} placeholder="Nota para almacén (opcional)" className="w-full text-xs px-3 py-2.5 bg-[#FBFBFA] border border-[#D8D4D0] rounded-xl focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 placeholder:text-[#7A7571]" maxLength={100} />
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] text-[#9996b0] uppercase tracking-widest">Total</p>
-              <p className="text-xl font-black text-[#1e1b2e] tabular-nums">{fmtBs(total)}</p>
+              <p className="text-[10px] text-[#7A7571] uppercase tracking-widest">Total</p>
+              <p className="text-xl font-black text-[#2D2B2A] tabular-nums">{fmtBs(total)}</p>
             </div>
-            <Button ref={emitButtonRef} onClick={onEmitir} className="px-6">
-              <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
+            <button
+              ref={emitButtonRef}
+              onClick={onEmitir}
+              className="px-6 h-10 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] text-sm font-bold rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-sm"
+            >
+              <i className="ti ti-arrow-right text-[16px]" />
               Emitir orden
-            </Button>
+            </button>
           </div>
         </div>
       )}
@@ -696,20 +733,18 @@ function OrdersModal({
               {listos.length > 0 ? (
                 <div className="space-y-2">
                   {listos.map(o => (
-                    <div key={o.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-50 to-emerald-100 border-2 border-emerald-200">
+                    <div key={o.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-[#B8DCCA]/30 border-2 border-[#B8DCCA]">
                       <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-lg bg-emerald-500 flex items-center justify-center text-white font-bold text-sm">{o.numero.replace('ORD-', '')}</div>
+                        <div className="h-9 w-9 rounded-lg bg-[#3F7A52] flex items-center justify-center text-white font-bold text-sm">{o.numero.replace('ORD-', '')}</div>
                         <div>
-                          <p className="text-sm font-bold text-emerald-800">{o.numero}</p>
-                          <p className="text-xs text-emerald-600">{o.items.length} prod. · {fmtBs(o.total)}</p>
+                          <p className="text-sm font-bold text-[#1E5C38]">{o.numero}</p>
+                          <p className="text-xs text-[#3F7A52]">{o.items.length} prod. · {fmtBs(o.total)}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => { onCobrar(o); onClose() }} className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors">Cobrar</button>
-                        <button onClick={() => { onCancelar(o); onClose() }} className="p-1.5 text-[#9996b0] hover:text-red-500">
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
+                        <button onClick={() => { onCobrar(o); onClose() }} className="px-4 py-1.5 rounded-lg bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] text-xs font-bold transition-colors">Cobrar</button>
+                        <button onClick={() => { onCancelar(o); onClose() }} className="p-1.5 text-[#7A7571] hover:text-[#B23A2A]">
+                          <i className="ti ti-x text-[15px]" />
                         </button>
                       </div>
                     </div>
@@ -717,35 +752,31 @@ function OrdersModal({
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <svg className="h-12 w-12 text-[#e2e8f0] mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                  <p className="text-sm text-[#9996b0]">No hay órdenes listas</p>
+                  <i className="ti ti-clipboard-list text-[#E8E5E2] text-[48px] mx-auto mb-3 block" />
+                  <p className="text-sm text-[#7A7571]">No hay órdenes listas</p>
                 </div>
               )}
               {otras.length > 0 && (
                 <div>
-                  <p className="text-xs font-bold text-[#9996b0] uppercase tracking-wide mb-2">En proceso</p>
+                  <p className="text-xs font-bold text-[#7A7571] uppercase tracking-wide mb-2">En proceso</p>
                   <div className="space-y-2">
                     {otras.map(o => {
-                      const cfg = ESTADO_ORDEN_CONFIG[o.estado] ?? { label: o.estado, cls: 'bg-[#f1f5f9] text-[#9996b0]', dot: 'bg-[#9996b0]' }
+                      const cfg = ESTADO_ORDEN_CONFIG[o.estado] ?? { label: o.estado, cls: 'bg-[#F0EFEC] text-[#7A7571]', dot: 'bg-[#7A7571]' }
                       const tieneFaltantes = o.items.some(i => i.estado === 'faltante')
                       return (
-                        <div key={o.id} className={clsx('flex items-center justify-between px-4 py-3 rounded-xl border', tieneFaltantes ? 'bg-amber-50 border-amber-200' : 'bg-white border-[#e2e8f0]')}>
+                        <div key={o.id} className={clsx('flex items-center justify-between px-4 py-3 rounded-xl border', tieneFaltantes ? 'bg-[#F5E0A8]/40 border-[#F5E0A8]' : 'bg-white border-[#E8E5E2]')}>
                           <div className="flex items-center gap-3">
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${cfg.cls}`}>{cfg.label}</span>
                             <div>
-                              <p className="text-sm font-semibold text-[#5a5670]">{o.numero}</p>
-                              <p className="text-xs text-[#9996b0]">{o.items.length} prod. · {fmtBs(o.total)}</p>
+                              <p className="text-sm font-semibold text-[#4A4744]">{o.numero}</p>
+                              <p className="text-xs text-[#7A7571]">{o.items.length} prod. · {fmtBs(o.total)}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            {tieneFaltantes && <span className="text-[10px] font-bold text-amber-600">⚠ faltantes</span>}
-                            <span className="text-[10px] text-[#9996b0]">{fmtTimeSince(o.creado_en)}</span>
-                            <button onClick={() => { onCancelar(o); onClose() }} className="p-1.5 text-[#9996b0] hover:text-red-500">
-                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                              </svg>
+                            {tieneFaltantes && <span className="text-[10px] font-bold text-[#B47A1F]">⚠ faltantes</span>}
+                            <span className="text-[10px] text-[#7A7571]">{fmtTimeSince(o.creado_en)}</span>
+                            <button onClick={() => { onCancelar(o); onClose() }} className="p-1.5 text-[#7A7571] hover:text-[#B23A2A]">
+                              <i className="ti ti-x text-[15px]" />
                             </button>
                           </div>
                         </div>
@@ -755,34 +786,30 @@ function OrdersModal({
                 </div>
               )}
               {canceladas && canceladas.length > 0 && (
-                <div className="border-t border-[#e2e8f0] pt-3">
+                <div className="border-t border-[#E8E5E2] pt-3">
                   <button
                     onClick={() => setShowCanceladas(!showCanceladas)}
-                    className="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-[#f1f5f9] transition-colors"
+                    className="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-[#F0EFEC] transition-colors"
                   >
-                    <span className="text-xs font-bold text-[#9996b0] uppercase tracking-wide flex items-center gap-2">
-                      <svg className={clsx('h-4 w-4 transition-transform', showCanceladas && 'rotate-90')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                      </svg>
+                    <span className="text-xs font-bold text-[#7A7571] uppercase tracking-wide flex items-center gap-2">
+                      <i className={clsx('ti ti-chevron-right text-[14px] transition-transform', showCanceladas && 'rotate-90')} />
                       Canceladas ({canceladas.length})
                     </span>
                   </button>
                   {showCanceladas && (
                     <div className="space-y-2 mt-2">
                       {canceladas.map(o => (
-                        <div key={o.id} className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-red-50 border border-red-100 opacity-60">
+                        <div key={o.id} className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-[#F5C9C0]/40 border border-[#F5C9C0] opacity-70">
                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-lg bg-red-100 flex items-center justify-center">
-                              <svg className="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                              </svg>
+                            <div className="h-8 w-8 rounded-lg bg-[#F5C9C0] flex items-center justify-center">
+                              <i className="ti ti-x text-[#B23A2A] text-[14px]" />
                             </div>
                             <div>
-                              <p className="text-sm font-semibold text-red-700">{o.numero}</p>
-                              <p className="text-xs text-red-400">{o.items.length} prod. · {fmtBs(o.total)}</p>
+                              <p className="text-sm font-semibold text-[#8A1E12]">{o.numero}</p>
+                              <p className="text-xs text-[#B23A2A]">{o.items.length} prod. · {fmtBs(o.total)}</p>
                             </div>
                           </div>
-                          <span className="text-[10px] text-red-400">{fmtTimeSince(o.creado_en)}</span>
+                          <span className="text-[10px] text-[#B23A2A]">{fmtTimeSince(o.creado_en)}</span>
                         </div>
                       ))}
                     </div>
@@ -804,25 +831,25 @@ function PickingParcialModal({ orden, onPartial, onCancelar, onClose }: { orden:
   return (
     <Modal open onClose={onClose} title="Orden con faltantes">
       <div className="space-y-4 pt-1">
-        <p className="text-sm text-[#9996b0]">Esta orden tiene productos no encontrados. ¿Cómo procedes?</p>
+        <p className="text-sm text-[#7A7571]">Esta orden tiene productos no encontrados. ¿Cómo procedes?</p>
         {completos.length > 0 && (
           <div>
-            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wide mb-2">✓ Encontrados ({completos.length})</p>
+            <p className="text-xs font-bold text-[#3F7A52] uppercase tracking-wide mb-2">✓ Encontrados ({completos.length})</p>
             <div className="space-y-1">{completos.map(i => (
-              <div key={i.id} className="flex justify-between text-sm px-3 py-1.5 bg-emerald-50 rounded-lg">
-                <span className="text-[#5a5670] truncate mr-2">{i.producto_nombre}</span>
-                <span className="text-emerald-700 font-semibold">×{i.cantidad_recogida ?? i.cantidad_pedida}</span>
+              <div key={i.id} className="flex justify-between text-sm px-3 py-1.5 bg-[#B8DCCA]/30 rounded-lg">
+                <span className="text-[#4A4744] truncate mr-2">{i.producto_nombre}</span>
+                <span className="text-[#1E5C38] font-semibold">×{i.cantidad_recogida ?? i.cantidad_pedida}</span>
               </div>
             ))}</div>
           </div>
         )}
         {faltantes.length > 0 && (
           <div>
-            <p className="text-xs font-bold text-red-500 uppercase tracking-wide mb-2">✕ Faltantes ({faltantes.length})</p>
+            <p className="text-xs font-bold text-[#B23A2A] uppercase tracking-wide mb-2">✕ Faltantes ({faltantes.length})</p>
             <div className="space-y-1">{faltantes.map(i => (
-              <div key={i.id} className="flex justify-between text-sm px-3 py-1.5 bg-red-50 rounded-lg">
-                <span className="text-[#5a5670] truncate mr-2">{i.producto_nombre}</span>
-                <span className="text-red-500 font-semibold">×{i.cantidad_pedida}</span>
+              <div key={i.id} className="flex justify-between text-sm px-3 py-1.5 bg-[#F5C9C0]/40 rounded-lg">
+                <span className="text-[#4A4744] truncate mr-2">{i.producto_nombre}</span>
+                <span className="text-[#B23A2A] font-semibold">×{i.cantidad_pedida}</span>
               </div>
             ))}</div>
           </div>
@@ -851,39 +878,37 @@ function CancelarOrdenModal({
   return (
     <Modal open onClose={onClose} title={`Cancelar ${orden.numero}`} size="md">
       <div className="space-y-4">
-        <div className="flex items-start gap-3 p-3 rounded-xl bg-red-50 border border-red-100">
-          <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-            <svg className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#F5C9C0]/40 border border-[#F5C9C0]">
+          <div className="h-10 w-10 rounded-full bg-[#F5C9C0] flex items-center justify-center shrink-0">
+            <i className="ti ti-alert-triangle text-[#B23A2A] text-[18px]" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-red-700">¿Cancelar esta orden?</p>
-            <p className="text-xs text-red-600 mt-0.5">El stock reservado será liberado. Esta acción no se puede deshacer.</p>
+            <p className="text-sm font-semibold text-[#8A1E12]">¿Cancelar esta orden?</p>
+            <p className="text-xs text-[#B23A2A] mt-0.5">El stock reservado será liberado. Esta acción no se puede deshacer.</p>
           </div>
         </div>
 
-        <div className="rounded-xl border border-[#e2e8f0] overflow-hidden">
-          <div className="px-4 py-2 bg-[#f1f5f9] border-b border-[#e2e8f0] flex items-center justify-between">
-            <span className="text-xs font-bold text-[#9996b0]">PRODUCTOS</span>
-            <span className="text-xs text-[#9996b0]">{orden.items.length} items · {fmtBs(orden.total)}</span>
+        <div className="rounded-xl border border-[#E8E5E2] overflow-hidden">
+          <div className="px-4 py-2 bg-[#F5F0EB] border-b border-[#E8E5E2] flex items-center justify-between">
+            <span className="text-xs font-bold text-[#7A7571]">PRODUCTOS</span>
+            <span className="text-xs text-[#7A7571]">{orden.items.length} items · {fmtBs(orden.total)}</span>
           </div>
-          <div className="divide-y divide-[#e2e8f0] max-h-48 overflow-y-auto">
+          <div className="divide-y divide-[#E8E5E2] max-h-48 overflow-y-auto">
             {orden.items.map(item => (
               <div key={item.id} className="flex items-center justify-between px-4 py-2.5">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xs font-mono text-[#9996b0] bg-[#f1f5f9] px-1.5 py-0.5 rounded shrink-0">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
-                  <span className="text-xs text-[#5a5670] truncate">{item.producto_nombre}</span>
+                  <span className="text-xs font-mono text-[#780e18] bg-[#F4ECDB] px-1.5 py-0.5 rounded shrink-0">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
+                  <span className="text-xs text-[#4A4744] truncate">{item.producto_nombre}</span>
                 </div>
-                <span className="text-xs font-semibold text-[#5a5670] ml-2 shrink-0">×{item.cantidad_pedida}</span>
+                <span className="text-xs font-semibold text-[#4A4744] ml-2 shrink-0">×{item.cantidad_pedida}</span>
               </div>
             ))}
           </div>
         </div>
 
         {orden.nota && (
-          <div className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-100">
-            <p className="text-xs text-amber-600"><span className="font-semibold">Nota:</span> {orden.nota}</p>
+          <div className="px-3 py-2 rounded-lg bg-[#F5E0A8]/40 border border-[#F5E0A8]">
+            <p className="text-xs text-[#7A5200]"><span className="font-semibold">Nota:</span> {orden.nota}</p>
           </div>
         )}
       </div>
@@ -1083,43 +1108,43 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
               return i.piezas_orden.filter(p => p.confirmado).map(p => (
                 <div key={`${i.id}-${p.id}`} className="flex justify-between text-sm gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[#5a5670] truncate">{p.nombre}</p>
-                    <p className="text-[10px] font-mono text-[#9996b0]">{fmtCodigo(p.codigo, p.marcaId, marcas)} · ×{p.cantidad}</p>
+                    <p className="text-[#4A4744] truncate">{p.nombre}</p>
+                    <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(p.codigo, p.marcaId, marcas)} · ×{p.cantidad}</p>
                   </div>
-                  <span className="font-semibold text-[#1e1b2e] shrink-0">{fmtBs((p.precio_unitario ?? 0) * p.cantidad)}</span>
+                  <span className="font-semibold text-[#2D2B2A] shrink-0">{fmtBs((p.precio_unitario ?? 0) * p.cantidad)}</span>
                 </div>
               ))
             }
             return (
               <div key={i.id} className="flex justify-between text-sm gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-[#5a5670] truncate">{i.producto_nombre}</p>
-                  <p className="text-[10px] font-mono text-[#9996b0]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
+                  <p className="text-[#4A4744] truncate">{i.producto_nombre}</p>
+                  <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
                 </div>
-                <span className="font-semibold text-[#1e1b2e] shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
+                <span className="font-semibold text-[#2D2B2A] shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
               </div>
             )
           })}
           {itemsFaltantes.map(i => (
             <div key={i.id} className="flex justify-between text-sm gap-2 opacity-50">
               <div className="flex-1 min-w-0">
-                <p className="text-[#9996b0] truncate line-through">{i.producto_nombre}</p>
-                <p className="text-[10px] font-mono text-[#9996b0]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_pedida}</p>
+                <p className="text-[#7A7571] truncate line-through">{i.producto_nombre}</p>
+                <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_pedida}</p>
               </div>
-              <span className="text-[#9996b0] shrink-0">N/A</span>
+              <span className="text-[#7A7571] shrink-0">N/A</span>
             </div>
           ))}
-          <div className="flex justify-between pt-2 border-t border-[#e2e8f0] mt-2">
-            <span className="text-sm font-bold text-[#5a5670]">Total</span>
-            <span className="text-lg font-black text-[#1e1b2e]">{fmtBs(totalReal)}</span>
+          <div className="flex justify-between pt-2 border-t border-[#E8E5E2] mt-2">
+            <span className="text-sm font-bold text-[#4A4744]">Total</span>
+            <span className="text-lg font-black text-[#2D2B2A]">{fmtBs(totalReal)}</span>
           </div>
         </div>
 
         {/* Toggle Factura */}
-        <div className="flex items-center justify-between py-3 px-4 rounded-xl bg-[#f1f5f9] border border-[#e2e8f0]">
+        <div className="flex items-center justify-between py-3 px-4 rounded-xl bg-[#F7F7F7] border border-[#E8E5E2]">
           <div>
-            <p className="text-sm font-semibold text-[#1e1b2e]">¿Requiere factura?</p>
-            <p className="text-xs text-[#9996b0] mt-0.5">Si es nota de venta, no se piden datos fiscales</p>
+            <p className="text-sm font-semibold text-[#2D2B2A]">¿Requiere factura?</p>
+            <p className="text-xs text-[#7A7571] mt-0.5">Si es nota de venta, no se piden datos fiscales</p>
           </div>
           <button
             type="button"
@@ -1132,8 +1157,8 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
                 if (!clienteSelected) setShowClienteDropdown(true)
               }
             }}
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d4ed8] focus-visible:ring-offset-2 ${
-              requiereFactura ? 'bg-[#1d4ed8]' : 'bg-[#9996b0]'
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#780e18] focus-visible:ring-offset-2 ${
+              requiereFactura ? 'bg-[#780e18]' : 'bg-[#7A7571]'
             }`}
           >
             <span
@@ -1146,27 +1171,25 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
 
         {/* Billing section — only shown if requiereFactura is ON */}
         {requiereFactura && (
-          <div className="space-y-3 border border-[#bfdbfe] rounded-xl p-4 bg-[#eff6ff]/50">
-            <p className="text-xs font-bold text-[#1d4ed8] uppercase tracking-widest">Datos para factura</p>
+          <div className="space-y-3 border border-[#D0CBC4] rounded-xl p-4 bg-[#F4ECDB]/30">
+            <p className="text-xs font-bold text-[#780e18] uppercase tracking-widest">Datos para factura</p>
 
             {/* Cliente existente */}
             <div>
-              <p className="text-[11px] font-semibold text-[#9996b0] uppercase tracking-wide mb-1.5">Cliente existente</p>
+              <p className="text-[11px] font-semibold text-[#7A7571] uppercase tracking-wide mb-1.5">Cliente existente</p>
               {clienteSelected ? (
-                <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
+                <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-[#B8DCCA]/30 border border-[#B8DCCA]">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-emerald-800 truncate">
+                    <p className="text-sm font-semibold text-[#1E5C38] truncate">
                       {clienteSelected.nombre ? `${clienteSelected.nombre} ${clienteSelected.apellido}` : clienteSelected.apellido}
                     </p>
-                    <p className="text-xs text-emerald-600">
+                    <p className="text-xs text-[#3F7A52]">
                       {clienteSelected.ci ? `CI: ${clienteSelected.ci}${clienteSelected.ciComplemento ? `-${clienteSelected.ciComplemento}` : ''}` : ''}
                       {clienteSelected.nit ? `NIT: ${clienteSelected.nit}` : ''}
                     </p>
                   </div>
-                  <button onClick={handleClearCliente} className="p-1.5 text-emerald-400 hover:text-emerald-700 hover:bg-emerald-100 rounded-lg transition-colors shrink-0">
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                  <button onClick={handleClearCliente} className="p-1.5 text-[#3F7A52] hover:text-[#1E5C38] hover:bg-[#B8DCCA]/50 rounded-lg transition-colors shrink-0">
+                    <i className="ti ti-x text-[14px]" />
                   </button>
                 </div>
               ) : (
@@ -1178,27 +1201,27 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
                     onFocus={() => setShowClienteDropdown(true)}
                     onBlur={() => setTimeout(() => setShowClienteDropdown(false), 150)}
                     placeholder="Buscar cliente por nombre, CI o NIT…"
-                    className="w-full text-xs px-3 py-2.5 bg-white border border-[#e2e8f0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1d4ed8] placeholder:text-[#9996b0]"
+                    className="w-full text-xs px-3 py-2.5 bg-white border border-[#E8E5E2] rounded-xl focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 placeholder:text-[#7A7571]"
                   />
                   {showClienteDropdown && (clienteSearch.trim()) && (
-                    <div className="absolute z-20 w-full mt-1 bg-white rounded-xl border border-[#e2e8f0] shadow-lg max-h-40 overflow-y-auto">
+                    <div className="absolute z-20 w-full mt-1 bg-white rounded-xl border border-[#E8E5E2] shadow-lg max-h-40 overflow-y-auto">
                       {filteredClientes.length === 0 && (
-                        <div className="px-3 py-2.5 text-xs text-[#9996b0] text-center">Sin resultados</div>
+                        <div className="px-3 py-2.5 text-xs text-[#7A7571] text-center">Sin resultados</div>
                       )}
                       {filteredClientes.map(c => (
                         <button
                           key={c.id}
                           onClick={() => handleSelectCliente(c)}
-                          className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#f1f5f9] transition-colors text-left"
+                          className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#FAF5EE] transition-colors text-left"
                         >
-                          <div className="h-7 w-7 rounded-full bg-[#dbeafe] flex items-center justify-center text-[10px] font-bold text-[#1e40af] shrink-0">
+                          <div className="h-7 w-7 rounded-full bg-[#F4ECDB] flex items-center justify-center text-[10px] font-bold text-[#780e18] shrink-0">
                             {c.nombre ? c.nombre.charAt(0) : c.apellido.charAt(0)}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-semibold text-[#1e1b2e] truncate">
+                            <p className="text-xs font-semibold text-[#2D2B2A] truncate">
                               {c.nombre ? `${c.nombre} ${c.apellido}` : c.apellido}
                             </p>
-                            <p className="text-[10px] text-[#9996b0]">
+                            <p className="text-[10px] text-[#7A7571]">
                               {c.ci ? `CI: ${c.ci}${c.ciComplemento ? `-${c.ciComplemento}` : ''}` : ''}
                               {c.nit ? `NIT: ${c.nit}` : ''}
                             </p>
@@ -1213,7 +1236,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
 
             {/* Tipo de identificación */}
             <div>
-              <p className="text-[11px] font-semibold text-[#9996b0] uppercase tracking-wide mb-1.5">Tipo de identificación</p>
+              <p className="text-[11px] font-semibold text-[#7A7571] uppercase tracking-wide mb-1.5">Tipo de identificación</p>
               <div className="grid grid-cols-3 gap-2">
                 {([
                   { value: 'ci', label: 'CI' },
@@ -1226,8 +1249,8 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
                     className={clsx(
                       'py-2 rounded-lg border-2 text-xs font-bold transition-all',
                       billingTipo === t.value
-                        ? 'border-[#1d4ed8] bg-[#eff6ff] text-[#1e40af]'
-                        : 'border-[#e2e8f0] text-[#9996b0] hover:border-[#e2e8f0]'
+                        ? 'border-[#780e18] bg-[#F4ECDB] text-[#780e18]'
+                        : 'border-[#E8E5E2] text-[#7A7571] hover:border-[#D0CBC4]'
                     )}
                   >
                     {t.label}
@@ -1240,7 +1263,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
             {billingTipo !== 'sin_nit' && (
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_70px] gap-2">
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#9996b0] uppercase tracking-wide mb-1">
+                  <label className="block text-[11px] font-semibold text-[#7A7571] uppercase tracking-wide mb-1">
                     {billingTipo === 'ci' ? 'Número de CI' : 'Número de NIT'}
                   </label>
                   <Input
@@ -1253,9 +1276,9 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
                 </div>
                 {billingTipo === 'ci' && (
                   <>
-                    <span className="self-end pb-2 text-[#9996b0] font-bold">−</span>
+                    <span className="self-end pb-2 text-[#7A7571] font-bold">−</span>
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#9996b0] uppercase tracking-wide mb-1">Complemento</label>
+                      <label className="block text-[11px] font-semibold text-[#7A7571] uppercase tracking-wide mb-1">Complemento</label>
                       <Input
                         value={billingComplemento}
                         onChange={e => setBillingComplemento(e.target.value)}
@@ -1269,8 +1292,8 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
 
             {/* Nombre / Razón Social */}
             <div>
-              <label className="block text-[11px] font-semibold text-[#9996b0] uppercase tracking-wide mb-1">
-                Nombre o razón social <span className="text-red-500">*</span>
+              <label className="block text-[11px] font-semibold text-[#7A7571] uppercase tracking-wide mb-1">
+                Nombre o razón social <span className="text-[#B23A2A]">*</span>
               </label>
               <Input
                 value={billingNombre}
@@ -1281,7 +1304,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
 
             {/* Email */}
             <div>
-              <label className="block text-[11px] font-semibold text-[#9996b0] uppercase tracking-wide mb-1">
+              <label className="block text-[11px] font-semibold text-[#7A7571] uppercase tracking-wide mb-1">
                 Correo electrónico (opcional)
               </label>
               <Input
@@ -1296,10 +1319,10 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-bold text-[#9996b0] uppercase tracking-widest">Método de pago</p>
+            <p className="text-xs font-bold text-[#7A7571] uppercase tracking-widest">Método de pago</p>
             <button
               onClick={() => setPagoMixto(v => !v)}
-              className={clsx('text-[11px] font-bold px-2 py-1 rounded-lg border transition-all', pagoMixto ? 'bg-[#eff6ff] border-[#93c5fd] text-[#1e40af]' : 'bg-[#f1f5f9] border-[#e2e8f0] text-[#9996b0] hover:border-[#e2e8f0]')}
+              className={clsx('text-[11px] font-bold px-2 py-1 rounded-lg border transition-all', pagoMixto ? 'bg-[#F4ECDB] border-[#D4A333]/50 text-[#780e18]' : 'bg-[#F7F7F7] border-[#E8E5E2] text-[#7A7571] hover:border-[#D0CBC4]')}
             >
               {pagoMixto ? 'Pago mixto ✓' : 'Pago mixto'}
             </button>
@@ -1307,7 +1330,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
           {!pagoMixto ? (
             <div className="grid grid-cols-3 gap-2">
               {METODOS.map(m => (
-                <button key={m.value} onClick={() => setMetodo(m.value)} className={clsx('py-3 rounded-xl border-2 text-sm font-bold transition-all flex flex-col items-center gap-1', metodo === m.value ? 'border-[#1d4ed8] bg-[#eff6ff] text-[#1e40af]' : 'border-[#e2e8f0] text-[#9996b0] hover:border-[#e2e8f0]')}>
+                <button key={m.value} onClick={() => setMetodo(m.value)} className={clsx('py-3 rounded-xl border-2 text-sm font-bold transition-all flex flex-col items-center gap-1', metodo === m.value ? 'border-[#780e18] bg-[#F4ECDB] text-[#780e18]' : 'border-[#E8E5E2] text-[#7A7571] hover:border-[#D0CBC4]')}>
                   {m.icon}
                   {m.label}
                 </button>
@@ -1318,21 +1341,21 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
               <div className="flex items-center gap-2">
                 <div className="flex-1 grid grid-cols-3 gap-1">
                   {METODOS.map(m => (
-                    <button key={m.value} onClick={() => setMetodo(m.value)} className={clsx('py-2 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center gap-0.5', metodo === m.value ? 'border-[#1d4ed8] bg-[#eff6ff] text-[#1e40af]' : 'border-[#e2e8f0] text-[#9996b0] hover:border-[#e2e8f0]')}>
+                    <button key={m.value} onClick={() => setMetodo(m.value)} className={clsx('py-2 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center gap-0.5', metodo === m.value ? 'border-[#780e18] bg-[#F4ECDB] text-[#780e18]' : 'border-[#E8E5E2] text-[#7A7571] hover:border-[#D0CBC4]')}>
                       {m.icon}
                       {m.label}
                     </button>
                   ))}
                 </div>
                 <div className="w-28 shrink-0">
-                  <p className="text-xs text-[#9996b0] mb-1">Bs {monto1Mixto > 0 ? monto1Mixto.toFixed(2) : '—'}</p>
-                  <p className="text-[10px] text-[#9996b0]">Resto automático</p>
+                  <p className="text-xs text-[#7A7571] mb-1">Bs {monto1Mixto > 0 ? monto1Mixto.toFixed(2) : '—'}</p>
+                  <p className="text-[10px] text-[#7A7571]">Resto automático</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex-1 grid grid-cols-3 gap-1">
                   {METODOS.map(m => (
-                    <button key={m.value} onClick={() => setMetodo2(m.value)} className={clsx('py-2 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center gap-0.5', metodo2 === m.value ? 'border-[#1d4ed8] bg-[#eff6ff] text-[#1e40af]' : 'border-[#e2e8f0] text-[#9996b0] hover:border-[#e2e8f0]')}>
+                    <button key={m.value} onClick={() => setMetodo2(m.value)} className={clsx('py-2 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center gap-0.5', metodo2 === m.value ? 'border-[#780e18] bg-[#F4ECDB] text-[#780e18]' : 'border-[#E8E5E2] text-[#7A7571] hover:border-[#D0CBC4]')}>
                       {m.icon}
                       {m.label}
                     </button>
@@ -1347,9 +1370,9 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
         </div>
         {!pagoMixto && metodo === 'efectivo' && (
           <div>
-            <label className="block text-xs font-bold text-[#9996b0] uppercase tracking-widest mb-1.5">Monto recibido (Bs)</label>
+            <label className="block text-xs font-bold text-[#7A7571] uppercase tracking-widest mb-1.5">Monto recibido (Bs)</label>
             <Input type="number" min={totalReal} step="0.50" value={montoStr} onChange={e => setMontoStr(e.target.value)} autoFocus />
-            {cambio !== null && cambio >= 0 && <p className="text-sm font-bold text-emerald-600 mt-2">Cambio: {fmtBs(cambio)}</p>}
+            {cambio !== null && cambio >= 0 && <p className="text-sm font-bold text-[#3F7A52] mt-2">Cambio: {fmtBs(cambio)}</p>}
           </div>
         )}
         <div className="flex gap-2 pt-1">
@@ -1374,25 +1397,25 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
   const cambio = orden.monto_recibido != null ? orden.monto_recibido - totalReal : null
 
   const docLabel = isFactura ? 'FACTURA' : 'NOTA DE VENTA'
-  const docColorCls = isFactura ? 'bg-emerald-100 text-emerald-700' : 'bg-[#f1f5f9] text-[#5a5670]'
+  const docColorCls = isFactura ? 'bg-[#B8DCCA] text-[#1E5C38]' : 'bg-[#F0EFEC] text-[#4A4744]'
 
   return (
     <Modal open onClose={onClose} title="Comprobante de venta" size="md">
       <div className="space-y-4">
-        <div className="text-center pb-3 border-b border-[#e2e8f0]">
+        <div className="text-center pb-3 border-b border-[#E8E5E2]">
           <span className={clsx('inline-block text-[10px] font-black px-2 py-1 rounded mb-2 tracking-widest', docColorCls)}>{docLabel}</span>
           {isFactura && orden.facturaNro && (
-            <p className="text-xs font-mono font-bold text-[#5a5670] mt-1">N° {orden.facturaNro}</p>
+            <p className="text-xs font-mono font-bold text-[#4A4744] mt-1">N° {orden.facturaNro}</p>
           )}
-          <p className="text-lg font-black text-[#1e1b2e]">{orden.numero}</p>
-          <p className="text-xs text-[#9996b0] mt-0.5">{new Date(orden.pagado_en ?? orden.actualizado_en).toLocaleString('es-BO')}</p>
-          <p className="text-xs text-[#9996b0] mt-0.5">Cajero: {orden.cajero_nombre}</p>
+          <p className="text-lg font-black text-[#2D2B2A]">{orden.numero}</p>
+          <p className="text-xs text-[#7A7571] mt-0.5">{new Date(orden.pagado_en ?? orden.actualizado_en).toLocaleString('es-BO')}</p>
+          <p className="text-xs text-[#7A7571] mt-0.5">Cajero: {orden.cajero_nombre}</p>
         </div>
 
         {isFactura && orden.cliente_nombre && (
-          <div className="rounded-xl bg-[#f1f5f9] border border-[#e2e8f0] p-3 space-y-1">
-            <p className="text-[10px] font-bold text-[#9996b0] uppercase tracking-widest">Datos del cliente</p>
-            <p className="text-sm font-semibold text-[#1e1b2e]">{orden.cliente_nombre}</p>
+          <div className="rounded-xl bg-[#F7F7F7] border border-[#E8E5E2] p-3 space-y-1">
+            <p className="text-[10px] font-bold text-[#7A7571] uppercase tracking-widest">Datos del cliente</p>
+            <p className="text-sm font-semibold text-[#2D2B2A]">{orden.cliente_nombre}</p>
             {orden.cliente_tipo_id && orden.cliente_numero_id && (
               <p className="text-xs text-[#9996b0]">
                 {orden.cliente_tipo_id === 'nit' ? `NIT: ${orden.cliente_numero_id}` :
@@ -1412,8 +1435,8 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
               return i.piezas_orden.filter(p => p.confirmado).map(p => (
                 <div key={`${i.id}-${p.id}`} className="flex justify-between text-sm gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[#5a5670] truncate">{p.nombre}</p>
-                    <p className="text-[10px] font-mono text-[#9996b0]">{fmtCodigo(p.codigo, p.marcaId, marcas)} · ×{p.cantidad}</p>
+                    <p className="text-[#4A4744] truncate">{p.nombre}</p>
+                    <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(p.codigo, p.marcaId, marcas)} · ×{p.cantidad}</p>
                   </div>
                   <span className="font-semibold shrink-0">{fmtBs((p.precio_unitario ?? 0) * p.cantidad)}</span>
                 </div>
@@ -1422,8 +1445,8 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
             return (
               <div key={i.id} className="flex justify-between text-sm gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-[#5a5670] truncate">{i.producto_nombre}</p>
-                  <p className="text-[10px] font-mono text-[#9996b0]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
+                  <p className="text-[#4A4744] truncate">{i.producto_nombre}</p>
+                  <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
                 </div>
                 <span className="font-semibold shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
               </div>
@@ -1432,28 +1455,28 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
           {itemsFaltantes.map(i => (
             <div key={i.id} className="flex justify-between text-sm gap-2 opacity-40">
               <div className="flex-1 min-w-0">
-                <p className="text-[#9996b0] truncate line-through">{i.producto_nombre}</p>
-                <p className="text-[10px] font-mono text-[#9996b0]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_pedida}</p>
+                <p className="text-[#7A7571] truncate line-through">{i.producto_nombre}</p>
+                <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_pedida}</p>
               </div>
-              <span className="text-[#9996b0] shrink-0">N/A</span>
+              <span className="text-[#7A7571] shrink-0">N/A</span>
             </div>
           ))}
         </div>
-        <div className="border-t border-[#e2e8f0] pt-3 space-y-1">
-          <div className="flex justify-between text-sm font-bold"><span>Total</span><span>{fmtBs(totalReal)}</span></div>
-          {orden.metodo_pago && <div className="flex justify-between text-xs text-[#9996b0]"><span>Método</span><span className="capitalize">{orden.metodo_pago}</span></div>}
-          {cambio != null && cambio > 0 && <div className="flex justify-between text-xs text-emerald-600"><span>Cambio</span><span>{fmtBs(cambio)}</span></div>}
+        <div className="border-t border-[#E8E5E2] pt-3 space-y-1">
+          <div className="flex justify-between text-sm font-bold text-[#2D2B2A]"><span>Total</span><span>{fmtBs(totalReal)}</span></div>
+          {orden.metodo_pago && <div className="flex justify-between text-xs text-[#7A7571]"><span>Método</span><span className="capitalize">{orden.metodo_pago}</span></div>}
+          {cambio != null && cambio > 0 && <div className="flex justify-between text-xs text-[#3F7A52]"><span>Cambio</span><span>{fmtBs(cambio)}</span></div>}
         </div>
 
         {isFactura && (
-          <div className="rounded-xl bg-white border border-[#e2e8f0] p-4 flex items-center gap-4">
-            <div className="h-20 w-20 rounded-lg bg-[#f1f5f9] border-2 border-dashed border-[#e2e8f0] flex items-center justify-center shrink-0">
-              <span className="text-[10px] text-[#9996b0] font-bold text-center leading-tight">QR\nSIAT</span>
+          <div className="rounded-xl bg-white border border-[#E8E5E2] p-4 flex items-center gap-4">
+            <div className="h-20 w-20 rounded-lg bg-[#F0EFEC] border-2 border-dashed border-[#D0CBC4] flex items-center justify-center shrink-0">
+              <span className="text-[10px] text-[#7A7571] font-bold text-center leading-tight">QR{'\n'}SIAT</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-[#9996b0] uppercase tracking-widest mb-1">Código QR</p>
-              <p className="text-xs text-[#9996b0]">Verifique su factura en el portal del SIN</p>
-              {orden.facturaNro && <p className="text-[10px] font-mono text-[#9996b0] mt-1">{orden.facturaNro}</p>}
+              <p className="text-[10px] font-bold text-[#7A7571] uppercase tracking-widest mb-1">Código QR</p>
+              <p className="text-xs text-[#7A7571]">Verifique su factura en el portal del SIN</p>
+              {orden.facturaNro && <p className="text-[10px] font-mono text-[#7A7571] mt-1">{orden.facturaNro}</p>}
             </div>
           </div>
         )}
@@ -1924,16 +1947,16 @@ export function CajaPage() {
 
   return (
     <MainLayout>
-      <div className="flex flex-col h-screen overflow-hidden bg-[#f1f5f9]">
-        <header className="bg-[#f1f5f9] sticky top-0 z-40 border-b border-[#e2e8f0] px-7 py-3 shrink-0">
+      <div className="flex flex-col h-screen overflow-hidden bg-[#F7F7F7]">
+        <header className="bg-[#F7F7F7]/85 backdrop-blur-md sticky top-0 z-40 border-b border-[#E8E5E2] px-7 py-3 shrink-0">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h1 className="font-black text-[24px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>Caja</h1>
-              <p className="text-xs text-[#9996b0] font-semibold mt-0.5">{new Date().toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+              <h1 className="font-semibold text-[24px] text-[#2D2B2A] leading-none tracking-[-0.022em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>Caja</h1>
+              <p className="text-xs text-[#7A7571] font-medium mt-0.5">{new Date().toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
             </div>
             <div className="flex items-center gap-2">
-              <div className={clsx('h-2 w-2 rounded-full', isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400')} title={isConnected ? 'Conectado' : 'Reconectando...'} />
-              <span className="text-xs text-[#9996b0]">{user?.nombre}</span>
+              <div className={clsx('h-2 w-2 rounded-full', isConnected ? 'bg-[#3F7A52] animate-pulse' : 'bg-[#B47A1F]')} title={isConnected ? 'Conectado' : 'Reconectando...'} />
+              <span className="text-xs text-[#7A7571]">{user?.nombre}</span>
             </div>
           </div>
           <button
@@ -1942,32 +1965,30 @@ export function CajaPage() {
             className={clsx(
               'w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold',
               listosCount > 0
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                : 'bg-[#f1f5f9] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9]'
+                ? 'bg-[#B8DCCA] border-[#3F7A52]/30 text-[#1E5C38]'
+                : 'bg-white border-[#D8D4D0] text-[#4A4744] hover:bg-[#F7F7F7]'
             )}
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
+            <i className="ti ti-clipboard-list text-[15px]" />
             Órdenes
             {misOrdenes.length > 0 && (
               <span className={clsx(
                 'inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full text-[10px] font-black',
-                listosCount > 0 ? 'bg-emerald-500 text-white' : 'bg-[#9996b0] text-white'
+                listosCount > 0 ? 'bg-[#3F7A52] text-white' : 'bg-[#7A7571] text-white'
               )}>
                 {misOrdenes.length}
               </span>
             )}
-            {listosCount > 0 && <span className="text-[10px] font-normal text-emerald-600">({listosCount} listas)</span>}
+            {listosCount > 0 && <span className="text-[10px] font-normal text-[#3F7A52]">({listosCount} listas)</span>}
           </button>
         </header>
 
         <div className="flex-1 overflow-hidden flex flex-col p-4 gap-4">
           <div className="flex-1 grid grid-cols-[1fr_380px] gap-4 overflow-hidden min-h-0">
-            <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] overflow-hidden flex flex-col">
+            <div className="bg-white rounded-2xl border border-[#D0CBC4] overflow-hidden flex flex-col">
               <ProductSearch onSelectProducto={addToCart} cart={cart} onDecrementProducto={handleDecrementProducto} />
             </div>
-            <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] overflow-hidden flex flex-col">
+            <div className="bg-white rounded-2xl border border-[#D0CBC4] overflow-hidden flex flex-col">
               <CartPanel
                 cart={cart}
                 productosCache={productosCache}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useMarcasStore } from '@/stores/marcasStore'
 import { MainLayout } from '@/components/layout/MainLayout'
-import { Input, ConfirmModal } from '@/components/ui'
+import { ConfirmModal } from '@/components/ui'
 import type { Marca } from '@/types'
 import { notify } from '@/lib/notify'
 import { clsx } from 'clsx'
@@ -87,13 +87,13 @@ export function MarcasPage() {
   if (user?.rol !== 'admin') {
     return (
       <MainLayout>
-        <div className="bg-[#f1f5f9] min-h-screen flex items-center justify-center">
-          <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] p-10 flex flex-col items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-[#fee2e2] border-[1.5px] border-[#fca5a5] flex items-center justify-center">
-              <i className="ti ti-lock text-[#dc2626] text-xl" />
+        <div className="bg-[#F7F7F7] min-h-screen flex items-center justify-center">
+          <div className="bg-white rounded-xl border border-[#D0CBC4] p-10 flex flex-col items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-[#F5C9C0] border border-[#D45040] flex items-center justify-center">
+              <i className="ti ti-lock text-[#8A1E12] text-xl" />
             </div>
-            <p className="text-sm font-bold text-[#1e1b2e]">Acceso restringido</p>
-            <p className="text-xs text-[#9996b0] font-semibold">No tienes permisos para esta sección</p>
+            <p className="text-sm font-semibold text-[#2D2B2A]">Acceso restringido</p>
+            <p className="text-xs text-[#7A7571]">No tienes permisos para esta sección</p>
           </div>
         </div>
       </MainLayout>
@@ -102,20 +102,20 @@ export function MarcasPage() {
 
   return (
     <MainLayout>
-      <div className="bg-[#f1f5f9] min-h-screen">
+      <div className="bg-[#F7F7F7] min-h-screen">
 
         {/* TopBar */}
-        <header className="bg-[#f1f5f9] sticky top-0 z-40 flex justify-between items-center w-full h-[62px] px-7 border-b border-[#e2e8f0]">
-          <div className="flex items-center gap-2 text-sm text-[#9996b0] font-semibold">
+        <header className="bg-[#F7F7F7] sticky top-0 z-40 flex justify-between items-center w-full h-[62px] px-7 border-b border-[#D0CBC4]">
+          <div className="flex items-center gap-2 text-sm text-[#7A7571] font-semibold">
             <span>Sistema</span>
             <span className="text-[10px] opacity-40">/</span>
-            <strong className="text-[#1e1b2e] font-bold">Marcas</strong>
+            <strong className="text-[#2D2B2A] font-bold">Marcas</strong>
           </div>
           <div className="flex items-center gap-1.5">
-            <button className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] transition-colors">
+            <button className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border border-[#D0CBC4] text-[#4A4744] hover:bg-[#F5F0EB] transition-colors">
               <i className="ti ti-bell text-[18px]" />
             </button>
-            <button className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] transition-colors">
+            <button className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border border-[#D0CBC4] text-[#4A4744] hover:bg-[#F5F0EB] transition-colors">
               <i className="ti ti-settings text-[18px]" />
             </button>
           </div>
@@ -127,23 +127,26 @@ export function MarcasPage() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div className="flex items-center gap-3.5">
               <div
-                className="w-12 h-12 bg-gradient-to-br from-[#059669] to-[#0284c7] rounded-2xl flex items-center justify-center text-white shrink-0"
-                style={{ boxShadow: '0 6px 18px rgba(5,150,105,0.28)' }}
+                className="w-12 h-12 bg-gradient-to-br from-[#780e18] to-[#D4A333] rounded-2xl flex items-center justify-center text-white shrink-0"
+                style={{ boxShadow: '0 6px 18px rgba(120,14,24,0.28)' }}
               >
                 <i className="ti ti-tag text-2xl" />
               </div>
               <div>
-                <h2 className="font-black text-[34px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                <h2
+                  className="font-semibold text-[30px] text-[#2D2B2A] leading-none"
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                >
                   Marcas
                 </h2>
-                <p className="text-sm text-[#9996b0] font-semibold mt-0.5">
+                <p className="text-[13.5px] text-[#7A7571] mt-1.5">
                   Administración de marcas de productos
                 </p>
               </div>
             </div>
             <button
               onClick={handleOpenNew}
-              className="px-[18px] py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white rounded-xl flex items-center justify-center gap-1.5 text-sm font-bold active:scale-95 transition-all shadow-md w-full md:w-auto"
+              className="px-[18px] py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold active:scale-95 transition-all shadow-sm w-full md:w-auto"
             >
               <i className="ti ti-plus text-base" />
               Nueva marca
@@ -151,20 +154,20 @@ export function MarcasPage() {
           </div>
 
           {/* Table container */}
-          <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] overflow-hidden">
+          <div className="bg-white rounded-xl border border-[#D0CBC4] overflow-hidden">
 
             {/* Toolbar */}
-            <div className="px-5 py-[18px] border-b border-[#e2e8f0] flex flex-wrap justify-between items-center gap-3">
-              <h3 className="text-lg font-extrabold text-[#1e1b2e] flex items-center gap-2" style={{ fontFamily: 'Nunito, sans-serif' }}>
-                Lista
-                <span className="bg-[#dbeafe] text-[#1d4ed8] text-xs font-bold px-2.5 py-0.5 rounded-full">
+            <div className="px-[22px] py-[18px] border-b border-[#D0CBC4] flex flex-wrap justify-between items-center gap-3">
+              <h3 className="text-[15px] font-semibold text-[#2D2B2A] flex items-center gap-2">
+                Lista de marcas
+                <span className="bg-[#F5E8D4] text-[#780e18] text-[11px] font-semibold px-2 py-0.5 rounded-full">
                   {filtered.length}
                 </span>
               </h3>
-              <div className="flex items-center gap-2 bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] rounded-xl px-3.5 w-full sm:w-auto sm:min-w-[250px] focus-within:border-[#1d4ed8] transition-colors">
-                <i className="ti ti-search text-[#9996b0] text-base shrink-0" />
+              <div className="flex items-center gap-2 bg-[#F5F0EB] border border-[#D0CBC4] rounded-lg px-3.5 w-full sm:w-auto sm:min-w-[250px] focus-within:border-[#780e18] transition-colors">
+                <i className="ti ti-search text-[#7A7571] text-base shrink-0" />
                 <input
-                  className="flex-1 py-2 bg-transparent text-sm text-[#1e1b2e] font-semibold placeholder:text-[#9996b0] outline-none border-none"
+                  className="flex-1 py-2 bg-transparent text-sm text-[#2D2B2A] placeholder:text-[#7A7571] outline-none border-none"
                   placeholder="Buscar por nombre…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -177,48 +180,48 @@ export function MarcasPage() {
               <EmptyState onNew={handleOpenNew} />
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 px-5">
-                <i className="ti ti-search-off text-[#9996b0] text-3xl mb-3" />
-                <p className="text-sm font-bold text-[#1e1b2e] mb-1">Sin resultados</p>
-                <p className="text-xs text-[#9996b0] font-semibold">No hay marcas que coincidan con "{search}"</p>
+                <i className="ti ti-search-off text-[#7A7571] text-3xl mb-3" />
+                <p className="text-sm font-semibold text-[#2D2B2A] mb-1">Sin resultados</p>
+                <p className="text-xs text-[#7A7571]">No hay marcas que coincidan con "{search}"</p>
               </div>
             ) : (
               <table className="w-full">
-                <thead className="bg-[#f1f5f9]">
-                  <tr className="border-b border-[#e2e8f0]">
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-[#9996b0] uppercase tracking-wide w-28">Prefijo</th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-[#9996b0] uppercase tracking-wide">Nombre</th>
-                    <th className="px-5 py-3 text-right text-[11px] font-bold text-[#9996b0] uppercase tracking-wide">Acciones</th>
+                <thead>
+                  <tr className="bg-[#F5F0EB] border-b border-[#D0CBC4]">
+                    <th className="px-5 py-[11px] text-left text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.12em] w-28">Prefijo</th>
+                    <th className="px-5 py-[11px] text-left text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.12em]">Nombre</th>
+                    <th className="px-5 py-[11px] text-right text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.12em]">Acciones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#e2e8f0]">
+                <tbody className="divide-y divide-[#E8E5E2]">
                   {filtered.map((m) => (
-                    <tr key={m.id} className="hover:bg-[#faf9ff] transition-colors">
-                      <td className="px-5 py-3.5">
-                        <span className="font-mono text-xs font-bold text-[#5a5670] bg-[#f1f5f9] border border-[#e2e8f0] px-2 py-0.5 rounded-md">
+                    <tr key={m.id} className="hover:bg-[#FAF5EE] transition-colors">
+                      <td className="px-5 py-[14px]">
+                        <span className="font-mono text-xs font-semibold text-[#4A4744] bg-[#F5F0EB] border border-[#D0CBC4] px-2 py-0.5 rounded-md">
                           {m.prefijo}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-5 py-[14px]">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-lg bg-[#dbeafe] flex items-center justify-center shrink-0">
-                            <i className="ti ti-tag text-[#1d4ed8] text-[13px]" />
+                          <div className="w-7 h-7 rounded-lg bg-[#F5E8D4] flex items-center justify-center shrink-0">
+                            <i className="ti ti-tag text-[#780e18] text-[13px]" />
                           </div>
-                          <span className="font-bold text-[13px] text-[#1e1b2e]">{m.nombre}</span>
+                          <span className="font-semibold text-[13px] text-[#2D2B2A]">{m.nombre}</span>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-5 py-[14px]">
                         <div className="flex justify-end gap-1.5">
                           <button
                             onClick={() => handleOpenEdit(m)}
                             title="Editar"
-                            className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#dbeafe] hover:text-[#1d4ed8] hover:border-[#1d4ed8] transition-all"
+                            className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#E8D4B8] hover:text-[#780e18] hover:border-[#780e18] transition-all"
                           >
                             <i className="ti ti-edit text-[15px]" />
                           </button>
                           <button
                             onClick={() => setDeleteTarget(m)}
                             title="Eliminar"
-                            className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#fee2e2] hover:text-[#dc2626] hover:border-[#dc2626] transition-all"
+                            className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#F5C9C0] hover:text-[#8A1E12] hover:border-[#D45040] transition-all"
                           >
                             <i className="ti ti-trash text-[15px]" />
                           </button>
@@ -233,8 +236,7 @@ export function MarcasPage() {
         </div>
       </div>
 
-      {/* Form Modal */}
-      <FormModal
+      <FormDrawer
         open={formOpen}
         onClose={() => { setFormOpen(false); setEditingMarca(null); setFormNombre('') }}
         nombre={formNombre}
@@ -242,9 +244,9 @@ export function MarcasPage() {
         onSave={handleSave}
         saving={saving}
         editing={!!editingMarca}
+        editingNombre={editingMarca?.nombre}
       />
 
-      {/* Delete Confirm */}
       <ConfirmModal
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
@@ -259,16 +261,16 @@ export function MarcasPage() {
 function EmptyState({ onNew }: { onNew: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-5 text-center">
-      <div className="w-12 h-12 rounded-xl bg-white border-[1.5px] border-[#e2e8f0] flex items-center justify-center mb-4">
-        <i className="ti ti-tag text-[#9996b0] text-xl" />
+      <div className="w-12 h-12 rounded-xl bg-white border border-[#D0CBC4] flex items-center justify-center mb-4">
+        <i className="ti ti-tag text-[#7A7571] text-xl" />
       </div>
-      <p className="text-sm font-bold text-[#1e1b2e] mb-1">Sin marcas registradas</p>
-      <p className="text-xs text-[#9996b0] font-semibold max-w-xs mb-5">
+      <p className="text-sm font-semibold text-[#2D2B2A] mb-1">Sin marcas registradas</p>
+      <p className="text-xs text-[#7A7571] max-w-xs mb-5">
         Crea tu primera marca para organizar tus productos
       </p>
       <button
         onClick={onNew}
-        className="px-5 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white rounded-xl flex items-center gap-2 text-sm font-bold transition-all shadow-md"
+        className="px-5 py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-lg flex items-center gap-2 text-sm font-semibold transition-all shadow-sm"
       >
         <i className="ti ti-plus text-base" />
         Nueva marca
@@ -277,8 +279,8 @@ function EmptyState({ onNew }: { onNew: () => void }) {
   )
 }
 
-function FormModal({
-  open, onClose, nombre, setNombre, onSave, saving, editing,
+function FormDrawer({
+  open, onClose, nombre, setNombre, onSave, saving, editing, editingNombre,
 }: {
   open: boolean
   onClose: () => void
@@ -287,44 +289,93 @@ function FormModal({
   onSave: () => void
   saving: boolean
   editing: boolean
+  editingNombre?: string
 }) {
   return (
-    <div className={clsx(!open && 'hidden', 'fixed inset-0 z-50 flex items-center justify-center p-4')}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-sm bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] shadow-2xl p-6">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#059669] to-[#0284c7] flex items-center justify-center text-white shrink-0">
-            <i className="ti ti-tag text-[17px]" />
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-50 transition-opacity duration-200"
+        style={{
+          background: 'rgba(45,43,42,0.45)',
+          backdropFilter: 'blur(4px)',
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? 'auto' : 'none',
+        }}
+        onClick={onClose}
+      />
+
+      {/* Drawer */}
+      <div
+        className={clsx(
+          'fixed z-[60] bg-white flex flex-col',
+          'bottom-0 left-0 right-0 max-h-[70vh] rounded-t-2xl',
+          'sm:top-0 sm:right-0 sm:bottom-0 sm:left-auto sm:max-h-none sm:w-[440px] sm:rounded-none',
+          'border-t border-[#E8E5E2] sm:border-t-0 sm:border-l',
+          open
+            ? 'translate-y-0 sm:translate-x-0'
+            : 'translate-y-full sm:translate-y-0 sm:translate-x-full',
+          'transition-transform duration-[280ms]',
+        )}
+        style={{ boxShadow: '-24px 0 40px -20px rgba(30,27,46,0.18)' }}
+      >
+        {/* Accent stripe */}
+        <div className="h-[3px] bg-gradient-to-r from-[#780e18] to-[#D4A333] shrink-0" />
+
+        {/* Header */}
+        <div className="px-6 pt-5 pb-[18px] border-b border-[#E8E5E2] flex items-center justify-between gap-3 shrink-0 bg-[#FBFAF7]">
+          <div>
+            <div className="text-[10.5px] uppercase tracking-[0.12em] text-[#7A7571] font-semibold mb-1">
+              {editing ? 'Editar marca' : 'Nueva marca'}
+            </div>
+            <h2
+              className="text-[20px] font-semibold text-[#2D2B2A] leading-tight"
+              style={{ fontFamily: "'DM Sans', sans-serif" }}
+            >
+              {editing ? (editingNombre ?? 'Editar') : 'Registrar marca'}
+            </h2>
           </div>
-          <h2 className="text-base font-black text-[#1e1b2e]" style={{ fontFamily: 'Nunito, sans-serif' }}>
-            {editing ? 'Editar marca' : 'Nueva marca'}
-          </h2>
-        </div>
-        <Input
-          label="Nombre"
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-          placeholder="Ej: Bosch, NGK, Continental…"
-          onKeyDown={(e) => { if (e.key === 'Enter') onSave() }}
-          autoFocus
-        />
-        <div className="flex justify-end gap-2 mt-5">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm font-bold text-[#5a5670] bg-white border-[1.5px] border-[#e2e8f0] hover:bg-[#f1f5f9] transition-colors"
+            className="p-1.5 rounded-xl text-[#7A7571] hover:text-[#2D2B2A] hover:bg-[#F0EFEC] transition-colors shrink-0"
+          >
+            <i className="ti ti-x text-[20px]" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 bg-[#F7F7F7]">
+          <label className="text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.1em] block mb-1.5">
+            Nombre <span className="text-[#B23A2A]">*</span>
+          </label>
+          <input
+            className="w-full bg-white border border-[#D0CBC4] rounded-lg px-3 py-2 text-[13px] text-[#2D2B2A] placeholder:text-[#7A7571] focus:outline-none focus:ring-2 focus:ring-[#780e18]/20 focus:border-[#780e18] transition-colors"
+            placeholder="Ej: Bosch, NGK, Continental…"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') onSave() }}
+            autoFocus={open}
+          />
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-[#E8E5E2] flex justify-end gap-2.5 shrink-0 bg-white">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg border border-[#D0CBC4] text-[13px] text-[#4A4744] font-semibold hover:bg-[#F5F0EB] transition-colors"
           >
             Cancelar
           </button>
           <button
             onClick={onSave}
             disabled={saving}
-            className="px-4 py-2 rounded-xl text-sm font-bold text-white bg-[#1d4ed8] hover:bg-[#1e40af] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1.5"
+            className="px-5 py-2 rounded-lg bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] text-[13px] font-semibold transition-colors disabled:opacity-50 active:scale-95 flex items-center gap-1.5"
           >
-            {saving && <i className="ti ti-loader-2 animate-spin text-[15px]" />}
+            {saving && <i className="ti ti-loader-2 animate-spin text-[14px]" />}
             {editing ? 'Guardar cambios' : 'Crear marca'}
           </button>
         </div>
       </div>
-    </div>
+    </>
   )
 }

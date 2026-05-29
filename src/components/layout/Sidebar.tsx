@@ -48,7 +48,7 @@ const groups: NavGroup[] = [
     label: 'Ventas',
     icon: <i className="ti ti-receipt text-[16px] shrink-0" />,
     items: [
-      { label: 'Caja',     to: '/ventas/caja',     roles: ['admin', 'cajero'] },
+      { label: 'Punto de Venta',     to: '/ventas/punto-de-venta',     roles: ['admin', 'cajero'] },
       { label: 'Almacén',  to: '/ventas/almacen',  roles: ['admin', 'almacenero'] },
       { label: 'Escaneo',  to: '/ventas/escaneo',  roles: ['admin', 'cajero'] },
       { label: 'Clientes', to: '/ventas/clientes', roles: ['admin', 'cajero'] },

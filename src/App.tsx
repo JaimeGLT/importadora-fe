@@ -60,7 +60,7 @@ export default function App() {
           <Route path="/importaciones/marcas" element={<MarcasPageImportaciones />} />
           <Route path="/importaciones/extractor" element={<FacturaExtractorPage />} />
           <Route path="/caja" element={<CajaDiariaPage />} />
-          <Route path="/ventas/caja" element={<CajaPage />} />
+          <Route path="/ventas/punto-de-venta" element={<CajaPage />} />
           <Route path="/ventas/almacen" element={<AlmacenPage />} />
           <Route path="/ventas/escaneo" element={<EscaneoPage />} />
           <Route path="/configuracion" element={<ConfiguracionPage />} />

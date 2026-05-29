@@ -24,9 +24,9 @@ const CATEGORIA_LABELS: Record<MovimientoCaja['categoria'], string> = {
 }
 
 const TIPO_PAGO_CONFIG: Record<MovimientoCaja['tipoPago'], { label: string; style: string }> = {
-  Efectivo: { label: 'Efectivo', style: 'bg-[#f1f5f9] text-[#5a5670]' },
-  QR:       { label: 'QR',       style: 'bg-[#ede9fe] text-[#7c3aed]' },
-  Tarjeta:  { label: 'Tarjeta',  style: 'bg-[#dbeafe] text-[#1d4ed8]' },
+  Efectivo: { label: 'Efectivo', style: 'bg-[#F0EFEC] text-[#4A4744]' },
+  QR:       { label: 'QR',       style: 'bg-[#F4ECDB] text-[#780e18]' },
+  Tarjeta:  { label: 'Tarjeta',  style: 'bg-[#E8D4B8] text-[#780e18]' },
 }
 
 type TipoBackend = 'ingreso' | 'egreso'
@@ -35,30 +35,30 @@ type TipoBackend = 'ingreso' | 'egreso'
 
 function CajaTopBar({ dateStr }: { dateStr: string }) {
   return (
-    <header className="bg-[#f1f5f9] sticky top-0 z-40 flex justify-between items-center w-full h-[62px] px-7 border-b border-[#e2e8f0]">
-      <div className="flex items-center gap-2 text-sm text-[#9996b0] font-semibold">
+    <header className="bg-[#F7F7F7]/85 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full h-[62px] px-7 border-b border-[#E8E5E2]">
+      <div className="flex items-center gap-2 text-sm text-[#7A7571]">
         <span>Operaciones</span>
         <span className="text-[10px] opacity-40">/</span>
-        <strong className="text-[#1e1b2e] font-bold">Caja</strong>
+        <strong className="text-[#2D2B2A] font-semibold">Caja</strong>
       </div>
       <div className="flex items-center gap-2.5">
-        <div className="hidden sm:flex bg-white px-3.5 py-1.5 rounded-xl items-center gap-2 border-[1.5px] border-[#e2e8f0]">
-          <i className="ti ti-calendar text-[#9996b0] text-[15px]" />
-          <span className="text-xs font-semibold text-[#5a5670]">{dateStr}</span>
+        <div className="hidden sm:flex bg-white px-3.5 py-1.5 rounded-lg items-center gap-2 border border-[#D8D4D0]">
+          <i className="ti ti-calendar text-[#7A7571] text-[15px]" />
+          <span className="text-xs text-[#4A4744]">{dateStr}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <button
-            className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] transition-colors relative"
+            className="w-[34px] h-[34px] flex items-center justify-center rounded-full bg-white border border-[#D8D4D0] text-[#4A4744] hover:bg-[#F7F7F7] transition-colors relative"
             title="Notificaciones"
           >
-            <i className="ti ti-bell text-[18px]" />
-            <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#dc2626]" />
+            <i className="ti ti-bell text-[15px]" />
+            <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#B23A2A]" />
           </button>
           <button
-            className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] transition-colors"
+            className="w-[34px] h-[34px] flex items-center justify-center rounded-full bg-white border border-[#D8D4D0] text-[#4A4744] hover:bg-[#F7F7F7] transition-colors"
             title="Configuración"
           >
-            <i className="ti ti-settings text-[18px]" />
+            <i className="ti ti-settings text-[15px]" />
           </button>
         </div>
       </div>
@@ -71,50 +71,38 @@ function CajaTopBar({ dateStr }: { dateStr: string }) {
 interface CajaMetricCardProps {
   label: string
   value: string
-  sublabel: string
-  iconClass: string
-  gradFrom: string
-  gradTo: string
+  accentColor: string
+  badgeText: string
   badgeBg: string
   badgeColor: string
-  badgeText: string
-  badgeIcon: string
-  highlight?: boolean
   highlightColor?: string
 }
 
 function CajaMetricCard({
-  label, value, sublabel: _sublabel, iconClass, gradFrom, gradTo,
-  badgeBg, badgeColor, badgeText, badgeIcon, highlight, highlightColor,
+  label, value, accentColor, badgeText, badgeBg, badgeColor, highlightColor,
 }: CajaMetricCardProps) {
   return (
-    <div className={clsx(
-      'rounded-2xl border-[1.5px] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200',
-      highlight ? 'border-[1.5px]' : 'bg-white border-[#e2e8f0]',
-    )}
-      style={highlight ? { background: `${gradFrom}08`, borderColor: `${gradFrom}40` } : {}}
+    <div
+      className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
+      style={{ borderLeftColor: accentColor }}
     >
-      <div className="absolute -top-5 -right-5 w-20 h-20 rounded-full opacity-10" style={{ background: gradFrom }} />
-      <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center text-white mb-3.5"
-        style={{ background: `linear-gradient(135deg, ${gradFrom}, ${gradTo})` }}
-      >
-        <i className={`${iconClass} text-xl`} />
+      <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full opacity-[0.06]" style={{ background: accentColor }} />
+      <div className="flex items-start justify-between mb-[14px]">
+        <div />
+        <span
+          className="inline-flex items-center text-[10.5px] font-semibold px-2 py-0.5 rounded-full"
+          style={{ background: badgeBg, color: badgeColor }}
+        >
+          {badgeText}
+        </span>
       </div>
       <div
-        className="font-black text-[26px] text-[#1e1b2e] leading-none"
-        style={{ fontFamily: 'Nunito, sans-serif', color: highlight ? highlightColor : undefined }}
+        className="font-semibold text-[32px] leading-none tracking-[-0.025em]"
+        style={{ fontFamily: "'DM Sans', sans-serif", color: highlightColor ?? '#2D2B2A' }}
       >
-        {value} <span className="text-sm font-bold text-[#9996b0]">Bs.</span>
+        {value} <span className="text-sm font-semibold text-[#7A7571]">Bs.</span>
       </div>
-      <div className="text-xs font-semibold text-[#9996b0] mt-1">{label}</div>
-      <div
-        className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full mt-2"
-        style={{ background: badgeBg, color: badgeColor }}
-      >
-        <i className={`${badgeIcon} text-[11px]`} />
-        {badgeText}
-      </div>
+      <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">{label}</div>
     </div>
   )
 }
@@ -123,13 +111,14 @@ function CajaMetricCard({
 
 function MetricsSkeleton() {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-[14px] mb-[22px]">
       {[1, 2, 3, 4].map(i => (
-        <div key={i} className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] p-5 animate-pulse">
-          <div className="w-10 h-10 rounded-xl bg-[#f1f5f9] mb-3.5" />
-          <div className="h-7 w-28 rounded bg-[#f1f5f9] mb-2" />
-          <div className="h-3 w-20 rounded bg-[#e2e8f0] mb-2" />
-          <div className="h-5 w-16 rounded-full bg-[#f1f5f9]" />
+        <div key={i} className="bg-white rounded-xl border border-[#D0CBC4] p-[18px] animate-pulse">
+          <div className="flex justify-end mb-[14px]">
+            <div className="h-5 w-16 rounded-full bg-[#F0EFEC]" />
+          </div>
+          <div className="h-8 w-28 rounded bg-[#F0EFEC] mb-2" />
+          <div className="h-3 w-20 rounded bg-[#E8E5E2]" />
         </div>
       ))}
     </div>
@@ -141,7 +130,7 @@ function MetricsSkeleton() {
 function PagoBadge({ tipo_pago }: { tipo_pago: MovimientoCaja['tipoPago'] }) {
   const cfg = TIPO_PAGO_CONFIG[tipo_pago]
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${cfg.style}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide ${cfg.style}`}>
       {cfg.label}
     </span>
   )
@@ -150,10 +139,10 @@ function PagoBadge({ tipo_pago }: { tipo_pago: MovimientoCaja['tipoPago'] }) {
 function TipoBadge({ tipo }: { tipo: MovimientoCaja['tipo'] }) {
   return (
     <span className={clsx(
-      'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide',
-      tipo === 'Ingreso' ? 'bg-[#d1fae5] text-[#059669]' : 'bg-[#fee2e2] text-[#dc2626]',
+      'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide',
+      tipo === 'Ingreso' ? 'bg-[#B8DCCA] text-[#1E5C38]' : 'bg-[#F5C9C0] text-[#8A1E12]',
     )}>
-      <span className={clsx('h-1.5 w-1.5 rounded-full', tipo === 'Ingreso' ? 'bg-[#059669]' : 'bg-[#dc2626]')} />
+      <span className={clsx('h-1.5 w-1.5 rounded-full', tipo === 'Ingreso' ? 'bg-[#3F7A52]' : 'bg-[#B23A2A]')} />
       {tipo === 'Ingreso' ? 'Ingreso' : 'Egreso'}
     </span>
   )
@@ -209,23 +198,23 @@ function MovimientoModal({ tipo, onClose, onSave }: MovimientoModalProps) {
     <Modal open onClose={onClose} title={isIngreso ? 'Registrar ingreso' : 'Registrar egreso'}>
       <form onSubmit={handleSubmit} className="space-y-4 pt-1">
         <div className={clsx(
-          'flex items-center gap-3 p-3 rounded-xl border-[1.5px]',
-          isIngreso ? 'bg-[#d1fae5]/30 border-[#6ee7b7]/50' : 'bg-[#fee2e2]/30 border-[#fca5a5]/50',
+          'flex items-center gap-3 p-3 rounded-xl border',
+          isIngreso ? 'bg-[#B8DCCA]/20 border-[#6BAF80]/50' : 'bg-[#F5C9C0]/20 border-[#D45040]/50',
         )}>
           <div className={clsx(
             'h-8 w-8 rounded-lg flex items-center justify-center shrink-0',
-            isIngreso ? 'bg-[#059669]' : 'bg-[#dc2626]',
+            isIngreso ? 'bg-[#3F7A52]' : 'bg-[#B23A2A]',
           )}>
             <i className={clsx('text-white text-[17px]', isIngreso ? 'ti ti-plus' : 'ti ti-minus')} />
           </div>
           <div>
             <p className={clsx(
               'text-xs font-bold uppercase tracking-wide',
-              isIngreso ? 'text-[#059669]' : 'text-[#dc2626]',
+              isIngreso ? 'text-[#1E5C38]' : 'text-[#8A1E12]',
             )}>
               {isIngreso ? 'Entrada de dinero' : 'Salida de dinero'}
             </p>
-            <p className="text-[11px] text-[#9996b0] font-semibold">
+            <p className="text-[11px] text-[#7A7571] font-medium">
               {tipoPago !== 'Efectivo' ? 'No afecta el efectivo físico en caja' : 'Afecta el efectivo físico en caja'}
             </p>
           </div>
@@ -233,25 +222,25 @@ function MovimientoModal({ tipo, onClose, onSave }: MovimientoModalProps) {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-bold text-[#5a5670] uppercase tracking-wide mb-1.5">Categoría</label>
+            <label className="block text-xs font-semibold text-[#2D2B2A] uppercase tracking-wide mb-1.5">Categoría</label>
             <Select value={categoria} options={categorias}
               onChange={e => setCategoria(e.target.value as MovimientoCaja['categoria'])} />
           </div>
           <div>
-            <label className="block text-xs font-bold text-[#5a5670] uppercase tracking-wide mb-1.5">Tipo de pago</label>
+            <label className="block text-xs font-semibold text-[#2D2B2A] uppercase tracking-wide mb-1.5">Tipo de pago</label>
             <Select value={tipoPago} options={tiposPago}
               onChange={e => setTipoPago(e.target.value as MovimientoCaja['tipoPago'])} />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-[#5a5670] uppercase tracking-wide mb-1.5">Monto (Bs)</label>
+          <label className="block text-xs font-semibold text-[#2D2B2A] uppercase tracking-wide mb-1.5">Monto (Bs)</label>
           <Input type="number" min="0.01" step="0.01" placeholder="0.00"
             value={monto} onChange={e => setMonto(e.target.value)} autoFocus />
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-[#5a5670] uppercase tracking-wide mb-1.5">Motivo</label>
+          <label className="block text-xs font-semibold text-[#2D2B2A] uppercase tracking-wide mb-1.5">Motivo</label>
           <Input type="text"
             placeholder={isIngreso ? 'Ej: Venta contado cliente Pérez' : 'Ej: Pago proveedor materiales'}
             value={motivo} onChange={e => setMotivo(e.target.value)} maxLength={120} />
@@ -300,16 +289,16 @@ function CierreCajaModal({ efectivoEsperado, onClose, onConfirm }: CierreCajaMod
   return (
     <Modal open onClose={onClose} title="Cierre de caja">
       <form onSubmit={handleConfirm} className="space-y-5 pt-1">
-        <div className="p-4 rounded-xl bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0]">
-          <p className="text-[11px] font-bold text-[#9996b0] uppercase tracking-wide mb-1">Efectivo esperado en caja</p>
-          <p className="text-2xl font-black tabular-nums text-[#1e1b2e]" style={{ fontFamily: 'Nunito, sans-serif' }}>
+        <div className="p-4 rounded-xl bg-[#F7F7F7] border border-[#D0CBC4]">
+          <p className="text-[11px] font-semibold text-[#7A7571] uppercase tracking-wide mb-1">Efectivo esperado en caja</p>
+          <p className="text-2xl font-semibold tabular-nums text-[#2D2B2A]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
             {efectivoEsperado.toFixed(2)} Bs.
           </p>
-          <p className="text-[11px] text-[#9996b0] font-semibold mt-1">Calculado solo con movimientos en efectivo</p>
+          <p className="text-[11px] text-[#7A7571] font-medium mt-1">Calculado solo con movimientos en efectivo</p>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-[#5a5670] uppercase tracking-wide mb-1.5">
+          <label className="block text-xs font-semibold text-[#2D2B2A] uppercase tracking-wide mb-1.5">
             Monto que contaste físicamente (Bs)
           </label>
           <Input type="number" min="0" step="0.01" placeholder="0.00"
@@ -318,21 +307,21 @@ function CierreCajaModal({ efectivoEsperado, onClose, onConfirm }: CierreCajaMod
 
         {contadoValido && diferencia !== null && (
           <div className={clsx(
-            'flex items-center justify-between p-4 rounded-xl border-[1.5px]',
+            'flex items-center justify-between p-4 rounded-xl border',
             diferencia === 0
-              ? 'bg-[#d1fae5]/30 border-[#6ee7b7]/50'
+              ? 'bg-[#B8DCCA]/20 border-[#3F7A52]/30'
               : esSobrante
-                ? 'bg-[#dbeafe]/30 border-[#93c5fd]/50'
-                : 'bg-[#fee2e2]/30 border-[#fca5a5]/50',
+                ? 'bg-[#F4ECDB]/20 border-[#D4A333]/50'
+                : 'bg-[#F5C9C0]/20 border-[#B23A2A]/30',
           )}>
             <div>
               <p className={clsx(
                 'text-[11px] font-bold uppercase tracking-wide',
-                diferencia === 0 ? 'text-[#059669]' : esSobrante ? 'text-[#1d4ed8]' : 'text-[#dc2626]',
+                diferencia === 0 ? 'text-[#1E5C38]' : esSobrante ? 'text-[#7A5200]' : 'text-[#8A1E12]',
               )}>
                 {diferencia === 0 ? 'Cuadrado' : esSobrante ? 'Sobrante' : 'Faltante'}
               </p>
-              <p className="text-xs text-[#9996b0] font-semibold mt-0.5">
+              <p className="text-xs text-[#7A7571] font-medium mt-0.5">
                 {diferencia === 0
                   ? 'El monto coincide con el sistema'
                   : esSobrante
@@ -341,9 +330,9 @@ function CierreCajaModal({ efectivoEsperado, onClose, onConfirm }: CierreCajaMod
               </p>
             </div>
             <p className={clsx(
-              'text-xl font-black tabular-nums',
-              diferencia === 0 ? 'text-[#059669]' : esSobrante ? 'text-[#1d4ed8]' : 'text-[#dc2626]',
-            )}>
+              'text-xl font-semibold tabular-nums',
+              diferencia === 0 ? 'text-[#1E5C38]' : esSobrante ? 'text-[#7A5200]' : 'text-[#8A1E12]',
+            )} style={{ fontFamily: "'DM Sans', sans-serif" }}>
               {diferencia > 0 ? '+' : ''}{diferencia.toFixed(2)} Bs.
             </p>
           </div>
@@ -351,18 +340,18 @@ function CierreCajaModal({ efectivoEsperado, onClose, onConfirm }: CierreCajaMod
 
         {esFaltante && (
           <div>
-            <label className="block text-xs font-bold text-[#dc2626] uppercase tracking-wide mb-1.5">
+            <label className="block text-xs font-bold text-[#8A1E12] uppercase tracking-wide mb-1.5">
               Justificación del faltante *
             </label>
             <Input type="text" placeholder="Ej: Billete falso, error de vuelto, robo..."
               value={justificacion} onChange={e => setJustificacion(e.target.value)} maxLength={200} />
-            <p className="text-[10px] text-[#9996b0] font-semibold mt-1">Campo obligatorio cuando hay faltante.</p>
+            <p className="text-[10px] text-[#7A7571] font-medium mt-1">Campo obligatorio cuando hay faltante.</p>
           </div>
         )}
 
         {contadoValido && !esFaltante && (
           <div>
-            <label className="block text-xs font-bold text-[#5a5670] uppercase tracking-wide mb-1.5">
+            <label className="block text-xs font-semibold text-[#2D2B2A] uppercase tracking-wide mb-1.5">
               Motivo (opcional)
             </label>
             <Input type="text" placeholder="Ej: Ajuste por tolerancia, ingreso extra..."
@@ -401,25 +390,17 @@ function AperturaScreen({ onAbrir }: { onAbrir: (monto: number) => void }) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[55vh] px-4">
       <div className="w-full max-w-sm">
-        <div className="flex justify-center mb-6">
-          <div
-            className="w-16 h-16 bg-gradient-to-br from-[#0284c7] to-[#7c3aed] rounded-2xl flex items-center justify-center text-white"
-            style={{ boxShadow: '0 6px 18px rgba(2,132,199,0.30)' }}
-          >
-            <i className="ti ti-cash-register text-[30px]" />
-          </div>
-        </div>
         <div className="text-center mb-6">
-          <h2 className="font-black text-[28px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
+          <h2 className="font-semibold text-[28px] text-[#2D2B2A] leading-none tracking-[-0.022em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
             Abrir caja
           </h2>
-          <p className="text-sm text-[#9996b0] font-semibold mt-2">{dateStr}</p>
-          <p className="text-xs text-[#9996b0] mt-1">Registra el efectivo con el que inicias el día</p>
+          <p className="text-sm text-[#7A7571] font-medium mt-2">{dateStr}</p>
+          <p className="text-xs text-[#7A7571] mt-1">Registra el efectivo con el que inicias el día</p>
         </div>
-        <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-[#D0CBC4] p-6 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-[#5a5670] uppercase tracking-wide mb-1.5">
+              <label className="block text-xs font-semibold text-[#2D2B2A] uppercase tracking-wide mb-1.5">
                 Monto inicial en efectivo (Bs)
               </label>
               <Input type="number" min="0" step="0.01" placeholder="0.00"
@@ -428,7 +409,7 @@ function AperturaScreen({ onAbrir }: { onAbrir: (monto: number) => void }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full px-[18px] py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white rounded-xl flex items-center justify-center gap-2 text-sm font-bold active:scale-95 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full px-[18px] py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-lg flex items-center justify-center gap-2 text-sm font-semibold active:scale-95 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
@@ -452,7 +433,7 @@ function AperturaScreen({ onAbrir }: { onAbrir: (monto: number) => void }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function CajaDiariaPage() {
-  const { isTokenReady } = useAuth()
+  const { isTokenReady, refreshSession } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [caja, setCaja] = useState<Caja | null>(null)
@@ -492,15 +473,24 @@ export function CajaDiariaPage() {
     cargarCaja()
   }, [isTokenReady])
 
-  const cargarCaja = () => {
+  const cargarCaja = async (isRetry = false) => {
     setLoading(true)
-    gql<{ misCajas: { nodes: CajaAPI[] } }>(MI_CAJA_QUERY)
-      .then(res => {
-        const abierta = res.misCajas.nodes[0]
-        setCaja(abierta ? backendToCaja(abierta) : null)
-      })
-      .catch(() => notify.error('Error cargando estado de caja'))
-      .finally(() => setLoading(false))
+    try {
+      const res = await gql<{ misCajas: { nodes: CajaAPI[] } }>(MI_CAJA_QUERY)
+      const abierta = res.misCajas.nodes[0]
+      setCaja(abierta ? backendToCaja(abierta) : null)
+    } catch {
+      if (!isRetry) {
+        const refreshed = await refreshSession()
+        if (refreshed) {
+          await cargarCaja(true)
+          return
+        }
+      }
+      notify.error('Error cargando estado de caja')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleAbrir = async (montoInicial: number) => {
@@ -554,18 +544,15 @@ export function CajaDiariaPage() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="bg-[#f1f5f9] min-h-screen">
+        <div className="bg-[#F7F7F7] min-h-screen">
           <CajaTopBar dateStr={dateStr} />
-          <div className="px-7 py-6 max-w-[1400px] mx-auto">
-            <div className="flex items-center gap-3.5 mb-8">
-              <div className="w-12 h-12 rounded-2xl bg-[#e2e8f0] animate-pulse" />
-              <div className="space-y-2">
-                <div className="h-8 w-40 rounded-xl bg-[#e2e8f0] animate-pulse" />
-                <div className="h-3 w-52 rounded bg-[#f1f5f9] animate-pulse" />
-              </div>
+          <div className="px-7 py-[26px] max-w-[1400px] mx-auto">
+            <div className="mb-6">
+              <div className="h-8 w-36 rounded-xl bg-[#E8E5E2] animate-pulse mb-2" />
+              <div className="h-3 w-56 rounded bg-[#F0EFEC] animate-pulse" />
             </div>
             <MetricsSkeleton />
-            <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] h-64 animate-pulse" />
+            <div className="bg-white rounded-xl border border-[#D0CBC4] h-64 animate-pulse" />
           </div>
         </div>
       </MainLayout>
@@ -576,48 +563,35 @@ export function CajaDiariaPage() {
   if (resumenCierre) {
     return (
       <MainLayout>
-        <div className="bg-[#f1f5f9] min-h-screen">
+        <div className="bg-[#F7F7F7] min-h-screen">
           <CajaTopBar dateStr={dateStr} />
-          <div className="px-7 py-6 max-w-[1400px] mx-auto">
+          <div className="px-7 py-[26px] max-w-[1400px] mx-auto">
 
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-              <div className="flex items-center gap-3.5">
-                <div
-                  className="w-12 h-12 bg-gradient-to-br from-[#059669] to-[#0284c7] rounded-2xl flex items-center justify-center text-white shrink-0"
-                  style={{ boxShadow: '0 6px 18px rgba(5,150,105,0.28)' }}
-                >
-                  <i className="ti ti-circle-check text-2xl" />
-                </div>
-                <div>
-                  <h2 className="font-black text-[34px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
-                    Resumen de cierre
-                  </h2>
-                  <p className="text-sm text-[#9996b0] font-semibold mt-0.5">
-                    Reporte completo de la jornada
-                  </p>
-                </div>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+              <div>
+                <h2 className="font-semibold text-[30px] text-[#2D2B2A] leading-none tracking-[-0.022em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  Resumen de cierre
+                </h2>
+                <p className="text-[13.5px] text-[#7A7571] mt-1.5">Reporte completo de la jornada</p>
               </div>
               <button
                 onClick={() => setResumenCierre(null)}
-                className="px-[18px] py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white rounded-xl flex items-center justify-center gap-1.5 text-sm font-bold active:scale-95 transition-all shadow-md w-full md:w-auto"
+                className="px-[18px] py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold active:scale-95 transition-all shadow-sm w-full md:w-auto"
               >
                 <i className="ti ti-plus text-base" />
                 Nueva caja
               </button>
             </div>
 
-            {/* Resumen container */}
-            <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] overflow-hidden">
+            <div className="bg-white rounded-xl border border-[#D0CBC4] overflow-hidden">
 
-              {/* Success banner */}
-              <div className="px-6 py-5 border-b border-[#e2e8f0] flex items-center gap-3 bg-[#d1fae5]/30">
-                <div className="w-10 h-10 rounded-xl bg-[#d1fae5] border-[1.5px] border-[#6ee7b7] flex items-center justify-center shrink-0">
-                  <i className="ti ti-circle-check text-[#059669] text-xl" />
+              <div className="px-6 py-5 border-b border-[#D0CBC4] flex items-center gap-3 bg-[#B8DCCA]/20">
+                <div className="w-10 h-10 rounded-xl bg-[#B8DCCA] border border-[#6BAF80]/50 flex items-center justify-center shrink-0">
+                  <i className="ti ti-circle-check text-[#1E5C38] text-xl" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-[#1e1b2e]">Caja cerrada exitosamente</p>
-                  <p className="text-xs text-[#9996b0] font-semibold">
+                  <p className="text-sm font-semibold text-[#2D2B2A]">Caja cerrada exitosamente</p>
+                  <p className="text-xs text-[#7A7571] font-medium">
                     {new Date(resumenCierre.fechaCierre).toLocaleDateString('es-BO', {
                       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
                     })} — {new Date(resumenCierre.fechaCierre).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })}
@@ -626,71 +600,68 @@ export function CajaDiariaPage() {
               </div>
 
               <div className="p-6 space-y-6">
-                {/* Totales generales */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-[14px]">
                   {[
-                    { label: 'Monto inicial', value: resumenCierre.montoInicial, from: '#9996b0', to: '#e2e8f0', textColor: '#1e1b2e' },
-                    { label: 'Total ingresos', value: resumenCierre.totalIngresos, from: '#059669', to: '#4eddc4', textColor: '#059669' },
-                    { label: 'Total egresos', value: resumenCierre.totalEgresos, from: '#dc2626', to: '#ff9090', textColor: '#dc2626' },
-                    { label: 'Efectivo esperado', value: resumenCierre.efectivoEsperado, from: '#0284c7', to: '#60a5fa', textColor: '#1e1b2e' },
-                  ].map(({ label, value, from: _from, to: _to, textColor }) => (
-                    <div key={label} className="bg-[#f1f5f9] rounded-xl p-4 border-[1.5px] border-[#e2e8f0]">
-                      <p className="text-[11px] font-bold text-[#9996b0] uppercase tracking-wide mb-2">{label}</p>
-                      <p className="font-black text-xl leading-none" style={{ color: textColor, fontFamily: 'Nunito, sans-serif' }}>
+                    { label: 'Monto inicial',     value: resumenCierre.montoInicial,    accentColor: '#4A4744', color: '#2D2B2A' },
+                    { label: 'Total ingresos',    value: resumenCierre.totalIngresos,   accentColor: '#3F7A52', color: '#1E5C38' },
+                    { label: 'Total egresos',     value: resumenCierre.totalEgresos,    accentColor: '#B23A2A', color: '#8A1E12' },
+                    { label: 'Efectivo esperado', value: resumenCierre.efectivoEsperado, accentColor: '#780e18', color: '#2D2B2A' },
+                  ].map(({ label, value, accentColor, color }) => (
+                    <div key={label} className="bg-[#F7F7F7] rounded-xl p-4 border border-[#D0CBC4] border-l-4" style={{ borderLeftColor: accentColor }}>
+                      <p className="text-[11px] font-semibold text-[#7A7571] uppercase tracking-wide mb-2">{label}</p>
+                      <p className="font-semibold text-xl leading-none" style={{ color, fontFamily: "'DM Sans', sans-serif" }}>
                         {value.toLocaleString('es-BO', { minimumFractionDigits: 2 })}
-                        <span className="text-sm font-bold text-[#9996b0] ml-1">Bs.</span>
+                        <span className="text-sm font-semibold text-[#7A7571] ml-1">Bs.</span>
                       </p>
                     </div>
                   ))}
                 </div>
 
-                {/* Ingresos por tipo de pago */}
                 <div>
-                  <p className="text-[11px] font-bold text-[#9996b0] uppercase tracking-wide mb-3">Ingresos por tipo de pago</p>
-                  <div className="grid grid-cols-3 gap-3.5">
-                    <div className="bg-[#f1f5f9] rounded-xl p-4 border-[1.5px] border-[#e2e8f0]">
-                      <p className="text-xs font-bold text-[#5a5670] mb-1">Efectivo</p>
-                      <p className="text-lg font-black text-[#1e1b2e]" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                  <p className="text-[11px] font-semibold text-[#7A7571] uppercase tracking-wide mb-3">Ingresos por tipo de pago</p>
+                  <div className="grid grid-cols-3 gap-[14px]">
+                    <div className="bg-[#F7F7F7] rounded-xl p-4 border border-[#D0CBC4]">
+                      <p className="text-xs font-semibold text-[#4A4744] mb-1">Efectivo</p>
+                      <p className="text-lg font-semibold text-[#2D2B2A]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                         {resumenCierre.ingresoEfectivo.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs.
                       </p>
                     </div>
-                    <div className="bg-[#ede9fe]/40 rounded-xl p-4 border-[1.5px] border-[#c4b5fd]/50">
-                      <p className="text-xs font-bold text-[#7c3aed] mb-1">QR</p>
-                      <p className="text-lg font-black text-[#7c3aed]" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                    <div className="bg-[#F4ECDB]/40 rounded-xl p-4 border border-[#D4A333]/30">
+                      <p className="text-xs font-semibold text-[#780e18] mb-1">QR</p>
+                      <p className="text-lg font-semibold text-[#780e18]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                         {resumenCierre.ingresoQR.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs.
                       </p>
                     </div>
-                    <div className="bg-[#dbeafe]/40 rounded-xl p-4 border-[1.5px] border-[#93c5fd]/50">
-                      <p className="text-xs font-bold text-[#1d4ed8] mb-1">Tarjeta</p>
-                      <p className="text-lg font-black text-[#1d4ed8]" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                    <div className="bg-[#E8D4B8]/40 rounded-xl p-4 border border-[#D4A333]/40">
+                      <p className="text-xs font-semibold text-[#780e18] mb-1">Tarjeta</p>
+                      <p className="text-lg font-semibold text-[#780e18]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                         {resumenCierre.ingresoTarjeta.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs.
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Diferencia */}
                 {(() => {
                   const diferencia = resumenCierre.montoContado - resumenCierre.efectivoEsperado
                   const esFaltante = diferencia < 0
                   const esCuadrado = diferencia === 0
                   return (
                     <div className={clsx(
-                      'flex items-center justify-between p-5 rounded-xl border-[1.5px]',
+                      'flex items-center justify-between p-5 rounded-xl border',
                       esCuadrado
-                        ? 'bg-[#d1fae5]/30 border-[#6ee7b7]/50'
+                        ? 'bg-[#B8DCCA]/20 border-[#3F7A52]/30'
                         : esFaltante
-                          ? 'bg-[#fee2e2]/30 border-[#fca5a5]/50'
-                          : 'bg-[#dbeafe]/30 border-[#93c5fd]/50',
+                          ? 'bg-[#F5C9C0]/20 border-[#B23A2A]/30'
+                          : 'bg-[#F4ECDB]/20 border-[#D4A333]/50',
                     )}>
                       <div>
                         <p className={clsx(
                           'text-xs font-bold uppercase tracking-wide',
-                          esCuadrado ? 'text-[#059669]' : esFaltante ? 'text-[#dc2626]' : 'text-[#1d4ed8]',
+                          esCuadrado ? 'text-[#1E5C38]' : esFaltante ? 'text-[#8A1E12]' : 'text-[#7A5200]',
                         )}>
                           {esCuadrado ? 'Caja cuadrada' : esFaltante ? 'Faltante' : 'Sobrante'}
                         </p>
-                        <p className="text-xs text-[#9996b0] font-semibold mt-0.5">
+                        <p className="text-xs text-[#7A7571] font-medium mt-0.5">
                           {esCuadrado
                             ? 'El monto contado coincide con el sistema'
                             : esFaltante
@@ -698,26 +669,25 @@ export function CajaDiariaPage() {
                               : 'Excedente de efectivo según registros'}
                         </p>
                         {resumenCierre.justificacion && (
-                          <p className="text-[11px] text-[#9996b0] mt-1 italic">"{resumenCierre.justificacion}"</p>
+                          <p className="text-[11px] text-[#7A7571] mt-1 italic">"{resumenCierre.justificacion}"</p>
                         )}
                       </div>
                       <p className={clsx(
-                        'text-2xl font-black tabular-nums',
-                        esCuadrado ? 'text-[#059669]' : esFaltante ? 'text-[#dc2626]' : 'text-[#1d4ed8]',
-                      )} style={{ fontFamily: 'Nunito, sans-serif' }}>
+                        'text-2xl font-semibold tabular-nums',
+                        esCuadrado ? 'text-[#1E5C38]' : esFaltante ? 'text-[#8A1E12]' : 'text-[#7A5200]',
+                      )} style={{ fontFamily: "'DM Sans', sans-serif" }}>
                         {diferencia >= 0 ? '+' : ''}{diferencia.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs.
                       </p>
                     </div>
                   )
                 })()}
 
-                {/* Efectivo contado */}
-                <div className="flex items-center justify-between p-5 rounded-xl bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0]">
+                <div className="flex items-center justify-between p-5 rounded-xl bg-[#F7F7F7] border border-[#D0CBC4]">
                   <div>
-                    <p className="text-[11px] font-bold text-[#9996b0] uppercase tracking-wide">Efectivo contado</p>
-                    <p className="text-xs text-[#9996b0] font-semibold mt-0.5">Lo que contaste físicamente en caja</p>
+                    <p className="text-[11px] font-semibold text-[#7A7571] uppercase tracking-wide">Efectivo contado</p>
+                    <p className="text-xs text-[#7A7571] font-medium mt-0.5">Lo que contaste físicamente en caja</p>
                   </div>
-                  <p className="text-2xl font-black text-[#1e1b2e]" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                  <p className="text-2xl font-semibold text-[#2D2B2A]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                     {resumenCierre.montoContado.toLocaleString('es-BO', { minimumFractionDigits: 2 })} Bs.
                   </p>
                 </div>
@@ -734,9 +704,9 @@ export function CajaDiariaPage() {
   if (!caja) {
     return (
       <MainLayout>
-        <div className="bg-[#f1f5f9] min-h-screen">
+        <div className="bg-[#F7F7F7] min-h-screen">
           <CajaTopBar dateStr={dateStr} />
-          <div className="px-7 py-6 max-w-[1400px] mx-auto">
+          <div className="px-7 py-[26px] max-w-[1400px] mx-auto">
             <AperturaScreen onAbrir={handleAbrir} />
           </div>
         </div>
@@ -747,32 +717,24 @@ export function CajaDiariaPage() {
   // ── Caja abierta ───────────────────────────────────────────────────────────
   return (
     <MainLayout>
-      <div className="bg-[#f1f5f9] min-h-screen">
+      <div className="bg-[#F7F7F7] min-h-screen">
         <CajaTopBar dateStr={dateStr} />
 
-        <div className="px-7 py-6 max-w-[1400px] mx-auto">
+        <div className="px-7 py-[26px] max-w-[1400px] mx-auto">
 
           {/* Page Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-            <div className="flex items-center gap-3.5">
-              <div
-                className="w-12 h-12 bg-gradient-to-br from-[#0284c7] to-[#7c3aed] rounded-2xl flex items-center justify-center text-white shrink-0"
-                style={{ boxShadow: '0 6px 18px rgba(2,132,199,0.28)' }}
-              >
-                <i className="ti ti-cash-register text-2xl" />
-              </div>
-              <div>
-                <h2 className="font-black text-[34px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
-                  Caja diaria
-                </h2>
-                <p className="text-sm text-[#9996b0] font-semibold mt-0.5">
-                  Gestión de efectivo y movimientos — registra ingresos, egresos y cierra tu jornada
-                </p>
-              </div>
+            <div>
+              <h2 className="font-semibold text-[30px] text-[#2D2B2A] leading-none tracking-[-0.022em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                Caja diaria
+              </h2>
+              <p className="text-[13.5px] text-[#7A7571] mt-1.5">
+                Gestión de efectivo y movimientos — registra ingresos, egresos y cierra tu jornada
+              </p>
             </div>
             <button
               onClick={() => setShowCierre(true)}
-              className="px-[18px] py-2.5 bg-white border-[1.5px] border-[#e2e8f0] rounded-xl flex items-center justify-center gap-1.5 text-sm font-bold text-[#5a5670] hover:bg-[#f1f5f9] transition-all w-full md:w-auto"
+              className="px-[18px] py-2.5 bg-white border border-[#D8D4D0] rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium text-[#4A4744] hover:bg-[#F0EFEC] transition-all w-full md:w-auto"
             >
               <i className="ti ti-lock text-base" />
               Cerrar caja
@@ -780,83 +742,65 @@ export function CajaDiariaPage() {
           </div>
 
           {/* Metrics */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-[14px] mb-[22px]">
             <CajaMetricCard
               label="Monto inicial"
               value={caja.montoInicial.toLocaleString('es-BO')}
-              sublabel={`Apertura ${fmtTime(caja.fechaInicio)}`}
-              iconClass="ti ti-cash"
-              gradFrom="#0284c7"
-              gradTo="#60a5fa"
-              badgeBg="#e0f2fe"
-              badgeColor="#0284c7"
+              accentColor="#4A4744"
+              badgeBg="#F0EFEC"
+              badgeColor="#4A4744"
               badgeText={`apertura ${fmtTime(caja.fechaInicio)}`}
-              badgeIcon="ti ti-clock"
             />
             <CajaMetricCard
               label="Total ingresos"
               value={totalIngresos.toLocaleString('es-BO')}
-              sublabel={`${movimientos.filter(m => m.tipo === 'Ingreso').length} movimientos`}
-              iconClass="ti ti-trending-up"
-              gradFrom="#059669"
-              gradTo="#4eddc4"
-              badgeBg="#d1fae5"
-              badgeColor="#059669"
+              accentColor="#3F7A52"
+              badgeBg="#B8DCCA"
+              badgeColor="#1E5C38"
               badgeText={`${movimientos.filter(m => m.tipo === 'Ingreso').length} movimientos`}
-              badgeIcon="ti ti-arrow-up"
-              highlight
-              highlightColor="#059669"
+              highlightColor="#1E5C38"
             />
             <CajaMetricCard
               label="Total egresos"
               value={totalEgresos.toLocaleString('es-BO')}
-              sublabel={`${movimientos.filter(m => m.tipo === 'Egreso').length} movimientos`}
-              iconClass="ti ti-trending-down"
-              gradFrom="#dc2626"
-              gradTo="#ff9090"
-              badgeBg="#fee2e2"
-              badgeColor="#dc2626"
+              accentColor="#B23A2A"
+              badgeBg="#F5C9C0"
+              badgeColor="#8A1E12"
               badgeText={`${movimientos.filter(m => m.tipo === 'Egreso').length} movimientos`}
-              badgeIcon="ti ti-arrow-down"
-              highlight
-              highlightColor="#dc2626"
+              highlightColor="#8A1E12"
             />
             <CajaMetricCard
               label="Efectivo en caja"
               value={efectivoEsperado.toLocaleString('es-BO')}
-              sublabel="Solo movimientos en efectivo"
-              iconClass="ti ti-wallet"
-              gradFrom="#7c3aed"
-              gradTo="#a78bfa"
-              badgeBg="#ede9fe"
-              badgeColor="#7c3aed"
+              accentColor="#780e18"
+              badgeBg="#F4ECDB"
+              badgeColor="#780e18"
               badgeText="solo efectivo"
-              badgeIcon="ti ti-building-bank"
             />
           </div>
 
           {/* Movements container */}
-          <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] overflow-hidden">
+          <div className="bg-white rounded-xl border border-[#D0CBC4] overflow-hidden">
 
             {/* Toolbar */}
-            <div className="px-5 py-[18px] border-b border-[#e2e8f0] flex flex-wrap justify-between items-center gap-3">
-              <h3 className="text-lg font-extrabold text-[#1e1b2e] flex items-center gap-2" style={{ fontFamily: 'Nunito, sans-serif' }}>
+            <div className="px-[22px] py-[18px] border-b border-[#D0CBC4] flex flex-wrap justify-between items-center gap-3">
+              <h3 className="text-[17px] font-semibold text-[#2D2B2A] tracking-[-0.01em] flex items-center gap-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                 Movimientos
-                <span className="bg-[#dbeafe] text-[#1d4ed8] text-xs font-bold px-2.5 py-0.5 rounded-full">
+                <span className="bg-[#F4ECDB] text-[#780e18] text-xs font-semibold px-2.5 py-0.5 rounded-full">
                   {movimientos.length}
                 </span>
               </h3>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setModalTipo('egreso')}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-[#fee2e2] text-[#dc2626] hover:bg-[#fca5a5]/30 border-[1.5px] border-[#fca5a5]/50 transition-colors"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#F5C9C0] text-[#8A1E12] hover:bg-[#D45040]/20 border border-[#D45040]/50 transition-colors"
                 >
                   <i className="ti ti-minus text-[13px]" />
                   Egreso
                 </button>
                 <button
                   onClick={() => setModalTipo('ingreso')}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-[#d1fae5] text-[#059669] hover:bg-[#6ee7b7]/30 border-[1.5px] border-[#6ee7b7]/50 transition-colors"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#B8DCCA] text-[#1E5C38] hover:bg-[#6BAF80]/30 border border-[#6BAF80]/50 transition-colors"
                 >
                   <i className="ti ti-plus text-[13px]" />
                   Ingreso
@@ -867,42 +811,42 @@ export function CajaDiariaPage() {
             {/* Movements list */}
             {movimientos.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 px-5 text-center">
-                <div className="w-12 h-12 rounded-xl bg-white border-[1.5px] border-[#e2e8f0] flex items-center justify-center mb-4">
-                  <i className="ti ti-receipt text-[#9996b0] text-xl" />
+                <div className="w-12 h-12 rounded-lg bg-white border border-[#E8E5E2] flex items-center justify-center mb-4">
+                  <i className="ti ti-receipt text-[#7A7571] text-xl" />
                 </div>
-                <p className="text-sm font-bold text-[#1e1b2e] mb-1">Sin movimientos aún</p>
-                <p className="text-xs text-[#9996b0] font-semibold max-w-xs">
+                <p className="text-sm font-semibold text-[#2D2B2A] mb-1">Sin movimientos aún</p>
+                <p className="text-xs text-[#7A7571] font-medium max-w-xs">
                   Registra el primer ingreso o egreso del día
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-[#e2e8f0]">
+              <div className="divide-y divide-[#E8E5E2]">
                 {movimientos.map((mov) => (
-                  <div key={mov.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-[#faf9ff] transition-colors">
+                  <div key={mov.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-[#FAF5EE] transition-colors">
                     <div className={clsx(
-                      'w-9 h-9 rounded-xl flex items-center justify-center shrink-0',
-                      mov.tipo === 'Ingreso' ? 'bg-[#d1fae5]' : 'bg-[#fee2e2]',
+                      'w-9 h-9 rounded-lg flex items-center justify-center shrink-0',
+                      mov.tipo === 'Ingreso' ? 'bg-[#B8DCCA]' : 'bg-[#F5C9C0]',
                     )}>
                       <i className={clsx(
                         'text-[17px]',
-                        mov.tipo === 'Ingreso' ? 'ti ti-arrow-up text-[#059669]' : 'ti ti-arrow-down text-[#dc2626]',
+                        mov.tipo === 'Ingreso' ? 'ti ti-arrow-up text-[#3F7A52]' : 'ti ti-arrow-down text-[#B23A2A]',
                       )} />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-[#1e1b2e] truncate">{mov.motivo}</p>
+                      <p className="text-sm font-semibold text-[#2D2B2A] truncate">{mov.motivo}</p>
                       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                         <TipoBadge tipo={mov.tipo} />
                         <PagoBadge tipo_pago={mov.tipoPago} />
-                        <span className="text-[11px] text-[#9996b0] font-semibold">{CATEGORIA_LABELS[mov.categoria]}</span>
-                        <span className="text-[11px] text-[#e2e8f0]">·</span>
-                        <span className="text-[11px] text-[#9996b0] font-semibold">{fmtTime(mov.fecha)}</span>
+                        <span className="text-[11px] text-[#7A7571] font-medium">{CATEGORIA_LABELS[mov.categoria]}</span>
+                        <span className="text-[11px] text-[#D0CBC4]">·</span>
+                        <span className="text-[11px] text-[#7A7571] font-medium">{fmtTime(mov.fecha)}</span>
                       </div>
                     </div>
 
                     <p className={clsx(
-                      'text-sm font-black tabular-nums shrink-0',
-                      mov.tipo === 'Ingreso' ? 'text-[#059669]' : 'text-[#dc2626]',
+                      'text-sm font-semibold tabular-nums shrink-0',
+                      mov.tipo === 'Ingreso' ? 'text-[#1E5C38]' : 'text-[#8A1E12]',
                     )}>
                       {mov.tipo === 'Ingreso' ? '+' : '−'}{mov.monto.toFixed(2)} Bs.
                     </p>
@@ -913,12 +857,12 @@ export function CajaDiariaPage() {
 
             {/* Footer */}
             {movimientos.length > 0 && (
-              <div className="px-5 py-3.5 bg-[#f1f5f9] border-t border-[#e2e8f0] flex items-center justify-between">
-                <p className="text-xs font-semibold text-[#9996b0]">
+              <div className="px-[22px] py-[14px] bg-[#F5F0EB] border-t border-[#D0CBC4] flex items-center justify-between">
+                <p className="text-xs font-medium text-[#7A7571]">
                   {movimientos.length} movimiento{movimientos.length !== 1 ? 's' : ''}
                 </p>
-                <p className="text-xs font-bold text-[#5a5670]">
-                  Efectivo: <span className="text-[#1e1b2e] font-black">{efectivoEsperado.toFixed(2)} Bs.</span>
+                <p className="text-xs font-semibold text-[#4A4744]">
+                  Efectivo: <span className="text-[#2D2B2A] font-semibold">{efectivoEsperado.toFixed(2)} Bs.</span>
                 </p>
               </div>
             )}
