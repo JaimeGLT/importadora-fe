@@ -18,6 +18,7 @@ interface MainLayoutProps {
 export function MainLayout({ children }: MainLayoutProps) {
   const { isAuthenticated, isTokenReady, user } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showTipoCambioModal, setShowTipoCambioModal] = useState(false)
   const [tipoCambioApi, setTipoCambioApi] = useState(0)
   const {
@@ -118,7 +119,22 @@ export function MainLayout({ children }: MainLayoutProps) {
         />
       )}
 
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(c => !c)}
+      />
+
+      {/* Sidebar collapse tab — desktop only, always visible, slides with sidebar */}
+      <button
+        onClick={() => setSidebarCollapsed(c => !c)}
+        className="hidden md:flex fixed top-[22px] z-50 items-center justify-center w-5 h-10 bg-[#780e18] border border-[#D4A333] border-l-0 rounded-r-lg text-[#CFA9A6] hover:text-[#F4ECDB] transition-all duration-300 shadow-md"
+        style={{ left: sidebarCollapsed ? 0 : 237 }}
+        title={sidebarCollapsed ? 'Abrir menú' : 'Ocultar menú'}
+      >
+        <i className={`ti text-[11px] transition-transform duration-300 ${sidebarCollapsed ? 'ti-chevron-right' : 'ti-chevron-left'}`} />
+      </button>
 
       <div className="flex-1 flex flex-col min-w-0">
 

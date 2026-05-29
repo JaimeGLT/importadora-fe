@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useImportacionesStore } from '@/stores/importacionesStore'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { TablePagination } from '@/components/ui'
-import type { Importacion, Producto, Proveedor, ItemImportacion } from '@/types'
+import type { Importacion, Producto, Proveedor, ItemImportacion, Marca } from '@/types'
 import { NuevaImportacionModal } from './NuevaImportacionModal'
 import { ImportacionDetailModal } from './ImportacionDetailModal'
 import { notify } from '@/lib/notify'
@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import { IMPORTACIONES_QUERY, backendToImportacion } from '@/lib/queries/importaciones.queries'
 import { PRODUCTOS_QUERY, backendToProductoSimple } from '@/lib/queries/inventario.queries'
+import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
 import { api } from '@/lib/api'
 import type { DtoImportacion } from '@/lib/queries/importaciones.queries'
 import {
@@ -83,17 +84,17 @@ function fmtUSD(n: number) {
 
 function TableSkeleton() {
   return (
-    <div className="divide-y divide-[#e2e8f0]">
+    <div className="divide-y divide-[#D0CBC4]">
       {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="flex items-center gap-4 px-5 py-3.5 animate-pulse">
           <div className="flex-1 space-y-1.5">
-            <div className="h-4 w-32 rounded bg-[#f1f5f9]" />
-            <div className="h-3 w-48 rounded bg-[#e2e8f0]" />
+            <div className="h-4 w-32 rounded bg-[#F0EFEC]" />
+            <div className="h-3 w-48 rounded bg-[#E8E5E2]" />
           </div>
-          <div className="h-4 w-20 rounded bg-[#f1f5f9]" />
-          <div className="h-4 w-24 rounded bg-[#f1f5f9]" />
+          <div className="h-4 w-20 rounded bg-[#F0EFEC]" />
+          <div className="h-4 w-24 rounded bg-[#F0EFEC]" />
           <div className="flex gap-1.5">
-            {[0].map(j => <div key={j} className="h-8 w-8 rounded-[10px] bg-[#f1f5f9]" />)}
+            {[0].map(j => <div key={j} className="h-8 w-8 rounded-[6px] bg-[#F0EFEC]" />)}
           </div>
         </div>
       ))}
@@ -106,16 +107,16 @@ function TableSkeleton() {
 function EmptyState({ onNew }: { onNew: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4">
-      <div className="w-12 h-12 rounded-xl bg-white border-[1.5px] border-[#e2e8f0] flex items-center justify-center mb-4">
-        <i className="ti ti-package-import text-[#9996b0] text-xl" />
+      <div className="w-12 h-12 rounded-lg bg-white border border-[#E8E5E2] flex items-center justify-center mb-4">
+        <i className="ti ti-package-import text-[#7A7571] text-xl" />
       </div>
-      <p className="text-sm font-bold text-[#1e1b2e] mb-1">Sin importaciones</p>
-      <p className="text-xs text-[#9996b0] font-semibold max-w-xs text-center mb-5">
+      <p className="text-sm font-semibold text-[#2D2B2A] mb-1">Sin importaciones</p>
+      <p className="text-xs text-[#7A7571] font-medium max-w-xs text-center mb-5">
         Registra tu primera importación para empezar
       </p>
       <button
         onClick={onNew}
-        className="px-5 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white rounded-xl flex items-center gap-2 text-sm font-bold transition-all shadow-md"
+        className="px-5 py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-lg flex items-center gap-2 text-sm font-semibold transition-all shadow-sm"
       >
         <i className="ti ti-plus text-base" />
         Nueva importación
@@ -139,6 +140,7 @@ export function ImportacionesPage() {
   const [globalFilter, setGlobalFilter] = useState('')
   const [proveedores, setProveedores] = useState<Proveedor[]>([])
   const [productos, setProductos] = useState<Producto[]>([])
+  const [marcas, setMarcas] = useState<Marca[]>([])
 
   const { importaciones, setImportaciones } = useImportacionesStore()
 
@@ -152,7 +154,9 @@ export function ImportacionesPage() {
     gql<{ importacion: { nodes: unknown[] } }>(IMPORTACIONES_QUERY)
       .then(res => {
         if (cancelled) return
-        setImportaciones(res.importacion.nodes.map((n: unknown) => backendToImportacion(n as Parameters<typeof backendToImportacion>[0])))
+        const mapped = res.importacion.nodes.map((n: unknown) => backendToImportacion(n as Parameters<typeof backendToImportacion>[0]))
+        mapped.sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime())
+        setImportaciones(mapped)
       })
       .catch(() => notify.error('Error cargando importaciones'))
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -170,11 +174,18 @@ export function ImportacionesPage() {
       .catch(() => notify.error('Error cargando productos'))
   }
 
+  const loadMarcas = () => {
+    gql<{ marca: { nodes: { id: number; nombre: string }[] } }>(MARCAS_QUERY)
+      .then(res => setMarcas(res.marca.nodes.map(backendToMarca)))
+      .catch(() => {})
+  }
+
   useEffect(() => {
     if (!isTokenReady) return
     loadImportaciones()
     loadProveedores()
     loadProductos()
+    loadMarcas()
   }, [isTokenReady])
 
   const handleSave = async (
@@ -239,8 +250,8 @@ export function ImportacionesPage() {
         const imp = info.row.original
         return (
           <div>
-            <div className="text-[13.5px] font-bold text-[#1e1b2e]">{imp.numero}</div>
-            <div className="text-[11px] text-[#9996b0] mt-0.5">{imp.proveedor} · {imp.origen}</div>
+            <div className="text-[13.5px] font-semibold text-[#2D2B2A]">{imp.numero}</div>
+            <div className="text-[11px] text-[#7A7571] mt-0.5">{imp.proveedor} · {imp.origen}</div>
           </div>
         )
       },
@@ -250,7 +261,7 @@ export function ImportacionesPage() {
       size: 120,
       meta: { align: 'left' },
       cell: (info) => (
-        <span className="text-[12.5px] text-[#5a5670] font-medium">{fmtDate(info.getValue())}</span>
+        <span className="text-[12.5px] text-[#5C5654] font-medium">{fmtDate(info.getValue())}</span>
       ),
     }),
     colHelper.accessor('fob_total_usd', {
@@ -259,8 +270,8 @@ export function ImportacionesPage() {
       meta: { align: 'left' },
       cell: (info) => (
         <div>
-          <div className="font-mono font-bold text-[13px] text-[#1e1b2e]">{fmtUSD(info.getValue())}</div>
-          <div className="text-[11px] text-[#9996b0] font-medium mt-0.5">USD</div>
+          <div className="font-mono font-semibold text-[13px] text-[#2D2B2A]">{fmtUSD(info.getValue())}</div>
+          <div className="text-[11px] text-[#7A7571] font-medium mt-0.5">USD</div>
         </div>
       ),
     }),
@@ -274,16 +285,16 @@ export function ImportacionesPage() {
         return (
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-1.5 text-[11px]">
-              <span className="text-[#9996b0]">Flete:</span>
-              <span className="font-semibold text-[#5a5670] tabular-nums">${imp.flete_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className="text-[#7A7571]">Flete:</span>
+              <span className="font-semibold text-[#5C5654] tabular-nums">${imp.flete_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
             <div className="flex items-center gap-1.5 text-[11px]">
-              <span className="text-[#9996b0]">Aduana:</span>
-              <span className="font-semibold text-[#5a5670] tabular-nums">Bs {imp.aduana_bs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className="text-[#7A7571]">Aduana:</span>
+              <span className="font-semibold text-[#5C5654] tabular-nums">Bs {imp.aduana_bs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
             <div className="flex items-center gap-1.5 text-[11px]">
-              <span className="text-[#9996b0]">Transp.:</span>
-              <span className="font-semibold text-[#5a5670] tabular-nums">Bs {imp.transporte_interno_bs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className="text-[#7A7571]">Transp.:</span>
+              <span className="font-semibold text-[#5C5654] tabular-nums">Bs {imp.transporte_interno_bs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
           </div>
         )
@@ -295,8 +306,8 @@ export function ImportacionesPage() {
       meta: { align: 'left' },
       cell: (info) => (
         <div>
-          <div className="font-mono font-bold text-[13px] text-[#1e1b2e]">Bs {info.getValue().toFixed(2)}</div>
-          <div className="text-[11px] text-[#9996b0] font-medium mt-0.5">por USD</div>
+          <div className="font-mono font-semibold text-[13px] text-[#2D2B2A]">Bs {info.getValue().toFixed(2)}</div>
+          <div className="text-[11px] text-[#7A7571] font-medium mt-0.5">por USD</div>
         </div>
       ),
     }),
@@ -310,9 +321,9 @@ export function ImportacionesPage() {
           <button
             onClick={() => setDetailImport(info.row.original)}
             title="Ver detalle"
-            className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#dbeafe] hover:text-[#1d4ed8] hover:border-[#1d4ed8] transition-all"
+            className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#E8D4B8] hover:text-[#780e18] hover:border-[#780e18] transition-all"
           >
-            <i className="ti ti-eye text-[15px]" />
+            <i className="ti ti-eye text-[14px]" />
           </button>
         </div>
       ),
@@ -342,54 +353,57 @@ export function ImportacionesPage() {
 
   return (
     <MainLayout>
-      <div className="bg-[#f1f5f9] min-h-screen">
+      <div className="bg-[#F7F7F7] min-h-screen">
 
         {/* ── TopBar ──────────────────────────────────────────────────────── */}
-        <header className="bg-[#f1f5f9] sticky top-0 z-40 flex justify-between items-center w-full h-[62px] px-7 border-b border-[#e2e8f0]">
-          <div className="flex items-center gap-2 text-sm text-[#9996b0] font-semibold">
+        <header className="bg-[#F7F7F7]/85 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full h-[62px] px-7 border-b border-[#E8E5E2]">
+          <div className="flex items-center gap-2 text-sm text-[#7A7571] font-semibold">
             <span>Operaciones</span>
             <span className="text-[10px] opacity-40">/</span>
-            <strong className="text-[#1e1b2e] font-bold">Importaciones</strong>
+            <strong className="text-[#2D2B2A] font-semibold">Importaciones</strong>
           </div>
           <div className="flex items-center gap-2.5">
-            <div className="hidden sm:flex bg-white px-3.5 py-1.5 rounded-xl items-center gap-2 border-[1.5px] border-[#e2e8f0]">
-              <i className="ti ti-calendar text-[#9996b0] text-[15px]" />
-              <span className="text-xs font-semibold text-[#5a5670]">{dateStr}</span>
+            <div className="hidden sm:flex bg-white px-3.5 py-1.5 rounded-lg items-center gap-2 border border-[#D8D4D0]">
+              <i className="ti ti-calendar text-[#7A7571] text-[15px]" />
+              <span className="text-xs text-[#4A4744]">{dateStr}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <button
-                className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] transition-colors relative"
+                className="w-[34px] h-[34px] flex items-center justify-center rounded-full bg-white border border-[#D8D4D0] text-[#4A4744] hover:bg-[#F7F7F7] transition-colors relative"
                 title="Notificaciones"
               >
-                <i className="ti ti-bell text-[18px]" />
-                <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#dc2626]" />
+                <i className="ti ti-bell text-[15px]" />
+                <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#B23A2A]" />
               </button>
               <button
-                className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border-[1.5px] border-[#e2e8f0] text-[#5a5670] hover:bg-[#f1f5f9] transition-colors"
+                className="w-[34px] h-[34px] flex items-center justify-center rounded-full bg-white border border-[#D8D4D0] text-[#4A4744] hover:bg-[#F7F7F7] transition-colors"
                 title="Configuración"
               >
-                <i className="ti ti-settings text-[18px]" />
+                <i className="ti ti-settings text-[15px]" />
               </button>
             </div>
           </div>
         </header>
 
-        <div className="px-7 py-6 max-w-[1400px] mx-auto">
+        <div className="px-7 py-[26px] max-w-[1400px] mx-auto">
 
           {/* ── Page Header ─────────────────────────────────────────────── */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div className="flex items-center gap-3.5">
               <div
-                className="w-12 h-12 bg-gradient-to-br from-[#7c3aed] to-[#0284c7] rounded-2xl flex items-center justify-center text-white shrink-0"
-                style={{ boxShadow: '0 6px 18px rgba(124,58,237,0.28)' }}
+                className="w-12 h-12 bg-gradient-to-br from-[#780e18] to-[#D4A333] rounded-xl flex items-center justify-center text-white shrink-0"
+                style={{ boxShadow: '0 6px 18px rgba(120,14,24,0.22)' }}
               >
                 <i className="ti ti-package-import text-2xl" />
               </div>
               <div>
-                <h2 className="font-black text-[34px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                <h2
+                  className="font-semibold text-[30px] text-[#2D2B2A] leading-none tracking-[-0.022em]"
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                >
                   Importaciones
                 </h2>
-                <p className="text-sm text-[#9996b0] font-semibold mt-0.5">
+                <p className="text-[13.5px] text-[#7A7571] mt-1.5">
                   Control de compras y entrada de mercadería
                 </p>
               </div>
@@ -397,7 +411,7 @@ export function ImportacionesPage() {
             <div className="shrink-0">
               <button
                 onClick={() => setNuevaOpen(true)}
-                className="px-[18px] py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white rounded-xl flex items-center justify-center gap-1.5 text-sm font-bold active:scale-95 transition-all shadow-md"
+                className="px-[18px] py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold active:scale-95 transition-all shadow-sm"
               >
                 <i className="ti ti-plus text-base" />
                 Nueva importación
@@ -406,64 +420,73 @@ export function ImportacionesPage() {
           </div>
 
           {/* ── KPI Cards ────────────────────────────────────────────────── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-[14px] mb-[22px]">
 
             {/* Total importaciones */}
-            <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200">
-              <div className="absolute -top-5 -right-5 w-20 h-20 rounded-full bg-[#7c3aed] opacity-10" />
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#7c3aed] to-[#0284c7] flex items-center justify-center text-white mb-3.5">
-                <i className="ti ti-package-import text-xl" />
+            <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#780e18] p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+              <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-[#780e18] opacity-[0.08]" />
+              <div className="flex items-start justify-between mb-[14px]">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#780e18] to-[#D4A333] flex items-center justify-center shrink-0">
+                  <i className="ti ti-package-import text-white text-[16px]" />
+                </div>
+                <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#F4ECDB] text-[#780e18]">
+                  <i className="ti ti-circle-check text-[10px]" />
+                  registradas
+                </span>
               </div>
-              <div className="font-black text-[30px] text-[#1e1b2e] leading-none" style={{ fontFamily: 'Nunito, sans-serif' }}>
+              <div
+                className="font-semibold text-[32px] text-[#2D2B2A] leading-none tracking-[-0.025em]"
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
+              >
                 {kpi.total.toLocaleString('es-BO')}
               </div>
-              <div className="text-xs font-semibold text-[#9996b0] mt-1">Total importaciones</div>
-              <div className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#ede9fe] text-[#7c3aed] mt-2">
-                <i className="ti ti-circle-check text-[11px]" />
-                registradas
-              </div>
+              <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Total importaciones</div>
             </div>
 
             {/* Valor FOB total */}
-            <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200">
-              <div className="absolute -top-5 -right-5 w-20 h-20 rounded-full bg-[#059669] opacity-10" />
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#059669] to-[#4eddc4] flex items-center justify-center text-white mb-3.5">
-                <i className="ti ti-currency-dollar text-xl" />
+            <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#3F7A52] p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+              <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-[#3F7A52] opacity-[0.08]" />
+              <div className="flex items-start justify-between mb-[14px]">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#3F7A52] to-[#6BAF80] flex items-center justify-center shrink-0">
+                  <i className="ti ti-currency-dollar text-white text-[16px]" />
+                </div>
+                <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#B8DCCA] text-[#1E5C38]">
+                  <i className="ti ti-trending-up text-[10px]" />
+                  acumulado
+                </span>
               </div>
               <div
-                className="font-black text-[22px] text-[#1e1b2e] leading-none flex items-baseline gap-1"
-                style={{ fontFamily: 'Nunito, sans-serif' }}
+                className="font-semibold text-[26px] text-[#2D2B2A] leading-none tracking-[-0.025em] flex items-baseline gap-1"
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
               >
-                <span className="text-sm font-bold text-[#059669]">USD</span>
+                <span className="text-[13px] font-semibold text-[#3F7A52]">USD</span>
                 {kpi.valorTotal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </div>
-              <div className="text-xs font-semibold text-[#9996b0] mt-1">Valor FOB total</div>
-              <div className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#d1fae5] text-[#059669] mt-2">
-                <i className="ti ti-trending-up text-[11px]" />
-                acumulado
-              </div>
+              <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Valor FOB total</div>
             </div>
 
           </div>
 
           {/* ── Table Container ──────────────────────────────────────────── */}
-          <div className="bg-white rounded-2xl border-[1.5px] border-[#e2e8f0] overflow-hidden">
+          <div className="bg-white rounded-xl border border-[#D0CBC4] overflow-hidden">
 
             {/* Toolbar */}
-            <div className="px-5 py-[18px] border-b border-[#e2e8f0] flex flex-wrap justify-between items-center gap-4">
-              <h3
-                className="text-lg font-extrabold text-[#1e1b2e] flex items-center gap-2"
-                style={{ fontFamily: 'Nunito, sans-serif' }}
-              >
-                Importaciones
-                <span className="bg-[#dbeafe] text-[#1d4ed8] text-xs font-bold px-2.5 py-0.5 rounded-full">
+            <div className="px-[22px] py-[18px] border-b border-[#D0CBC4] flex flex-wrap justify-between items-center gap-4">
+              <div className="flex items-center gap-3">
+                <h3
+                  className="text-[17px] font-semibold text-[#2D2B2A] tracking-[-0.01em]"
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  Importaciones
+                </h3>
+                <span className="bg-[#F4ECDB] text-[#780e18] text-xs font-semibold px-2.5 py-0.5 rounded-full">
                   {globalFilter ? filteredCount : importaciones.length}
                 </span>
-              </h3>
-              <div className="flex items-center gap-2 bg-[#f1f5f9] border-[1.5px] border-[#e2e8f0] rounded-xl px-3.5 w-full sm:w-auto sm:min-w-[250px] focus-within:border-[#1d4ed8] transition-colors">
-                <i className="ti ti-search text-[#9996b0] text-base shrink-0" />
+              </div>
+              <div className="flex items-center gap-2 bg-[#FBFBFA] border border-[#D8D4D0] rounded-lg px-3.5 w-full sm:w-auto sm:min-w-[260px] focus-within:border-[#780e18] transition-colors">
+                <i className="ti ti-search text-[#7A7571] text-[13px] shrink-0" />
                 <input
-                  className="flex-1 py-2 bg-transparent text-sm text-[#1e1b2e] font-semibold placeholder:text-[#9996b0] outline-none border-none"
+                  className="flex-1 py-2 bg-transparent text-[13px] text-[#2D2B2A] font-normal placeholder:text-[#7A7571] outline-none border-none"
                   placeholder="Buscar número, proveedor..."
                   value={globalFilter}
                   onChange={(e) => setGlobalFilter(e.target.value)}
@@ -484,7 +507,7 @@ export function ImportacionesPage() {
                       <col key={h.id} style={{ width: h.column.getSize() }} />
                     ))}
                   </colgroup>
-                  <thead className="bg-[#f1f5f9]">
+                  <thead className="bg-[#F5F0EB]">
                     {table.getHeaderGroups().map((hg) => (
                       <tr key={hg.id}>
                         {hg.headers.map((header) => {
@@ -495,10 +518,10 @@ export function ImportacionesPage() {
                             <th
                               key={header.id}
                               className={clsx(
-                                'px-4 py-3 text-[11px] font-bold text-[#9996b0] uppercase tracking-wide select-none whitespace-nowrap',
+                                'px-4 py-[11px] text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.12em] select-none whitespace-nowrap border-b border-[#D0CBC4]',
                                 align === 'center' && 'text-center',
                                 align === 'right'  && 'text-right',
-                                canSort && 'cursor-pointer hover:text-[#5a5670] transition-colors',
+                                canSort && 'cursor-pointer hover:text-[#4A4744] transition-colors',
                               )}
                               onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                             >
@@ -527,7 +550,7 @@ export function ImportacionesPage() {
                     {table.getRowModel().rows.map((row) => (
                       <tr
                         key={row.id}
-                        className="border-t border-[#e2e8f0] hover:bg-[#faf9ff] transition-colors"
+                        className="border-t border-[#E8E5E2] hover:bg-[#FAF5EE] transition-colors"
                       >
                         {row.getVisibleCells().map((cell) => {
                           const align = (cell.column.columnDef.meta as ColumnMeta<Importacion, unknown> | undefined)?.align ?? 'left'
@@ -535,7 +558,7 @@ export function ImportacionesPage() {
                             <td
                               key={cell.id}
                               className={clsx(
-                                'px-4 py-3.5 align-middle text-sm',
+                                'px-4 py-[14px] align-middle text-sm',
                                 align === 'center' && 'text-center',
                                 align === 'right'  && 'text-right',
                               )}
@@ -553,7 +576,7 @@ export function ImportacionesPage() {
 
             {/* Footer */}
             {!loading && importaciones.length > 0 && (
-              <div className="px-5 py-3.5 bg-[#f1f5f9] border-t border-[#e2e8f0]">
+              <div className="px-[22px] py-[14px] bg-[#F5F0EB] border-t border-[#D0CBC4]">
                 <TablePagination table={table} totalRows={filteredCount} />
               </div>
             )}
@@ -574,6 +597,7 @@ export function ImportacionesPage() {
         open={!!detailImport}
         onClose={() => setDetailImport(null)}
         importacion={detailImport}
+        marcas={marcas}
       />
     </MainLayout>
   )

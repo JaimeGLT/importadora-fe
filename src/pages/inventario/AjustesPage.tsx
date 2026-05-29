@@ -17,7 +17,8 @@ import {
   type AjusteStockAPI,
   type AjusteStockRow,
 } from '@/lib/queries/ajustes.queries'
-import type { Producto, PiezaKit } from '@/types'
+import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
+import type { Producto, PiezaKit, Marca } from '@/types'
 import { clsx } from 'clsx'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -450,6 +451,123 @@ function AjusteModal({
   )
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function getMarcaPrefijo(marcaId: number | null | undefined, marcas: Marca[]): string {
+  if (!marcaId) return ''
+  return marcas.find(m => m.id === marcaId)?.prefijo ?? ''
+}
+
+// ─── Helpers de motivo ───────────────────────────────────────────────────────
+
+const PIEZA_REGEX = /^\[Pieza:\s*(.+?)\]\s*/
+
+function parseMotivoConPieza(motivo: string): { pieza: string | null; motivo: string } {
+  const m = PIEZA_REGEX.exec(motivo)
+  if (!m) return { pieza: null, motivo }
+  return { pieza: m[1], motivo: motivo.slice(m[0].length) }
+}
+
+function MotivoCelda({ motivo }: { motivo: string }) {
+  const { pieza, motivo: motivoBase } = parseMotivoConPieza(motivo)
+  return (
+    <div className="max-w-[160px]">
+      {pieza && (
+        <span className="inline-block text-[10px] font-mono bg-[#F4ECDB] text-[#780e18] px-1.5 py-0.5 rounded mb-1 truncate max-w-full">
+          {pieza}
+        </span>
+      )}
+      <p className="text-sm text-[#2D2B2A] truncate">{motivoBase}</p>
+    </div>
+  )
+}
+
+// ─── Modal detalle ────────────────────────────────────────────────────────────
+
+function AjusteDetalleModal({ row, onClose }: { row: AjusteStockRow; onClose: () => void }) {
+  const { pieza, motivo: motivoBase } = parseMotivoConPieza(row.motivo)
+  const [codigo, ...alternos] = row.productoCodigos
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
+      style={{ background: 'rgba(45,43,42,0.45)' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden border border-[#E8E5E2]">
+        {/* Header */}
+        <div className="px-6 pt-5 pb-4 border-b border-[#E8E5E2]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-mono font-bold text-[15px] text-[#2D2B2A] tracking-[0.05em]">{codigo}</p>
+              {alternos.map((c, i) => (
+                <p key={i} className="font-mono text-[12px] text-[#7A7571]">{c}</p>
+              ))}
+              <p className="text-xs text-[#7A7571] mt-0.5 truncate">{row.productoNombre}</p>
+            </div>
+            <button onClick={onClose} className="text-[#7A7571] hover:text-[#2D2B2A] p-1 rounded-lg hover:bg-[#F0EFEC] shrink-0">
+              <i className="ti ti-x text-[18px]" />
+            </button>
+          </div>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          {/* Delta */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 bg-[#F7F7F7] rounded-xl px-4 py-3 text-center border border-[#E8E5E2]">
+              <p className="text-[10px] text-[#7A7571] uppercase tracking-wider font-bold mb-1">Anterior</p>
+              <p className="text-[26px] font-mono font-black text-[#2D2B2A] leading-none">{row.cantidadAnterior}</p>
+            </div>
+            <div className="text-[#7A7571]"><i className="ti ti-arrow-right text-[20px]" /></div>
+            <div className={clsx('flex-1 rounded-xl px-4 py-3 text-center border-2',
+              row.delta > 0 ? 'bg-[#B8DCCA] border-[#3F7A52]/30' : 'bg-[#F5C9C0] border-[#B23A2A]/30'
+            )}>
+              <p className="text-[10px] text-[#7A7571] uppercase tracking-wider font-bold mb-1">Nuevo</p>
+              <p className={clsx('text-[26px] font-mono font-black leading-none', row.delta > 0 ? 'text-[#3F7A52]' : 'text-[#B23A2A]')}>
+                {row.cantidadNueva}
+              </p>
+              <p className={clsx('text-[11px] font-bold mt-1', row.delta > 0 ? 'text-[#3F7A52]' : 'text-[#B23A2A]')}>
+                {row.delta > 0 ? `+${row.delta}` : row.delta}
+              </p>
+            </div>
+          </div>
+
+          {/* Motivo */}
+          <div>
+            <p className="text-[10px] font-semibold text-[#7A7571] uppercase tracking-wider mb-1.5">Motivo</p>
+            {pieza && (
+              <span className="inline-block text-[11px] font-mono bg-[#F4ECDB] text-[#780e18] px-2 py-0.5 rounded mb-1.5">
+                Pieza: {pieza}
+              </span>
+            )}
+            <p className="text-sm text-[#2D2B2A]">{motivoBase}</p>
+          </div>
+
+          {/* Nota */}
+          {row.nota && (
+            <div>
+              <p className="text-[10px] font-semibold text-[#7A7571] uppercase tracking-wider mb-1.5">Nota</p>
+              <p className="text-sm text-[#2D2B2A] whitespace-pre-wrap">{row.nota}</p>
+            </div>
+          )}
+
+          {/* Footer: fecha + usuario */}
+          <div className="flex items-center justify-between pt-1 border-t border-[#E8E5E2]">
+            <div className="flex items-center gap-1.5 text-xs text-[#7A7571]">
+              <i className="ti ti-calendar text-[12px]" />
+              <span className="font-mono">{row.fecha.toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' })} {row.fecha.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-[#7A7571]">
+              <i className="ti ti-user text-[12px]" />
+              <span>{row.usuarioNombre}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── HistorialTab ─────────────────────────────────────────────────────────────
 
 function fmtFecha(d: Date) {
@@ -467,6 +585,8 @@ function HistorialTab() {
   const cursors = useRef<(string | null)[]>([null])
   const [search, setSearch] = useState('')
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [detalleRow, setDetalleRow] = useState<AjusteStockRow | null>(null)
+  const [marcas, setMarcas] = useState<Marca[]>([])
 
   const loadHistorial = useCallback((targetPage: number, size: number, q = '') => {
     setLoading(true)
@@ -493,7 +613,12 @@ function HistorialTab() {
       .finally(() => setLoading(false))
   }, [])
 
-  useEffect(() => { loadHistorial(0, pageSize) }, [loadHistorial, pageSize])
+  useEffect(() => {
+    loadHistorial(0, pageSize)
+    gql<{ marca: { nodes: { id: number; nombre: string; prefijo?: string }[] } }>(MARCAS_QUERY)
+      .then(r => setMarcas(r.marca.nodes.map(backendToMarca)))
+      .catch(() => {})
+  }, [loadHistorial, pageSize])
 
   const handleSearch = (val: string) => {
     setSearch(val)
@@ -537,47 +662,60 @@ function HistorialTab() {
           <table className="w-full text-left border-collapse">
             <thead className="bg-[#F5F0EB]">
               <tr>
-                <th className="px-6 py-3 text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] whitespace-nowrap">Fecha</th>
+                <th className="px-6 py-3 text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] whitespace-nowrap">Fecha / Por</th>
                 <th className="px-4 py-3 text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em]">Producto</th>
                 <th className="px-4 py-3 text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-center">Delta</th>
-                <th className="px-4 py-3 text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-center">Anterior → Nuevo</th>
+                <th className="px-4 py-3 text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-center">Ant. → Nuevo</th>
                 <th className="px-4 py-3 text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em]">Motivo</th>
                 <th className="px-4 py-3 text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] hidden lg:table-cell">Nota</th>
               </tr>
             </thead>
             <tbody>
-              {historial.map((r) => (
-                <tr key={r.id} className="border-t border-[#E8E5E2] hover:bg-[#FAF5EE] transition-colors">
-                  <td className="px-6 py-3.5 whitespace-nowrap">
-                    <span className="text-xs text-[#7A7571] font-mono">{fmtFecha(r.fecha)}</span>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <p className="text-sm font-semibold text-[#2D2B2A] truncate max-w-[200px]">{r.productoNombre}</p>
-                    <p className="text-[11px] font-mono text-[#7A7571]">{r.productoCodigo}</p>
-                  </td>
-                  <td className="px-4 py-3.5 text-center">
-                    <span className={clsx(
-                      'font-mono font-bold text-sm px-2.5 py-0.5 rounded-full',
-                      r.delta > 0 ? 'text-[#3F7A52] bg-[#B8DCCA]' : 'text-[#B23A2A] bg-[#F5C9C0]'
-                    )}>
-                      {r.delta > 0 ? `+${r.delta}` : r.delta}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 text-center">
-                    <span className="font-mono text-sm text-[#4A4744]">
-                      {r.cantidadAnterior}
-                      <span className="mx-1.5 text-[#7A7571]">→</span>
-                      {r.cantidadNueva}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <span className="text-sm text-[#2D2B2A] truncate max-w-[180px] block">{r.motivo}</span>
-                  </td>
-                  <td className="px-4 py-3.5 hidden lg:table-cell">
-                    <span className="text-xs text-[#7A7571] truncate max-w-[160px] block">{r.nota || '—'}</span>
-                  </td>
-                </tr>
-              ))}
+              {historial.map((r) => {
+                const [codigoPrincipal, ...codAlt] = r.productoCodigos
+                const prefijo = getMarcaPrefijo(r.marcaId, marcas)
+                const codigoDisplay = prefijo ? `${prefijo}-${codigoPrincipal}` : codigoPrincipal
+                return (
+                  <tr
+                    key={r.id}
+                    onClick={() => setDetalleRow(r)}
+                    className="border-t border-[#E8E5E2] hover:bg-[#FAF5EE] transition-colors cursor-pointer"
+                  >
+                    <td className="px-6 py-3.5 whitespace-nowrap">
+                      <span className="text-xs text-[#7A7571] font-mono block">{fmtFecha(r.fecha)}</span>
+                      <span className="text-[11px] text-[#4A4744] font-medium mt-0.5 block">{r.usuarioNombre}</span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <p className="font-mono font-bold text-[13px] text-[#2D2B2A] tracking-[0.05em] truncate max-w-[200px]">{codigoDisplay}</p>
+                      {codAlt.map((c, i) => (
+                        <p key={i} className="font-mono text-[11px] text-[#7A7571] truncate max-w-[200px]">{c}</p>
+                      ))}
+                      <p className="text-[11px] text-[#7A7571] truncate max-w-[200px] mt-0.5">{r.productoNombre}</p>
+                    </td>
+                    <td className="px-4 py-3.5 text-center">
+                      <span className={clsx(
+                        'font-mono font-bold text-sm px-2.5 py-0.5 rounded-full',
+                        r.delta > 0 ? 'text-[#3F7A52] bg-[#B8DCCA]' : 'text-[#B23A2A] bg-[#F5C9C0]'
+                      )}>
+                        {r.delta > 0 ? `+${r.delta}` : r.delta}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-center">
+                      <span className="font-mono text-sm text-[#4A4744]">
+                        {r.cantidadAnterior}
+                        <span className="mx-1.5 text-[#7A7571]">→</span>
+                        {r.cantidadNueva}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <MotivoCelda motivo={r.motivo} />
+                    </td>
+                    <td className="px-4 py-3.5 hidden lg:table-cell">
+                      <span className="text-xs text-[#7A7571] truncate max-w-[120px] block">{r.nota || '—'}</span>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -595,6 +733,8 @@ function HistorialTab() {
           />
         </div>
       )}
+
+      {detalleRow && <AjusteDetalleModal row={detalleRow} onClose={() => setDetalleRow(null)} />}
     </div>
   )
 }
@@ -614,6 +754,7 @@ export function AjustesPage() {
   const [hasNextPage, setHasNextPage] = useState(false)
   const cursors = useRef<(string | null)[]>([null])
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [marcas, setMarcas] = useState<Marca[]>([])
 
   const dateStr = useMemo(() => {
     return new Date().toLocaleDateString('es-BO', {
@@ -666,7 +807,12 @@ export function AjustesPage() {
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { loadProductos(0, pageSize) }, [loadProductos])
+  useEffect(() => {
+    loadProductos(0, pageSize)
+    gql<{ marca: { nodes: { id: number; nombre: string; prefijo?: string }[] } }>(MARCAS_QUERY)
+      .then(r => setMarcas(r.marca.nodes.map(backendToMarca)))
+      .catch(() => {})
+  }, [loadProductos])
 
   const displayed = useMemo(
     () => filtro === 'bajo' ? productos.filter(p => p.stock <= p.stock_minimo) : productos,
@@ -887,6 +1033,8 @@ export function AjustesPage() {
                         <tbody>
                           {displayed.map((p) => {
                             const bajo = p.stock <= p.stock_minimo
+                            const prefijo = getMarcaPrefijo(p.marcaId, marcas)
+                            const codigoDisplay = prefijo ? `${prefijo}-${p.codigo_universal}` : p.codigo_universal
                             return (
                               <tr
                                 key={p.id}
@@ -904,9 +1052,9 @@ export function AjustesPage() {
                                       <i className={clsx('text-[16px]', p.es_kit ? 'ti ti-stack' : 'ti ti-package')} />
                                     </div>
                                     <div className="min-w-0">
-                                      <p className="text-sm font-mono font-bold text-[#2D2B2A] truncate max-w-[220px] tracking-[0.05em]">{p.codigo_universal}</p>
+                                      <p className="text-sm font-mono font-bold text-[#2D2B2A] truncate max-w-[220px] tracking-[0.05em]">{codigoDisplay}</p>
                                       {(p.codigos_alternativos?.filter(Boolean) ?? []).length > 0 && (
-                                        <div className="flex items-center flex-wrap gap-x-1.5 mt-0.5">
+                                        <div className="flex flex-col mt-0.5">
                                           {p.codigos_alternativos!.filter(Boolean).map((c, i) => (
                                             <span key={i} className="text-[12px] font-mono text-[#7A7571]">{c}</span>
                                           ))}
@@ -968,6 +1116,8 @@ export function AjustesPage() {
                     <div className="md:hidden">
                       {displayed.map(p => {
                         const bajo = p.stock <= p.stock_minimo
+                        const prefijo = getMarcaPrefijo(p.marcaId, marcas)
+                        const codigoDisplay = prefijo ? `${prefijo}-${p.codigo_universal}` : p.codigo_universal
                         return (
                           <div
                             key={p.id}
@@ -987,9 +1137,9 @@ export function AjustesPage() {
                               <i className={clsx('text-[18px]', p.es_kit ? 'ti ti-stack' : 'ti ti-package')} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="font-mono font-bold text-[13px] text-[#2D2B2A] truncate tracking-[0.05em]">{p.codigo_universal}</p>
+                              <p className="font-mono font-bold text-[13px] text-[#2D2B2A] truncate tracking-[0.05em]">{codigoDisplay}</p>
                               {(p.codigos_alternativos?.filter(Boolean) ?? []).length > 0 && (
-                                <div className="flex gap-1.5 mt-0.5">
+                                <div className="flex flex-col mt-0.5">
                                   {p.codigos_alternativos!.filter(Boolean).map((c, i) => (
                                     <span key={i} className="text-[11px] font-mono text-[#7A7571]">{c}</span>
                                   ))}

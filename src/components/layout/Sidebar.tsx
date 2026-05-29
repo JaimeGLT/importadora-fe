@@ -172,9 +172,11 @@ function ActiveBar() {
 interface SidebarProps {
   open: boolean
   onClose: () => void
+  collapsed?: boolean
+  onToggleCollapse?: () => void
 }
 
-export function Sidebar({ open, onClose }: SidebarProps) {
+export function Sidebar({ open, onClose, collapsed = false, onToggleCollapse }: SidebarProps) {
   const { user, logout } = useAuth()
   const { pathname } = useLocation()
   const navigate = useNavigate()
@@ -209,6 +211,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       'fixed inset-y-0 left-0 z-50 h-full transition-transform duration-300 ease-in-out',
       'md:sticky md:top-0 md:translate-x-0 md:h-screen',
       open ? 'translate-x-0' : '-translate-x-full',
+      collapsed && 'md:hidden',
     )}>
       <SidebarWatermark />
 

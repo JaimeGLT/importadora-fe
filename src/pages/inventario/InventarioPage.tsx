@@ -149,7 +149,9 @@ function EmptyState({ onNew, searching }: { onNew: () => void; searching: boolea
 
 // ─── Mobile product row ───────────────────────────────────────────────────────
 
-function MobileProductRow({ p, marcaNombre, onTap }: { p: Producto; marcaNombre: string; onTap: () => void }) {
+function MobileProductRow({ p, marcaNombre, marcas, onTap }: { p: Producto; marcaNombre: string; marcas: Marca[]; onTap: () => void }) {
+  const prefijo = getMarcaPrefijo(p.marcaId, marcas)
+  const codigoDisplay = prefijo ? `${prefijo}-${p.codigo_universal}` : p.codigo_universal
   return (
     <div
       className={clsx(
@@ -161,9 +163,14 @@ function MobileProductRow({ p, marcaNombre, onTap }: { p: Producto; marcaNombre:
     >
       <ProductThumb src={p.imagen} nombre={p.nombre} />
       <div className="flex-1 min-w-0">
-        <div className="font-mono font-semibold text-[13px] text-[#2D2B2A] tracking-[0.05em] leading-tight">
-          {p.codigo_universal}
+        <div className="font-mono font-semibold text-[13px] text-[#2D2B2A] tracking-[0.05em] leading-tight underline decoration-[#D4A333] decoration-2 underline-offset-2">
+          {codigoDisplay}
         </div>
+        {p.codigos_alternativos.filter(Boolean).map((cod, i) => (
+          <div key={i} className="font-mono text-[12px] text-[#7A7571] tracking-[0.04em] leading-tight mt-0.5">
+            {cod}
+          </div>
+        ))}
         <div className="text-[11.5px] text-[#7A7571] font-medium truncate leading-tight mt-0.5">{p.nombre}</div>
         {marcaNombre && (
           <div className="text-[10.5px] text-[#7A7571] mt-0.5">{marcaNombre}</div>
@@ -214,6 +221,11 @@ function getMarcaNombre(marcaId: number | null | undefined, marcas: Marca[]): st
   return marcas.find((m) => m.id === marcaId)?.nombre ?? ''
 }
 
+function getMarcaPrefijo(marcaId: number | null | undefined, marcas: Marca[]): string {
+  if (!marcaId) return ''
+  return marcas.find((m) => m.id === marcaId)?.prefijo ?? ''
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function InventarioPage() {
@@ -239,6 +251,7 @@ export function InventarioPage() {
   const cursors                                 = useRef<(string | null)[]>([null])
   const searchDebounce                          = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const [selectedMarcaId, setSelectedMarcaId] = useState<number | null>(null)
   const [sorting, setSorting] = useState<SortingState>([])
   const [exportando, setExportando] = useState(false)
 
@@ -249,9 +262,9 @@ export function InventarioPage() {
   }, [])
 
   // ── Load products ──────────────────────────────────────────────────────────
-  const loadProducts = (targetPage: number, size: number, q: string = '') => {
+  const loadProducts = (targetPage: number, size: number, q: string = '', marcaId: number | null = null) => {
     setLoading(true)
-    const where = q.trim() ? {
+    const textWhere = q.trim() ? {
       or: [
         { codigo:      { contains: q } },
         { codigoAux:   { contains: q } },
@@ -261,6 +274,10 @@ export function InventarioPage() {
         { marca:       { nombre: { contains: q } } },
       ],
     } : undefined
+    const marcaWhere = marcaId ? { marcaId: { eq: marcaId } } : undefined
+    const where = textWhere && marcaWhere
+      ? { and: [textWhere, marcaWhere] }
+      : textWhere ?? marcaWhere
     gql<{ productos: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: ProductoAPI[] } }>(
       PRODUCTOS_QUERY,
       { first: size, after: cursors.current[targetPage] ?? null, where }
@@ -284,15 +301,21 @@ export function InventarioPage() {
       setSearching(true)
       setProducts([])
       cursors.current = [null]
-      loadProducts(0, pageSize, value)
+      loadProducts(0, pageSize, value, selectedMarcaId)
     }, 350)
   }
 
-  const handlePage = (p: number) => loadProducts(p, pageSize, searchTerm)
+  const handleMarcaFilter = (marcaId: number | null) => {
+    setSelectedMarcaId(marcaId)
+    cursors.current = [null]
+    loadProducts(0, pageSize, searchTerm, marcaId)
+  }
+
+  const handlePage = (p: number) => loadProducts(p, pageSize, searchTerm, selectedMarcaId)
   const handlePageSize = (size: number) => {
     cursors.current = [null]
     setPageSize(size)
-    loadProducts(0, size, searchTerm)
+    loadProducts(0, size, searchTerm, selectedMarcaId)
   }
 
   const loadMarcas = () => {
@@ -303,7 +326,7 @@ export function InventarioPage() {
 
   useEffect(() => {
     if (!isTokenReady) return
-    loadProducts(0, pageSize)
+    loadProducts(0, pageSize, '', null)
     loadMarcas()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTokenReady])
@@ -345,7 +368,7 @@ export function InventarioPage() {
             }
           }
         }
-        loadProducts(page, pageSize, searchTerm)
+        loadProducts(page, pageSize, searchTerm, selectedMarcaId)
         loadMarcas()
         notify.success('Producto actualizado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
       } else {
@@ -355,7 +378,7 @@ export function InventarioPage() {
           await api.put(`/Producto/ConvertirKit/${res.id}`, { piezas: kitOps.piezas })
         }
         cursors.current = [null]
-        loadProducts(0, pageSize, searchTerm)
+        loadProducts(0, pageSize, searchTerm, selectedMarcaId)
         loadMarcas()
         notify.success('Producto creado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
       }
@@ -402,7 +425,7 @@ export function InventarioPage() {
     const productosParaEnviar = results.map((r) => productoToBackendBulk(r.data))
     await api.post('/Producto/lista', { productos: productosParaEnviar })
     cursors.current = [null]
-    loadProducts(0, pageSize, searchTerm)
+    loadProducts(0, pageSize, searchTerm, selectedMarcaId)
     const creados      = results.filter((r) => r.action === 'create').length
     const actualizados = results.filter((r) => r.action === 'update').length
     const msg = creados > 0 && actualizados > 0
@@ -452,11 +475,18 @@ export function InventarioPage() {
       meta: { align: 'left' },
       cell: (info) => {
         const p = info.row.original
+        const prefijo = getMarcaPrefijo(p.marcaId, marcas)
+        const codigoDisplay = prefijo ? `${prefijo}-${p.codigo_universal}` : (p.codigo_universal || '—')
         return (
           <div>
-            <div className="font-mono font-semibold text-[14px] text-[#2D2B2A] tracking-[0.04em] leading-tight">
-              {p.codigo_universal || '—'}
+            <div className="font-mono font-semibold text-[14px] text-[#2D2B2A] tracking-[0.04em] leading-tight underline decoration-[#D4A333] decoration-2 underline-offset-2">
+              {codigoDisplay}
             </div>
+            {p.codigos_alternativos.filter(Boolean).map((cod, i) => (
+              <div key={i} className="font-mono text-[13px] text-[#7A7571] tracking-[0.04em] leading-tight mt-0.5">
+                {cod}
+              </div>
+            ))}
             <div className="text-xs text-[#7A7571] font-normal truncate max-w-[180px] mt-0.5">{p.nombre}</div>
             {p.es_kit && (
               <span className="text-[9px] font-semibold text-[#D4A333] uppercase tracking-wider">Kit</span>
@@ -796,7 +826,29 @@ export function InventarioPage() {
                   {totalCount > 0 ? totalCount : displayProducts.length}
                 </span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative">
+                  <select
+                    value={selectedMarcaId ?? ''}
+                    onChange={e => handleMarcaFilter(e.target.value ? Number(e.target.value) : null)}
+                    className="h-[37px] appearance-none bg-[#FBFBFA] border border-[#D8D4D0] rounded-lg pl-3 pr-8 text-[13px] text-[#2D2B2A] focus:outline-none focus:border-[#780e18] transition-colors cursor-pointer"
+                  >
+                    <option value="">Todas las marcas</option>
+                    {marcas.map(m => (
+                      <option key={m.id} value={m.id}>{m.nombre}</option>
+                    ))}
+                  </select>
+                  <i className="ti ti-chevron-down text-[#7A7571] text-[12px] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+                {selectedMarcaId && (
+                  <button
+                    onClick={() => handleMarcaFilter(null)}
+                    className="flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1 rounded-full bg-[#F4ECDB] text-[#780e18] hover:bg-[#E8D4B8] transition-colors"
+                  >
+                    {marcas.find(m => m.id === selectedMarcaId)?.nombre}
+                    <i className="ti ti-x text-[11px]" />
+                  </button>
+                )}
                 <div className="flex items-center gap-2 bg-[#FBFBFA] border border-[#D8D4D0] rounded-lg px-3.5 w-full sm:w-auto sm:min-w-[260px] focus-within:border-[#780e18] transition-colors">
                   <i className="ti ti-search text-[#7A7571] text-[13px] shrink-0" />
                   <input
@@ -902,6 +954,7 @@ export function InventarioPage() {
                       key={row.id}
                       p={row.original}
                       marcaNombre={getMarcaNombre(row.original.marcaId, marcas)}
+                      marcas={marcas}
                       onTap={() => handleEdit(row.original)}
                     />
                   ))}
