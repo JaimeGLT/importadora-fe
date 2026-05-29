@@ -39,6 +39,7 @@ export function KitSeleccionModal({ open, onClose, kit, onConfirm }: KitSeleccio
       codigo: p.codigo_universal,
       stock: Math.max(0, p.stock_actual - p.stock_reservado),
       cantidad_por_kit: p.cantidad_por_kit,
+      precio: 0,
     })),
     [kit.piezas_kit],
   )

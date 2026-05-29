@@ -629,7 +629,7 @@ function KitGroupCard({
   loadingPiezas,
   onMarcarListoKit,
   onFaltanteKit,
-  onConfirmarPieza,
+  onConfirmarPieza: _onConfirmarPieza,
   onFaltantePieza,
   onListoPieza,
   onEditKit,
@@ -1330,7 +1330,7 @@ function PickingView({
 
 export function AlmacenPage() {
   const { user, isTokenReady } = useAuth()
-  const { ordenes, updateOrden, setOrdenes, removeItemFromOrden, updateItemQtyInOrden, markItemListoEnOrden, marcarItemFaltante } = useVentasStore()
+  const { ordenes, updateOrden, setOrdenes, removeItemFromOrden, updateItemQtyInOrden, markItemListoEnOrden } = useVentasStore()
   const { marcas, setMarcas } = useMarcasStore()
   const { playBeep, playAlertSequence } = useSoundAlert()
   useVentasAlerts()

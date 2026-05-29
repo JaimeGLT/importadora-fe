@@ -371,6 +371,7 @@ function PiezaScanPriceModal({
   onCancel: () => void
   loading: boolean
 }) {
+  const { marcas } = useMarcasStore()
   const [precio, setPrecio] = useState(pieza.precio_unitario ? pieza.precio_unitario.toFixed(2) : '')
   const precioNum = parseFloat(precio)
   const valido = !isNaN(precioNum) && precioNum > 0

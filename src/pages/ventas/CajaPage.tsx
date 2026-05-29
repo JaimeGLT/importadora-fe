@@ -684,7 +684,6 @@ function OrdersModal({
   open: boolean
   onClose: () => void
 }) {
-  const { marcas } = useMarcasStore()
   const [showCanceladas, setShowCanceladas] = useState(false)
   const listos = ordenes.filter(o => o.estado === 'esperando_pago')
   const otras = ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada' && o.estado !== 'esperando_pago')
@@ -848,6 +847,7 @@ function CancelarOrdenModal({
   onConfirm: () => void
   onClose: () => void
 }) {
+  const { marcas } = useMarcasStore()
   return (
     <Modal open onClose={onClose} title={`Cancelar ${orden.numero}`} size="md">
       <div className="space-y-4">

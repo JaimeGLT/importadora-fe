@@ -204,15 +204,15 @@ interface ImportarExcelModalProps {
 
 async function resolveMarcaId(
   nombre: string,
-  marcas: { id: number; nombre: string }[],
-  addMarca: (m: { id: number; nombre: string; creado_en: string }) => void,
+  marcas: Marca[],
+  addMarca: (m: Marca) => void,
 ): Promise<number | null> {
   if (!nombre.trim()) return null
   const norm = nombre.trim().toLowerCase()
   const existing = marcas.find((m) => m.nombre.toLowerCase() === norm)
   if (existing) return existing.id
   const res = await api.post<{ id: number; nombre: string }>('/marca', { nombre: nombre.trim() })
-  addMarca({ id: res.id, nombre: res.nombre, creado_en: new Date().toISOString() })
+  addMarca({ id: res.id, nombre: res.nombre, prefijo: '', creado_en: new Date().toISOString() })
   return res.id
 }
 
