@@ -58,8 +58,8 @@ const EMPTY: FormData = {
 function SkeletonField({ labelWidth = 24 }: { labelWidth?: number }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="h-2.5 rounded bg-[#f1f5f9] animate-pulse" style={{ width: `${labelWidth}%` }} />
-      <div className="h-[42px] w-full rounded-xl bg-[#f1f5f9] animate-pulse" />
+      <div className="h-2.5 rounded bg-[#F0EFEC] animate-pulse" style={{ width: `${labelWidth}%` }} />
+      <div className="h-[42px] w-full rounded-xl bg-[#F0EFEC] animate-pulse" />
     </div>
   )
 }
@@ -81,16 +81,16 @@ function PreciosEspecialesSection({ precioVenta }: { precioVenta: number }) {
   if (descuentosActivos.length === 0 || precioVenta <= 0) return null
 
   return (
-    <section className="rounded-2xl border border-[#e2e8f0] overflow-hidden">
-      <div className="flex items-center gap-3 px-5 py-3.5 bg-white border-b border-[#e2e8f0]">
+    <section className="rounded-2xl border border-[#E8E5E2] overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-3.5 bg-white border-b border-[#E8E5E2]">
         <div className="flex items-center justify-center w-[30px] h-[30px] rounded-[8px] bg-white border border-hair text-ink-2 shadow-sm flex-shrink-0">
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[12.5px] font-bold text-[#1e1b2e]">Precios especiales</p>
-          <p className="text-[11px] text-[#9996b0] leading-tight">Descuentos automáticos configurados</p>
+          <p className="text-[12.5px] font-bold text-[#2D2B2A]">Precios especiales</p>
+          <p className="text-[11px] text-[#7A7571] leading-tight">Descuentos automáticos configurados</p>
         </div>
       </div>
       <div className="p-5 bg-white">
@@ -293,19 +293,19 @@ export function ProductoModal({
           {producto && onDelete && (
             <button
               onClick={onDelete} disabled={saving}
-              className="h-[42px] w-[42px] flex items-center justify-center rounded-xl border border-[#e2e8f0] text-[#9996b0] bg-white hover:bg-[#fee2e2] hover:text-[#dc2626] hover:border-[#dc2626] transition-all mr-auto disabled:opacity-40"
+              className="h-[42px] w-[42px] flex items-center justify-center rounded-xl border border-[#E8E5E2] text-[#7A7571] bg-white hover:bg-[#F5C9C0] hover:text-[#B23A2A] hover:border-[#B23A2A] transition-all mr-auto disabled:opacity-40"
               title="Eliminar producto"
             >
               <i className="ti ti-trash text-[20px]" />
             </button>
           )}
           <Button variant="secondary"
-            className="h-[42px] px-5 rounded-xl !border-[#e2e8f0] !text-[#5a5670] !bg-white hover:!bg-[#f1f5f9] !text-[13.5px] !font-semibold"
+            className="h-[42px] px-5 rounded-xl !border-[#E8E5E2] !text-[#4A4744] !bg-white hover:!bg-[#F0EFEC] !text-[13.5px] !font-semibold"
             onClick={onClose} disabled={saving}>
             Cancelar
           </Button>
           <Button
-            className="h-[42px] px-5 rounded-xl !bg-[#1d4ed8] hover:!bg-[#1e40af] !text-white !text-[13.5px] !font-bold shadow-md"
+            className="h-[42px] px-5 rounded-xl !bg-[#D4A333] hover:!bg-[#B4881C] !text-[#2D2010] !text-[13.5px] !font-bold shadow-sm"
             onClick={() => void handleSave()} loading={saving}>
             {producto ? 'Guardar cambios' : 'Crear producto'}
           </Button>
@@ -340,7 +340,7 @@ export function ProductoModal({
         <div className="space-y-4">
 
           {/* Identificación */}
-          <FormSection icon={<IconBarcode />} title="Identificación" description="Códigos únicos que identifican el producto" iconClass="bg-[#3B82F6] text-white shadow-sm">
+          <FormSection icon={<IconBarcode />} title="Identificación" description="Códigos únicos que identifican el producto" iconClass="bg-[#780e18] text-white shadow-sm">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <WarmInput
                 label="Código universal *"
@@ -377,7 +377,7 @@ export function ProductoModal({
           </FormSection>
 
           {/* Descripción */}
-          <FormSection icon={<IconClipboard />} title="Descripción" description="Marca y detalle del producto" iconClass="bg-[#1D4ED8] text-white shadow-sm">
+          <FormSection icon={<IconClipboard />} title="Descripción" description="Marca y detalle del producto" iconClass="bg-[#780e18] text-white shadow-sm">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <BrandSelect
                 label="Marca"
@@ -397,7 +397,7 @@ export function ProductoModal({
           </FormSection>
 
           {/* Stock y almacén */}
-          <FormSection icon={<IconBox />} title="Stock y almacén" description="Cantidades, unidad de medida y ubicación física" iconClass="bg-[#0369A1] text-white shadow-sm">
+          <FormSection icon={<IconBox />} title="Stock y almacén" description="Cantidades, unidad de medida y ubicación física" iconClass="bg-[#4A4744] text-white shadow-sm">
             <WarmInput
               label="Ubicación"
               value={form.almacen}
@@ -436,20 +436,20 @@ export function ProductoModal({
             icon={<IconKit />}
             title="Kit / Conjunto"
             description="Relacionar producto como kit o como parte de un kit"
-            iconClass="bg-[#7C3AED] text-white shadow-sm"
+            iconClass="bg-[#D4A333] text-[#2D2010] shadow-sm"
             extra={producto?.es_kit ? (
               <div className="flex flex-col gap-1.5">
-                <div className="flex items-center gap-1.5 rounded-full bg-[#1d4ed8] px-2.5 py-1">
+                <div className="flex items-center gap-1.5 rounded-full bg-[#780e18] px-2.5 py-1">
                   <i className="ti ti-package text-white text-[11px]" />
                   <span className="text-[11px] font-bold text-white tabular-nums">{producto.stock}</span>
                   <span className="text-[10px] text-white/70">kits</span>
                 </div>
                 {(producto.piezas_kit?.length ?? 0) > 0 && (
-                  <div className="flex items-center gap-1 rounded-full bg-[#dbeafe] border border-[#1d4ed8]/30 px-2.5 py-1">
-                    <span className="text-[11px] font-semibold text-[#1d4ed8] tabular-nums">
+                  <div className="flex items-center gap-1 rounded-full bg-[#F4ECDB] border border-[#780e18]/30 px-2.5 py-1">
+                    <span className="text-[11px] font-semibold text-[#780e18] tabular-nums">
                       {producto.piezas_kit!.reduce((s, p) => s + p.stock_actual, 0)}
                     </span>
-                    <span className="text-[10px] text-[#1d4ed8]/70">piezas en bodega</span>
+                    <span className="text-[10px] text-[#780e18]/70">piezas en bodega</span>
                   </div>
                 )}
               </div>
@@ -461,10 +461,10 @@ export function ProductoModal({
                   type="checkbox"
                   checked={form.es_kit}
                   onChange={(e) => set('es_kit', e.target.checked)}
-                  className="h-4 w-4 rounded-[4px] border-[#e2e8f0]"
-                  style={{ accentColor: '#1d4ed8' }}
+                  className="h-4 w-4 rounded-[4px] border-[#E8E5E2]"
+                  style={{ accentColor: '#780e18' }}
                 />
-                <span className="text-[13px] font-semibold text-[#5a5670]">Este producto es un kit</span>
+                <span className="text-[13px] font-semibold text-[#4A4744]">Este producto es un kit</span>
               </label>
 
               {/* Kit → Regular: warning + stock manual input */}
@@ -509,10 +509,10 @@ export function ProductoModal({
               )}
 
               {!form.es_kit && !producto?.es_kit && producto?.kit_id && (
-                <div className="p-3.5 rounded-xl bg-[#f8fafc] border border-[#e2e8f0]">
-                  <p className="text-[12px] text-[#9996b0]">
+                <div className="p-3.5 rounded-xl bg-[#FBFAF7] border border-[#E8E5E2]">
+                  <p className="text-[12px] text-[#7A7571]">
                     Parte del kit:{' '}
-                    <span className="font-bold text-[#1e1b2e]">{getKitNombre(producto.kit_id, productosExistentes)}</span>
+                    <span className="font-bold text-[#2D2B2A]">{getKitNombre(producto.kit_id, productosExistentes)}</span>
                   </p>
                 </div>
               )}
@@ -520,7 +520,7 @@ export function ProductoModal({
           </FormSection>
 
           {/* Precios */}
-          <FormSection icon={<IconCurrency />} title="Precios" description="Costos, precio de venta y tipo de cambio" iconClass="bg-[#D97706] text-white shadow-sm">
+          <FormSection icon={<IconCurrency />} title="Precios" description="Costos, precio de venta y tipo de cambio" iconClass="bg-[#D4A333] text-[#2D2010] shadow-sm">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <WarmInput
                 label="Precio costo (Bs) *"
@@ -564,13 +564,13 @@ export function ProductoModal({
             </div>
             {margen !== null && (
               <div className="mt-3.5 flex items-center gap-2 flex-wrap">
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-[#059669] px-3 py-1">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-[#3F7A52] px-3 py-1">
                   <i className="ti ti-trending-up text-white text-xs" />
                   <span className="text-xs font-bold text-white">Margen {margen}%</span>
                 </div>
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-[#d1fae5] border border-[#059669]/25 px-3 py-1">
-                  <span className="text-xs text-[#059669]/80">Ganancia</span>
-                  <span className="text-xs font-bold text-[#059669]">Bs {ganancia}</span>
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-[#B8DCCA] border border-[#3F7A52]/25 px-3 py-1">
+                  <span className="text-xs text-[#3F7A52]/80">Ganancia</span>
+                  <span className="text-xs font-bold text-[#3F7A52]">Bs {ganancia}</span>
                 </div>
               </div>
             )}
@@ -657,32 +657,32 @@ export function ProductoModal({
               icon={<IconHistory />}
               title="Historial de precios"
               description={`${form.historial_precios.length} registro${form.historial_precios.length !== 1 ? 's' : ''} de cambios`}
-              iconClass="bg-[#047857] text-white shadow-sm"
+              iconClass="bg-[#3F7A52] text-white shadow-sm"
               collapsible
               open={historialOpen}
               onToggle={() => setHistorialOpen((v) => !v)}
             >
               <div className="overflow-x-auto -mx-5 -mb-5">
                 <table className="w-full text-xs min-w-[400px]">
-                  <thead className="border-b border-[#e2e8f0]">
-                    <tr className="bg-[#f1f5f9]">
-                      <th className="px-4 py-2.5 text-left text-[10.5px] font-bold text-[#9996b0] uppercase tracking-[0.06em]">Fecha</th>
-                      <th className="px-4 py-2.5 text-right text-[10.5px] font-bold text-[#9996b0] uppercase tracking-[0.06em]">Costo (Bs)</th>
-                      <th className="px-4 py-2.5 text-right text-[10.5px] font-bold text-[#9996b0] uppercase tracking-[0.06em]">Venta (Bs)</th>
-                      <th className="px-4 py-2.5 text-right text-[10.5px] font-bold text-[#9996b0] uppercase tracking-[0.06em]">T.C.</th>
-                      <th className="px-4 py-2.5 text-left text-[10.5px] font-bold text-[#9996b0] uppercase tracking-[0.06em]">Nota</th>
+                  <thead className="border-b border-[#E8E5E2]">
+                    <tr className="bg-[#F0EFEC]">
+                      <th className="px-4 py-2.5 text-left text-[10.5px] font-bold text-[#7A7571] uppercase tracking-[0.06em]">Fecha</th>
+                      <th className="px-4 py-2.5 text-right text-[10.5px] font-bold text-[#7A7571] uppercase tracking-[0.06em]">Costo (Bs)</th>
+                      <th className="px-4 py-2.5 text-right text-[10.5px] font-bold text-[#7A7571] uppercase tracking-[0.06em]">Venta (Bs)</th>
+                      <th className="px-4 py-2.5 text-right text-[10.5px] font-bold text-[#7A7571] uppercase tracking-[0.06em]">T.C.</th>
+                      <th className="px-4 py-2.5 text-left text-[10.5px] font-bold text-[#7A7571] uppercase tracking-[0.06em]">Nota</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#e2e8f0]">
+                  <tbody className="divide-y divide-[#E8E5E2]">
                     {[...form.historial_precios].reverse().map((h, i) => (
-                      <tr key={i} className={i === 0 ? 'bg-[#dbeafe]/20' : 'bg-white'}>
-                        <td className="px-4 py-2.5 text-[#5a5670] whitespace-nowrap">
+                      <tr key={i} className={i === 0 ? 'bg-[#F4ECDB]/30' : 'bg-white'}>
+                        <td className="px-4 py-2.5 text-[#4A4744] whitespace-nowrap">
                           {new Date(h.fecha).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </td>
-                        <td className="px-4 py-2.5 text-right text-[#9996b0] tabular-nums">{h.precio_costo.toFixed(2)}</td>
-                        <td className="px-4 py-2.5 text-right font-bold text-[#1e1b2e] tabular-nums">{h.precio_venta.toFixed(2)}</td>
-                        <td className="px-4 py-2.5 text-right text-[#9996b0] tabular-nums">{h.tipo_cambio.toFixed(2)}</td>
-                        <td className="px-4 py-2.5 text-[#9996b0]">{h.nota ?? '—'}</td>
+                        <td className="px-4 py-2.5 text-right text-[#7A7571] tabular-nums">{h.precio_costo.toFixed(2)}</td>
+                        <td className="px-4 py-2.5 text-right font-bold text-[#2D2B2A] tabular-nums">{h.precio_venta.toFixed(2)}</td>
+                        <td className="px-4 py-2.5 text-right text-[#7A7571] tabular-nums">{h.tipo_cambio.toFixed(2)}</td>
+                        <td className="px-4 py-2.5 text-[#7A7571]">{h.nota ?? '—'}</td>
                       </tr>
                     ))}
                   </tbody>
