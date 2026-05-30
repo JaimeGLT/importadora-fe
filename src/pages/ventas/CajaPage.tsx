@@ -1623,7 +1623,7 @@ export function CajaPage() {
         id_Producto: Number(i.producto_id),
         cantidad: i.cantidad,
         esParcial: false,
-        precioUnitario: i.precio_unitario,
+        precioUnitario: i.precio_base,
         id_Descuento: i.descuento_id ? Number(i.descuento_id) : null,
         montoDescuento: i.descuento_porcentaje
           ? i.precio_base * (i.descuento_porcentaje / 100) * i.cantidad
