@@ -32,7 +32,7 @@ export function useVentasHub(
     if (!isReady) return
 
     const conn = new HubConnectionBuilder()
-      .withUrl(`${import.meta.env.VITE_BACKEND_PROXY}/hubs/ventas`, { withCredentials: true, transport: HttpTransportType.ServerSentEvents })
+      .withUrl('/hubs/ventas', { withCredentials: true, transport: HttpTransportType.ServerSentEvents })
       .withAutomaticReconnect()
       
       .build()
