@@ -49,6 +49,44 @@ export const PRODUCTOS_QUERY = `
   }
 `
 
+export const PRODUCTOS_CON_MARCAS_QUERY = `
+  query ProductosConMarcas($first: Int, $after: String, $where: ProductoFilterInput) {
+    productos(first: $first, after: $after, where: $where) {
+      totalCount
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        id
+        codigo
+        codigoAux
+        codigoAux2
+        nombre
+        marcaId
+        ubicacion
+        stock_Actual
+        stockReservado
+        stock_Minimo
+        calcularStockKit
+        esKit
+        costo
+        precio
+        conversionABs
+        fechaCreacion
+        fechaActualizacion
+      }
+    }
+    marca(order: { nombre: ASC }) {
+      nodes {
+        id
+        nombre
+        prefijo
+      }
+    }
+  }
+`
+
 
 export const PRODUCTOS_ALL_QUERY = `
   query ProductosTodos {

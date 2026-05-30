@@ -18,7 +18,7 @@ import { EtiquetaModal } from './EtiquetaModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import {
-  PRODUCTOS_QUERY,
+  PRODUCTOS_CON_MARCAS_QUERY,
   PRODUCTOS_ALL_QUERY,
   PRODUCTO_BY_ID_QUERY,
   backendToProducto,
@@ -29,7 +29,7 @@ import {
   type ProductoAPI,
   type KitOps,
 } from '@/lib/queries/inventario.queries'
-import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
+import { backendToMarca } from '@/lib/queries/marcas.queries'
 import type { Marca } from '@/types'
 import { api } from '@/lib/api'
 import { clsx } from 'clsx'
@@ -278,8 +278,11 @@ export function InventarioPage() {
     const where = textWhere && marcaWhere
       ? { and: [textWhere, marcaWhere] }
       : textWhere ?? marcaWhere
-    gql<{ productos: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: ProductoAPI[] } }>(
-      PRODUCTOS_QUERY,
+    gql<{
+      productos: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: ProductoAPI[] }
+      marca: { nodes: { id: number; nombre: string; prefijo?: string }[] }
+    }>(
+      PRODUCTOS_CON_MARCAS_QUERY,
       { first: size, after: cursors.current[targetPage] ?? null, where }
     )
       .then(res => {
@@ -289,6 +292,7 @@ export function InventarioPage() {
         setHasNextPage(pageInfo.hasNextPage)
         cursors.current[targetPage + 1] = pageInfo.endCursor
         setPage(targetPage)
+        setMarcas(res.marca.nodes.map(backendToMarca))
       })
       .catch(() => notify.error('Error cargando productos'))
       .finally(() => { setLoading(false); setSearching(false) })
@@ -318,16 +322,9 @@ export function InventarioPage() {
     loadProducts(0, size, searchTerm, selectedMarcaId)
   }
 
-  const loadMarcas = () => {
-    gql<{ marca: { nodes: { id: number; nombre: string }[] } }>(MARCAS_QUERY)
-      .then((data) => setMarcas(data.marca.nodes.map(backendToMarca)))
-      .catch(() => {})
-  }
-
   useEffect(() => {
     if (!isTokenReady) return
     loadProducts(0, pageSize, '', null)
-    loadMarcas()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTokenReady])
 
@@ -369,7 +366,6 @@ export function InventarioPage() {
           }
         }
         loadProducts(page, pageSize, searchTerm, selectedMarcaId)
-        loadMarcas()
         notify.success('Producto actualizado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
       } else {
         const createPayload = productoToBackend(data)
@@ -379,7 +375,6 @@ export function InventarioPage() {
         }
         cursors.current = [null]
         loadProducts(0, pageSize, searchTerm, selectedMarcaId)
-        loadMarcas()
         notify.success('Producto creado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
       }
       setModalOpen(false)

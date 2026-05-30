@@ -13,6 +13,7 @@ import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
 import { PRODUCTOS_QUERY, PRODUCTO_BY_ID_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI } from '@/lib/queries/inventario.queries'
 import { MIS_ORDENES_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
+import { CLIENTES_QUERY, backendToCliente, type ClienteAPI } from '@/lib/queries/clientes.queries'
 import {
   DESCUENTOS_QUERY, MARGEN_GANANCIA_QUERY, CONFIG_VENTA_QUERY, TIPO_CAMBIO_QUERY,
   backendToDescuento,
@@ -28,6 +29,9 @@ import type { Producto, OrdenVenta, MetodoPago, Cliente, PagoOrden } from '@/typ
 
 const fmtBs = (n: number) =>
   `Bs ${n.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+const fmtBsInt = (n: number) =>
+  `Bs ${Math.round(n).toLocaleString('es-BO')}`
 
 const fmtTimeSince = (iso: string) => {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000)
@@ -923,51 +927,29 @@ function CancelarOrdenModal({
 
 // ─── Cobro Modal ───────────────────────────────────────────────────────────────
 
-type TipoIdBilling = 'ci' | 'nit' | 'sin_nit'
-
-interface BillingData {
-  tipoDocumento: 'nota_venta' | 'factura'
-  cliente_id?: string | number
-  cliente_tipo_id?: TipoIdBilling
-  cliente_numero_id?: string
-  cliente_nombre?: string
-  cliente_nit?: string
-  email?: string
-}
-
-function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
+function CobroModal({ orden, clientes, onConfirm, onClose }: {
   orden: OrdenVenta
   clientes: Cliente[]
-  onAddCliente: (c: Cliente) => void
-  onConfirm: (pagos: PagoOrden[], monto_recibido: number, billing: BillingData) => void
+  onConfirm: (pagos: PagoOrden[], monto_recibido: number, billing: { cliente_id?: number }) => void
   onClose: () => void
 }) {
   const { marcas } = useMarcasStore()
   const itemsDespachados = orden.items.filter(i => i.estado === 'completo' || i.estado === 'parcial')
   const itemsFaltantes = orden.items.filter(i => i.estado === 'faltante')
-  const totalReal = itemsDespachados.reduce((s, i) => {
+  const totalReal = Math.round(itemsDespachados.reduce((s, i) => {
     if (i.es_parcial && i.piezas_orden?.length)
       return s + i.piezas_orden.filter(p => p.confirmado).reduce((ps, p) => ps + (p.precio_unitario ?? 0) * p.cantidad, 0)
     return s + i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida)
-  }, 0)
+  }, 0))
 
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
-  const [montoStr, setMontoStr] = useState(totalReal.toFixed(2))
+  const [montoStr, setMontoStr] = useState(String(totalReal))
   const [pagoMixto, setPagoMixto] = useState(false)
   const [metodo2, setMetodo2] = useState<MetodoPago>('tarjeta')
   const [monto2Str, setMonto2Str] = useState('')
   const monto2 = parseFloat(monto2Str.replace(',', '.')) || 0
   const monto1Mixto = totalReal - monto2
-  const [requiereFactura, setRequiereFactura] = useState(false)
 
-  // Billing fields
-  const [billingTipo, setBillingTipo] = useState<TipoIdBilling>('ci')
-  const [billingNumeroId, setBillingNumeroId] = useState('')
-  const [billingComplemento, setBillingComplemento] = useState('')
-  const [billingNombre, setBillingNombre] = useState('')
-  const [billingEmail, setBillingEmail] = useState('')
-
-  // Client search
   const [clienteSearch, setClienteSearch] = useState('')
   const [clienteSelected, setClienteSelected] = useState<Cliente | null>(
     orden.cliente_id ? clientes.find(c => c.id === Number(orden.cliente_id)) ?? null : null
@@ -977,108 +959,32 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
   const monto = parseFloat(montoStr.replace(',', '.'))
   const cambio = metodo === 'efectivo' && !isNaN(monto) ? monto - totalReal : null
 
-  // Pre-fill billing from selected cliente
-  const applyClienteToBilling = (c: Cliente) => {
-    if (c.nit) {
-      setBillingTipo('nit')
-      setBillingNumeroId(c.nit)
-      setBillingNombre(c.nombre ? `${c.nombre} ${c.apellido}` : c.apellido)
-    } else {
-      setBillingTipo('ci')
-      setBillingNumeroId(c.ci ?? '')
-      setBillingComplemento(c.ciComplemento ?? '')
-      setBillingNombre(c.nombre ? `${c.nombre} ${c.apellido}` : c.apellido)
-    }
-    setBillingEmail(c.email ?? '')
-  }
-
   const handleSelectCliente = (c: Cliente) => {
     setClienteSelected(c)
     setClienteSearch('')
     setShowClienteDropdown(false)
-    applyClienteToBilling(c)
-  }
-
-  const handleClearCliente = () => {
-    setClienteSelected(null)
-    setBillingTipo('ci')
-    setBillingNumeroId('')
-    setBillingComplemento('')
-    setBillingNombre('')
-    setBillingEmail('')
   }
 
   const filteredClientes = useMemo(() => {
     if (!clienteSearch.trim()) return []
     const q = clienteSearch.toLowerCase()
     return clientes.filter(c =>
-      c.activo && (
-        (c.ci?.includes(clienteSearch) ?? false) ||
-        (c.nit?.toLowerCase().includes(q) ?? false) ||
-        c.apellido.toLowerCase().includes(q) ||
-        (c.nombre?.toLowerCase().includes(q) ?? false) ||
-        (c.telefono?.includes(clienteSearch) ?? false)
-      )
+      c.apellido.toLowerCase().includes(q) ||
+      (c.nombre?.toLowerCase().includes(q) ?? false) ||
+      (c.telefono?.includes(clienteSearch) ?? false)
     ).slice(0, 5)
   }, [clientes, clienteSearch])
 
-  const billingNumeroCompleto = billingTipo === 'ci' && billingComplemento
-    ? `${billingNumeroId}-${billingComplemento}`
-    : billingNumeroId
-
   const handleConfirm = () => {
-    if (requiereFactura) {
-      if (!billingNombre.trim()) { notify.error('Nombre o razón social requerido'); return }
-      if (billingTipo === 'ci' && !billingNumeroId.trim()) { notify.error('CI requerido'); return }
-      if (billingTipo === 'nit' && !billingNumeroId.trim()) { notify.error('NIT requerido'); return }
-    }
     const m = parseFloat(montoStr.replace(',', '.'))
-    if (metodo === 'efectivo' && (isNaN(m) || m < totalReal)) { notify.error('Monto insuficiente'); return }
-
-    let newCliente: Cliente | null = null
-    if (requiereFactura && !clienteSelected) {
-      // Create quick client
-      const now = new Date().toISOString()
-      newCliente = {
-        id: -Date.now(),
-        ci: billingTipo === 'ci' ? billingNumeroId : undefined,
-        ciComplemento: billingTipo === 'ci' ? (billingComplemento || undefined) : undefined,
-        nit: billingTipo === 'nit' ? billingNumeroId : (billingTipo === 'sin_nit' ? '99001' : undefined),
-        nombre: billingNombre.split(' ').slice(0, -1).join(' ') || undefined,
-        apellido: billingNombre.split(' ').slice(-1).join(' ') || billingNombre,
-        telefono: undefined,
-        email: billingEmail.trim() || undefined,
-        activo: true,
-        compras: [],
-        creado_en: now,
-        actualizado_en: now,
-      }
-      onAddCliente(newCliente)
-    }
-
     if (pagoMixto) {
       if (monto2 <= 0 || monto2 >= totalReal) { notify.error('Monto del segundo método inválido'); return }
       if (metodo === metodo2) { notify.error('Los dos métodos deben ser distintos'); return }
     }
-
-    const billing: BillingData = {
-      tipoDocumento: requiereFactura ? 'factura' : 'nota_venta',
-      cliente_id: (newCliente ?? clienteSelected)?.id,
-      cliente_tipo_id: requiereFactura ? billingTipo : undefined,
-      cliente_numero_id: requiereFactura ? billingNumeroCompleto : undefined,
-      cliente_nombre: requiereFactura ? billingNombre : undefined,
-      cliente_nit: requiereFactura ? (billingTipo === 'nit' ? billingNumeroId : undefined) : undefined,
-      email: requiereFactura ? (billingEmail.trim() || undefined) : undefined,
-    }
-
     const pagos: PagoOrden[] = pagoMixto
-      ? [
-          { tipoPago: metodo, monto: monto1Mixto },
-          { tipoPago: metodo2, monto: monto2 },
-        ]
+      ? [{ tipoPago: metodo, monto: monto1Mixto }, { tipoPago: metodo2, monto: monto2 }]
       : [{ tipoPago: metodo, monto: totalReal }]
-
-    onConfirm(pagos, isNaN(m) ? totalReal : m, billing)
+    onConfirm(pagos, isNaN(m) ? totalReal : m, { cliente_id: clienteSelected?.id })
   }
 
   const METODOS: { value: MetodoPago; label: string; icon: React.ReactNode }[] = [
@@ -1111,7 +1017,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
                     <p className="text-[#4A4744] truncate">{p.nombre}</p>
                     <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(p.codigo, p.marcaId, marcas)} · ×{p.cantidad}</p>
                   </div>
-                  <span className="font-semibold text-[#2D2B2A] shrink-0">{fmtBs((p.precio_unitario ?? 0) * p.cantidad)}</span>
+                  <span className="font-semibold text-[#2D2B2A] shrink-0">{fmtBsInt((p.precio_unitario ?? 0) * p.cantidad)}</span>
                 </div>
               ))
             }
@@ -1121,7 +1027,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
                   <p className="text-[#4A4744] truncate">{i.producto_nombre}</p>
                   <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
                 </div>
-                <span className="font-semibold text-[#2D2B2A] shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
+                <span className="font-semibold text-[#2D2B2A] shrink-0">{fmtBsInt(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
               </div>
             )
           })}
@@ -1136,186 +1042,64 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
           ))}
           <div className="flex justify-between pt-2 border-t border-[#E8E5E2] mt-2">
             <span className="text-sm font-bold text-[#4A4744]">Total</span>
-            <span className="text-lg font-black text-[#2D2B2A]">{fmtBs(totalReal)}</span>
+            <span className="text-lg font-black text-[#2D2B2A]">{fmtBsInt(totalReal)}</span>
           </div>
         </div>
 
-        {/* Toggle Factura */}
-        <div className="flex items-center justify-between py-3 px-4 rounded-xl bg-[#F7F7F7] border border-[#E8E5E2]">
-          <div>
-            <p className="text-sm font-semibold text-[#2D2B2A]">¿Requiere factura?</p>
-            <p className="text-xs text-[#7A7571] mt-0.5">Si es nota de venta, no se piden datos fiscales</p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={requiereFactura}
-            onClick={() => {
-              setRequiereFactura(!requiereFactura)
-              if (!requiereFactura) {
-                // Just turned ON — focus billing if no cliente selected
-                if (!clienteSelected) setShowClienteDropdown(true)
-              }
-            }}
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#780e18] focus-visible:ring-offset-2 ${
-              requiereFactura ? 'bg-[#780e18]' : 'bg-[#7A7571]'
-            }`}
-          >
-            <span
-              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                requiereFactura ? 'translate-x-5' : 'translate-x-0'
-              }`}
-            />
-          </button>
-        </div>
-
-        {/* Billing section — only shown if requiereFactura is ON */}
-        {requiereFactura && (
-          <div className="space-y-3 border border-[#D0CBC4] rounded-xl p-4 bg-[#F4ECDB]/30">
-            <p className="text-xs font-bold text-[#780e18] uppercase tracking-widest">Datos para factura</p>
-
-            {/* Cliente existente */}
-            <div>
-              <p className="text-[11px] font-semibold text-[#7A7571] uppercase tracking-wide mb-1.5">Cliente existente</p>
-              {clienteSelected ? (
-                <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-[#B8DCCA]/30 border border-[#B8DCCA]">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-[#1E5C38] truncate">
-                      {clienteSelected.nombre ? `${clienteSelected.nombre} ${clienteSelected.apellido}` : clienteSelected.apellido}
-                    </p>
-                    <p className="text-xs text-[#3F7A52]">
-                      {clienteSelected.ci ? `CI: ${clienteSelected.ci}${clienteSelected.ciComplemento ? `-${clienteSelected.ciComplemento}` : ''}` : ''}
-                      {clienteSelected.nit ? `NIT: ${clienteSelected.nit}` : ''}
-                    </p>
-                  </div>
-                  <button onClick={handleClearCliente} className="p-1.5 text-[#3F7A52] hover:text-[#1E5C38] hover:bg-[#B8DCCA]/50 rounded-lg transition-colors shrink-0">
-                    <i className="ti ti-x text-[14px]" />
-                  </button>
-                </div>
-              ) : (
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={clienteSearch}
-                    onChange={e => { setClienteSearch(e.target.value); setShowClienteDropdown(true) }}
-                    onFocus={() => setShowClienteDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowClienteDropdown(false), 150)}
-                    placeholder="Buscar cliente por nombre, CI o NIT…"
-                    className="w-full text-xs px-3 py-2.5 bg-white border border-[#E8E5E2] rounded-xl focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 placeholder:text-[#7A7571]"
-                  />
-                  {showClienteDropdown && (clienteSearch.trim()) && (
-                    <div className="absolute z-20 w-full mt-1 bg-white rounded-xl border border-[#E8E5E2] shadow-lg max-h-40 overflow-y-auto">
-                      {filteredClientes.length === 0 && (
-                        <div className="px-3 py-2.5 text-xs text-[#7A7571] text-center">Sin resultados</div>
-                      )}
-                      {filteredClientes.map(c => (
-                        <button
-                          key={c.id}
-                          onClick={() => handleSelectCliente(c)}
-                          className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#FAF5EE] transition-colors text-left"
-                        >
-                          <div className="h-7 w-7 rounded-full bg-[#F4ECDB] flex items-center justify-center text-[10px] font-bold text-[#780e18] shrink-0">
-                            {c.nombre ? c.nombre.charAt(0) : c.apellido.charAt(0)}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold text-[#2D2B2A] truncate">
-                              {c.nombre ? `${c.nombre} ${c.apellido}` : c.apellido}
-                            </p>
-                            <p className="text-[10px] text-[#7A7571]">
-                              {c.ci ? `CI: ${c.ci}${c.ciComplemento ? `-${c.ciComplemento}` : ''}` : ''}
-                              {c.nit ? `NIT: ${c.nit}` : ''}
-                            </p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+        {/* Cliente (opcional) */}
+        <div>
+          <p className="text-xs font-bold text-[#7A7571] uppercase tracking-widest mb-2">Cliente (opcional)</p>
+          {clienteSelected ? (
+            <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-[#B8DCCA]/30 border border-[#B8DCCA]">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-[#1E5C38] truncate">
+                  {clienteSelected.nombre ? `${clienteSelected.nombre} ${clienteSelected.apellido}` : clienteSelected.apellido}
+                </p>
+                {clienteSelected.telefono && (
+                  <p className="text-xs text-[#3F7A52]">{clienteSelected.telefono}</p>
+                )}
+              </div>
+              <button onClick={() => setClienteSelected(null)} className="p-1.5 text-[#3F7A52] hover:text-[#1E5C38] hover:bg-[#B8DCCA]/50 rounded-lg transition-colors shrink-0">
+                <i className="ti ti-x text-[14px]" />
+              </button>
+            </div>
+          ) : (
+            <div className="relative">
+              <input
+                type="text"
+                value={clienteSearch}
+                onChange={e => { setClienteSearch(e.target.value); setShowClienteDropdown(true) }}
+                onFocus={() => setShowClienteDropdown(true)}
+                onBlur={() => setTimeout(() => setShowClienteDropdown(false), 150)}
+                placeholder="Buscar cliente por nombre o teléfono…"
+                className="w-full text-xs px-3 py-2.5 bg-white border border-[#E8E5E2] rounded-xl focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 placeholder:text-[#7A7571]"
+              />
+              {showClienteDropdown && clienteSearch.trim() && (
+                <div className="absolute z-20 w-full mt-1 bg-white rounded-xl border border-[#E8E5E2] shadow-lg max-h-40 overflow-y-auto">
+                  {filteredClientes.length === 0 ? (
+                    <div className="px-3 py-2.5 text-xs text-[#7A7571] text-center">Sin resultados</div>
+                  ) : filteredClientes.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => handleSelectCliente(c)}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#FAF5EE] transition-colors text-left"
+                    >
+                      <div className="h-7 w-7 rounded-full bg-[#F4ECDB] flex items-center justify-center text-[10px] font-bold text-[#780e18] shrink-0">
+                        {c.nombre ? c.nombre.charAt(0) : c.apellido.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-[#2D2B2A] truncate">
+                          {c.nombre ? `${c.nombre} ${c.apellido}` : c.apellido}
+                        </p>
+                        {c.telefono && <p className="text-[10px] text-[#7A7571]">{c.telefono}</p>}
+                      </div>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
-
-            {/* Tipo de identificación */}
-            <div>
-              <p className="text-[11px] font-semibold text-[#7A7571] uppercase tracking-wide mb-1.5">Tipo de identificación</p>
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  { value: 'ci', label: 'CI' },
-                  { value: 'nit', label: 'NIT' },
-                  { value: 'sin_nit', label: 'S/N 99001' },
-                ] as const).map(t => (
-                  <button
-                    key={t.value}
-                    onClick={() => setBillingTipo(t.value)}
-                    className={clsx(
-                      'py-2 rounded-lg border-2 text-xs font-bold transition-all',
-                      billingTipo === t.value
-                        ? 'border-[#780e18] bg-[#F4ECDB] text-[#780e18]'
-                        : 'border-[#E8E5E2] text-[#7A7571] hover:border-[#D0CBC4]'
-                    )}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Número de identificación */}
-            {billingTipo !== 'sin_nit' && (
-              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_70px] gap-2">
-                <div>
-                  <label className="block text-[11px] font-semibold text-[#7A7571] uppercase tracking-wide mb-1">
-                    {billingTipo === 'ci' ? 'Número de CI' : 'Número de NIT'}
-                  </label>
-                  <Input
-                    value={billingNumeroId}
-                    onChange={e => setBillingNumeroId(e.target.value)}
-                    placeholder={billingTipo === 'ci' ? '12345678' : '10234567011'}
-                    type="text"
-                    inputMode="numeric"
-                  />
-                </div>
-                {billingTipo === 'ci' && (
-                  <>
-                    <span className="self-end pb-2 text-[#7A7571] font-bold">−</span>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#7A7571] uppercase tracking-wide mb-1">Complemento</label>
-                      <Input
-                        value={billingComplemento}
-                        onChange={e => setBillingComplemento(e.target.value)}
-                        placeholder="Ej. 1A"
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Nombre / Razón Social */}
-            <div>
-              <label className="block text-[11px] font-semibold text-[#7A7571] uppercase tracking-wide mb-1">
-                Nombre o razón social <span className="text-[#B23A2A]">*</span>
-              </label>
-              <Input
-                value={billingNombre}
-                onChange={e => setBillingNombre(e.target.value)}
-                placeholder="Ej. Juan Pérez García"
-              />
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className="block text-[11px] font-semibold text-[#7A7571] uppercase tracking-wide mb-1">
-                Correo electrónico (opcional)
-              </label>
-              <Input
-                value={billingEmail}
-                onChange={e => setBillingEmail(e.target.value)}
-                placeholder="Para recibir el PDF de la factura"
-                type="email"
-              />
-            </div>
-          </div>
-        )}
+          )}
+        </div>
 
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -1372,7 +1156,7 @@ function CobroModal({ orden, clientes, onAddCliente, onConfirm, onClose }: {
           <div>
             <label className="block text-xs font-bold text-[#7A7571] uppercase tracking-widest mb-1.5">Monto recibido (Bs)</label>
             <Input type="number" min={totalReal} step="0.50" value={montoStr} onChange={e => setMontoStr(e.target.value)} autoFocus />
-            {cambio !== null && cambio >= 0 && <p className="text-sm font-bold text-[#3F7A52] mt-2">Cambio: {fmtBs(cambio)}</p>}
+            {cambio !== null && cambio >= 0 && <p className="text-sm font-bold text-[#3F7A52] mt-2">Cambio: {fmtBsInt(cambio)}</p>}
           </div>
         )}
         <div className="flex gap-2 pt-1">
@@ -1545,7 +1329,8 @@ export function CajaPage() {
       gql<{ margenGanancia: MargenGananciaAPI }>(MARGEN_GANANCIA_QUERY).then(r => r.margenGanancia),
       gql<{ configVenta: ConfigVentaAPI | null }>(CONFIG_VENTA_QUERY).then(r => r.configVenta),
       gql<{ tipoCambio: TipoCambioAPI }>(TIPO_CAMBIO_QUERY).then(r => r.tipoCambio),
-    ]).then(([desc, margen, config, tipoCambio]) => {
+      gql<{ clientes: { nodes: ClienteAPI[] } }>(CLIENTES_QUERY, { first: 200 }).then(r => r.clientes?.nodes ?? []),
+    ]).then(([desc, margen, config, tipoCambio, clientesNodes]) => {
       setDescuentos(desc.map(backendToDescuento))
       if (margen) setMargenGanancia(margen.valor)
       if (config) setModoPrecioCajero(config.modoVenta)
@@ -1553,6 +1338,7 @@ export function CajaPage() {
         setTipoCambioHoy(tipoCambio.precioDolar)
         setTipoCambioHabilitado(tipoCambio.precioDolar > 0)
       }
+      setClientes(clientesNodes.map(backendToCliente))
     }).catch(() => {})
   }, [isTokenReady])
 
@@ -1899,17 +1685,7 @@ export function CajaPage() {
     setParcialOrden(null)
   }
 
-  type BillingDataFromCobro = {
-    tipoDocumento: 'nota_venta' | 'factura'
-    cliente_id?: string | number
-    cliente_tipo_id?: string
-    cliente_numero_id?: string
-    cliente_nombre?: string
-    cliente_nit?: string
-    email?: string
-  }
-
-  const handleConfirmarPago = async (pagos: PagoOrden[], monto_recibido: number, billing: BillingDataFromCobro) => {
+  const handleConfirmarPago = async (pagos: PagoOrden[], monto_recibido: number, billing: { cliente_id?: number }) => {
     if (!cobroOrden) return
     const PAGO_MAP: Record<string, string> = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', qr: 'QR' }
     const capitalizePago = (m: string) => PAGO_MAP[m] ?? m
@@ -1929,20 +1705,11 @@ export function CajaPage() {
       metodo_pago: metodoPrimario,
       monto_recibido,
       pagado_en: now,
-      tipoDocumento: billing.tipoDocumento as 'nota_venta' | 'factura',
       cliente_id: billing.cliente_id != null ? String(billing.cliente_id) : undefined,
-      cliente_tipo_id: billing.cliente_tipo_id as 'ci' | 'nit' | 'sin_nit' | undefined,
-      cliente_numero_id: billing.cliente_numero_id,
-      cliente_nombre: billing.cliente_nombre,
-      cliente_nit: billing.cliente_nit,
     })
     setCobroOrden(null)
     setFacturaOrden(ordenCompletada)
-    if (billing.tipoDocumento === 'factura') {
-      notify.success('Venta facturada')
-    } else {
-      notify.success('Venta cobrada', { description: `${cobroOrden.numero} — ${pagos.length > 1 ? 'pago mixto' : metodoPrimario}` })
-    }
+    notify.success('Venta cobrada', { description: `${cobroOrden.numero} — ${pagos.length > 1 ? 'pago mixto' : metodoPrimario}` })
   }
 
   return (
@@ -2026,7 +1793,7 @@ export function CajaPage() {
       {parcialOrden && (
         <PickingParcialModal orden={parcialOrden} onPartial={handleEntregarParcial} onCancelar={() => { setCancelarOrden(parcialOrden); setParcialOrden(null) }} onClose={() => setParcialOrden(null)} />
       )}
-      {cobroOrden && <CobroModal orden={cobroOrden} clientes={clientes} onAddCliente={(c) => setClientes(prev => [c, ...prev])} onConfirm={handleConfirmarPago} onClose={() => setCobroOrden(null)} />}
+      {cobroOrden && <CobroModal orden={cobroOrden} clientes={clientes} onConfirm={handleConfirmarPago} onClose={() => setCobroOrden(null)} />}
       {facturaOrden && <FacturaModal orden={facturaOrden} onClose={() => setFacturaOrden(null)} />}
       {cancelarOrden && <CancelarOrdenModal orden={cancelarOrden} onConfirm={handleConfirmarCancelar} onClose={() => setCancelarOrden(null)} />}
       {productoSeleccionado && (
