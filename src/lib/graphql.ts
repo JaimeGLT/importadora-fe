@@ -31,6 +31,8 @@ export async function gql<T = unknown>(
     throw new Error('Sesión expirada')
   }
 
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
   const json = (await response.json()) as { data?: T; errors?: { message: string }[] }
 
   if (json.errors?.length) {

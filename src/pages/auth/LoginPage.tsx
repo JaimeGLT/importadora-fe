@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate, Navigate } from 'react-router-dom'
+import { useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button, Input } from '@/components/ui'
 import { notify } from '@/lib/notify'
@@ -7,7 +7,7 @@ import type { Usuario } from '@/types'
 
 const ROLE_HOME: Record<string, string> = {
   admin:      '/inventario',
-  vendedor:   '/ventas/caja',
+  cajero:     '/ventas/punto-de-venta',
   almacenero: '/ventas/almacen',
 }
 
@@ -20,6 +20,8 @@ const QUICK_USERS = [
 export function LoginPage() {
   const { login, user, isTokenReady } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const from = (location.state as { from?: Location } | null)?.from?.pathname ?? null
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading]   = useState(false)
@@ -32,7 +34,7 @@ export function LoginPage() {
     setLoading(true)
     try {
       const loggedUser: Usuario = await login(e, p)
-      void navigate(ROLE_HOME[loggedUser.rol] ?? '/inventario')
+      void navigate(from ?? ROLE_HOME[loggedUser.rol] ?? '/inventario', { replace: true })
     } catch {
       notify.error('Credenciales incorrectas', { description: 'Verifica tu email y contraseña' })
     } finally {

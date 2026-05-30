@@ -20,12 +20,15 @@ export function MarcasPage() {
   const [deleteTarget, setDeleteTarget] = useState<Marca | null>(null)
   const [formNombre, setFormNombre] = useState('')
   const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!isTokenReady) return
+    setLoading(true)
     gql<{ marca: { nodes: { id: number; nombre: string }[] } }>(MARCAS_QUERY)
       .then((data) => setMarcas(data.marca.nodes.map(backendToMarca)))
       .catch(() => notify.error('Error al cargar marcas'))
+      .finally(() => setLoading(false))
   }, [isTokenReady])
 
   const filtered = useMemo(() => {
@@ -176,7 +179,9 @@ export function MarcasPage() {
             </div>
 
             {/* Table content */}
-            {marcas.length === 0 ? (
+            {!isTokenReady || loading ? (
+              <TableSkeleton />
+            ) : marcas.length === 0 ? (
               <EmptyState onNew={handleOpenNew} />
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 px-5">
@@ -255,6 +260,26 @@ export function MarcasPage() {
         message={`¿Eliminar "${deleteTarget?.nombre}"? Esta acción no se puede deshacer.`}
       />
     </MainLayout>
+  )
+}
+
+function TableSkeleton() {
+  return (
+    <div className="divide-y divide-[#E8E5E2]">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 px-5 py-[14px] animate-pulse">
+          <div className="h-5 w-14 rounded-md bg-[#F5F0EB]" />
+          <div className="flex items-center gap-2.5 flex-1">
+            <div className="w-7 h-7 rounded-lg bg-[#EDE8E3] shrink-0" />
+            <div className="h-3 w-40 rounded bg-[#F5F0EB]" />
+          </div>
+          <div className="flex gap-1.5">
+            <div className="w-8 h-8 rounded-[6px] bg-[#EDE8E3]" />
+            <div className="w-8 h-8 rounded-[6px] bg-[#EDE8E3]" />
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 
