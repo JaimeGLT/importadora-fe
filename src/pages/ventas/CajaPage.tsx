@@ -30,9 +30,6 @@ import type { Producto, OrdenVenta, MetodoPago, Cliente, PagoOrden } from '@/typ
 const fmtBs = (n: number) =>
   `Bs ${n.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-const fmtBsInt = (n: number) =>
-  `Bs ${Math.round(n).toLocaleString('es-BO')}`
-
 const fmtTimeSince = (iso: string) => {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000)
   if (mins < 1) return 'ahora'
@@ -936,14 +933,14 @@ function CobroModal({ orden, clientes, onConfirm, onClose }: {
   const { marcas } = useMarcasStore()
   const itemsDespachados = orden.items.filter(i => i.estado === 'completo' || i.estado === 'parcial')
   const itemsFaltantes = orden.items.filter(i => i.estado === 'faltante')
-  const totalReal = Math.round(itemsDespachados.reduce((s, i) => {
+  const totalReal = itemsDespachados.reduce((s, i) => {
     if (i.es_parcial && i.piezas_orden?.length)
       return s + i.piezas_orden.filter(p => p.confirmado).reduce((ps, p) => ps + (p.precio_unitario ?? 0) * p.cantidad, 0)
     return s + i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida)
-  }, 0))
+  }, 0)
 
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
-  const [montoStr, setMontoStr] = useState(String(totalReal))
+  const [montoStr, setMontoStr] = useState(totalReal.toFixed(2))
   const [pagoMixto, setPagoMixto] = useState(false)
   const [metodo2, setMetodo2] = useState<MetodoPago>('tarjeta')
   const [monto2Str, setMonto2Str] = useState('')
@@ -1014,35 +1011,35 @@ function CobroModal({ orden, clientes, onConfirm, onClose }: {
               return i.piezas_orden.filter(p => p.confirmado).map(p => (
                 <div key={`${i.id}-${p.id}`} className="flex justify-between text-sm gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[#4A4744] truncate">{p.nombre}</p>
-                    <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(p.codigo, p.marcaId, marcas)} · ×{p.cantidad}</p>
+                    <p className="text-[11px] font-mono font-bold text-[#780e18]">{fmtCodigo(p.codigo, p.marcaId, marcas)} · ×{p.cantidad}</p>
+                    <p className="text-[11px] text-[#7A7571] truncate">{p.nombre}</p>
                   </div>
-                  <span className="font-semibold text-[#2D2B2A] shrink-0">{fmtBsInt((p.precio_unitario ?? 0) * p.cantidad)}</span>
+                  <span className="font-semibold text-[#2D2B2A] shrink-0">{fmtBs((p.precio_unitario ?? 0) * p.cantidad)}</span>
                 </div>
               ))
             }
             return (
               <div key={i.id} className="flex justify-between text-sm gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-[#4A4744] truncate">{i.producto_nombre}</p>
-                  <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
+                  <p className="text-[11px] font-mono font-bold text-[#780e18]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
+                  <p className="text-[11px] text-[#7A7571] truncate">{i.producto_nombre}</p>
                 </div>
-                <span className="font-semibold text-[#2D2B2A] shrink-0">{fmtBsInt(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
+                <span className="font-semibold text-[#2D2B2A] shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
               </div>
             )
           })}
           {itemsFaltantes.map(i => (
             <div key={i.id} className="flex justify-between text-sm gap-2 opacity-50">
               <div className="flex-1 min-w-0">
-                <p className="text-[#7A7571] truncate line-through">{i.producto_nombre}</p>
-                <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_pedida}</p>
+                <p className="text-[11px] font-mono font-bold text-[#7A7571] line-through">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_pedida}</p>
+                <p className="text-[11px] text-[#7A7571] truncate">{i.producto_nombre}</p>
               </div>
               <span className="text-[#7A7571] shrink-0">N/A</span>
             </div>
           ))}
           <div className="flex justify-between pt-2 border-t border-[#E8E5E2] mt-2">
             <span className="text-sm font-bold text-[#4A4744]">Total</span>
-            <span className="text-lg font-black text-[#2D2B2A]">{fmtBsInt(totalReal)}</span>
+            <span className="text-lg font-black text-[#2D2B2A]">{fmtBs(totalReal)}</span>
           </div>
         </div>
 
@@ -1156,7 +1153,7 @@ function CobroModal({ orden, clientes, onConfirm, onClose }: {
           <div>
             <label className="block text-xs font-bold text-[#7A7571] uppercase tracking-widest mb-1.5">Monto recibido (Bs)</label>
             <Input type="number" min={totalReal} step="0.50" value={montoStr} onChange={e => setMontoStr(e.target.value)} autoFocus />
-            {cambio !== null && cambio >= 0 && <p className="text-sm font-bold text-[#3F7A52] mt-2">Cambio: {fmtBsInt(cambio)}</p>}
+            {cambio !== null && cambio >= 0 && <p className="text-sm font-bold text-[#3F7A52] mt-2">Cambio: {fmtBs(cambio)}</p>}
           </div>
         )}
         <div className="flex gap-2 pt-1">
