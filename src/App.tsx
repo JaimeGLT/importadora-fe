@@ -5,27 +5,29 @@ import { Toaster } from 'sonner'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ROLE_HOME } from '@/lib/roles'
-import { LoginPage } from '@/pages/auth/LoginPage'
-import { DashboardPage } from '@/pages/dashboard/DashboardPage'
-import { InventarioPage } from '@/pages/inventario/InventarioPage'
-import { PrestamosPage } from '@/pages/inventario/PrestamosPage'
-import { AjustesPage } from '@/pages/inventario/AjustesPage'
-import { ImportacionesPage } from '@/pages/importaciones/ImportacionesPage'
-import { ProveedoresPage } from '@/pages/importaciones/proveedores/ProveedoresPage'
-import { MarcasPage as MarcasPageImportaciones } from '@/pages/importaciones/marcas/MarcasPage'
-import { CajaDiariaPage } from '@/pages/caja/CajaDiariaPage'
-import { CajaPage } from '@/pages/ventas/CajaPage'
-import { AlmacenPage } from '@/pages/ventas/AlmacenPage'
-import { AlertasPage } from '@/pages/alertas/AlertasPage'
-import { VentasReportePage } from '@/pages/reportes/VentasReportePage'
-import { InventarioReportePage } from '@/pages/reportes/InventarioReportePage'
-import { OrdenesReportePage } from '@/pages/reportes/OrdenesReportePage'
-import { ConfiguracionPage } from '@/pages/config/ConfiguracionPage'
-import { UsuariosPage } from '@/pages/sistema/usuarios/UsuariosPage'
-import { MarcasPage } from '@/pages/sistema/marcas/MarcasPage'
-import { ClientesPage } from '@/pages/ventas/clientes/ClientesPage'
-import { EscaneoPage } from '@/pages/ventas/escaneo/EscaneoPage'
-import { FacturaExtractorPage } from '@/pages/importaciones/FacturaExtractorPage'
+import { lazy, Suspense } from 'react'
+
+const LoginPage              = lazy(() => import('@/pages/auth/LoginPage').then(m => ({ default: m.LoginPage })))
+const DashboardPage          = lazy(() => import('@/pages/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })))
+const InventarioPage         = lazy(() => import('@/pages/inventario/InventarioPage').then(m => ({ default: m.InventarioPage })))
+const PrestamosPage          = lazy(() => import('@/pages/inventario/PrestamosPage').then(m => ({ default: m.PrestamosPage })))
+const AjustesPage            = lazy(() => import('@/pages/inventario/AjustesPage').then(m => ({ default: m.AjustesPage })))
+const ImportacionesPage      = lazy(() => import('@/pages/importaciones/ImportacionesPage').then(m => ({ default: m.ImportacionesPage })))
+const ProveedoresPage        = lazy(() => import('@/pages/importaciones/proveedores/ProveedoresPage').then(m => ({ default: m.ProveedoresPage })))
+const MarcasPageImportaciones = lazy(() => import('@/pages/importaciones/marcas/MarcasPage').then(m => ({ default: m.MarcasPage })))
+const CajaDiariaPage         = lazy(() => import('@/pages/caja/CajaDiariaPage').then(m => ({ default: m.CajaDiariaPage })))
+const CajaPage               = lazy(() => import('@/pages/ventas/CajaPage').then(m => ({ default: m.CajaPage })))
+const AlmacenPage            = lazy(() => import('@/pages/ventas/AlmacenPage').then(m => ({ default: m.AlmacenPage })))
+const AlertasPage            = lazy(() => import('@/pages/alertas/AlertasPage').then(m => ({ default: m.AlertasPage })))
+const VentasReportePage      = lazy(() => import('@/pages/reportes/VentasReportePage').then(m => ({ default: m.VentasReportePage })))
+const InventarioReportePage  = lazy(() => import('@/pages/reportes/InventarioReportePage').then(m => ({ default: m.InventarioReportePage })))
+const OrdenesReportePage     = lazy(() => import('@/pages/reportes/OrdenesReportePage').then(m => ({ default: m.OrdenesReportePage })))
+const ConfiguracionPage      = lazy(() => import('@/pages/config/ConfiguracionPage').then(m => ({ default: m.ConfiguracionPage })))
+const UsuariosPage           = lazy(() => import('@/pages/sistema/usuarios/UsuariosPage').then(m => ({ default: m.UsuariosPage })))
+const MarcasPage             = lazy(() => import('@/pages/sistema/marcas/MarcasPage').then(m => ({ default: m.MarcasPage })))
+const ClientesPage           = lazy(() => import('@/pages/ventas/clientes/ClientesPage').then(m => ({ default: m.ClientesPage })))
+const EscaneoPage            = lazy(() => import('@/pages/ventas/escaneo/EscaneoPage').then(m => ({ default: m.EscaneoPage })))
+const FacturaExtractorPage   = lazy(() => import('@/pages/importaciones/FacturaExtractorPage').then(m => ({ default: m.FacturaExtractorPage })))
 
 function RootRedirect() {
   const { user } = useAuth()
@@ -51,6 +53,7 @@ export default function App() {
             },
           }}
         />
+        <Suspense fallback={<div className="flex h-screen items-center justify-center text-sm text-gray-400">Cargando…</div>}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route element={<ProtectedRoute />}>
@@ -98,6 +101,7 @@ export default function App() {
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </AuthProvider>
   )

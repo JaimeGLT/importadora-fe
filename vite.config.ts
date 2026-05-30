@@ -12,6 +12,22 @@ export default defineConfig(({ mode }) => {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return
+            if (id.includes('xlsx')) return 'xlsx'
+            if (id.includes('html2canvas')) return 'html2canvas'
+            if (id.includes('JsBarcode') || id.includes('jsbarcode')) return 'jsbarcode'
+            if (id.includes('recharts') || id.includes('d3-') || id.includes('victory-')) return 'charts'
+            if (id.includes('@microsoft/signalr')) return 'signalr'
+            if (id.includes('react-dom') || id.includes('react-router') || id.includes('react-is')) return 'react-vendor'
+            if (id.includes('/react/') || id.includes('/react@')) return 'react-core'
+          },
+        },
+      },
+    },
     server: {
       proxy: {
         '/api': {

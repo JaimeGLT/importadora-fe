@@ -106,7 +106,7 @@ export function LoginPage() {
           <LoginForm
             email={email} password={password} loading={loading}
             onEmail={setEmail} onPassword={setPassword}
-            onSubmit={handleSubmit} onQuickLogin={doLogin}
+            onSubmit={handleSubmit}
           />
         </div>
         <p className="mt-16 text-xs text-steel-300">© {new Date().getFullYear()} USA Autopartes</p>

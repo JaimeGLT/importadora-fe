@@ -928,7 +928,7 @@ export function EscaneoPage() {
   const joinGrupoRef = useRef<(g: string) => Promise<void>>(() => Promise.resolve())
   joinGrupoRef.current = joinGrupo
 
-  useEffect(() => {
+  const handleRecargar = useCallback(() => {
     if (!isTokenReady) return
     setLoadingOrdenes(true)
     gql<{ misOrdenes: { nodes: OrdenVentaAPI[] } }>(MIS_ORDENES_QUERY)
@@ -936,7 +936,6 @@ export function EscaneoPage() {
         const fetched = (data.misOrdenes?.nodes ?? [])
           .map(backendToOrdenVenta)
           .filter(o => o.estado !== 'completada' && o.estado !== 'cancelada')
-        // Merge: update existing orders, add new ones, keep unrelated ones
         const { ordenes: current } = useVentasStore.getState()
         const fetchedMap = new Map(fetched.map(o => [o.id, o]))
         const merged = current.map(o => fetchedMap.get(o.id) ?? o)
@@ -948,6 +947,10 @@ export function EscaneoPage() {
       .catch(() => notify.error('Error al cargar órdenes'))
       .finally(() => setLoadingOrdenes(false))
   }, [isTokenReady, setOrdenes])
+
+  useEffect(() => {
+    handleRecargar()
+  }, [handleRecargar])
 
   useEffect(() => {
     scanInputRef.current?.focus()
@@ -1445,6 +1448,18 @@ export function EscaneoPage() {
 
             {/* ── Lista de órdenes ── */}
             <div className="w-72 shrink-0 flex flex-col gap-2.5 overflow-y-auto">
+              <div className="flex items-center justify-between">
+                <p className="text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em]">Órdenes</p>
+                <button
+                  onClick={handleRecargar}
+                  disabled={loadingOrdenes}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-[#D8D4D0] text-[#4A4744] text-[11px] font-semibold hover:border-[#780e18] hover:text-[#780e18] hover:bg-[#FAF5EE] disabled:opacity-40 transition-all shadow-sm"
+                  title="Recargar órdenes"
+                >
+                  <i className={clsx('ti ti-refresh text-[13px]', loadingOrdenes && 'animate-spin')} />
+                  Recargar
+                </button>
+              </div>
               {loadingOrdenes ? (
                 <div className="flex flex-col gap-2.5">
                   {[1, 2, 3].map(i => (

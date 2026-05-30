@@ -17,10 +17,6 @@ const fmtBs = (n: number) =>
 const fmtUSD = (n: number) =>
   `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 
-const fmtBsShort = (n: number) => {
-  if (n >= 1000) return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k`
-  return String(Math.round(n))
-}
 
 function relativeTime(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
@@ -93,38 +89,6 @@ function Badge({ label, variant }: { label: string; variant: BadgeVariant }) {
   )
 }
 
-// ─── Import pipeline ──────────────────────────────────────────────────────────
-
-const STAGES = ['ordenada', 'en_transito', 'en_aduana', 'recibida'] as const
-type Stage = typeof STAGES[number]
-const STAGE_LABEL: Record<Stage, string> = {
-  ordenada: 'Ordenada', en_transito: 'En tránsito', en_aduana: 'En aduana', recibida: 'Recibida',
-}
-
-function ImportPipeline({ estado }: { estado: string }) {
-  const idx = STAGES.indexOf(estado as Stage)
-  return (
-    <div className="flex items-center gap-1 mt-2">
-      {STAGES.map((s, i) => {
-        const done = i < idx; const active = i === idx
-        return (
-          <div key={s} className="flex items-center">
-            <div title={STAGE_LABEL[s]} className={`h-2.5 w-2.5 rounded-full shrink-0 transition-colors ${
-              active ? 'bg-brand-600 ring-[3px] ring-brand-100' :
-              done   ? 'bg-emerald-500' : 'bg-steel-200'
-            }`} />
-            {i < STAGES.length - 1 && (
-              <div className={`h-px w-6 ${done ? 'bg-emerald-400' : 'bg-steel-200'}`} />
-            )}
-          </div>
-        )
-      })}
-      <span className="ml-2 text-xs font-medium text-steel-500">
-        {STAGE_LABEL[estado as Stage] ?? estado}
-      </span>
-    </div>
-  )
-}
 
 // ─── Stat pill ────────────────────────────────────────────────────────────────
 
