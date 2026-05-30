@@ -8,7 +8,7 @@ import { playConfirmBeep } from '@/lib/sounds'
 import { notify } from '@/lib/notify'
 import { api } from '@/lib/api'
 import { gql } from '@/lib/graphql'
-import { PRODUCTOS_QUERY, PRODUCTO_BY_ID_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI } from '@/lib/queries/inventario.queries'
+import { PRODUCTOS_QUERY, PRODUCTO_BY_ID_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI, type ProductoAPISimple } from '@/lib/queries/inventario.queries'
 import { MIS_ORDENES_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
 import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
 import { fmtCodigo } from '@/lib/formatCodigo'
@@ -884,27 +884,10 @@ export function EscaneoPage() {
   useEffect(() => {
     if (!pendingNotInOrderCode || !isTokenReady) { setNotInOrderProductos([]); return }
     const code = pendingNotInOrderCode
-    const marcaFiltro = pendingNotInOrderMarcaId
-    gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTOS_QUERY, {
-      first: 10,
-      where: {
-        or: [
-          { codigo: { eq: code } },
-          { codigoAux: { eq: code } },
-          { codigoAux2: { eq: code } },
-        ],
-      },
-    })
-      .then(res => {
-        let productos = (res.productos?.nodes ?? []).map(backendToProductoSimple)
-        // Si se escaneó con prefijo de marca, filtrar directamente por esa marca
-        if (marcaFiltro !== null) {
-          productos = productos.filter(p => p.marcaId === marcaFiltro)
-        }
-        setNotInOrderProductos(productos)
-      })
+    api.get<ProductoAPISimple[]>(`/Producto/buscar?codigo=${encodeURIComponent(code)}`)
+      .then(res => setNotInOrderProductos((res ?? []).map(backendToProductoSimple)))
       .catch(() => setNotInOrderProductos([]))
-  }, [pendingNotInOrderCode, pendingNotInOrderMarcaId, isTokenReady])
+  }, [pendingNotInOrderCode, isTokenReady])
 
   const { joinGrupo } = useVentasHub({
     onItemListoParaScaneo: useCallback((p: { ordenId: number; itemId: number }) => {
@@ -1309,9 +1292,9 @@ export function EscaneoPage() {
       return
     }
 
-    // Not found in order — si hay prefijo de marca, la query filtrará por esa marca (sin selector)
+    // Not found in order — pasar código original con prefijo; backend lo resuelve
     setPendingNotInOrderMarcaId(resolvedMarcaId)
-    setPendingNotInOrderCode(resolvedCode)
+    setPendingNotInOrderCode(code)
   }
 
   const handleSelectMatch = (item: ItemOrden) => {

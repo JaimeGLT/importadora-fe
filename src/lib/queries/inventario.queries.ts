@@ -182,7 +182,7 @@ interface HistorialPrecioAPI {
   nota: string | null
 }
 
-interface ProductoAPISimple {
+export interface ProductoAPISimple {
   id: string | number
   codigo: string
   codigoAux: string
