@@ -1,13 +1,12 @@
-import { useEffect, useMemo, useState, useRef } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
-import { MOCK_RESUMEN_VENTAS } from '@/mock/alertas'
-import { MOCK_VENTAS_DIARIAS } from '@/mock/reportes'
-import { MOCK_IMPORTACIONES } from '@/mock/importaciones'
-import { MOCK_ORDENES } from '@/mock/ventas'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import { PRODUCTOS_QUERY, backendToProductoSimple, type ProductoAPI } from '@/lib/queries/inventario.queries'
+import { DASHBOARD_ORDENES_QUERY, backendOrdenToDashboard, type DashboardOrdenAPI, type DashboardOrden } from '@/lib/queries/ventas.queries'
+import { TIPO_CAMBIO_QUERY, type TipoCambioAPI } from '@/lib/queries/config.queries'
+import { SalesChart } from '@/components/ui/SalesChart'
 import type { Producto } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -34,100 +33,6 @@ function relativeTime(iso: string) {
 }
 
 // ─── Interactive Sales Chart ──────────────────────────────────────────────────
-
-function SalesChart({
-  data, dates, onHover,
-}: { data: number[]; dates: string[]; onHover: (idx: number | null) => void }) {
-  const chartRef = useRef<HTMLDivElement>(null)
-  const [hoverIdx, setHoverIdx] = useState<number | null>(null)
-
-  const max   = Math.max(...data, 1)
-  const min   = Math.min(...data)
-  const range = max - min || 1
-  const mid   = (max + min) / 2
-
-  const W = 300; const H = 100; const pad = 6
-
-  const pts = data.map((v, i) => ({
-    x: pad + (i / (data.length - 1)) * (W - pad * 2),
-    y: pad + (1 - (v - min) / range) * (H - pad * 2),
-  }))
-  const ptsStr  = pts.map(p => `${p.x},${p.y}`).join(' ')
-  const fillPts = `${pad},${H} ${ptsStr} ${W - pad},${H}`
-
-  const handle = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!chartRef.current) return
-    const rect = chartRef.current.getBoundingClientRect()
-    const idx  = Math.max(0, Math.min(data.length - 1, Math.round(((e.clientX - rect.left) / rect.width) * (data.length - 1))))
-    setHoverIdx(idx)
-    onHover(idx)
-  }
-  const leave = () => { setHoverIdx(null); onHover(null) }
-
-  const xLabels = dates.filter((_, i) => i % 2 === 0)
-  const hp = hoverIdx !== null ? pts[hoverIdx] : null
-
-  return (
-    <div className="flex gap-3 mt-4 flex-1 min-h-0">
-      {/* Eje Y */}
-      <div className="flex flex-col justify-between text-right shrink-0 pb-6" style={{ width: 44 }}>
-        <span className="text-[10px] font-semibold tabular-nums text-steel-400">Bs {fmtBsShort(max)}</span>
-        <span className="text-[10px] font-semibold tabular-nums text-steel-400">Bs {fmtBsShort(mid)}</span>
-        <span className="text-[10px] font-semibold tabular-nums text-steel-400">Bs {fmtBsShort(min)}</span>
-      </div>
-
-      <div className="flex-1 min-w-0 flex flex-col">
-        <div
-          ref={chartRef}
-          className="relative flex-1 min-h-0 cursor-default"
-          onMouseMove={handle}
-          onMouseLeave={leave}
-        >
-          {/* Grid lines */}
-          <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-            <div className="border-t border-dashed" style={{ borderColor: '#E2E2E2' }} />
-            <div className="border-t border-dashed" style={{ borderColor: '#E2E2E2' }} />
-            <div className="border-t border-dashed" style={{ borderColor: '#E2E2E2' }} />
-          </div>
-
-          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-full">
-            <defs>
-              <linearGradient id="brandGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%"   stopColor="#C8102E" stopOpacity="0.14" />
-                <stop offset="100%" stopColor="#C8102E" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            <polygon points={fillPts} fill="url(#brandGrad)" />
-            <polyline points={ptsStr} fill="none" stroke="#C8102E" strokeWidth="2.5"
-              strokeLinejoin="round" strokeLinecap="round" />
-
-            {/* Hover: thin vertical line + small dot */}
-            {hp && (
-              <>
-                <line x1={hp.x} y1={0} x2={hp.x} y2={H}
-                  stroke="#C8102E" strokeWidth="1" opacity="0.2" />
-                <circle cx={hp.x} cy={hp.y} r="4" fill="white" stroke="#C8102E" strokeWidth="2" />
-              </>
-            )}
-
-            {/* Last-point dot always visible when no hover */}
-            {!hp && pts.length > 0 && (() => {
-              const last = pts[pts.length - 1]!
-              return <circle cx={last.x} cy={last.y} r="3.5" fill="white" stroke="#C8102E" strokeWidth="2" />
-            })()}
-          </svg>
-        </div>
-
-        {/* Eje X */}
-        <div className="flex justify-between mt-2 shrink-0">
-          {xLabels.map((d, i) => (
-            <span key={i} className="text-[10px] text-steel-400">{d}</span>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
 
 // ─── Mini bar ─────────────────────────────────────────────────────────────────
 
@@ -237,74 +142,99 @@ function StatPill({ label, value, up }: { label: string; value: string; up: bool
 
 export function DashboardPage() {
   const { isTokenReady } = useAuth()
-  const [productos, setProductos] = useState<Producto[]>([])
+  const [productos,  setProductos]  = useState<Producto[]>([])
+  const [ordenes,    setOrdenes]    = useState<DashboardOrden[]>([])
+  const [tipoCambio, setTipoCambio] = useState<number>(6.96)
 
   useEffect(() => {
     if (!isTokenReady) return
     gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTOS_QUERY, { first: 9999, after: null })
       .then(res => setProductos(res.productos.nodes.map(backendToProductoSimple)))
       .catch(() => {})
+    gql<{ todasOrdenes: { nodes: DashboardOrdenAPI[] } }>(DASHBOARD_ORDENES_QUERY)
+      .then(res => setOrdenes(res.todasOrdenes.nodes.map(backendOrdenToDashboard)))
+      .catch(() => {})
+    gql<{ tipoCambio: TipoCambioAPI }>(TIPO_CAMBIO_QUERY)
+      .then(res => setTipoCambio(res.tipoCambio.precioDolar))
+      .catch(() => {})
   }, [isTokenReady])
 
   const {
     ventasHoy, ventasMes, ventasHoyPrev, ventasMesPrev,
-    ordenesActivas, importacionesTransito,
+    ordenesActivas,
     stockCritico, valorInventario, valorInventarioUSD,
     top5productos, sparkline14d, chartDates,
-    sinMovimiento, importacionesActivas,
+    sinMovimiento,
   } = useMemo(() => {
-    const hoy  = MOCK_VENTAS_DIARIAS[MOCK_VENTAS_DIARIAS.length - 1]
-    const ayer = MOCK_VENTAS_DIARIAS[MOCK_VENTAS_DIARIAS.length - 2]
-    const ventasHoy      = hoy?.total_bs  ?? 0
-    const ventasHoyPrev  = ayer?.total_bs ?? 0
-    const ventasMes      = MOCK_VENTAS_DIARIAS.reduce((s, d) => s + d.total_bs, 0)
-    const ventasMesPrev  = MOCK_VENTAS_DIARIAS.slice(0, 15).reduce((s, d) => s + d.total_bs, 0)
+    const todayDate  = new Date()
+    const toDateStr  = (d: Date) => d.toISOString().slice(0, 10)
+    const hoy        = toDateStr(todayDate)
+    const ayer       = toDateStr(new Date(todayDate.getTime() - 86400000))
+    const mesActual  = hoy.slice(0, 7)
+    const mesAnterior = toDateStr(new Date(todayDate.getFullYear(), todayDate.getMonth() - 1, 1)).slice(0, 7)
 
-    const last14       = MOCK_VENTAS_DIARIAS.slice(-14)
-    const sparkline14d = last14.map(d => d.total_bs)
-    const chartDates   = last14.map(d =>
-      new Date(d.fecha).toLocaleDateString('es-BO', { day: 'numeric', month: 'short' })
-    )
+    const completadas = ordenes.filter(o => o.estado === 'completada' && o.fechaCompletada)
 
-    const ordenesActivas = MOCK_ORDENES.filter(
-      o => o.estado !== 'completada' && o.estado !== 'cancelada'
-    ).length
+    const ventasHoy      = completadas.filter(o => o.fechaCompletada!.slice(0, 10) === hoy).reduce((s, o) => s + o.total, 0)
+    const ventasHoyPrev  = completadas.filter(o => o.fechaCompletada!.slice(0, 10) === ayer).reduce((s, o) => s + o.total, 0)
+    const ventasMes      = completadas.filter(o => o.fechaCompletada!.slice(0, 7) === mesActual).reduce((s, o) => s + o.total, 0)
+    const ventasMesPrev  = completadas.filter(o => o.fechaCompletada!.slice(0, 7) === mesAnterior).reduce((s, o) => s + o.total, 0)
 
-    const importacionesTransito = MOCK_IMPORTACIONES.filter(
-      i => i.estado === 'en_transito' || i.estado === 'en_aduana'
-    ).length
-    const importacionesActivas = MOCK_IMPORTACIONES.filter(i => i.estado !== 'recibida')
+    const sparkline14d: number[] = []
+    const chartDates: string[]   = []
+    for (let i = 13; i >= 0; i--) {
+      const d   = new Date(todayDate.getTime() - i * 86400000)
+      const str = toDateStr(d)
+      sparkline14d.push(completadas.filter(o => o.fechaCompletada!.slice(0, 10) === str).reduce((s, o) => s + o.total, 0))
+      chartDates.push(d.toLocaleDateString('es-BO', { day: 'numeric', month: 'short' }))
+    }
+
+    const ordenesActivas = ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada').length
 
     const stockCritico       = productos.filter(p => p.stock <= p.stock_minimo && p.estado === 'activo')
     const valorInventario    = productos.reduce((s, p) => s + p.stock * p.precio_costo, 0)
-    const valorInventarioUSD = productos.reduce((s, p) => s + p.stock * (p.precio_costo / 6.96), 0)
+    const valorInventarioUSD = productos.reduce((s, p) => s + p.stock * (p.precio_costo / tipoCambio), 0)
 
-    const top5productos = [...MOCK_RESUMEN_VENTAS]
-      .sort((a, b) => b.unidades_7d - a.unidades_7d)
+    const hace7 = new Date(todayDate.getTime() - 7 * 86400000)
+    const itemsUlt7d = completadas
+      .filter(o => new Date(o.fechaCompletada!) >= hace7)
+      .flatMap(o => o.items)
+    const porProducto = new Map<string, { nombre: string; codigo: string; unidades: number; ingreso: number }>()
+    for (const item of itemsUlt7d) {
+      const prev = porProducto.get(item.productoId)
+      const precio = item.precioUnitario
+      if (prev) {
+        prev.unidades += item.cantidad
+        prev.ingreso  += precio * item.cantidad - item.montoDescuento
+      } else {
+        porProducto.set(item.productoId, {
+          nombre:   item.productoNombre,
+          codigo:   item.productoCodigo,
+          unidades: item.cantidad,
+          ingreso:  precio * item.cantidad - item.montoDescuento,
+        })
+      }
+    }
+    const top5productos = [...porProducto.values()]
+      .sort((a, b) => b.unidades - a.unidades)
       .slice(0, 5)
-      .map(r => {
-        const prod = productos.find(p => p.id === r.producto_id)
-        return {
-          nombre:   prod?.nombre          ?? r.producto_id,
-          codigo:   prod?.codigo_universal ?? '',
-          unidades: r.unidades_7d,
-          ingreso:  r.unidades_7d * (prod?.precio_venta ?? 0),
-        }
-      })
 
-    const sinMovimiento = MOCK_RESUMEN_VENTAS
-      .filter(r => r.unidades_30d === 0)
-      .map(r => productos.find(p => p.id === r.producto_id))
-      .filter(Boolean)
+    const hace30 = new Date(todayDate.getTime() - 30 * 86400000)
+    const vendidos30d = new Set(
+      completadas
+        .filter(o => new Date(o.fechaCompletada!) >= hace30)
+        .flatMap(o => o.items.map(i => i.productoId))
+    )
+    const sinMovimiento = productos.filter(p => p.estado === 'activo' && !vendidos30d.has(p.id))
 
     return {
       ventasHoy, ventasMes, ventasHoyPrev, ventasMesPrev,
-      ordenesActivas, importacionesTransito,
+      ordenesActivas,
       stockCritico, valorInventario, valorInventarioUSD,
       top5productos, sparkline14d, chartDates,
-      sinMovimiento, importacionesActivas,
+      sinMovimiento,
     }
-  }, [productos])
+  }, [productos, ordenes, tipoCambio])
 
   const deltaDia: { val: string; up: boolean } | null = ventasHoyPrev > 0
     ? { val: `${Math.abs(((ventasHoy - ventasHoyPrev) / ventasHoyPrev) * 100).toFixed(0)}%`, up: ventasHoy >= ventasHoyPrev }
@@ -319,19 +249,23 @@ export function DashboardPage() {
   const maxTop = top5productos[0]?.unidades ?? 1
 
   const estadoBadge: Record<string, { label: string; variant: BadgeVariant }> = {
-    pendiente:      { label: 'Pendiente',  variant: 'amber' },
-    en_preparacion: { label: 'Preparando', variant: 'blue'  },
-    listo:          { label: 'Listo',      variant: 'green' },
-    cobrado:        { label: 'Cobrado',    variant: 'gray'  },
-    cancelado:      { label: 'Cancelado',  variant: 'red'   },
+    pendiente_almacenero: { label: 'Pendiente',  variant: 'amber'  },
+    en_preparacion:       { label: 'Preparando', variant: 'blue'   },
+    listo_para_escaneo:   { label: 'Listo',      variant: 'green'  },
+    con_faltantes:        { label: 'Faltantes',  variant: 'red'    },
+    esperando_pago:       { label: 'Por cobrar', variant: 'yellow' },
+    completada:           { label: 'Completada', variant: 'gray'   },
+    cancelada:            { label: 'Cancelado',  variant: 'red'    },
   }
 
   const statusBorderColor: Record<string, string> = {
-    pendiente:      'border-l-amber-400',
-    en_preparacion: 'border-l-steel-500',
-    listo:          'border-l-emerald-500',
-    cobrado:        'border-l-steel-200',
-    cancelado:      'border-l-brand-500',
+    pendiente_almacenero: 'border-l-amber-400',
+    en_preparacion:       'border-l-steel-500',
+    listo_para_escaneo:   'border-l-emerald-500',
+    con_faltantes:        'border-l-brand-500',
+    esperando_pago:       'border-l-accent',
+    completada:           'border-l-steel-200',
+    cancelada:            'border-l-brand-500',
   }
 
   return (
@@ -386,7 +320,7 @@ export function DashboardPage() {
           </Link>
 
           {/* Ventas mes */}
-          <Link to="/reportes/rentabilidad">
+          <Link to="/reportes/ventas">
             <Card className="p-5 h-full hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between mb-3">
                 <div className="h-9 w-9 rounded-xl bg-emerald-50 flex items-center justify-center">
@@ -416,7 +350,6 @@ export function DashboardPage() {
               </div>
               <p className="text-2xl font-black tabular-nums text-steel-900 leading-tight">{ordenesActivas}</p>
               <p className="text-xs text-steel-500 font-semibold mt-0.5">Órdenes activas</p>
-              <p className="text-[10px] text-steel-400 mt-2">{importacionesTransito} importaciones en tránsito</p>
             </Card>
           </Link>
 
@@ -462,7 +395,7 @@ export function DashboardPage() {
                   )}
                 </div>
               </div>
-              <Link to="/reportes/rentabilidad"
+              <Link to="/reportes/ventas"
                 className="text-xs text-brand-600 hover:text-brand-700 font-bold shrink-0">
                 Ver reporte →
               </Link>
@@ -471,7 +404,7 @@ export function DashboardPage() {
           </Card>
 
           <Card className="p-5 flex flex-col">
-            <SectionTitle to="/reportes/rentabilidad">Top productos (7d)</SectionTitle>
+            <SectionTitle to="/reportes/ventas">Top productos (7d)</SectionTitle>
             <div className="space-y-4 flex-1">
               {top5productos.map((p, i) => (
                 <div key={p.codigo} className="flex items-start gap-3">
@@ -573,68 +506,36 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* ── Importaciones + Pedidos ───────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-
-          <Card className="p-5">
-            <SectionTitle to="/importaciones">Importaciones activas</SectionTitle>
-            {importacionesActivas.length === 0 ? (
-              <p className="text-sm text-steel-400 text-center py-10">Sin importaciones en curso</p>
-            ) : (
-              <div className="space-y-3">
-                {importacionesActivas.map(imp => {
-                  const costoTotal = imp.fob_total_usd * imp.tipo_cambio + imp.flete_usd * imp.tipo_cambio + imp.aduana_bs + imp.transporte_interno_bs
-                  const llegada = imp.fecha_estimada_llegada
-                    ? new Date(imp.fecha_estimada_llegada).toLocaleDateString('es-BO', { day: 'numeric', month: 'short' })
-                    : '—'
-                  return (
-                    <div key={imp.id} className="rounded-xl border border-steel-100 bg-[#FAFAF9] p-4 hover:border-steel-200 transition-colors">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-steel-800">{imp.numero}</p>
-                          <p className="text-xs text-steel-400 mt-0.5">{imp.proveedor} · {imp.origen}</p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-bold text-steel-700 tabular-nums">{fmtUSD(imp.fob_total_usd)}</p>
-                          <p className="text-[10px] text-steel-400 mt-0.5">ETA {llegada}</p>
-                        </div>
-                      </div>
-                      <ImportPipeline estado={imp.estado} />
-                      <div className="flex gap-4 mt-3 pt-2.5 border-t border-steel-100 text-[10px] text-steel-400 tabular-nums">
-                        <span>Flete: {fmtUSD(imp.flete_usd)}</span>
-                        <span>Aduana: {fmtBs(imp.aduana_bs)}</span>
-                        <span className="font-bold text-steel-600">Total: {fmtBs(costoTotal)}</span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </Card>
+        {/* ── Pedidos recientes ─────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 gap-5 mb-5">
 
           <Card className="p-5">
             <SectionTitle to="/ventas/caja">Pedidos recientes</SectionTitle>
             <div className="space-y-1">
-              {MOCK_ORDENES.map(o => {
-                const bs = estadoBadge[o.estado] ?? { label: o.estado, variant: 'gray' as BadgeVariant }
-                const borderColor = statusBorderColor[o.estado] ?? 'border-l-steel-100'
-                return (
-                  <div key={o.id}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border-l-4 hover:bg-[#FAFAF9] transition-colors ${borderColor}`}>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs font-bold text-steel-800">{o.numero}</p>
-                        <p className="text-[10px] text-steel-400">{relativeTime(o.creado_en)}</p>
+              {ordenes.length === 0 ? (
+                <p className="text-sm text-steel-400 text-center py-10">Sin órdenes</p>
+              ) : (
+                [...ordenes].reverse().slice(0, 10).map(o => {
+                  const bs = estadoBadge[o.estado] ?? { label: o.estado, variant: 'gray' as BadgeVariant }
+                  const borderColor = statusBorderColor[o.estado] ?? 'border-l-steel-100'
+                  return (
+                    <div key={o.id}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border-l-4 hover:bg-[#FAFAF9] transition-colors ${borderColor}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-bold text-steel-800">{o.numero}</p>
+                          <p className="text-[10px] text-steel-400">{relativeTime(o.fecha)}</p>
+                        </div>
+                        <p className="text-[10px] text-steel-400 mt-0.5">{o.cajeroNombre}</p>
                       </div>
-                      <p className="text-[10px] text-steel-400 mt-0.5">{o.cajero_nombre}</p>
+                      <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
+                        <p className="text-xs font-black text-steel-800 tabular-nums">{fmtBs(o.total)}</p>
+                        <Badge label={bs.label} variant={bs.variant} />
+                      </div>
                     </div>
-                    <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
-                      <p className="text-xs font-black text-steel-800 tabular-nums">{fmtBs(o.total)}</p>
-                      <Badge label={bs.label} variant={bs.variant} />
-                    </div>
-                  </div>
-                )
-              })}
+                  )
+                })
+              )}
             </div>
           </Card>
         </div>

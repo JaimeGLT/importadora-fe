@@ -120,6 +120,68 @@ export function backendToImportacion(b: BackendImportacion): Importacion {
   }
 }
 
+// ─── Dashboard types & query ──────────────────────────────────────────────────
+
+export interface DashboardImportacionAPI {
+  id: number
+  codigo: string
+  fecha: string
+  total: number
+  estado: string
+  proveedor: { nombre: string; pais: string }
+  trasporte_Interno: number
+  f_Internacional: number
+  aduana_Arancel: number
+}
+
+export interface DashboardImportacion {
+  id: string
+  numero: string
+  proveedor: string
+  origen: string
+  fecha_estimada_llegada: string
+  estado: string
+  fob_total_usd: number
+  flete_usd: number
+  aduana_bs: number
+  transporte_interno_bs: number
+  tipo_cambio: number
+}
+
+export const IMPORTACIONES_DASHBOARD_QUERY = `
+  query ImportacionesDashboard {
+    importacion {
+      nodes {
+        id
+        codigo
+        fecha
+        total
+        estado
+        proveedor { nombre pais }
+        trasporte_Interno
+        f_Internacional
+        aduana_Arancel
+      }
+    }
+  }
+`
+
+export function backendToImportacionDashboard(b: DashboardImportacionAPI, tipoCambio: number): DashboardImportacion {
+  return {
+    id:                    String(b.id),
+    numero:                b.codigo,
+    proveedor:             b.proveedor.nombre,
+    origen:                b.proveedor.pais,
+    fecha_estimada_llegada: b.fecha,
+    estado:                normalizeEstadoImportacion(b.estado),
+    fob_total_usd:         b.total,
+    flete_usd:             b.f_Internacional,
+    aduana_bs:             b.aduana_Arancel,
+    transporte_interno_bs: b.trasporte_Interno,
+    tipo_cambio:           tipoCambio,
+  }
+}
+
 export const IMPORTACIONES_QUERY = `
   query Importaciones {
     importacion {

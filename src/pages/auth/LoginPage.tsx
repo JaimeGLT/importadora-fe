@@ -4,18 +4,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button, Input } from '@/components/ui'
 import { notify } from '@/lib/notify'
 import type { Usuario } from '@/types'
+import { ROLE_HOME } from '@/lib/roles'
 
-const ROLE_HOME: Record<string, string> = {
-  admin:      '/inventario',
-  cajero:     '/ventas/punto-de-venta',
-  almacenero: '/ventas/almacen',
-}
-
-const QUICK_USERS = [
-  { label: 'Admin',      email: 'admin@gmail.com',    password: 'Admin123#', color: 'bg-brand-600 hover:bg-brand-700' },
-  { label: 'Vendedor',   email: 'vendedor@importadora.com', password: 'venta123', color: 'bg-steel-600 hover:bg-steel-500' },
-  { label: 'Almacenero', email: 'almacen@importadora.com',  password: 'alma123',  color: 'bg-steel-600 hover:bg-steel-500' },
-]
 
 export function LoginPage() {
   const { login, user, isTokenReady } = useAuth()
@@ -97,7 +87,7 @@ export function LoginPage() {
             <LoginForm
               email={email} password={password} loading={loading}
               onEmail={setEmail} onPassword={setPassword}
-              onSubmit={handleSubmit} onQuickLogin={doLogin}
+              onSubmit={handleSubmit}
             />
           </div>
 
@@ -245,36 +235,11 @@ interface LoginFormProps {
   onEmail: (v: string) => void
   onPassword: (v: string) => void
   onSubmit: (e: FormEvent) => void
-  onQuickLogin: (email: string, password: string) => void
 }
 
-function LoginForm({ email, password, loading, onEmail, onPassword, onSubmit, onQuickLogin }: LoginFormProps) {
+function LoginForm({ email, password, loading, onEmail, onPassword, onSubmit }: LoginFormProps) {
   return (
     <div className="space-y-5">
-      {/* Acceso rápido */}
-      <div>
-        <p className="text-xs font-semibold text-steel-400 uppercase tracking-wider mb-2">Acceso rápido</p>
-        <div className="flex gap-2">
-          {QUICK_USERS.map((u) => (
-            <button
-              key={u.label}
-              type="button"
-              disabled={loading}
-              onClick={() => onQuickLogin(u.email, u.password)}
-              className={`flex-1 py-2 px-2 rounded-lg text-xs font-semibold text-white transition-colors disabled:opacity-50 ${u.color}`}
-            >
-              {u.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-px bg-current opacity-20" />
-        <span className="text-xs text-steel-400">o ingresa manualmente</span>
-        <div className="flex-1 h-px bg-current opacity-20" />
-      </div>
-
       <form onSubmit={onSubmit} className="space-y-4">
         <Input
           label="Correo electrónico"

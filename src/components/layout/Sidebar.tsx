@@ -22,8 +22,8 @@ const groups: NavGroup[] = [
     icon: <i className="ti ti-package text-[16px] shrink-0" />,
     items: [
       { label: 'Productos',  to: '/inventario',            roles: ['admin'] },
-      { label: 'Ajustes',    to: '/inventario/ajustes',   roles: ['admin', 'almacenero'] },
-      { label: 'Préstamos',  to: '/inventario/prestamos', roles: ['admin', 'cajero'] },
+      { label: 'Ajustes',    to: '/inventario/ajustes',   roles: ['admin', 'almacenero', 'cajero'] },
+      { label: 'Préstamos',  to: '/inventario/prestamos', roles: ['admin'] },
     ],
   },
   {
@@ -50,7 +50,7 @@ const groups: NavGroup[] = [
     items: [
       { label: 'Punto de Venta',     to: '/ventas/punto-de-venta',     roles: ['admin', 'cajero'] },
       { label: 'Almacén',  to: '/ventas/almacen',  roles: ['admin', 'almacenero'] },
-      { label: 'Escaneo',  to: '/ventas/escaneo',  roles: ['admin', 'cajero'] },
+      { label: 'Escaneo',  to: '/ventas/escaneo',  roles: ['admin', 'cajero', 'operador'] },
       { label: 'Clientes', to: '/ventas/clientes', roles: ['admin', 'cajero'] },
     ],
   },
@@ -59,19 +59,9 @@ const groups: NavGroup[] = [
     icon: <i className="ti ti-chart-bar text-[16px] shrink-0" />,
     roles: ['admin'],
     items: [
-      { label: 'Ganancia por producto',        to: '/reportes/rentabilidad',   roles: ['admin'] },
-      { label: 'Costo de importaciones',       to: '/reportes/landed-cost',    roles: ['admin'] },
-      { label: 'Velocidad de ventas',          to: '/reportes/rotacion',       roles: ['admin'] },
-      { label: 'Clientes que me deben',        to: '/reportes/cxc',            roles: ['admin'] },
-      { label: 'Compras en camino',            to: '/reportes/transito',       roles: ['admin'] },
-      { label: 'Productos por agotarse',       to: '/reportes/quiebre',        roles: ['admin'] },
-      { label: 'Mis proveedores',              to: '/reportes/proveedores',    roles: ['admin'] },
-      { label: 'Productos sin movimiento',     to: '/reportes/stock-muerto',   roles: ['admin'] },
-      { label: 'Ventas por vehículo',          to: '/reportes/vehiculos',      roles: ['admin'] },
-      { label: 'Clientes que compraron menos', to: '/reportes/clientes-fuga',  roles: ['admin'] },
-      { label: 'Épocas de mayor venta',        to: '/reportes/estacionalidad', roles: ['admin'] },
-      { label: 'Ventas de kits',               to: '/reportes/kits',           roles: ['admin'] },
-      { label: 'Alertas de stock',             to: '/alertas',                 roles: ['admin'] },
+      { label: 'Ventas',     to: '/reportes/ventas',     roles: ['admin'] },
+      { label: 'Inventario', to: '/reportes/inventario', roles: ['admin'] },
+      { label: 'Órdenes',    to: '/reportes/ordenes',    roles: ['admin'] },
     ],
   },
   {
@@ -218,28 +208,20 @@ export function Sidebar({ open, onClose, collapsed = false }: SidebarProps) {
       <div className="flex flex-col flex-1 min-h-0 relative z-[1]">
 
         {/* Brand */}
-        <div className="flex items-center gap-3 px-[22px] py-[22px]">
-          <div
-            className="w-[38px] h-[38px] rounded-lg flex items-center justify-center shrink-0 font-bold text-[11px] tracking-[0.04em] text-[#780e18]"
-            style={{ background: '#F4ECDB', boxShadow: 'inset 0 -2px 0 #D4A333' }}
-          >
-            USA
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[15.5px] font-semibold text-[#F4ECDB] leading-tight tracking-[-0.01em]">
-              USA Autopartes
-            </div>
-            <div className="text-[10.5px] text-[#CFA9A6] tracking-[0.08em] font-mono mt-0.5">
-              IMPORTADORA
-            </div>
-          </div>
+        <div className="relative flex flex-col items-center px-[22px] pt-[10px] pb-[10px]">
           <button
             onClick={onClose}
-            className="md:hidden p-1.5 rounded-lg text-[#CFA9A6] hover:text-[#F4ECDB] hover:bg-[#F4ECDB]/10 transition-colors"
+            className="md:hidden absolute top-3 right-3 p-1.5 rounded-lg text-[#CFA9A6] hover:text-[#F4ECDB] hover:bg-[#F4ECDB]/10 transition-colors"
             aria-label="Cerrar menú"
           >
             <i className="ti ti-x text-[18px]" />
           </button>
+          <img
+            src="/logo-usa.png"
+            alt="USA Autopartes"
+            className="w-[140px] object-contain"
+            style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.35))' }}
+          />
         </div>
 
         {/* Gold divider */}
@@ -251,21 +233,23 @@ export function Sidebar({ open, onClose, collapsed = false }: SidebarProps) {
         {/* Nav — padding matches HTML: 0 14px */}
         <nav className="flex-1 flex flex-col gap-0.5 px-[14px] pb-4 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-thumb]:bg-[#F4ECDB]/[0.08]">
 
-          <NavLabel first>Principal</NavLabel>
+          {user?.rol === 'admin' && <NavLabel first>Principal</NavLabel>}
 
-          <NavLink
-            to="/dashboard"
-            onClick={onClose}
-            className={({ isActive }) => clsx(navItemBase, isActive ? navItemActive : navItemInactive)}
-          >
-            {({ isActive }) => (
-              <>
-                {isActive && <ActiveBar />}
-                <i className={clsx('ti ti-layout-dashboard text-[16px] shrink-0', isActive ? 'text-[#D4A333]' : 'text-[#CFA9A6]')} />
-                <span>Dashboard</span>
-              </>
-            )}
-          </NavLink>
+          {user?.rol === 'admin' && (
+            <NavLink
+              to="/dashboard"
+              onClick={onClose}
+              className={({ isActive }) => clsx(navItemBase, isActive ? navItemActive : navItemInactive)}
+            >
+              {({ isActive }) => (
+                <>
+                  {isActive && <ActiveBar />}
+                  <i className={clsx('ti ti-layout-dashboard text-[16px] shrink-0', isActive ? 'text-[#D4A333]' : 'text-[#CFA9A6]')} />
+                  <span>Dashboard</span>
+                </>
+              )}
+            </NavLink>
+          )}
 
           <NavLabel>Operaciones</NavLabel>
 
@@ -345,7 +329,7 @@ export function Sidebar({ open, onClose, collapsed = false }: SidebarProps) {
             )
           })}
 
-          <NavLabel>General</NavLabel>
+          {groups.slice(4).some(g => g.items.some(i => !i.roles || !user || i.roles.includes(user.rol))) && <NavLabel>General</NavLabel>}
 
           {groups.slice(4).map((group) => {
             const visibleItems = group.items.filter(i => !i.roles || !user || i.roles.includes(user.rol))

@@ -36,6 +36,7 @@ function mapToUser(data: ApiUserResponse): Usuario | null {
     almacenero: 'almacenero',
     almacen: 'almacenero',
     warehouse: 'almacenero',
+    operador: 'operador',
   }
   const rol: Usuario['rol'] = ROL_MAP[rawRol] ?? 'cajero'
   if (!id || !email) return null

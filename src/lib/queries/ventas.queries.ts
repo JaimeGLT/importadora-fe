@@ -461,6 +461,80 @@ function backendToItemOrden(api: OrdenItemAPI): ItemOrden {
   }
 }
 
+// ─── Dashboard types & query ──────────────────────────────────────────────────
+
+export interface DashboardOrdenItemAPI {
+  id_Producto: number
+  cantidad: number
+  precioUnitario: number
+  montoDescuento: number
+  producto: { id: number; codigo: string; nombre: string } | null
+}
+
+export interface DashboardOrdenAPI {
+  id: number
+  estado: string
+  fecha: string
+  fechaCompletada: string | null
+  cajero: { nombre: string; apellido: string } | null
+  items: DashboardOrdenItemAPI[]
+}
+
+export interface DashboardOrden {
+  id: string
+  numero: string
+  estado: EstadoOrden
+  fecha: string
+  fechaCompletada: string | null
+  cajeroNombre: string
+  total: number
+  items: { productoId: string; productoNombre: string; productoCodigo: string; cantidad: number; precioUnitario: number; montoDescuento: number }[]
+}
+
+export const DASHBOARD_ORDENES_QUERY = `
+  query TodasOrdenes {
+    todasOrdenes {
+      nodes {
+        id
+        estado
+        fecha
+        fechaCompletada
+        cajero { nombre apellido }
+        items {
+          id_Producto
+          cantidad
+          precioUnitario
+          montoDescuento
+          producto { id codigo nombre }
+        }
+      }
+    }
+  }
+`
+
+export function backendOrdenToDashboard(api: DashboardOrdenAPI): DashboardOrden {
+  const estado = ESTADO_ORDEN_MAP[api.estado?.toLowerCase()] ?? 'pendiente_almacenero'
+  const items = (api.items ?? []).map(i => ({
+    productoId:      String(i.id_Producto),
+    productoNombre:  i.producto?.nombre  ?? '',
+    productoCodigo:  i.producto?.codigo  ?? '',
+    cantidad:        i.cantidad,
+    precioUnitario:  i.precioUnitario,
+    montoDescuento:  i.montoDescuento,
+  }))
+  const total = items.reduce((s, i) => s + i.precioUnitario * i.cantidad - i.montoDescuento, 0)
+  return {
+    id:              String(api.id),
+    numero:          `#${api.id}`,
+    estado,
+    fecha:           api.fecha,
+    fechaCompletada: api.fechaCompletada ?? null,
+    cajeroNombre:    api.cajero ? `${api.cajero.nombre} ${api.cajero.apellido}`.trim() : '',
+    total,
+    items,
+  }
+}
+
 export function backendToOrdenVenta(api: OrdenVentaAPI): OrdenVenta {
   const estado = ESTADO_ORDEN_MAP[api.estado?.toLowerCase()] ?? 'pendiente_almacenero'
   const items = (api.items ?? []).map(backendToItemOrden)

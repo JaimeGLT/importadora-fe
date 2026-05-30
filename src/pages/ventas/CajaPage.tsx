@@ -348,16 +348,35 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
     const timer = setTimeout(async () => {
       setLoading(true)
       try {
+        const normalWhere = {
+          or: [
+            { nombre: { contains: q } },
+            { codigo: { contains: q } },
+            { codigoAux: { contains: q } },
+            { codigoAux2: { contains: q } },
+          ],
+        }
+
+        let where: object = normalWhere
+        const dashIdx = q.indexOf('-')
+        if (dashIdx > 0) {
+          const prefix = q.slice(0, dashIdx).toUpperCase()
+          const rawCode = q.slice(dashIdx + 1).trim()
+          const marcaMatch = marcas.find(m => m.prefijo.toUpperCase() === prefix)
+          if (marcaMatch && rawCode) {
+            where = {
+              or: [
+                { and: [{ codigo: { contains: rawCode } }, { marcaId: { eq: marcaMatch.id } }] },
+                { and: [{ codigoAux: { contains: rawCode } }, { marcaId: { eq: marcaMatch.id } }] },
+                { and: [{ codigoAux2: { contains: rawCode } }, { marcaId: { eq: marcaMatch.id } }] },
+              ],
+            }
+          }
+        }
+
         const res = await gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTOS_QUERY, {
           first: 10,
-          where: {
-            or: [
-              { nombre: { contains: q } },
-              { codigo: { contains: q } },
-              { codigoAux: { contains: q } },
-              { codigoAux2: { contains: q } },
-            ],
-          },
+          where,
         })
         setResultados((res.productos?.nodes ?? []).map(backendToProductoSimple))
       } catch {
@@ -367,7 +386,7 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
       }
     }, 300)
     return () => clearTimeout(timer)
-  }, [query, isTokenReady])
+  }, [query, isTokenReady, marcas])
 
   const stockDisponible = (p: Producto) => Math.max(0, p.stock - (p.stock_reservado ?? 0))
 

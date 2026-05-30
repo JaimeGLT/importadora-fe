@@ -6,6 +6,7 @@ const ROLES: { value: RolUsuario; label: string }[] = [
   { value: 'admin',       label: 'Administrador' },
   { value: 'cajero',     label: 'Cajero' },
   { value: 'almacenero', label: 'Almacenero' },
+  { value: 'operador',   label: 'Operador' },
 ]
 
 interface Props {
