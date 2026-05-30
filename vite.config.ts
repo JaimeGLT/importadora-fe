@@ -22,8 +22,7 @@ export default defineConfig(({ mode }) => {
             if (id.includes('JsBarcode') || id.includes('jsbarcode')) return 'jsbarcode'
             if (id.includes('recharts') || id.includes('d3-') || id.includes('victory-')) return 'charts'
             if (id.includes('@microsoft/signalr')) return 'signalr'
-            if (id.includes('react-dom') || id.includes('react-router') || id.includes('react-is')) return 'react-vendor'
-            if (id.includes('/react/') || id.includes('/react@')) return 'react-core'
+            if (id.includes('react')) return 'react-vendor'
           },
         },
       },
