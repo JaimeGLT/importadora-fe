@@ -434,8 +434,10 @@ function backendToItemOrden(api: OrdenItemAPI): ItemOrden {
     producto_fila: loc.fila,
     producto_columna: loc.columna,
     cantidad_pedida: api.cantidad,
-    precio_unitario: api.precioUnitario,
-    subtotal: api.precioUnitario * api.cantidad,
+    precio_unitario: api.montoDescuento > 0
+      ? api.precioUnitario - api.montoDescuento / api.cantidad
+      : api.precioUnitario,
+    subtotal: api.precioUnitario * api.cantidad - api.montoDescuento,
     estado,
     nota: parseNotaUsuario(api.notaIncompleto),
     cantidad_recogida: parseCantidadRecogida(api.notaIncompleto),

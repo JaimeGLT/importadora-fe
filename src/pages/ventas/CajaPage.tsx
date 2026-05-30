@@ -1623,11 +1623,9 @@ export function CajaPage() {
         id_Producto: Number(i.producto_id),
         cantidad: i.cantidad,
         esParcial: false,
-        precioUnitario: i.precio_base,
-        id_Descuento: i.descuento_id ? Number(i.descuento_id) : null,
-        montoDescuento: i.descuento_porcentaje
-          ? i.precio_base * (i.descuento_porcentaje / 100) * i.cantidad
-          : 0,
+        precioUnitario: i.precio_unitario,
+        id_Descuento: null,
+        montoDescuento: 0,
         piezas: [],
       })),
       ...Object.entries(kitGroups).map(([kitId, pieces]) => ({
