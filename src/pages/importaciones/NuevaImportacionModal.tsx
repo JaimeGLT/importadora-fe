@@ -302,7 +302,7 @@ export function NuevaImportacionModal({
   // Guardando
   const [saving, setSaving] = useState(false)
   const [successOpen, setSuccessOpen] = useState(false)
-  const [successData, setSuccessData] = useState<{ numero: string; totalProductos: number; fobTotal: number; items: ItemImportacion[] } | null>(null)
+  const [successData, setSuccessData] = useState<{ numero: string; totalProductos: number; fobTotal: number; items: DraftItem[] } | null>(null)
 
   // ── Reset ────────────────────────────────────────────────────────────────
   const reset = useCallback(() => {
@@ -623,7 +623,7 @@ function SuccessModal({
   numero: string
   totalProductos: number
   fobTotal: number
-  items: ItemImportacion[]
+  items: DraftItem[]
   marcas: Marca[]
 }) {
   const [printing, setPrinting] = useState(false)
