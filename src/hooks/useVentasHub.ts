@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { HubConnectionBuilder, HubConnectionState, type HubConnection } from '@microsoft/signalr'
+import { HttpTransportType, HubConnectionBuilder, HubConnectionState, type HubConnection } from '@microsoft/signalr'
 
 interface HubHandlers {
   onNuevaOrden?: (p: { id: number; fecha: string; cantItems: number; id_cliente: number | null }) => void
@@ -32,8 +32,9 @@ export function useVentasHub(
     if (!isReady) return
 
     const conn = new HubConnectionBuilder()
-      .withUrl(`${import.meta.env.VITE_BACKEND_PROXY}/hubs/ventas`, { withCredentials: true })
+      .withUrl(`${import.meta.env.VITE_BACKEND_PROXY}/hubs/ventas`, { withCredentials: true, transport: HttpTransportType.ServerSentEvents })
       .withAutomaticReconnect()
+      
       .build()
 
     connRef.current = conn
