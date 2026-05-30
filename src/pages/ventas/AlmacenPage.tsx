@@ -352,7 +352,7 @@ function FaltantesModal({
                             <span className="text-[11px] text-[#7A7571] flex items-center gap-0.5">
                               <i className="ti ti-map-pin text-[10px]" />
                               {item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}
-                              {item.produto_fila ? ` / ${item.produto_fila}` : ''}{item.produto_columna ? ` / ${item.produto_columna}` : ''}
+                              {item.producto_fila ? ` / ${item.producto_fila}` : ''}{item.producto_columna ? ` / ${item.producto_columna}` : ''}
                             </span>
                           )}
                         </div>

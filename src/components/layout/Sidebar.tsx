@@ -176,7 +176,7 @@ interface SidebarProps {
   onToggleCollapse?: () => void
 }
 
-export function Sidebar({ open, onClose, collapsed = false, onToggleCollapse }: SidebarProps) {
+export function Sidebar({ open, onClose, collapsed = false }: SidebarProps) {
   const { user, logout } = useAuth()
   const { pathname } = useLocation()
   const navigate = useNavigate()
