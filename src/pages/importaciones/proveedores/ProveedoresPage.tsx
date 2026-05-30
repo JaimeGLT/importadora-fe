@@ -94,8 +94,8 @@ export function ProveedoresPage() {
       }
       setFormOpen(false)
       setEditingProv(null)
-    } catch {
-      notify.error(editingProv ? 'Error actualizando proveedor' : 'Error creando proveedor')
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : editingProv ? 'Error actualizando proveedor' : 'Error creando proveedor')
     } finally {
       setSaving(false)
     }
@@ -107,8 +107,8 @@ export function ProveedoresPage() {
       await api.delete(`/Proveedor/${prov.id}`)
       storeRemove(prov.id)
       notify.success('Proveedor eliminado')
-    } catch {
-      notify.error('Error eliminando proveedor')
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error eliminando proveedor')
     }
   }
 

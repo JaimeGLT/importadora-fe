@@ -7,6 +7,7 @@ export interface LabelData {
   codigo_universal: string
   nombre: string
   marca: string
+  marcaPrefijo?: string
   vehiculo: string
   precio_venta: number
   unidad: string
@@ -14,7 +15,7 @@ export interface LabelData {
   fecha_importacion?: string
 }
 
-const EMPRESA_NOMBRE = 'USAImportadora'
+const EMPRESA_NOMBRE = 'Usa AutoPartes'
 
 
 
@@ -99,8 +100,8 @@ async function generarPDF(
   let firstPage = true
 
   for (const item of items) {
-    const codigoBarras = item.producto.marca
-      ? `${item.producto.codigo_universal}-${item.producto.marca}`
+    const codigoBarras = item.producto.marcaPrefijo
+      ? `${item.producto.marcaPrefijo}-${item.producto.codigo_universal}`
       : item.producto.codigo_universal
     const pngBase64 = await generarBarcodePNG(codigoBarras)
 

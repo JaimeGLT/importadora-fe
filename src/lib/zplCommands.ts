@@ -2,6 +2,7 @@ export interface ZPLLabelData {
   codigo_universal: string
   nombre: string
   marca: string
+  marcaPrefijo?: string
   vehiculo: string
   precio_venta: number
   unidad: string
@@ -23,8 +24,8 @@ function formatearFecha(iso: string): string {
 }
 
 function buildLabel(data: ZPLLabelData): string {
-  const codigo = data.marca
-    ? `${data.codigo_universal}-${data.marca}`
+  const codigo = data.marcaPrefijo
+    ? `${data.marcaPrefijo}-${data.codigo_universal}`
     : data.codigo_universal
 
   const fecha = data.fecha_importacion
@@ -41,7 +42,7 @@ function buildLabel(data: ZPLLabelData): string {
     `^LH0,0`,
 
     // Empresa — centrada, Y=4
-    `^FO0,4^FB${LABEL_W_DOTS},1,,C,0^A0N,12,12^FDUSAImportadora\&^FS`,
+    `^FO0,4^FB${LABEL_W_DOTS},1,,C,0^A0N,12,12^FDUsa AutoPartes\&^FS`,
 
     // Barcode — X=4, Y=20, altura 55 dots, sin HRI interno
     `^FO4,20^BY2,2,55^BCN,,N,N,N^FD${codigo}^FS`,

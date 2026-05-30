@@ -1,7 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import type * as XLSXType from 'xlsx'
 import { Modal, Button, Input, ExcelColumnMapper, BrandSelect, ProveedorSelect } from '@/components/ui'
-import type { Importacion, ItemImportacion, Producto, Proveedor } from '@/types'
+import type { Importacion, ItemImportacion, Producto, Proveedor, Marca } from '@/types'
+import { imprimirLote } from '@/lib/printLabel'
 import { clsx } from 'clsx'
 import { notify } from '@/lib/notify'
 import { gql } from '@/lib/graphql'
@@ -253,11 +254,12 @@ interface Props {
   onSave: (importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>, proveedorId: number) => void
   proveedores: Proveedor[]
   productos: Producto[]
+  marcas: Marca[]
   totalImportaciones: number
 }
 
 export function NuevaImportacionModal({
-  open, onClose, onSave, proveedores, productos, totalImportaciones,
+  open, onClose, onSave, proveedores, productos, marcas, totalImportaciones,
 }: Props) {
   // ── Estado ────────────────────────────────────────────────────────────────
   const [step, setStep] = useState<ImportStep>('upload')
@@ -300,7 +302,7 @@ export function NuevaImportacionModal({
   // Guardando
   const [saving, setSaving] = useState(false)
   const [successOpen, setSuccessOpen] = useState(false)
-  const [successData, setSuccessData] = useState<{ numero: string; totalProductos: number; fobTotal: number } | null>(null)
+  const [successData, setSuccessData] = useState<{ numero: string; totalProductos: number; fobTotal: number; items: ItemImportacion[] } | null>(null)
 
   // ── Reset ────────────────────────────────────────────────────────────────
   const reset = useCallback(() => {
@@ -441,7 +443,6 @@ export function NuevaImportacionModal({
   // ── Step 5: confirmar ─────────────────────────────────────────────────────
   const handleConfirmar = async () => {
     setSaving(true)
-    await new Promise((r) => setTimeout(r, 400))
 
     const d = {
       tipo_cambio: parseNumeric(datos.tipo_cambio),
@@ -465,15 +466,21 @@ export function NuevaImportacionModal({
       items: items.map((it, i) => ({ ...it, id: `item-${crypto.randomUUID()}-${i}` })),
     }
 
-    onSave(importacion, Number(datos.proveedor_id))
-    setSaving(false)
-    setSuccessData({
-      numero: nextNumero(totalImportaciones),
-      totalProductos: items.length,
-      fobTotal: fob_total_usd,
-    })
-    reset()
-    setSuccessOpen(true)
+    try {
+      await onSave(importacion, Number(datos.proveedor_id))
+      setSuccessData({
+        numero: nextNumero(totalImportaciones),
+        totalProductos: items.length,
+        fobTotal: fob_total_usd,
+        items: [...items],
+      })
+      reset()
+      setSuccessOpen(true)
+    } catch {
+      notify.error('Error al registrar la importación')
+    } finally {
+      setSaving(false)
+    }
   }
 
   // ── Navegación atrás ──────────────────────────────────────────────────────
@@ -598,6 +605,8 @@ export function NuevaImportacionModal({
           numero={successData.numero}
           totalProductos={successData.totalProductos}
           fobTotal={successData.fobTotal}
+          items={successData.items}
+          marcas={marcas}
         />
       )}
     </>
@@ -607,15 +616,42 @@ export function NuevaImportacionModal({
 // ─── Modal de éxito ────────────────────────────────────────────────────────────
 
 function SuccessModal({
-  open, onClose, numero, totalProductos, fobTotal,
+  open, onClose, numero, totalProductos, fobTotal, items, marcas,
 }: {
   open: boolean
   onClose: () => void
   numero: string
   totalProductos: number
   fobTotal: number
+  items: ItemImportacion[]
+  marcas: Marca[]
 }) {
+  const [printing, setPrinting] = useState(false)
+
   if (!open) return null
+
+  const handlePrint = async () => {
+    setPrinting(true)
+    const today = new Date().toISOString()
+    const labelItems = items.map(it => {
+      const marca = marcas.find(m => m.id === it.marcaId)
+      return {
+        producto: {
+          codigo_universal: it.codigo_proveedor,
+          nombre: it.nombre,
+          marca: marca?.nombre ?? '',
+          marcaPrefijo: marca?.prefijo ?? '',
+          vehiculo: '',
+          precio_venta: it.precio_venta_final,
+          unidad: it.unidad ?? 'unidad',
+          creado_en: today,
+        },
+        copias: 1,
+      }
+    })
+    await imprimirLote(labelItems)
+    setPrinting(false)
+  }
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -653,9 +689,21 @@ function SuccessModal({
           </div>
         </div>
 
-        <p className="text-sm text-steel-500 mb-6">
+        <p className="text-sm text-steel-500 mb-4">
           Los productos han sido registrados correctamente y el inventario se ha actualizado.
         </p>
+
+        <button
+          onClick={() => void handlePrint()}
+          disabled={printing}
+          className="w-full mb-3 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-[#D0CBC4] bg-white text-sm font-medium text-[#4A4744] hover:bg-[#F7F7F7] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {printing
+            ? <i className="ti ti-loader-2 animate-spin text-base" />
+            : <i className="ti ti-printer text-base" />
+          }
+          {printing ? 'Generando etiquetas...' : `Imprimir etiquetas del lote (${totalProductos})`}
+        </button>
 
         <Button onClick={onClose} className="w-full">
           Aceptar

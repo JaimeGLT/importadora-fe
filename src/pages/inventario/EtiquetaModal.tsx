@@ -5,7 +5,7 @@ import { imprimirLote, imprimirLoteZPL, connectQZTray } from '@/lib/printLabel'
 import { getAvailablePrinters } from '@/lib/qzTray'
 import type { Producto } from '@/types'
 
-const EMPRESA_NOMBRE = 'USAImportadora'
+const EMPRESA_NOMBRE = 'Usa AutoPartes'
 const PRINTER_NAME_PARTIAL = 'GS-2406'
 
 function formatearFecha(iso: string): string {
@@ -22,6 +22,7 @@ interface EtiquetaModalProps {
   onClose: () => void
   producto: Producto | null
   marcaNombre?: string
+  marcaPrefijo?: string
 }
 
 function EtiquetaSimulada({ codigo, fecha }: { codigo: string; fecha: string; }) {
@@ -59,7 +60,7 @@ function EtiquetaSimulada({ codigo, fecha }: { codigo: string; fecha: string; })
   )
 }
 
-export function EtiquetaModal({ open, onClose, producto, marcaNombre = '' }: EtiquetaModalProps) {
+export function EtiquetaModal({ open, onClose, producto, marcaNombre = '', marcaPrefijo = '' }: EtiquetaModalProps) {
   const [copias, setCopias] = useState(1)
   const [printing, setPrinting] = useState(false)
   const [qzConnected, setQzConnected] = useState(false)
@@ -94,7 +95,7 @@ export function EtiquetaModal({ open, onClose, producto, marcaNombre = '' }: Eti
     setPrinting(true)
     setQzError(null)
 
-    const labelData = { ...producto, marca: marcaNombre }
+    const labelData = { ...producto, marca: marcaNombre, marcaPrefijo }
     if (printMode === 'zpl' && selectedPrinter) {
       const result = await imprimirLoteZPL([{ producto: labelData, copias }], selectedPrinter)
       if (!result.success && result.error) {
@@ -110,8 +111,8 @@ export function EtiquetaModal({ open, onClose, producto, marcaNombre = '' }: Eti
   if (!producto) return null
 
   const fechaLabel = producto.creado_en ? formatearFecha(producto.creado_en) : ''
-  const codigoBarras = marcaNombre
-    ? `${producto.codigo_universal}-${marcaNombre}`
+  const codigoBarras = marcaPrefijo
+    ? `${marcaPrefijo}-${producto.codigo_universal}`
     : producto.codigo_universal
 
   return (
@@ -205,35 +206,13 @@ export function EtiquetaModal({ open, onClose, producto, marcaNombre = '' }: Eti
       )}
 
       <div className="bg-steel-100 rounded-lg p-5 flex flex-col items-center gap-2 mb-4">
-        <p className="text-xs text-steel-400 mb-1">Vista previa (90 × 20 mm — 3 etiquetas por fila)</p>
+        <p className="text-xs text-steel-400 mb-1">Vista previa (30 × 20 mm)</p>
 
-        <div className="flex gap-px">
-          <EtiquetaSimulada codigo={codigoBarras} fecha={fechaLabel} />
-          <EtiquetaSimulada codigo={codigoBarras} fecha={fechaLabel} />
+        <div className="scale-[2.5] origin-center my-16">
           <EtiquetaSimulada codigo={codigoBarras} fecha={fechaLabel} />
         </div>
 
-        <div className="flex gap-px opacity-40">
-          <div className="w-[113px] h-[75px] px-1.5 pt-1 pb-0.5 flex flex-col justify-between items-center border border-dashed border-steel-200 shrink-0">
-            <p className="text-[5px] font-bold text-black text-center w-full tracking-widest uppercase leading-none">{EMPRESA_NOMBRE}</p>
-            <div className="w-full flex justify-center"><div className="h-6 w-full bg-steel-200 rounded" /></div>
-            <p className="text-[4px] text-gray-400 text-center w-full leading-none">continúa...</p>
-          </div>
-          <div className="w-[113px] h-[75px] px-1.5 pt-1 pb-0.5 flex flex-col justify-between items-center border border-dashed border-steel-200 shrink-0">
-            <p className="text-[5px] font-bold text-black text-center w-full tracking-widest uppercase leading-none">{EMPRESA_NOMBRE}</p>
-            <div className="w-full flex justify-center"><div className="h-6 w-full bg-steel-200 rounded" /></div>
-            <p className="text-[4px] text-gray-400 text-center w-full leading-none">continúa...</p>
-          </div>
-          <div className="w-[113px] h-[75px] px-1.5 pt-1 pb-0.5 flex flex-col justify-between items-center border border-dashed border-steel-200 shrink-0">
-            <p className="text-[5px] font-bold text-black text-center w-full tracking-widest uppercase leading-none">{EMPRESA_NOMBRE}</p>
-            <div className="w-full flex justify-center"><div className="h-6 w-full bg-steel-200 rounded" /></div>
-            <p className="text-[4px] text-gray-400 text-center w-full leading-none">continúa...</p>
-          </div>
-        </div>
-
-        <p className="text-[10px] text-steel-400 text-center">
-          3 etiquetas por fila · código OEM: <span className="font-mono">{codigoBarras}</span>
-        </p>
+        <p className="text-[10px] text-steel-400 text-center font-mono">{codigoBarras}</p>
       </div>
 
       <div className="flex items-center justify-between px-1">

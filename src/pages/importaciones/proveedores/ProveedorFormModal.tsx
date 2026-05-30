@@ -216,7 +216,7 @@ export function ProveedorFormModal({ open, onClose, onSave, initial, saving = fa
                 <input className={INPUT} value={form.contacto} onChange={set('contacto')} placeholder="Nombre del contacto" />
               </div>
               <div>
-                <label className={LABEL}>Email</label>
+                <label className={LABEL}>Email <span className="text-[#B23A2A]">*</span></label>
                 <input className={clsx(INPUT, errors.email && 'border-[#D45040]')} value={form.email} onChange={set('email')} placeholder="correo@proveedor.com" type="email" />
                 {errors.email && <p className="text-[11px] text-[#B23A2A] mt-1">{errors.email}</p>}
               </div>

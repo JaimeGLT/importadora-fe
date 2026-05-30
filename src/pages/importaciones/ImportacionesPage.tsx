@@ -591,6 +591,7 @@ export function ImportacionesPage() {
         onSave={handleSave}
         proveedores={proveedores}
         productos={productos}
+        marcas={marcas}
         totalImportaciones={importaciones.length}
       />
       <ImportacionDetailModal

@@ -982,6 +982,7 @@ export function InventarioPage() {
         onClose={() => setEtiquetaProducto(null)}
         producto={etiquetaProducto}
         marcaNombre={etiquetaProducto ? getMarcaNombre(etiquetaProducto.marcaId, marcas) : ''}
+        marcaPrefijo={etiquetaProducto ? getMarcaPrefijo(etiquetaProducto.marcaId, marcas) : ''}
       />
       <ImportarExcelModal
         open={importOpen}
