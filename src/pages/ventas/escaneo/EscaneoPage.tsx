@@ -861,7 +861,7 @@ export function EscaneoPage() {
   const [confirmedPiezaPrices, setConfirmedPiezaPrices] = useState<Record<number, number>>({})
   const [confirmedPiezaIds, setConfirmedPiezaIds] = useState<Set<number>>(new Set())
   const [notInOrderProductos, setNotInOrderProductos] = useState<Producto[]>([])
-  const [pendingNotInOrderMarcaId, setPendingNotInOrderMarcaId] = useState<number | null>(null)
+  const [_pendingNotInOrderMarcaId, setPendingNotInOrderMarcaId] = useState<number | null>(null)
   const [pendingPiezaScan, setPendingPiezaScan] = useState<{ item: ItemOrden; pieza: PiezaOrden } | null>(null)
   const [scanCounts, setScanCounts] = useState<Record<string, number>>({})
   const scanInputRef = useRef<HTMLInputElement>(null)
