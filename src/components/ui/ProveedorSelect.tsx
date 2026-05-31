@@ -105,6 +105,7 @@ export function ProveedorSelect({
     const e: Partial<Record<keyof Form, string>> = {}
     if (!form.nombre.trim()) e.nombre = 'Requerido'
     if (!form.pais.trim())   e.pais   = 'Requerido'
+    if (!form.contacto.trim()) e.contacto = 'Requerido'
     if (form.email.trim() && !/\S+@\S+\.\S+/.test(form.email)) e.email = 'Email inválido'
     setErrors(e)
     return Object.keys(e).length === 0
@@ -281,9 +282,10 @@ export function ProveedorSelect({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-semibold text-steel-500 uppercase tracking-wide mb-1">
-                Contacto
+                Contacto <span className="text-red-500">*</span>
               </label>
               <Input value={form.contacto} onChange={setField('contacto')} placeholder="Nombre del contacto" />
+              {errors.contacto && <p className="text-[11px] text-red-500 mt-1">{errors.contacto}</p>}
             </div>
             <div>
               <label className="block text-[11px] font-semibold text-steel-500 uppercase tracking-wide mb-1">
