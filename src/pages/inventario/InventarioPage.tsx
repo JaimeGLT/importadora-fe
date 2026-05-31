@@ -417,8 +417,11 @@ export function InventarioPage() {
   }
 
   const handleImport = async (results: ImportResult[]) => {
+    const BATCH = 100
     const productosParaEnviar = results.map((r) => productoToBackendBulk(r.data))
-    await api.post('/Producto/lista', { productos: productosParaEnviar })
+    for (let i = 0; i < productosParaEnviar.length; i += BATCH) {
+      await api.post('/Producto/lista', { productos: productosParaEnviar.slice(i, i + BATCH) })
+    }
     cursors.current = [null]
     loadProducts(0, pageSize, searchTerm, selectedMarcaId)
     const creados      = results.filter((r) => r.action === 'create').length
