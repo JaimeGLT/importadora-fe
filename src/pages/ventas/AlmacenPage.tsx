@@ -874,15 +874,6 @@ function KitGroupCard({
             {piezasParcialCount > 0 && <span className="text-[#B47A1F] font-bold">{piezasParcialCount} parcial</span>}
             {piezasPendienteCount > 0 && <span className="text-[#4A4744]">{piezasPendienteCount} pendiente</span>}
           </div>
-          {!isReadOnly && piezasSueltas.estado === 'pendiente' && (
-            <button
-              onClick={() => onMarcarListoKit(piezasSueltas.id)}
-              disabled={!!loadingPiezas[piezasSueltas.id]}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#3F7A52] text-white hover:bg-[#1E5C38] disabled:opacity-50 transition-colors"
-            >
-              {loadingPiezas[piezasSueltas.id] ? '…' : 'Listo'}
-            </button>
-          )}
         </div>
       )}
     </div>
