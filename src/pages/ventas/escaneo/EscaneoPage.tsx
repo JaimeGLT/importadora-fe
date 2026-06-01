@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useVentasStore } from '@/stores/ventasStore'
 import { useMarcasStore } from '@/stores/marcasStore'
 import { MainLayout } from '@/components/layout/MainLayout'
-import type { ItemOrden, PiezaOrden, Producto, AgregarItemOrdenResponse, PiezaKit } from '@/types'
+import type { ItemOrden, PiezaOrden, Producto, AgregarItemOrdenResponse, PiezaKit, ProductoBusquedaEscaneo } from '@/types'
 import { playConfirmBeep } from '@/lib/sounds'
 import { notify } from '@/lib/notify'
 import { api } from '@/lib/api'
@@ -238,34 +238,46 @@ function ScanConfirmModal({
 
 function ScanNotInOrderModal({
   code,
-  productos,
+  producto,
+  fetchLoading,
   onAgregar,
   onDescartar,
   loading,
 }: {
   code: string
-  productos: Producto[]
-  onAgregar: (producto: Producto, cantidad: number) => void
+  producto: ProductoBusquedaEscaneo | null
+  fetchLoading: boolean
+  onAgregar: (cantidad: number) => void
   onDescartar: () => void
   loading: boolean
 }) {
-  const { marcas } = useMarcasStore()
-  const [selected, setSelected] = useState<Producto | null>(productos.length === 1 ? productos[0] : null)
   const [cantidad, setCantidad] = useState('1')
-
-  const producto = selected
-  const stockDisponible = producto ? producto.stock - (producto.stock_reservado ?? 0) : 0
   const cantidadNum = parseInt(cantidad) || 0
-  const puedeAgregar = producto && !producto.es_kit && cantidadNum >= 1 && cantidadNum <= stockDisponible
+
+  const pieza = producto?.piezaEscaneadaId != null
+    ? producto.piezas?.find(p => p.id === producto.piezaEscaneadaId) ?? null
+    : null
+  const stockDisponible = pieza
+    ? pieza.stockActual - pieza.stockReservado
+    : producto
+      ? producto.stock_Actual - producto.stockReservado
+      : 0
+  const puedeAgregar = !!producto && cantidadNum >= 1 && cantidadNum <= stockDisponible
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onDescartar()
-      if (e.key === 'Enter' && puedeAgregar && !loading) onAgregar(producto!, cantidadNum)
+      if (e.key === 'Enter' && puedeAgregar && !loading) onAgregar(cantidadNum)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [puedeAgregar, loading, cantidadNum, onAgregar, onDescartar, producto])
+  }, [puedeAgregar, loading, cantidadNum, onAgregar, onDescartar])
+
+  const tipoLabel = pieza
+    ? 'Pieza suelta'
+    : producto?.esKit
+      ? 'Kit completo'
+      : null
 
   return (
     <div
@@ -290,51 +302,35 @@ function ScanNotInOrderModal({
         </div>
 
         <div className="px-6 py-5 space-y-3">
-          {productos.length === 0 ? (
+          {fetchLoading ? (
+            <div className="flex items-center justify-center h-12 gap-2 text-sm text-[#7A7571]">
+              <i className="ti ti-loader-2 animate-spin text-[16px]" />
+              Buscando…
+            </div>
+          ) : !producto ? (
             <div className="px-3 py-2.5 rounded-lg bg-[#F5F0EB] border border-[#E8E5E2]">
               <p className="text-sm text-[#7A7571]">Código no reconocido en el inventario.</p>
             </div>
-          ) : !selected && productos.length > 1 ? (
+          ) : (
             <>
-              <p className="text-xs text-[#7A7571]">Este código existe con {productos.length} marcas distintas. ¿Cuál es?</p>
-              <div className="space-y-2">
-                {productos.map(p => {
-                  const disp = p.stock - (p.stock_reservado ?? 0)
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => { setSelected(p); setCantidad('1') }}
-                      disabled={p.es_kit || disp <= 0}
-                      className="w-full text-left p-3 rounded-xl border border-[#E8E5E2] hover:border-[#780e18]/30 hover:bg-[#FAF5EE] transition-all disabled:opacity-40"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-[#2D2B2A] truncate">{p.nombre}</p>
-                          <p className="text-[11px] font-mono text-[#7A7571] mt-0.5">{fmtCodigo(p.codigo_universal, p.marcaId, marcas)}</p>
-                        </div>
-                        <span className={clsx('text-xs font-bold shrink-0', disp > 0 ? 'text-[#3F7A52]' : 'text-[#B23A2A]')}>
-                          {disp} uds.
-                        </span>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </>
-          ) : producto ? (
-            <>
-              <div className="flex items-center gap-2">
-                {productos.length > 1 && (
-                  <button
-                    onClick={() => setSelected(null)}
-                    className="p-1 rounded-lg text-[#7A7571] hover:text-[#2D2B2A] hover:bg-[#F0EFEC] transition-colors shrink-0"
-                  >
-                    <i className="ti ti-chevron-left text-[16px]" />
-                  </button>
-                )}
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-[#2D2B2A]">{producto.nombre}</p>
-                  <p className="text-xs font-mono text-[#7A7571] mt-0.5">{fmtCodigo(producto.codigo_universal, producto.marcaId, marcas)}</p>
+              <div className="flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-bold text-[#2D2B2A]">
+                      {pieza ? pieza.nombre : producto.nombre}
+                    </p>
+                    {tipoLabel && (
+                      <span className={clsx(
+                        'text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0',
+                        pieza ? 'bg-[#F5E0A8] text-[#7A5200]' : 'bg-[#E8D4B8] text-[#780e18]'
+                      )}>
+                        {tipoLabel}
+                      </span>
+                    )}
+                  </div>
+                  {pieza && (
+                    <p className="text-[11px] text-[#7A7571] mt-0.5">Kit: {producto.nombre}</p>
+                  )}
                 </div>
               </div>
 
@@ -345,13 +341,7 @@ function ScanNotInOrderModal({
                 </span>
               </div>
 
-              {producto.es_kit && (
-                <div className="px-3 py-2.5 rounded-lg bg-[#F5E0A8] border border-[#B47A1F]/30">
-                  <p className="text-xs font-semibold text-[#7A5200]">Los kits no pueden agregarse de último momento. Contacte al almacenero.</p>
-                </div>
-              )}
-
-              {!producto.es_kit && stockDisponible > 0 && (
+              {stockDisponible > 0 ? (
                 <div>
                   <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Cantidad a agregar</label>
                   <input
@@ -364,9 +354,13 @@ function ScanNotInOrderModal({
                     className="w-full h-10 px-3.5 rounded-xl border border-[#E8E5E2] bg-white text-[#2D2B2A] text-sm focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 transition-all"
                   />
                 </div>
+              ) : (
+                <div className="px-3 py-2.5 rounded-lg bg-[#F5E0A8] border border-[#B47A1F]/30">
+                  <p className="text-xs font-semibold text-[#7A5200]">Sin stock disponible.</p>
+                </div>
               )}
             </>
-          ) : null}
+          )}
         </div>
 
         <div className="px-6 pb-6 flex gap-2">
@@ -377,10 +371,10 @@ function ScanNotInOrderModal({
           >
             Descartar
           </button>
-          {producto && !producto.es_kit && stockDisponible > 0 && (
+          {puedeAgregar && (
             <button
               className="flex-1 h-10 rounded-xl bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] text-sm font-bold active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-              onClick={() => onAgregar(producto!, cantidadNum)}
+              onClick={() => onAgregar(cantidadNum)}
               disabled={loading || !puedeAgregar}
             >
               {loading ? 'Agregando…' : 'Agregar al pedido'}
@@ -860,7 +854,8 @@ export function EscaneoPage() {
   const [piezaLoading, setPiezaLoading] = useState<Record<number, boolean>>({})
   const [confirmedPiezaPrices, setConfirmedPiezaPrices] = useState<Record<number, number>>({})
   const [confirmedPiezaIds, setConfirmedPiezaIds] = useState<Set<number>>(new Set())
-  const [notInOrderProductos, setNotInOrderProductos] = useState<Producto[]>([])
+  const [notInOrderProducto, setNotInOrderProducto] = useState<ProductoBusquedaEscaneo | null>(null)
+  const [notInOrderLoading, setNotInOrderLoading] = useState(false)
   const [_pendingNotInOrderMarcaId, setPendingNotInOrderMarcaId] = useState<number | null>(null)
   const [pendingPiezaScan, setPendingPiezaScan] = useState<{ item: ItemOrden; pieza: PiezaOrden } | null>(null)
   const [scanCounts, setScanCounts] = useState<Record<string, number>>({})
@@ -880,13 +875,14 @@ export function EscaneoPage() {
       .catch(() => {})
   }, [isTokenReady, marcas.length, setMarcas])
 
-  // Buscar productos por código cuando se escanea algo fuera de la orden
+  // Buscar producto por código cuando se escanea algo fuera de la orden
   useEffect(() => {
-    if (!pendingNotInOrderCode || !isTokenReady) { setNotInOrderProductos([]); return }
+    if (!pendingNotInOrderCode || !isTokenReady) { setNotInOrderProducto(null); return }
     const code = pendingNotInOrderCode
-    api.get<ProductoAPISimple[]>(`/Producto/buscar?codigo=${encodeURIComponent(code)}`)
-      .then(res => setNotInOrderProductos((res ?? []).map(backendToProductoSimple)))
-      .catch(() => setNotInOrderProductos([]))
+    setNotInOrderLoading(true)
+    api.get<ProductoBusquedaEscaneo>(`/Producto/buscar?codigo=${encodeURIComponent(code)}`)
+      .then(res => { setNotInOrderProducto(res); setNotInOrderLoading(false) })
+      .catch(() => { setNotInOrderProducto(null); setNotInOrderLoading(false) })
   }, [pendingNotInOrderCode, isTokenReady])
 
   const { joinGrupo } = useVentasHub({
@@ -1097,11 +1093,11 @@ export function EscaneoPage() {
         for (const { pieza, cantidad } of req.piezas) {
           const res = await api.post<AgregarItemOrdenResponse>(
             `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
-            { Id_Producto: pieza.id_producto, Cantidad: cantidad }
+            { Id_Produto: parseInt(req.kitProducto.id), Id_Pieza: pieza.id, Cantidad: cantidad }
           )
           const newItem: ItemOrden = {
             id: String(res.id),
-            producto_id: String(res.id_Producto),
+            producto_id: String(res.idProducto ?? res.id_Produto ?? parseInt(req.kitProducto.id)),
             producto_codigo: res.producto.codigo,
             producto_nombre: res.producto.nombre,
             producto_almacen: '',
@@ -1113,6 +1109,15 @@ export function EscaneoPage() {
             subtotal: res.precioUnitario * res.cantidad,
             estado: 'pendiente',
             kit_id: req.kitProducto.id,
+            es_parcial: true,
+            piezas_orden: res.piezas?.[0] ? [{
+              id: res.piezas[0].id,
+              id_pieza: res.piezas[0].idPieza,
+              nombre: pieza.nombre,
+              codigo: pieza.codigo_universal,
+              cantidad: res.cantidad,
+              precio_unitario: res.precioUnitario,
+            }] : undefined,
           }
           addItemToOrden(selectedOrden.id, newItem)
         }
@@ -1121,11 +1126,11 @@ export function EscaneoPage() {
         const { producto, cantidad } = req
         const res = await api.post<AgregarItemOrdenResponse>(
           `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
-          { Id_Producto: parseInt(producto.id), Cantidad: cantidad }
+          { Id_Produto: parseInt(producto.id), Cantidad: cantidad }
         )
         const newItem: ItemOrden = {
           id: String(res.id),
-          producto_id: String(res.id_Producto),
+          producto_id: String(res.idProducto ?? res.id_Produto ?? parseInt(producto.id)),
           producto_codigo: res.producto.codigo,
           producto_nombre: res.producto.nombre,
           producto_almacen: producto.almacen,
@@ -1136,6 +1141,7 @@ export function EscaneoPage() {
           precio_unitario: res.precioUnitario,
           subtotal: res.precioUnitario * res.cantidad,
           estado: 'pendiente',
+          es_kit: res.producto.esKit,
         }
         addItemToOrden(selectedOrden.id, newItem)
         notify.success(`${newItem.producto_nombre} agregado — almacén notificado`)
@@ -1315,8 +1321,16 @@ export function EscaneoPage() {
     const item = pendingConfirmItem
     setConfirmLoading(true)
     try {
-      const body = item.kit_id && precio !== undefined ? { precioUnitario: precio } : undefined
-      await api.post(`/OrdenVenta/${selectedOrden.id}/Items/${item.id}/Confirmar`, body)
+      if (item.es_parcial && item.piezas_orden?.[0]) {
+        const pieza = item.piezas_orden[0]
+        await api.post(
+          `/OrdenVenta/${selectedOrden.id}/Items/${item.id}/Piezas/${pieza.id}/Confirmar`,
+          { precioUnitario: precio ?? item.precio_unitario }
+        )
+      } else {
+        const body = item.kit_id && precio !== undefined ? { precioUnitario: precio } : undefined
+        await api.post(`/OrdenVenta/${selectedOrden.id}/Items/${item.id}/Confirmar`, body)
+      }
       setConfirmedItemIds(prev => new Set([...prev, item.id]))
       playConfirmBeep()
       notify.success(`${item.producto_nombre} confirmado`)
@@ -1329,32 +1343,74 @@ export function EscaneoPage() {
     }
   }
 
-  const handleAgregarItem = async (producto: Producto, cantidad: number) => {
-    if (!pendingNotInOrderCode || !selectedOrden) return
+  const handleAgregarItem = async (cantidad: number) => {
+    if (!pendingNotInOrderCode || !selectedOrden || !notInOrderProducto) return
+    const p = notInOrderProducto
     setAgregarLoading(true)
     try {
+      const body: { Id_Produto?: number; Id_Pieza?: number; Cantidad: number } = { Cantidad: cantidad }
+      if (p.piezaEscaneadaId != null) {
+        body.Id_Produto = p.id
+        body.Id_Pieza = p.piezaEscaneadaId
+      } else {
+        body.Id_Produto = p.id
+      }
       const res = await api.post<AgregarItemOrdenResponse>(
         `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
-        { Id_Producto: parseInt(producto.id), Cantidad: cantidad }
+        body
       )
-      const newItem: ItemOrden = {
-        id: String(res.id),
-        producto_id: String(res.id_Producto),
-        producto_codigo: res.producto.codigo,
-        producto_nombre: res.producto.nombre,
-        producto_almacen: producto.almacen,
-        producto_estante: producto.estante,
-        producto_fila: producto.fila,
-        producto_columna: producto.columna,
-        cantidad_pedida: res.cantidad,
-        precio_unitario: res.precioUnitario,
-        subtotal: res.precioUnitario * res.cantidad,
-        estado: 'pendiente',
+      const parts = (res.producto.ubicacion ?? '').split('/')
+      const [almacen = '', estante = '', fila = '', columna = ''] =
+        parts.length >= 4 ? parts : ['', ...parts]
+      let newItem: ItemOrden
+      if (res.esParcial && res.piezas?.[0]) {
+        const piezaItemId = res.piezas[0].id
+        const piezaCatalogo = p.piezas?.find(pz => pz.id === res.piezas![0].idPieza)
+        newItem = {
+          id: String(res.id),
+          producto_id: String(res.idProducto ?? res.id_Produto ?? p.id),
+          producto_codigo: res.producto.codigo,
+          producto_nombre: res.producto.nombre,
+          producto_almacen: almacen,
+          producto_estante: estante,
+          producto_fila: fila,
+          producto_columna: columna,
+          cantidad_pedida: res.cantidad,
+          precio_unitario: res.precioUnitario,
+          subtotal: res.precioUnitario * res.cantidad,
+          estado: 'pendiente',
+          es_parcial: true,
+          piezas_orden: [{
+            id: piezaItemId,
+            id_pieza: res.piezas[0].idPieza,
+            nombre: piezaCatalogo?.nombre ?? '',
+            codigo: piezaCatalogo?.codigoUniversal ?? '',
+            cantidad: res.cantidad,
+            precio_unitario: res.precioUnitario,
+          }],
+        }
+      } else {
+        newItem = {
+          id: String(res.id),
+          producto_id: String(res.idProducto ?? res.id_Produto ?? p.id),
+          producto_codigo: res.producto.codigo,
+          producto_nombre: res.producto.nombre,
+          producto_almacen: almacen,
+          producto_estante: estante,
+          producto_fila: fila,
+          producto_columna: columna,
+          cantidad_pedida: res.cantidad,
+          precio_unitario: res.precioUnitario,
+          subtotal: res.precioUnitario * res.cantidad,
+          estado: 'pendiente',
+          es_kit: res.producto.esKit,
+        }
       }
       addItemToOrden(selectedOrden.id, newItem)
       notify.info(`${newItem.producto_nombre} agregado a la orden`)
       setPendingNotInOrderCode(null)
       setPendingNotInOrderMarcaId(null)
+      setNotInOrderProducto(null)
       setPendingConfirmItem(newItem)
     } catch (err) {
       notify.error(err instanceof Error ? err.message : 'Error al agregar')
@@ -1415,19 +1471,17 @@ export function EscaneoPage() {
           </div>
         </header>
 
-        <div className="px-7 py-6 max-w-[1400px] mx-auto">
+        <div className="px-7 pt-4 pb-0 max-w-[1400px] mx-auto">
 
           {/* ── Page Header ── */}
-          <div className="mb-6">
-            <h2 className="font-semibold text-[30px] text-[#2D2B2A] leading-none tracking-[-0.022em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+          <div className="mb-3 flex items-center gap-3">
+            <h2 className="font-semibold text-[22px] text-[#2D2B2A] leading-none tracking-[-0.022em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               Punto de escaneo
             </h2>
-            <p className="text-[13.5px] text-[#7A7571] mt-1.5">
-              Confirma productos y envía órdenes a caja
-            </p>
+            <span className="text-[12px] text-[#7A7571]">Confirma productos y envía órdenes a caja</span>
           </div>
 
-          <div className="flex gap-5" style={{ height: 'calc(100vh - 230px)' }}>
+          <div className="flex gap-5" style={{ height: 'calc(100vh - 148px)' }}>
 
             {/* ── Lista de órdenes ── */}
             <div className="w-72 shrink-0 flex flex-col gap-2.5 overflow-y-auto">
@@ -1913,11 +1967,13 @@ export function EscaneoPage() {
       {pendingNotInOrderCode !== null && (
         <ScanNotInOrderModal
           code={pendingNotInOrderCode}
-          productos={notInOrderProductos}
+          producto={notInOrderProducto}
+          fetchLoading={notInOrderLoading}
           onAgregar={handleAgregarItem}
           onDescartar={() => {
             setPendingNotInOrderCode(null)
             setPendingNotInOrderMarcaId(null)
+            setNotInOrderProducto(null)
             scanInputRef.current?.focus()
           }}
           loading={agregarLoading}

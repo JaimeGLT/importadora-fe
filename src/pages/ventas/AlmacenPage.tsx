@@ -947,8 +947,21 @@ function PickingView({
       const key = item.producto_id
       if (!groups.has(key)) groups.set(key, {})
       const g = groups.get(key)!
-      if (item.es_parcial) g.piezasSueltas = item
-      else g.kitCompleto = item
+      if (item.es_parcial) {
+        if (!g.piezasSueltas) {
+          g.piezasSueltas = { ...item }
+        } else {
+          g.piezasSueltas = {
+            ...g.piezasSueltas,
+            piezas_orden: [
+              ...(g.piezasSueltas.piezas_orden ?? []),
+              ...(item.piezas_orden ?? []),
+            ],
+          }
+        }
+      } else {
+        g.kitCompleto = item
+      }
     })
     return groups
   }, [orden.items])
@@ -1370,9 +1383,12 @@ export function AlmacenPage() {
       }
     },
     onNuevoItemAgregado: (p) => {
-      loadOrdenes()
+      setTimeout(() => loadOrdenes(), 400)
       playAlertSequence()
       notify.warning(`Producto nuevo en orden #${p.ordenId}`, { description: `${p.productoNombre} ×${p.cantidad} — ve a buscarlo`, duration: 10000 })
+    },
+    onOrdenConFaltantes: () => {
+      setTimeout(() => loadOrdenes(), 400)
     },
     onItemEliminado: (p) => removeItemFromOrden(String(p.ordenId), String(p.itemId)),
     onCantidadItemActualizada: (p) => {

@@ -392,11 +392,38 @@ export interface ItemOrden {
 
 export interface AgregarItemOrdenResponse {
   id: number
-  id_Producto: number
+  idProducto?: number | null
+  id_Produto?: number | null
   cantidad: number
+  esParcial?: boolean
   precioUnitario: number
   estado: string
-  producto: { id: number; codigo: string; nombre: string; ubicacion: string }
+  piezas?: { id: number; idPieza: number; cantidad: number }[] | null
+  producto: { id: number; codigo: string; nombre: string; ubicacion: string; esKit?: boolean }
+}
+
+export interface ProductoBusquedaEscaneo {
+  id: number
+  codigo: string
+  nombre: string
+  precio: number
+  stock_Actual: number
+  stockReservado: number
+  esKit: boolean
+  ubicacion: string
+  marcaId: number | null
+  prefijoMarca: string | null
+  piezaEscaneadaId: number | null
+  piezas: PiezaBusquedaEscaneo[] | null
+}
+
+export interface PiezaBusquedaEscaneo {
+  id: number
+  codigoUniversal: string
+  nombre: string
+  stockActual: number
+  stockReservado: number
+  cantidadPorKit: number
 }
 
 export type TipoDocumento = 'nota_venta' | 'factura'

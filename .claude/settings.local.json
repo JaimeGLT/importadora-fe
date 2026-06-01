@@ -19,7 +19,8 @@
       "Bash(node *)",
       "Bash(git checkout *)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\jaime\\\\Desktop\\\\UsaImportadora\" -Recurse -Filter \"*OrdenVenta*\" -ErrorAction SilentlyContinue)",
-      "Bash(Select-Object -ExpandProperty FullName)"
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(xargs grep -l \"AGREGAR\\\\|agregar\")"
     ]
   }
 }
