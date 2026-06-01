@@ -790,7 +790,7 @@ function KitGroupCard({
                           </div>
                           {!isReadOnly && (
                             <button
-                              onClick={() => onFaltantePieza(piezasSueltas.id, pieza)}
+                              onClick={() => onFaltantePieza(pieza.item_id ?? piezasSueltas.id, pieza)}
                               className="text-[10px] font-bold text-[#B47A1F] hover:text-[#7A5200] underline underline-offset-2 transition-colors"
                             >
                               Editar
@@ -805,7 +805,7 @@ function KitGroupCard({
                           </div>
                           {!isReadOnly && (
                             <button
-                              onClick={() => onFaltantePieza(piezasSueltas.id, pieza)}
+                              onClick={() => onFaltantePieza(pieza.item_id ?? piezasSueltas.id, pieza)}
                               className="text-[10px] font-bold text-[#B47A1F] hover:text-[#7A5200] underline underline-offset-2 transition-colors"
                             >
                               Editar
@@ -815,14 +815,14 @@ function KitGroupCard({
                       ) : !isReadOnly ? (
                         <div className="flex flex-col gap-1.5 items-end">
                           <button
-                            onClick={() => onListoPieza(piezasSueltas.id, pieza)}
+                            onClick={() => onListoPieza(pieza.item_id ?? piezasSueltas.id, pieza)}
                             disabled={isLoading}
                             className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#3F7A52] text-white hover:bg-[#1E5C38] disabled:opacity-50 transition-colors"
                           >
                             {isLoading ? '…' : 'Listo'}
                           </button>
                           <button
-                            onClick={() => onFaltantePieza(piezasSueltas.id, pieza)}
+                            onClick={() => onFaltantePieza(pieza.item_id ?? piezasSueltas.id, pieza)}
                             disabled={isLoading}
                             className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#B23A2A] text-white hover:bg-[#8A1E12] disabled:opacity-50 transition-colors"
                           >
@@ -949,13 +949,16 @@ function PickingView({
       const g = groups.get(key)!
       if (item.es_parcial) {
         if (!g.piezasSueltas) {
-          g.piezasSueltas = { ...item }
+          g.piezasSueltas = {
+            ...item,
+            piezas_orden: item.piezas_orden?.map(p => ({ ...p, item_id: item.id })),
+          }
         } else {
           g.piezasSueltas = {
             ...g.piezasSueltas,
             piezas_orden: [
               ...(g.piezasSueltas.piezas_orden ?? []),
-              ...(item.piezas_orden ?? []),
+              ...(item.piezas_orden ?? []).map(p => ({ ...p, item_id: item.id })),
             ],
           }
         }
@@ -1467,8 +1470,6 @@ export function AlmacenPage() {
 
   const handleMarcarListo = async () => {
     if (!pickingOrdenId) return
-    const ordenActual = ordenes.find(o => o.id === pickingOrdenId)
-    if (!ordenActual) return
     try {
       await api.post(`/OrdenVenta/${pickingOrdenId}/Lista`, null)
       await loadOrdenes()
@@ -1529,13 +1530,18 @@ export function AlmacenPage() {
 
   const handleMarcarListoIndividual = async (itemId: string) => {
     if (!pickingOrdenId) return
+    const currentOrden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)
+    const isConFaltantes = currentOrden?.estado === 'con_faltantes'
     try {
-      const currentOrden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)
-      const currentItem = currentOrden?.items.find(i => i.id === itemId)
-      if (currentItem?.estado === 'faltante') {
-        await api.delete(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Incompleto`)
+      if (isConFaltantes) {
+        await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Confirmar`, undefined)
+      } else {
+        const currentItem = currentOrden?.items.find(i => i.id === itemId)
+        if (currentItem?.estado === 'faltante') {
+          await api.delete(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Incompleto`)
+        }
+        await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/MarcarListoIndividual`, null)
       }
-      await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/MarcarListoIndividual`, null)
       markItemListoEnOrden(pickingOrdenId, itemId)
 
       const updatedOrden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)
@@ -1580,8 +1586,15 @@ export function AlmacenPage() {
 
   const handleListoPiezaIndividual = async (itemId: string, pieza: PiezaOrden) => {
     if (!pickingOrdenId) return
+    const orden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)
     try {
-      await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`, null)
+      if (orden?.estado === 'con_faltantes') {
+        await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Confirmar`, {
+          PrecioUnitario: pieza.precio_unitario ?? 0,
+        })
+      } else {
+        await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`, null)
+      }
       await loadOrdenes()
       notify.success(`Pieza "${pieza.nombre}" marcada como lista`)
     } catch (e) {
@@ -1591,13 +1604,21 @@ export function AlmacenPage() {
 
   const handleFaltantePiezaIndividual = async (itemId: string, pieza: PiezaOrden, cantidadEncontrada: number) => {
     if (!pickingOrdenId) return
+    const orden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)
+    const isConFaltantes = orden?.estado === 'con_faltantes'
     try {
       if (cantidadEncontrada >= pieza.cantidad) {
         if (pieza.nota_incompleto) {
           await api.delete(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Incompleto`)
         }
-        if (!pieza.listo_almacenero) {
-          await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`, null)
+        if (!pieza.listo_almacenero && !pieza.confirmado) {
+          if (isConFaltantes) {
+            await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Confirmar`, {
+              PrecioUnitario: pieza.precio_unitario ?? 0,
+            })
+          } else {
+            await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`, null)
+          }
         }
         await loadOrdenes()
         const updatedOrden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)

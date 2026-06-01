@@ -540,7 +540,7 @@ export function backendToOrdenVenta(api: OrdenVentaAPI): OrdenVenta {
   const items = (api.items ?? []).map(backendToItemOrden)
   const total = items.reduce((s, i) => {
     if (i.es_parcial && i.piezas_orden?.length)
-      return s + i.piezas_orden.filter(p => p.confirmado).reduce((ps, p) => ps + (p.precio_unitario ?? 0) * p.cantidad, 0)
+      return s + i.piezas_orden.reduce((ps, p) => ps + (p.precio_unitario ?? 0) * p.cantidad, 0)
     return s + i.precio_unitario * i.cantidad_pedida
   }, 0)
   const clienteNombre = api.cliente

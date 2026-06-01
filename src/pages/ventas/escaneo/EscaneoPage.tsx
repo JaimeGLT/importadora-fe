@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from 'react'
+﻿import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useVentasStore } from '@/stores/ventasStore'
 import { useMarcasStore } from '@/stores/marcasStore'
@@ -1093,11 +1093,11 @@ export function EscaneoPage() {
         for (const { pieza, cantidad } of req.piezas) {
           const res = await api.post<AgregarItemOrdenResponse>(
             `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
-            { Id_Produto: parseInt(req.kitProducto.id), Id_Pieza: pieza.id, Cantidad: cantidad }
+            { Id_Producto: parseInt(req.kitProducto.id), Id_Pieza: pieza.id, Cantidad: cantidad }
           )
           const newItem: ItemOrden = {
             id: String(res.id),
-            producto_id: String(res.idProducto ?? res.id_Produto ?? parseInt(req.kitProducto.id)),
+            producto_id: String(res.idProducto ?? res.Id_Producto ?? parseInt(req.kitProducto.id)),
             producto_codigo: res.producto.codigo,
             producto_nombre: res.producto.nombre,
             producto_almacen: '',
@@ -1126,11 +1126,11 @@ export function EscaneoPage() {
         const { producto, cantidad } = req
         const res = await api.post<AgregarItemOrdenResponse>(
           `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
-          { Id_Produto: parseInt(producto.id), Cantidad: cantidad }
+          { Id_Producto: parseInt(producto.id), Cantidad: cantidad }
         )
         const newItem: ItemOrden = {
           id: String(res.id),
-          producto_id: String(res.idProducto ?? res.id_Produto ?? parseInt(producto.id)),
+          producto_id: String(res.idProducto ?? res.Id_Producto ?? parseInt(producto.id)),
           producto_codigo: res.producto.codigo,
           producto_nombre: res.producto.nombre,
           producto_almacen: producto.almacen,
@@ -1368,7 +1368,7 @@ export function EscaneoPage() {
         const piezaCatalogo = p.piezas?.find(pz => pz.id === res.piezas![0].idPieza)
         newItem = {
           id: String(res.id),
-          producto_id: String(res.idProducto ?? res.id_Produto ?? p.id),
+          producto_id: String(res.idProducto ?? res.Id_Produto ?? p.id),
           producto_codigo: res.producto.codigo,
           producto_nombre: res.producto.nombre,
           producto_almacen: almacen,
@@ -1392,7 +1392,7 @@ export function EscaneoPage() {
       } else {
         newItem = {
           id: String(res.id),
-          producto_id: String(res.idProducto ?? res.id_Produto ?? p.id),
+          producto_id: String(res.idProducto ?? res.Id_Produto ?? p.id),
           producto_codigo: res.producto.codigo,
           producto_nombre: res.producto.nombre,
           producto_almacen: almacen,

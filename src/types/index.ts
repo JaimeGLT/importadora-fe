@@ -354,6 +354,7 @@ export interface PagoOrden {
 export interface PiezaOrden {
   id: number
   id_pieza: number
+  item_id?: string
   nombre: string
   codigo: string
   marcaId?: number | null
