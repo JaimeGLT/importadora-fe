@@ -10,6 +10,7 @@ import {
   backendToProductoSimple,
   backendToProducto,
   type ProductoAPI,
+  type ProductoAPISimple,
 } from '@/lib/queries/inventario.queries'
 import {
   AJUSTES_HISTORIAL_QUERY,
@@ -764,15 +765,22 @@ export function AjustesPage() {
 
   const loadProductos = useCallback((targetPage: number, size: number, q = '', currentFiltro: 'todos' | 'bajo' | 'kits' = 'todos') => {
     setLoading(true)
-    const conditions: object[] = [{ activo: { eq: true } }]
+
     if (q.trim()) {
-      conditions.push({ or: [
-        { nombre: { contains: q } },
-        { codigo: { contains: q } },
-        { codigoAux: { contains: q } },
-        { codigoAux2: { contains: q } },
-      ]})
+      api.get<ProductoAPISimple[]>(`/Producto/buscar-lista?q=${encodeURIComponent(q.trim())}`)
+        .then(res => {
+          let resultados = (res ?? []).map(backendToProductoSimple)
+          if (currentFiltro === 'kits') resultados = resultados.filter(p => p.es_kit)
+          setProductos(resultados)
+          setTotalCount(resultados.length)
+          setHasNextPage(false)
+        })
+        .catch(() => notify.error('Error buscando productos'))
+        .finally(() => setLoading(false))
+      return
     }
+
+    const conditions: object[] = [{ activo: { eq: true } }]
     if (currentFiltro === 'kits') conditions.push({ esKit: { eq: true } })
     const where = conditions.length === 1 ? conditions[0] : { and: conditions }
     gql<{ productos: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: ProductoAPI[] } }>(

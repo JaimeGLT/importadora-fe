@@ -351,6 +351,9 @@ export function ClientesPage() {
                           <td className="px-[22px] py-3.5 text-[13px] text-[#7A7571] font-mono">#{c.id}</td>
                           <td className="px-[22px] py-3.5">
                             <div className="text-[14px] font-semibold text-[#2D2B2A] truncate">{c.nombre} {c.apellido}</div>
+                            {c.correoElectronico && (
+                              <div className="text-[11px] text-[#7A7571] truncate mt-0.5">{c.correoElectronico}</div>
+                            )}
                           </td>
                           <td className="px-[22px] py-3.5 text-[13px] text-[#4A4744]">{c.telefono || '—'}</td>
                           <td className="px-[22px] py-3.5">
@@ -378,6 +381,7 @@ export function ClientesPage() {
                       <div>
                         <div className="text-[13px] font-semibold text-[#2D2B2A]">#{c.id} — {c.nombre} {c.apellido}</div>
                         <div className="text-[11px] text-[#7A7571] mt-0.5">{c.telefono || 'Sin teléfono'}</div>
+                        {c.correoElectronico && <div className="text-[11px] text-[#7A7571] truncate">{c.correoElectronico}</div>}
                       </div>
                       <div className="flex gap-1.5">
                         <button onClick={() => openEdit(c)}
@@ -451,12 +455,16 @@ export function ClienteFormModal({ open, onClose, onSave, cliente }: ClienteForm
   const [nombre, setNombre] = useState(cliente?.nombre ?? '')
   const [apellido, setApellido] = useState(cliente?.apellido ?? '')
   const [telefono, setTelefono] = useState(cliente?.telefono ?? '')
+  const [direccion, setDireccion] = useState(cliente?.direccion ?? '')
+  const [correoElectronico, setCorreoElectronico] = useState(cliente?.correoElectronico ?? '')
 
   useEffect(() => {
     if (open) {
       setNombre(cliente?.nombre ?? '')
       setApellido(cliente?.apellido ?? '')
       setTelefono(cliente?.telefono ?? '')
+      setDireccion(cliente?.direccion ?? '')
+      setCorreoElectronico(cliente?.correoElectronico ?? '')
     }
   }, [open, cliente])
 
@@ -464,7 +472,14 @@ export function ClienteFormModal({ open, onClose, onSave, cliente }: ClienteForm
     e.preventDefault()
     if (!nombre.trim()) { notify.error('Ingresa el nombre'); return }
     if (!apellido.trim()) { notify.error('Ingresa el apellido'); return }
-    onSave({ nombre: nombre.trim(), apellido: apellido.trim(), telefono: telefono.trim() })
+    if (!telefono.trim()) { notify.error('Ingresa el teléfono'); return }
+    onSave({
+      nombre: nombre.trim(),
+      apellido: apellido.trim(),
+      telefono: telefono.trim(),
+      direccion: direccion.trim() || undefined,
+      correoElectronico: correoElectronico.trim() || undefined,
+    })
   }
 
   return (
@@ -492,13 +507,33 @@ export function ClienteFormModal({ open, onClose, onSave, cliente }: ClienteForm
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Teléfono <span className="font-normal text-[#7A7571]">(opcional)</span></label>
+          <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Teléfono *</label>
           <Input
             type="text"
             placeholder="Número de teléfono"
             value={telefono}
             onChange={e => setTelefono(e.target.value)}
             maxLength={20}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Dirección <span className="font-normal text-[#7A7571]">(opcional)</span></label>
+          <Input
+            type="text"
+            placeholder="Dirección del cliente"
+            value={direccion}
+            onChange={e => setDireccion(e.target.value)}
+            maxLength={200}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Correo electrónico <span className="font-normal text-[#7A7571]">(opcional)</span></label>
+          <Input
+            type="email"
+            placeholder="correo@ejemplo.com"
+            value={correoElectronico}
+            onChange={e => setCorreoElectronico(e.target.value)}
+            maxLength={150}
           />
         </div>
         <div className="flex gap-2 pt-1">

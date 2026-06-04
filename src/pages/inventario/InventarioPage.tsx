@@ -27,6 +27,7 @@ import {
   productoToBackendUpdate,
   productoToBackendBulk,
   type ProductoAPI,
+  type ProductoAPISimple,
   type KitOps,
 } from '@/lib/queries/inventario.queries'
 import { backendToMarca } from '@/lib/queries/marcas.queries'
@@ -264,26 +265,28 @@ export function InventarioPage() {
   // ── Load products ──────────────────────────────────────────────────────────
   const loadProducts = (targetPage: number, size: number, q: string = '', marcaId: number | null = null) => {
     setLoading(true)
-    const textWhere = q.trim() ? {
-      or: [
-        { codigo:      { contains: q } },
-        { codigoAux:   { contains: q } },
-        { codigoAux2:  { contains: q } },
-        { nombre:      { contains: q } },
-        { descripcion: { contains: q } },
-        { marca:       { nombre: { contains: q } } },
-      ],
-    } : undefined
+
+    if (q.trim()) {
+      api.get<ProductoAPISimple[]>(`/Producto/buscar-lista?q=${encodeURIComponent(q.trim())}`)
+        .then(res => {
+          let resultados = (res ?? []).map(backendToProductoSimple)
+          if (marcaId) resultados = resultados.filter(p => p.marcaId === marcaId)
+          setProducts(resultados)
+          setTotalCount(resultados.length)
+          setHasNextPage(false)
+        })
+        .catch(() => notify.error('Error buscando productos'))
+        .finally(() => { setLoading(false); setSearching(false) })
+      return
+    }
+
     const marcaWhere = marcaId ? { marcaId: { eq: marcaId } } : undefined
-    const where = textWhere && marcaWhere
-      ? { and: [textWhere, marcaWhere] }
-      : textWhere ?? marcaWhere
     gql<{
       productos: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: ProductoAPI[] }
       marca: { nodes: { id: number; nombre: string; prefijo?: string }[] }
     }>(
       PRODUCTOS_CON_MARCAS_QUERY,
-      { first: size, after: cursors.current[targetPage] ?? null, where }
+      { first: size, after: cursors.current[targetPage] ?? null, where: marcaWhere }
     )
       .then(res => {
         const { totalCount, pageInfo, nodes } = res.productos

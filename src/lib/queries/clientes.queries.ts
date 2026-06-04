@@ -15,6 +15,8 @@ export const CLIENTES_QUERY = `
         nombre
         apellido
         telefono
+        direccion
+        correoElectronico
       }
     }
   }
@@ -26,5 +28,7 @@ export function backendToCliente(n: ClienteAPI): Cliente {
     nombre: n.nombre,
     apellido: n.apellido,
     telefono: n.telefono,
+    direccion: n.direccion,
+    correoElectronico: n.correoElectronico,
   }
 }

@@ -11,7 +11,7 @@ import { useSoundAlert } from '@/hooks/useSoundAlert'
 import { calcularPrecioConDescuento, calcularPrecioDolarHoy, type DescuentoConfig } from '@/stores/configStore'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
-import { PRODUCTOS_QUERY, PRODUCTO_BY_ID_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI, type ProductoAPISimple } from '@/lib/queries/inventario.queries'
+import { PRODUCTO_BY_ID_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI, type ProductoAPISimple } from '@/lib/queries/inventario.queries'
 import { MIS_ORDENES_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
 import { CLIENTES_QUERY, backendToCliente, type ClienteAPI } from '@/lib/queries/clientes.queries'
 import {
@@ -348,23 +348,8 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
     const timer = setTimeout(async () => {
       setLoading(true)
       try {
-        const dashIdx = q.indexOf('-')
-        if (dashIdx > 0) {
-          // Formato PREFIJO-CODIGO: el backend resuelve el prefijo de marca
-          const res = await api.get<ProductoAPISimple[]>(`/Producto/buscar?codigo=${encodeURIComponent(q)}`)
-          setResultados((res ?? []).map(backendToProductoSimple))
-        } else {
-          const where = {
-            or: [
-              { nombre: { contains: q } },
-              { codigo: { contains: q } },
-              { codigoAux: { contains: q } },
-              { codigoAux2: { contains: q } },
-            ],
-          }
-          const res = await gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTOS_QUERY, { first: 10, where })
-          setResultados((res.productos?.nodes ?? []).map(backendToProductoSimple))
-        }
+        const res = await api.get<ProductoAPISimple[]>(`/Producto/buscar-lista?q=${encodeURIComponent(q)}`)
+        setResultados((res ?? []).map(backendToProductoSimple))
       } catch {
         setResultados([])
       } finally {

@@ -8,7 +8,7 @@ import { playConfirmBeep } from '@/lib/sounds'
 import { notify } from '@/lib/notify'
 import { api } from '@/lib/api'
 import { gql } from '@/lib/graphql'
-import { PRODUCTOS_QUERY, PRODUCTO_BY_ID_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI, type ProductoAPISimple } from '@/lib/queries/inventario.queries'
+import { PRODUCTO_BY_ID_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI, type ProductoAPISimple } from '@/lib/queries/inventario.queries'
 import { MIS_ORDENES_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
 import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
 import { fmtCodigo } from '@/lib/formatCodigo'
@@ -243,15 +243,18 @@ function ScanNotInOrderModal({
   onAgregar,
   onDescartar,
   loading,
+  existingPrice,
 }: {
   code: string
   producto: ProductoBusquedaEscaneo | null
   fetchLoading: boolean
-  onAgregar: (cantidad: number) => void
+  onAgregar: (cantidad: number, precio?: number) => void
   onDescartar: () => void
   loading: boolean
+  existingPrice?: number
 }) {
   const [cantidad, setCantidad] = useState('1')
+  const [precio, setPrecio] = useState(existingPrice != null ? String(existingPrice) : '')
   const cantidadNum = parseInt(cantidad) || 0
 
   const pieza = producto?.piezaEscaneadaId != null
@@ -262,16 +265,18 @@ function ScanNotInOrderModal({
     : producto
       ? producto.stock_Actual - producto.stockReservado
       : 0
+  const precioNum = parseFloat(precio) || 0
   const puedeAgregar = !!producto && cantidadNum >= 1 && cantidadNum <= stockDisponible
+    && (!pieza || precioNum > 0)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onDescartar()
-      if (e.key === 'Enter' && puedeAgregar && !loading) onAgregar(cantidadNum)
+      if (e.key === 'Enter' && puedeAgregar && !loading) onAgregar(cantidadNum, pieza ? precioNum : undefined)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [puedeAgregar, loading, cantidadNum, onAgregar, onDescartar])
+  }, [puedeAgregar, loading, cantidadNum, precioNum, pieza, onAgregar, onDescartar])
 
   const tipoLabel = pieza
     ? 'Pieza suelta'
@@ -342,17 +347,39 @@ function ScanNotInOrderModal({
               </div>
 
               {stockDisponible > 0 ? (
-                <div>
-                  <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Cantidad a agregar</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max={stockDisponible}
-                    value={cantidad}
-                    onChange={e => setCantidad(e.target.value)}
-                    autoFocus
-                    className="w-full h-10 px-3.5 rounded-xl border border-[#E8E5E2] bg-white text-[#2D2B2A] text-sm focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 transition-all"
-                  />
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Cantidad a agregar</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max={stockDisponible}
+                      value={cantidad}
+                      onChange={e => setCantidad(e.target.value)}
+                      autoFocus={!pieza}
+                      className="w-full h-10 px-3.5 rounded-xl border border-[#E8E5E2] bg-white text-[#2D2B2A] text-sm focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 transition-all"
+                    />
+                  </div>
+                  {pieza && (
+                    <div>
+                      <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">
+                        Precio unitario (Bs)
+                        {existingPrice != null && (
+                          <span className="ml-1.5 text-[10px] font-normal text-[#7A7571]">precio anterior</span>
+                        )}
+                      </label>
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={precio}
+                        onChange={e => setPrecio(e.target.value)}
+                        autoFocus
+                        placeholder="0.00"
+                        className="w-full h-10 px-3.5 rounded-xl border border-[#E8E5E2] bg-white text-[#2D2B2A] text-sm focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 transition-all"
+                      />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="px-3 py-2.5 rounded-lg bg-[#F5E0A8] border border-[#B47A1F]/30">
@@ -374,7 +401,7 @@ function ScanNotInOrderModal({
           {puedeAgregar && (
             <button
               className="flex-1 h-10 rounded-xl bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] text-sm font-bold active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-              onClick={() => onAgregar(cantidadNum)}
+              onClick={() => onAgregar(cantidadNum, pieza ? precioNum : undefined)}
               disabled={loading || !puedeAgregar}
             >
               {loading ? 'Agregando…' : 'Agregar al pedido'}
@@ -509,18 +536,8 @@ function AgregarProductoModal({
     const timer = setTimeout(async () => {
       setBuscando(true)
       try {
-        const res = await gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTOS_QUERY, {
-          first: 8,
-          where: {
-            or: [
-              { nombre: { contains: q } },
-              { codigo: { contains: q } },
-              { codigoAux: { contains: q } },
-              { codigoAux2: { contains: q } },
-            ],
-          },
-        })
-        setResultados((res.productos?.nodes ?? []).map(backendToProductoSimple))
+        const res = await api.get<ProductoAPISimple[]>(`/Producto/buscar-lista?q=${encodeURIComponent(q)}`)
+        setResultados((res ?? []).map(backendToProductoSimple))
       } catch {
         setResultados([])
       } finally {
@@ -619,7 +636,7 @@ function AgregarProductoModal({
                   type="text"
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  placeholder="Buscar por código o nombre…"
+                  placeholder="Buscar por código, nombre o marca…"
                   className="flex-1 py-2.5 bg-transparent text-[13px] text-[#2D2B2A] placeholder:text-[#7A7571] outline-none border-none"
                 />
               </div>
@@ -1343,17 +1360,23 @@ export function EscaneoPage() {
     }
   }
 
-  const handleAgregarItem = async (cantidad: number) => {
+  const handleAgregarItem = async (cantidad: number, precio?: number) => {
     if (!pendingNotInOrderCode || !selectedOrden || !notInOrderProducto) return
     const p = notInOrderProducto
     setAgregarLoading(true)
     try {
-      const body: { Id_Produto?: number; Id_Pieza?: number; Cantidad: number } = { Cantidad: cantidad }
+      const body: { Id_Produto?: number; Id_Pieza?: number; Cantidad: number; PrecioUnitario?: number } = { Cantidad: cantidad }
       if (p.piezaEscaneadaId != null) {
         body.Id_Produto = p.id
         body.Id_Pieza = p.piezaEscaneadaId
+        body.PrecioUnitario = precio
       } else {
         body.Id_Produto = p.id
+        // Si el mismo producto ya existe en la orden, usar su precio (puede tener descuento)
+        const existingItem = itemsParaEscanear.find(
+          i => i.producto_id === String(p.id) && !i.es_parcial
+        )
+        if (existingItem) body.PrecioUnitario = existingItem.precio_unitario
       }
       const res = await api.post<AgregarItemOrdenResponse>(
         `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
@@ -1977,6 +2000,14 @@ export function EscaneoPage() {
             scanInputRef.current?.focus()
           }}
           loading={agregarLoading}
+          existingPrice={
+            notInOrderProducto?.piezaEscaneadaId != null
+              ? itemsParaEscanear
+                  .flatMap(i => i.piezas_orden ?? [])
+                  .find(p => p.id_pieza === notInOrderProducto.piezaEscaneadaId)
+                  ?.precio_unitario
+              : undefined
+          }
         />
       )}
 

@@ -316,7 +316,8 @@ export interface Cliente {
   ci?: string
   ciComplemento?: string
   nit?: string
-  email?: string
+  correoElectronico?: string
+  direccion?: string
   activo?: boolean
   compras?: unknown[]
   creado_en?: string
@@ -329,7 +330,8 @@ export interface ClienteAPI {
   apellido: string
   telefono?: string
   nit?: string
-  email?: string
+  correoElectronico?: string
+  direccion?: string
 }
 
 // ─── Ventas ───────────────────────────────────────────────────────────────────
