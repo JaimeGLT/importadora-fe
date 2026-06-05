@@ -27,6 +27,7 @@ const UsuariosPage           = lazy(() => import('@/pages/sistema/usuarios/Usuar
 const MarcasPage             = lazy(() => import('@/pages/sistema/marcas/MarcasPage').then(m => ({ default: m.MarcasPage })))
 const ClientesPage           = lazy(() => import('@/pages/ventas/clientes/ClientesPage').then(m => ({ default: m.ClientesPage })))
 const EscaneoPage            = lazy(() => import('@/pages/ventas/escaneo/EscaneoPage').then(m => ({ default: m.EscaneoPage })))
+const VentasHistorialPage    = lazy(() => import('@/pages/ventas/VentasHistorialPage').then(m => ({ default: m.VentasHistorialPage })))
 const FacturaExtractorPage   = lazy(() => import('@/pages/importaciones/FacturaExtractorPage').then(m => ({ default: m.FacturaExtractorPage })))
 
 function RootRedirect() {
@@ -91,6 +92,7 @@ export default function App() {
               <Route path="/caja" element={<CajaDiariaPage />} />
               <Route path="/ventas/punto-de-venta" element={<CajaPage />} />
               <Route path="/ventas/clientes" element={<ClientesPage />} />
+              <Route path="/ventas/historial" element={<VentasHistorialPage />} />
             </Route>
 
             <Route element={<RoleGuard allowedRoles={['admin', 'cajero', 'operador']} />}>
