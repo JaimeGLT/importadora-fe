@@ -15,7 +15,7 @@ type ImportStep = 'upload' | 'mapear' | 'datos' | 'preview' | 'confirmar'
 
 type ImportField =
   | 'codigo_universal' | 'codigo_alt1' | 'codigo_alt2'
-  | 'nombre' | 'descripcion' | 'marca'
+  | 'nombre' | 'descripcion' | 'procedencia' | 'marca'
   | 'stock' | 'stock_minimo' | 'piezas' | 'precio_costo' | 'precio_venta' | 'ubicacion'
 
 interface SystemField {
@@ -33,6 +33,7 @@ interface DraftItem extends Omit<ItemImportacion, 'id'> {
   stock_minimo: number
   piezas?: number
   piezas_sugerido: number
+  procedencia: string
   usar_precio_nuevo: boolean
   usar_piezas_nuevo: boolean
 }
@@ -42,6 +43,7 @@ interface RawItem {
   codigos_adicionales: string[]
   nombre: string
   descripcion: string
+  procedencia: string
   marca: string
   precio_fob_usd: number   // = precio_costo del Excel (en USD)
   cantidad: number          // = stock del Excel
@@ -56,8 +58,11 @@ interface DatosForm {
   fecha_estimada_llegada: string
   tipo_cambio: string
   flete_usd: string
+  flete_modo: 'monto' | 'porcentaje'
   aduana_bs: string
+  aduana_modo: 'monto' | 'porcentaje'
   transporte_interno_bs: string
+  transporte_modo: 'monto' | 'porcentaje'
   marca_id: number | null
 }
 
@@ -71,6 +76,7 @@ const SYSTEM_FIELDS: SystemField[] = [
   { key: 'codigo_alt2',      label: 'Código alternativo 2', required: false },
   { key: 'nombre',           label: 'Nombre',               required: false },
   { key: 'descripcion',      label: 'Descripción',          required: false },
+  { key: 'procedencia',      label: 'Procedencia',          required: false, hint: 'País o región de origen' },
   { key: 'stock',            label: 'Cantidad',              required: true,  hint: 'Unidades que ingresan al lote' },
   { key: 'precio_costo',     label: 'Precio FOB (USD)',      required: true,  hint: 'Precio unitario al proveedor en dólares' },
 ]
@@ -119,6 +125,7 @@ function buildRawItems(rows: Record<string, unknown>[], mappings: FieldMappings)
       codigos_adicionales: [get('codigo_alt1'), get('codigo_alt2')].filter(Boolean),
       nombre:        get('nombre') || codigo,
       descripcion:   get('descripcion'),
+      procedencia:   get('procedencia'),
       marca:         get('marca'),
       precio_fob_usd: parseNumeric(getRaw('precio_costo')),   // precio_costo del Excel = FOB en USD
       cantidad:       Math.round(parseNumeric(getRaw('stock'))),  // stock del Excel = cantidad del lote
@@ -174,6 +181,7 @@ function calcItems(
       nombre:               raw.nombre,
       marcaId:              marcaDefault ?? null,
       descripcion:          raw.descripcion,
+      procedencia:          raw.procedencia,
       ubicacion:            raw.ubicacion,
       precio_fob_usd:       raw.precio_fob_usd,
       cantidad:             raw.cantidad,
@@ -191,6 +199,21 @@ function calcItems(
       usar_piezas_nuevo:    true,
     }
   })
+}
+
+function getResolvedAmounts(datos: DatosForm, rawItems: RawItem[]) {
+  const tc = parseNumeric(datos.tipo_cambio)
+  const totalFobUsd = rawItems.reduce((s, i) => s + i.precio_fob_usd * i.cantidad, 0)
+  const totalFobBs = totalFobUsd * tc
+  const fleteVal = parseNumeric(datos.flete_usd)
+  const aduanaVal = parseNumeric(datos.aduana_bs)
+  const transporteVal = parseNumeric(datos.transporte_interno_bs)
+  return {
+    tipo_cambio: tc,
+    flete_usd: datos.flete_modo === 'porcentaje' ? (fleteVal / 100) * totalFobUsd : fleteVal,
+    aduana_bs: datos.aduana_modo === 'porcentaje' ? (aduanaVal / 100) * totalFobBs : aduanaVal,
+    transporte_interno_bs: datos.transporte_modo === 'porcentaje' ? (transporteVal / 100) * totalFobBs : transporteVal,
+  }
 }
 
 function addDays(days: number): string {
@@ -264,10 +287,16 @@ export function NuevaImportacionModal({
   // ── Estado ────────────────────────────────────────────────────────────────
   const [step, setStep] = useState<ImportStep>('upload')
   const [margenBd, setMargenBd] = useState<number>(MARGEN_FALLBACK)
+  const [margenGlobal, setMargenGlobal] = useState<number>(MARGEN_FALLBACK)
 
   useEffect(() => {
     gql<{ margenGanancia: MargenGananciaAPI }>(MARGEN_GANANCIA_QUERY)
-      .then(r => { if (r.margenGanancia?.valor) setMargenBd(r.margenGanancia.valor) })
+      .then(r => {
+        if (r.margenGanancia?.valor) {
+          setMargenBd(r.margenGanancia.valor)
+          setMargenGlobal(r.margenGanancia.valor)
+        }
+      })
       .catch(() => {})
   }, [])
 
@@ -288,8 +317,11 @@ export function NuevaImportacionModal({
     fecha_estimada_llegada: '',
     tipo_cambio: '6.96',
     flete_usd: '',
+    flete_modo: 'monto',
     aduana_bs: '',
+    aduana_modo: 'monto',
     transporte_interno_bs: '',
+    transporte_modo: 'monto',
     marca_id: null,
   })
 
@@ -309,11 +341,12 @@ export function NuevaImportacionModal({
     setStep('upload')
     setColumns([]); setRows([]); setMappings({}); setFileName('')
     setRawItems([])
-    setDatos({ proveedor_id: '', fecha_estimada_llegada: '', tipo_cambio: '6.96', flete_usd: '', aduana_bs: '', transporte_interno_bs: '', marca_id: null })
+    setDatos({ proveedor_id: '', fecha_estimada_llegada: '', tipo_cambio: '6.96', flete_usd: '', flete_modo: 'monto', aduana_bs: '', aduana_modo: 'monto', transporte_interno_bs: '', transporte_modo: 'monto', marca_id: null })
+    setMargenBd(margenGlobal)
     setItems([])
     setExtraProveedores([])
     setSaving(false)
-  }, [])
+  }, [margenGlobal])
 
   const handleClose = () => { reset(); onClose() }
 
@@ -403,18 +436,17 @@ export function NuevaImportacionModal({
 
   const handleGoToPreview = () => {
     if (!validarDatos()) return
-    const d = {
-      tipo_cambio: parseNumeric(datos.tipo_cambio),
-      flete_usd: parseNumeric(datos.flete_usd),
-      aduana_bs: parseNumeric(datos.aduana_bs),
-      transporte_interno_bs: parseNumeric(datos.transporte_interno_bs),
-    }
+    const resolved = getResolvedAmounts(datos, rawItems)
     const piezasMapeado = (mappings['piezas']?.columns.length ?? 0) > 0
-    setItems(calcItems(rawItems, d, productos, piezasMapeado, datos.marca_id, margenBd))
+    setItems(calcItems(rawItems, resolved, productos, piezasMapeado, datos.marca_id, margenBd))
     setStep('preview')
   }
 
   // ── Step 4: preview ───────────────────────────────────────────────────────
+  const updateProcedencia = (index: number, val: string) => {
+    setItems((prev) => prev.map((it) => it._index === index ? { ...it, procedencia: val } : it))
+  }
+
   const updatePrecioFinal = (index: number, val: string) => {
     setItems((prev) =>
       prev.map((it) =>
@@ -444,12 +476,7 @@ export function NuevaImportacionModal({
   const handleConfirmar = async () => {
     setSaving(true)
 
-    const d = {
-      tipo_cambio: parseNumeric(datos.tipo_cambio),
-      flete_usd: parseNumeric(datos.flete_usd),
-      aduana_bs: parseNumeric(datos.aduana_bs),
-      transporte_interno_bs: parseNumeric(datos.transporte_interno_bs),
-    }
+    const d = getResolvedAmounts(datos, rawItems)
     const fob_total_usd = items.reduce((s, i) => s + i.precio_fob_usd * i.cantidad, 0)
 
     const provSeleccionado = proveedores.find((p) => p.id === datos.proveedor_id)
@@ -507,6 +534,7 @@ export function NuevaImportacionModal({
         onClose={handleClose}
         title="Nueva importación"
         size={modalSize}
+        disableBackdropClose
         footer={
           <ModalFooter
             step={step}
@@ -563,6 +591,9 @@ export function NuevaImportacionModal({
           totalProductos={rawItems.length}
           onProveedorChange={handleProveedorChange}
           onProveedorCreado={(p) => setExtraProveedores((prev) => [...prev, p])}
+          margen={margenBd}
+          margenGlobal={margenGlobal}
+          onMargenChange={setMargenBd}
         />
       )}
 
@@ -573,6 +604,7 @@ export function NuevaImportacionModal({
           tc={tc}
           onPrecioChange={updatePrecioFinal}
           onPrecioEleccion={updatePrecioEleccion}
+          onProcedenciaChange={updateProcedencia}
           productos={productos}
         />
       )}
@@ -580,15 +612,16 @@ export function NuevaImportacionModal({
       {/* ── STEP 5: CONFIRMAR ── */}
       {step === 'confirmar' && (() => {
         const prov = proveedores.find((p) => p.id === datos.proveedor_id)
+        const resolved = getResolvedAmounts(datos, rawItems)
         return (
           <StepConfirmar
             nuevos={nuevos}
             existentes={existentes}
             fobTotal={fobTotal}
             tc={tc}
-            flete={parseNumeric(datos.flete_usd)}
-            aduana={parseNumeric(datos.aduana_bs)}
-            transporte={parseNumeric(datos.transporte_interno_bs)}
+            flete={resolved.flete_usd}
+            aduana={resolved.aduana_bs}
+            transporte={resolved.transporte_interno_bs}
             proveedor={prov?.nombre ?? ''}
             pais={prov?.pais ?? ''}
             fechaLlegada={datos.fecha_estimada_llegada}
@@ -751,8 +784,81 @@ function StepUpload({
   )
 }
 
+function CostoField({
+  label, modo, value, unidadMonto, fobRef, tc, esFob, onModoChange, onChange,
+}: {
+  label: string
+  modo: 'monto' | 'porcentaje'
+  value: string
+  unidadMonto: string
+  fobRef: number
+  tc: number
+  esFob?: boolean
+  onModoChange: (m: 'monto' | 'porcentaje') => void
+  onChange: (v: string) => void
+}) {
+  const pct = parseFloat(value)
+  const fobBs = fobRef * tc
+  const montoResuelto = modo === 'porcentaje' && isFinite(pct) && pct > 0
+    ? esFob
+      ? (pct / 100) * fobRef
+      : (pct / 100) * fobBs
+    : null
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[12px] font-medium text-steel-700">{label}</span>
+        <div className="flex items-center rounded-md overflow-hidden border border-steel-200 text-[10px] font-semibold">
+          <button
+            type="button"
+            onClick={() => onModoChange('monto')}
+            className={clsx(
+              'px-2 py-0.5 transition-colors',
+              modo === 'monto' ? 'bg-brand-600 text-white' : 'bg-white text-steel-500 hover:bg-steel-50',
+            )}
+          >
+            Monto
+          </button>
+          <button
+            type="button"
+            onClick={() => onModoChange('porcentaje')}
+            className={clsx(
+              'px-2 py-0.5 transition-colors',
+              modo === 'porcentaje' ? 'bg-brand-600 text-white' : 'bg-white text-steel-500 hover:bg-steel-50',
+            )}
+          >
+            %
+          </button>
+        </div>
+      </div>
+      <div className="relative">
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          max={modo === 'porcentaje' ? '100' : undefined}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={modo === 'porcentaje' ? 'ej: 5' : '0.00'}
+          className="w-full px-3 py-2 pr-12 rounded-lg border border-steel-200 bg-white text-[13px] text-steel-900 placeholder:text-steel-300 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition-shadow"
+        />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-steel-400 pointer-events-none select-none">
+          {modo === 'porcentaje' ? '%' : unidadMonto}
+        </span>
+      </div>
+      {montoResuelto !== null && (
+        <p className="text-[10.5px] text-brand-600 font-medium mt-1 tabular-nums">
+          ≈ {esFob ? `$${montoResuelto.toFixed(2)} USD` : `Bs ${montoResuelto.toFixed(2)}`}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function StepDatos({
   datos, setDatos, proveedores, fobPreliminar, totalProductos, onProveedorChange, onProveedorCreado,
+  margen, margenGlobal, onMargenChange,
 }: {
   datos: DatosForm
   setDatos: React.Dispatch<React.SetStateAction<DatosForm>>
@@ -761,6 +867,9 @@ function StepDatos({
   totalProductos: number
   onProveedorChange: (id: string) => void
   onProveedorCreado: (p: import('@/types').Proveedor) => void
+  margen: number
+  margenGlobal: number
+  onMargenChange: (v: number) => void
 }) {
   const set = (k: keyof DatosForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDatos((d) => ({ ...d, [k]: e.target.value }))
@@ -861,49 +970,102 @@ function StepDatos({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Input
-            label="Flete internacional (USD)"
-            type="number"
-            step="0.01"
-            min="0"
+          <CostoField
+            label="Flete internacional"
+            modo={datos.flete_modo}
             value={datos.flete_usd}
-            onChange={set('flete_usd')}
-            placeholder="0.00"
+            unidadMonto="USD"
+            fobRef={fobPreliminar}
+            tc={parseNumeric(datos.tipo_cambio)}
+            esFob
+            onModoChange={(m) => setDatos((d) => ({ ...d, flete_modo: m, flete_usd: '' }))}
+            onChange={(v) => setDatos((d) => ({ ...d, flete_usd: v }))}
           />
-          <Input
-            label="Aduana / aranceles (Bs)"
-            type="number"
-            step="0.01"
-            min="0"
+          <CostoField
+            label="Aduana / aranceles"
+            modo={datos.aduana_modo}
             value={datos.aduana_bs}
-            onChange={set('aduana_bs')}
-            placeholder="0.00"
+            unidadMonto="Bs"
+            fobRef={fobPreliminar}
+            tc={parseNumeric(datos.tipo_cambio)}
+            onModoChange={(m) => setDatos((d) => ({ ...d, aduana_modo: m, aduana_bs: '' }))}
+            onChange={(v) => setDatos((d) => ({ ...d, aduana_bs: v }))}
           />
-          <Input
-            label="Transporte interno (Bs)"
-            type="number"
-            step="0.01"
-            min="0"
+          <CostoField
+            label="Transporte interno"
+            modo={datos.transporte_modo}
             value={datos.transporte_interno_bs}
-            onChange={set('transporte_interno_bs')}
-            placeholder="0.00"
+            unidadMonto="Bs"
+            fobRef={fobPreliminar}
+            tc={parseNumeric(datos.tipo_cambio)}
+            onModoChange={(m) => setDatos((d) => ({ ...d, transporte_modo: m, transporte_interno_bs: '' }))}
+            onChange={(v) => setDatos((d) => ({ ...d, transporte_interno_bs: v }))}
           />
         </div>
         <p className="text-[11px] text-steel-400 mt-2">
           Estos costos se distribuirán proporcionalmente entre todos los productos según su valor FOB.
         </p>
       </div>
+
+      {/* Margen de ganancia */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-[13px] font-medium text-steel-700">Margen de ganancia</label>
+          {margen !== margenGlobal && (
+            <button
+              type="button"
+              onClick={() => onMargenChange(margenGlobal)}
+              className="text-[11px] font-medium text-brand-600 hover:underline"
+            >
+              Restablecer global ({((margenGlobal - 1) * 100).toFixed(0)}%)
+            </button>
+          )}
+        </div>
+        <div className="relative">
+          <Input
+            type="number"
+            step="1"
+            min="1"
+            max="500"
+            value={((margen - 1) * 100).toFixed(0)}
+            onChange={(e) => {
+              const pct = parseFloat(e.target.value)
+              if (!isNaN(pct) && pct >= 0) onMargenChange(1 + pct / 100)
+            }}
+            hint={`Precio = Costo total Bs × ${margen.toFixed(2)} | Global: ${((margenGlobal - 1) * 100).toFixed(0)}%`}
+          />
+          <span className="absolute right-3 top-[9px] text-[12px] font-semibold text-steel-400 pointer-events-none select-none">%</span>
+        </div>
+        <div className="mt-2 flex items-center gap-2 flex-wrap">
+          {[10, 20, 30, 40, 50].map((pct) => (
+            <button
+              key={pct}
+              type="button"
+              onClick={() => onMargenChange(1 + pct / 100)}
+              className={clsx(
+                'px-2.5 py-1 text-[11px] font-semibold rounded-md border transition-colors',
+                Math.round((margen - 1) * 100) === pct
+                  ? 'bg-brand-600 text-white border-brand-600'
+                  : 'bg-white text-steel-500 border-steel-200 hover:border-brand-400',
+              )}
+            >
+              {pct}%
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
 
 function StepPreview({
-  items, tc, onPrecioChange, onPrecioEleccion, productos,
+  items, tc, onPrecioChange, onPrecioEleccion, onProcedenciaChange, productos,
 }: {
   items: DraftItem[]
   tc: number
   onPrecioChange: (index: number, val: string) => void
   onPrecioEleccion: (index: number, usarNuevo: boolean) => void
+  onProcedenciaChange: (index: number, val: string) => void
   productos: Producto[]
 }) {
   const { marcas } = useMarcasStore()
@@ -983,6 +1145,7 @@ function StepPreview({
                 style={{ background: '#F0FDF9', color: '#059669', borderRight: '1px solid #D1FAE5' }}>
                 Precio de venta
               </th>
+              <th className="px-3 py-2.5 text-left font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Procedencia</th>
               <th className="px-3 py-2.5 text-center font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Estado</th>
             </tr>
           </thead>
@@ -1130,6 +1293,16 @@ function StepPreview({
                       </div>
                     </td>
 
+                    <td className="px-3 py-2.5">
+                      <input
+                        type="text"
+                        defaultValue={item.procedencia ?? ''}
+                        onBlur={(e) => onProcedenciaChange(item._index, e.target.value)}
+                        placeholder="—"
+                        className="w-24 px-1.5 py-0.5 text-xs border border-steel-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-400 bg-white"
+                      />
+                    </td>
+
                     <td className="px-3 py-2.5 text-center">
                       <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold"
                         style={item.es_nuevo
@@ -1142,7 +1315,7 @@ function StepPreview({
 
                   {historialAbierto && producto && (
                     <tr>
-                      <td colSpan={existentes > 0 ? 9 : 8} className="px-3 pb-3 pt-0">
+                      <td colSpan={existentes > 0 ? 10 : 9} className="px-3 pb-3 pt-0">
                         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #E0E7FF', background: '#F8F9FF' }}>
                           <div className="flex items-stretch">
                             <div className="flex-1 px-5 py-4" style={{ background: '#EEF2FF', borderRight: '1px solid #C7D2FE' }}>

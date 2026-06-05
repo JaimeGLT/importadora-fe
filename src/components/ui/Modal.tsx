@@ -10,6 +10,7 @@ interface ModalProps {
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl'
   footer?: ReactNode
   hideCloseButton?: boolean
+  disableBackdropClose?: boolean
 }
 
 const sizeCls = {
@@ -20,7 +21,7 @@ const sizeCls = {
   '2xl': 'max-w-4xl',
 }
 
-export function Modal({ open, onClose, title, children, size = 'md', footer, hideCloseButton }: ModalProps) {
+export function Modal({ open, onClose, title, children, size = 'md', footer, hideCloseButton, disableBackdropClose }: ModalProps) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -34,7 +35,7 @@ export function Modal({ open, onClose, title, children, size = 'md', footer, hid
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={disableBackdropClose ? undefined : onClose}
       />
       <div
         className={clsx(

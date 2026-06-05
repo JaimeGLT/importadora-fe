@@ -136,6 +136,7 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas }: P
                   <colgroup>
                     <col style={{ width: '220px' }} />
                     <col style={{ width: '110px' }} />
+                    <col style={{ width: '110px' }} />
                     <col style={{ width: '60px' }} />
                     <col style={{ width: '100px' }} />
                     <col style={{ width: '110px' }} />
@@ -145,6 +146,7 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas }: P
                     <tr>
                       <th className="text-left px-4 py-[11px] text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#5C5654]">Producto</th>
                       <th className="text-left px-2 py-[11px] text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#5C5654]">Marca</th>
+                      <th className="text-left px-2 py-[11px] text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#5C5654]">Procedencia</th>
                       <th className="text-center px-2 py-[11px] text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#5C5654]">Cant.</th>
                       <th className="text-right px-2 py-[11px] text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#5C5654]">Costo Unit.</th>
                       <th className="text-right px-2 py-[11px] text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#5C5654]">Precio Venta</th>
@@ -181,6 +183,9 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas }: P
                           ) : (
                             <span className="text-xs text-[#7A7571]">—</span>
                           )}
+                        </td>
+                        <td className="px-2 py-3">
+                          <span className="text-[12px] text-[#5C5654]">{item.procedencia || '—'}</span>
                         </td>
                         <td className="px-2 py-3 text-center">
                           <span className="font-mono font-semibold text-[13px] text-[#2D2B2A] tabular-nums">{item.cantidad}</span>

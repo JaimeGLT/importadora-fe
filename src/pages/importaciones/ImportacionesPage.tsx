@@ -4,6 +4,8 @@ import { MainLayout } from '@/components/layout/MainLayout'
 import { TablePagination } from '@/components/ui'
 import type { Importacion, Producto, Proveedor, ItemImportacion, Marca } from '@/types'
 import { NuevaImportacionModal } from './NuevaImportacionModal'
+import { NuevaImportacionLocalModal } from './NuevaImportacionLocalModal'
+import { TipoImportacionModal } from './TipoImportacionModal'
 import { ImportacionDetailModal } from './ImportacionDetailModal'
 import { notify } from '@/lib/notify'
 import { clsx } from 'clsx'
@@ -133,7 +135,9 @@ const colHelper = createColumnHelper<Importacion>()
 
 export function ImportacionesPage() {
   const { isTokenReady } = useAuth()
+  const [tipoOpen, setTipoOpen] = useState(false)
   const [nuevaOpen, setNuevaOpen] = useState(false)
+  const [localOpen, setLocalOpen] = useState(false)
   const [detailImport, setDetailImport] = useState<Importacion | null>(null)
   const [loading, setLoading] = useState(true)
   const [sorting, setSorting] = useState<SortingState>([])
@@ -188,6 +192,44 @@ export function ImportacionesPage() {
     loadMarcas()
   }, [isTokenReady])
 
+  const handleSaveLocal = async (
+    importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>,
+    proveedorId: number,
+  ) => {
+    const costoTotal = importacion.items.reduce((s: number, i: ItemImportacion) => s + i.costo_unitario_total_bs * i.cantidad, 0)
+    const payload: DtoImportacion = {
+      tipo: 'Local',
+      id_Proveedor: proveedorId,
+      fecha: new Date().toISOString(),
+      conversionABs: 1,
+      costoTotal,
+      f_Internacional: 0,
+      aduana_Arancel: 0,
+      trasporte_Interno: 0,
+      productos: importacion.items.map(it => ({
+        codigo: it.codigo_proveedor,
+        codigoAux: it.codigos_adicionales[0] ?? '',
+        codigoAux2: it.codigos_adicionales[1] ?? '',
+        nombre: it.nombre,
+        marcaId: it.marcaId ?? null,
+        descripcion: it.descripcion ?? '',
+        procedencia: it.procedencia ?? '',
+        unidad_Medida: it.unidad ?? 'unidad',
+        ubicacion: it.ubicacion ?? 'Almacén Central',
+        cantidad: it.cantidad,
+        stock_Minimo: (it as unknown as { stock_minimo: number }).stock_minimo,
+        piezas: it.piezas ?? 1,
+        conversionABs: 1,
+        costo: it.costo_unitario_total_bs,
+        precio: it.precio_venta_final,
+      })),
+    }
+    await api.post('/Producto/importacion', payload)
+    loadImportaciones()
+    loadProductos()
+    notify.success('Importación local registrada')
+  }
+
   const handleSave = async (
     importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>,
     proveedorId: number,
@@ -209,6 +251,7 @@ export function ImportacionesPage() {
         nombre: it.nombre,
         marcaId: it.marcaId ?? null,
         descripcion: it.descripcion ?? '',
+        procedencia: it.procedencia ?? '',
         unidad_Medida: it.unidad ?? 'unidad',
         ubicacion: it.ubicacion ?? 'Almacén Central',
         cantidad: it.cantidad,
@@ -410,7 +453,7 @@ export function ImportacionesPage() {
             </div>
             <div className="shrink-0">
               <button
-                onClick={() => setNuevaOpen(true)}
+                onClick={() => setTipoOpen(true)}
                 className="px-[18px] py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold active:scale-95 transition-all shadow-sm"
               >
                 <i className="ti ti-plus text-base" />
@@ -585,10 +628,27 @@ export function ImportacionesPage() {
         </div>
       </div>
 
+      <TipoImportacionModal
+        open={tipoOpen}
+        onClose={() => setTipoOpen(false)}
+        onSelect={(tipo) => {
+          if (tipo === 'local') setLocalOpen(true)
+          else setNuevaOpen(true)
+        }}
+      />
       <NuevaImportacionModal
         open={nuevaOpen}
         onClose={() => setNuevaOpen(false)}
         onSave={handleSave}
+        proveedores={proveedores}
+        productos={productos}
+        marcas={marcas}
+        totalImportaciones={importaciones.length}
+      />
+      <NuevaImportacionLocalModal
+        open={localOpen}
+        onClose={() => setLocalOpen(false)}
+        onSave={handleSaveLocal}
         proveedores={proveedores}
         productos={productos}
         marcas={marcas}

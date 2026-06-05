@@ -11,7 +11,7 @@ import { useMarcasStore } from '@/stores/marcasStore'
 
 type ImportableKey =
   | 'codigo_universal' | 'codigo_alt1' | 'codigo_alt2'
-  | 'nombre' | 'descripcion' | 'marca'
+  | 'nombre' | 'descripcion' | 'procedencia' | 'marca'
   | 'stock' | 'stock_minimo' | 'piezas' | 'precio_costo' | 'precio_venta'
   | 'almacen' | 'estante' | 'fila' | 'columna'
   | 'tipo_cambio'
@@ -55,6 +55,7 @@ const SYSTEM_FIELDS: SystemField[] = [
   { key: 'codigo_alt2',      label: 'Código alternativo 2', required: false },
   { key: 'nombre',           label: 'Nombre',               required: false },
   { key: 'descripcion',      label: 'Descripción',          required: false },
+  { key: 'procedencia',      label: 'Procedencia',          required: false, hint: 'País o región de origen' },
   { key: 'marca',            label: 'Marca',                required: false },
   { key: 'stock',            label: 'Stock actual',         required: true  },
   { key: 'stock_minimo',     label: 'Stock mínimo',         required: false },
@@ -124,6 +125,7 @@ function parseRow(
     codigos_alternativos: [get('codigo_alt1'), get('codigo_alt2')],
     nombre,
     descripcion:  get('descripcion'),
+    procedencia:  get('procedencia'),
     categoria:    'Otro',
     marca:        get('marca') || '',
     vehiculo:     '',
@@ -224,6 +226,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
   const [fileName, setFileName]       = useState('')
   const [mappings, setMappings]       = useState<FieldMappings>({})
   const [, setPreviewActions] = useState<Record<string, ImportAction>>({})
+  const [procedenciaOverrides, setProcedenciaOverrides] = useState<Record<number, string>>({})
   const [tipoCambio, setTipoCambio]   = useState('6.96')
   const [usarTipoCambioGlobal, setUsarTipoCambioGlobal] = useState(true)
 const [dragOver, setDragOver]       = useState(false)
@@ -284,6 +287,7 @@ const [dragOver, setDragOver]       = useState(false)
     setPreviewActions({}); setImportados([]); setLabelConfig({})
     setTipoCambio('6.96')
     setUsarTipoCambioGlobal(true)
+    setProcedenciaOverrides({})
   }
 
   const handleClose = () => { reset(); onClose() }
@@ -363,8 +367,12 @@ const [dragOver, setDragOver]       = useState(false)
     const columnaPiezasMapeada = (mappings['piezas']?.columns.length ?? 0) > 0
 
     const results: ImportResult[] = parsed
-      .filter((p): p is ProductoImportado => p !== null)
-      .map((p) => {
+      .map((p, i) => [p, i] as [ProductoImportado | null, number])
+      .filter((x): x is [ProductoImportado, number] => x[0] !== null)
+      .map(([p, i]) => {
+        const procedencia = procedenciaOverrides[i] !== undefined
+          ? procedenciaOverrides[i]
+          : (p.procedencia ?? '')
         const existing = codigosMap.get(excelKey(p.codigo_universal, p.marca ?? ''))
         const action: ImportAction = existing ? 'update' : 'create'
         const tcFromExcel = p.conversionABs ?? 0
@@ -377,6 +385,7 @@ const [dragOver, setDragOver]       = useState(false)
           return {
             data: {
               ...p,
+              procedencia,
               marcaId: p.marcaId ?? existing.marcaId ?? null,
               stock: stockParaEnviar,
               conversionABs: usarTipoCambioGlobal ? tc : (tcFromExcel > 0 ? tcFromExcel : 6.96),
@@ -400,6 +409,7 @@ const [dragOver, setDragOver]       = useState(false)
         return {
           data: {
             ...p,
+            procedencia,
             conversionABs: tc,
             historial_precios: p.precio_costo > 0 || p.precio_venta > 0
               ? [{ fecha: new Date().toISOString(), precio_costo: p.precio_costo, precio_venta: p.precio_venta, tipo_cambio: tc, nota: 'Importado desde Excel' }]
@@ -763,7 +773,7 @@ const [dragOver, setDragOver]       = useState(false)
           
 
           <div className="overflow-x-auto rounded-xl border border-steel-200 max-h-80 overflow-y-auto">
-            <table className="text-xs" style={{ minWidth: 900 }}>
+            <table className="text-xs" style={{ minWidth: 1020 }}>
               <thead className="sticky top-0 bg-steel-50 border-b border-steel-200 z-10">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-steel-500 w-6">#</th>
@@ -775,6 +785,7 @@ const [dragOver, setDragOver]       = useState(false)
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">P. Costo *</th>
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">P. Venta</th>
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">T.C.</th>
+                  <th className="px-3 py-2 text-left font-medium text-steel-500 whitespace-nowrap">Procedencia</th>
                   <th className="px-3 py-2 text-center font-medium text-steel-500 whitespace-nowrap">Acción</th>
                 </tr>
               </thead>
@@ -784,7 +795,7 @@ const [dragOver, setDragOver]       = useState(false)
                     return (
                       <tr key={i} className="bg-red-50/50">
                         <td className="px-3 py-2 text-steel-400">{i + 1}</td>
-                        <td colSpan={9} className="px-3 py-2 text-red-400 italic">
+                        <td colSpan={10} className="px-3 py-2 text-red-400 italic">
                           Fila omitida — sin código universal
                         </td>
                       </tr>
@@ -828,6 +839,15 @@ const [dragOver, setDragOver]       = useState(false)
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-steel-500">
                         {(row.conversionABs ?? 0) > 0 ? row.conversionABs!.toFixed(2) : '—'}
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="text"
+                          value={procedenciaOverrides[i] !== undefined ? procedenciaOverrides[i] : (row.procedencia ?? '')}
+                          onChange={(e) => setProcedenciaOverrides((prev) => ({ ...prev, [i]: e.target.value }))}
+                          placeholder="—"
+                          className="w-24 px-1.5 py-0.5 text-xs border border-steel-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-400 bg-white"
+                        />
                       </td>
                       <td className="px-3 py-2 text-center">
                         {isDuplicate ? (

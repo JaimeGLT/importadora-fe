@@ -155,6 +155,7 @@ export const PRODUCTO_BY_ID_QUERY = `
         codigoAux2
         marcaId
         descripcion
+        procedencia
         fechaCreacion
         fechaActualizacion
       }
@@ -190,6 +191,7 @@ export interface ProductoAPISimple {
   nombre: string
   marcaId?: number | null
   descripcion: string
+  procedencia?: string | null
   unidad_Medida: string
   ubicacion: string
   stock_Actual: number
@@ -232,6 +234,7 @@ export interface ProductoAPIInput {
   nombre: string
   marcaId?: number | null
   descripcion: string
+  procedencia?: string
   unidad_Medida: string
   ubicacion: string
   cantidad: number
@@ -249,6 +252,7 @@ function mapProductoBase(p: ProductoAPISimple): Producto {
     codigos_alternativos: [p.codigoAux ?? '', p.codigoAux2 ?? ''],
     nombre: p.nombre ?? '',
     descripcion: p.descripcion ?? '',
+    procedencia: p.procedencia ?? '',
     categoria: 'Otro',
     marcaId: p.marcaId ?? null,
     vehiculo: '',
@@ -301,6 +305,7 @@ export function productoToBackend(
     nombre: p.nombre,
     marcaId: p.marcaId ?? null,
     descripcion: p.descripcion,
+    procedencia: p.procedencia ?? '',
     unidad_Medida: p.unidad,
     ubicacion: [p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / '),
     cantidad: p.stock,
@@ -321,6 +326,7 @@ export interface ProductoAPIUpdate {
   codigoAux?: string
   codigoAux2?: string
   descripcion?: string
+  procedencia?: string
   marcaId?: number | null
   ubicacion?: string
   unidad_Medida?: string
@@ -338,6 +344,7 @@ export function productoToBackendUpdate(
     codigoAux: p.codigos_alternativos[0] ?? '',
     codigoAux2: p.codigos_alternativos[1] ?? '',
     descripcion: p.descripcion,
+    procedencia: p.procedencia ?? '',
     marcaId: p.marcaId ?? null,
     ubicacion: [p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / '),
     unidad_Medida: p.unidad,
@@ -380,6 +387,7 @@ export function productoToBackendBulk(
     nombre: p.nombre,
     marcaId: p.marcaId ?? null,
     descripcion: p.descripcion,
+    procedencia: p.procedencia ?? '',
     unidad_Medida: p.unidad,
     ubicacion: [p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / '),
     cantidad: p.stock,

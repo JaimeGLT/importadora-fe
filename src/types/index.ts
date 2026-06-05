@@ -49,6 +49,7 @@ export interface Producto {
   codigos_alternativos: string[]  // hasta 2 códigos adicionales (caja / proveedor)
   nombre: string
   descripcion: string
+  procedencia?: string
   categoria: CategoriaProducto
   marcaId?: number | null
   marca?: string
@@ -189,6 +190,7 @@ export interface ItemImportacion {
   marcaId?: number | null
   marca?: string
   descripcion?: string
+  procedencia?: string
   unidad?: UnidadProducto           // pieza, juego, par…
   ubicacion?: string                // Almacén Central
   precio_fob_usd: number
@@ -219,6 +221,7 @@ export interface Importacion {
   aduana_bs: number
   transporte_interno_bs: number
   tipo_cambio: number
+  tipo?: 'Local' | 'Internacional'
   items: ItemImportacion[]
   creado_en: string
   actualizado_en: string

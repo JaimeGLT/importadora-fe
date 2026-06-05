@@ -5,6 +5,7 @@ export interface DtoProductoImportacion {
   nombre: string
   marcaId?: number | null
   descripcion: string
+  procedencia?: string
   unidad_Medida: string
   ubicacion: string
   cantidad: number
@@ -16,6 +17,7 @@ export interface DtoProductoImportacion {
 }
 
 export interface DtoImportacion {
+  tipo?: string
   id_Proveedor: number
   fecha: string
   conversionABs: number
@@ -33,6 +35,7 @@ interface BackendDetalle {
   codigoAux2: string
   nombre: string
   descripcion: string
+  procedencia?: string
   marcaId?: number | null
   unidad_Medida: string
   ubicacion: string
@@ -60,6 +63,7 @@ interface BackendImportacion {
   cantProductos: number
   total: number
   estado: string
+  tipo?: string
   proveedor: BackendProveedor
   trasporte_Interno: number
   f_Internacional: number
@@ -88,6 +92,7 @@ export function backendToImportacion(b: BackendImportacion): Importacion {
     fecha_creacion: b.fecha,
     fecha_estimada_llegada: b.fecha,
     estado: normalizeEstadoImportacion(b.estado),
+    tipo: (b.tipo === 'Local' ? 'Local' : 'Internacional') as 'Local' | 'Internacional',
     fob_total_usd: b.total,
     flete_usd: b.f_Internacional,
     aduana_bs: b.aduana_Arancel,
@@ -99,6 +104,7 @@ export function backendToImportacion(b: BackendImportacion): Importacion {
       codigos_adicionales: [d.codigoAux, d.codigoAux2].filter(Boolean),
       nombre: d.nombre,
       descripcion: d.descripcion ?? '',
+      procedencia: d.procedencia ?? '',
       marcaId: d.marcaId ?? null,
       unidad: (d.unidad_Medida as Importacion['items'][0]['unidad']) ?? 'pieza',
       ubicacion: d.ubicacion ?? 'Almacén Central',
@@ -202,6 +208,7 @@ export const IMPORTACIONES_QUERY = `
         trasporte_Interno
         f_Internacional
         aduana_Arancel
+        tipo
         detalles {
           id
           codigo
@@ -209,6 +216,7 @@ export const IMPORTACIONES_QUERY = `
           codigoAux2
           nombre
           descripcion
+          procedencia
           marcaId
           unidad_Medida
           ubicacion

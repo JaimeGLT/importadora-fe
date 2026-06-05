@@ -31,6 +31,7 @@ const EMPTY: FormData = {
   codigos_alternativos: ['', ''],
   nombre: '',
   descripcion: '',
+  procedencia: '',
   categoria: 'Otro',
   marcaId: null,
   vehiculo: '',
@@ -144,6 +145,7 @@ export function ProductoModal({
         codigos_alternativos: [...producto.codigos_alternativos, '', ''].slice(0, 2),
         nombre:               producto.nombre,
         descripcion:          producto.descripcion,
+        procedencia:          producto.procedencia ?? '',
         categoria:            producto.categoria,
         marcaId:              producto.marcaId ?? null,
         vehiculo:             producto.vehiculo,
@@ -392,6 +394,15 @@ export function ProductoModal({
                 value={form.descripcion}
                 onChange={(e) => set('descripcion', e.target.value)}
                 placeholder="Detalle o nota adicional del producto"
+              />
+            </div>
+            <div className="mt-3">
+              <WarmInput
+                label="Procedencia"
+                value={form.procedencia ?? ''}
+                onChange={(e) => set('procedencia', e.target.value)}
+                placeholder="Ej: China, USA, Japón..."
+                hint="Opcional — país o región de origen del producto"
               />
             </div>
           </FormSection>
