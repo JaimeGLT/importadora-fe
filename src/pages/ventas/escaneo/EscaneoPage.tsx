@@ -248,14 +248,25 @@ function ScanNotInOrderModal({
   code: string
   producto: ProductoBusquedaEscaneo | null
   fetchLoading: boolean
-  onAgregar: (cantidad: number, precio?: number) => void
+  onAgregar: (cantidad: number, precio?: number, piezas?: { piezaId: number; cantidad: number; precio: number }[]) => void
   onDescartar: () => void
   loading: boolean
   existingPrice?: number
 }) {
   const [cantidad, setCantidad] = useState('1')
   const [precio, setPrecio] = useState(existingPrice != null ? String(existingPrice) : '')
+  const [vistaKit, setVistaKit] = useState<'completo' | 'piezas'>('completo')
+  const [piezasQty, setPiezasQty] = useState<Record<number, number>>({})
+  const [piezasPrecios, setPiezasPrecios] = useState<Record<number, string>>({})
   const cantidadNum = parseInt(cantidad) || 0
+
+  useEffect(() => {
+    if (producto?.esKit && producto.piezas) {
+      setPiezasQty(Object.fromEntries(producto.piezas.map(p => [p.id, p.cantidadPorKit])))
+      setPiezasPrecios(Object.fromEntries(producto.piezas.map(p => [p.id, ''])))
+      setVistaKit('completo')
+    }
+  }, [producto])
 
   const pieza = producto?.piezaEscaneadaId != null
     ? producto.piezas?.find(p => p.id === producto.piezaEscaneadaId) ?? null
@@ -266,22 +277,39 @@ function ScanNotInOrderModal({
       ? producto.stock_Actual - producto.stockReservado
       : 0
   const precioNum = parseFloat(precio) || 0
-  const puedeAgregar = !!producto && cantidadNum >= 1 && cantidadNum <= stockDisponible
-    && (!pieza || precioNum > 0)
+
+  const isKitPiezasMode = !!producto?.esKit && !pieza && vistaKit === 'piezas'
+  const piezasActivasValidas = isKitPiezasMode
+    ? Object.entries(piezasQty).filter(([, q]) => q > 0).every(([id]) => parseFloat(piezasPrecios[Number(id)] ?? '') > 0)
+    : true
+  const puedeAgregar = isKitPiezasMode
+    ? Object.values(piezasQty).some(q => q > 0) && piezasActivasValidas
+    : !!producto && cantidadNum >= 1 && cantidadNum <= stockDisponible && (!pieza || precioNum > 0)
+
+  const handleConfirmar = () => {
+    if (isKitPiezasMode) {
+      const piezasSeleccionadas = Object.entries(piezasQty)
+        .filter(([, qty]) => qty > 0)
+        .map(([id, qty]) => ({ piezaId: Number(id), cantidad: qty, precio: parseFloat(piezasPrecios[Number(id)] ?? '') }))
+      onAgregar(0, undefined, piezasSeleccionadas)
+    } else {
+      onAgregar(cantidadNum, pieza ? precioNum : undefined)
+    }
+  }
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onDescartar()
-      if (e.key === 'Enter' && puedeAgregar && !loading) onAgregar(cantidadNum, pieza ? precioNum : undefined)
+      if (e.key === 'Enter' && puedeAgregar && !loading) handleConfirmar()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [puedeAgregar, loading, cantidadNum, precioNum, pieza, onAgregar, onDescartar])
+  }, [puedeAgregar, loading, cantidadNum, precioNum, pieza, piezasQty, vistaKit, onAgregar, onDescartar])
 
   const tipoLabel = pieza
     ? 'Pieza suelta'
     : producto?.esKit
-      ? 'Kit completo'
+      ? 'Kit'
       : null
 
   return (
@@ -339,14 +367,116 @@ function ScanNotInOrderModal({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-[#F5F0EB] border border-[#E8E5E2]">
-                <span className="text-xs text-[#7A7571]">Stock disponible</span>
-                <span className={clsx('text-sm font-bold', stockDisponible > 0 ? 'text-[#2D2B2A]' : 'text-[#B23A2A]')}>
-                  {stockDisponible} uds.
-                </span>
-              </div>
+              {!isKitPiezasMode && (
+                <div className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-[#F5F0EB] border border-[#E8E5E2]">
+                  <span className="text-xs text-[#7A7571]">Stock disponible</span>
+                  <span className={clsx('text-sm font-bold', stockDisponible > 0 ? 'text-[#2D2B2A]' : 'text-[#B23A2A]')}>
+                    {stockDisponible} uds.
+                  </span>
+                </div>
+              )}
 
-              {stockDisponible > 0 ? (
+              {producto.esKit && !pieza ? (
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setVistaKit('completo')}
+                      className={clsx(
+                        'flex-1 py-2 rounded-xl text-sm font-semibold border transition-all',
+                        vistaKit === 'completo'
+                          ? 'bg-[#780e18] text-white border-[#780e18]'
+                          : 'bg-white text-[#4A4744] border-[#E8E5E2] hover:border-[#780e18]/30'
+                      )}
+                    >
+                      Kit completo
+                    </button>
+                    <button
+                      onClick={() => setVistaKit('piezas')}
+                      className={clsx(
+                        'flex-1 py-2 rounded-xl text-sm font-semibold border transition-all',
+                        vistaKit === 'piezas'
+                          ? 'bg-[#780e18] text-white border-[#780e18]'
+                          : 'bg-white text-[#4A4744] border-[#E8E5E2] hover:border-[#780e18]/30'
+                      )}
+                    >
+                      Piezas sueltas
+                    </button>
+                  </div>
+
+                  {vistaKit === 'completo' ? (
+                    stockDisponible > 0 ? (
+                      <div>
+                        <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Cantidad de kits (máx. {stockDisponible})</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max={stockDisponible}
+                          value={cantidad}
+                          onChange={e => setCantidad(e.target.value)}
+                          autoFocus
+                          className="w-full h-10 px-3.5 rounded-xl border border-[#E8E5E2] bg-white text-[#2D2B2A] text-sm focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 transition-all"
+                        />
+                      </div>
+                    ) : (
+                      <div className="px-3 py-2.5 rounded-lg bg-[#F5E0A8] border border-[#B47A1F]/30">
+                        <p className="text-xs font-semibold text-[#7A5200]">Sin stock disponible.</p>
+                      </div>
+                    )
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em]">Piezas del kit</p>
+                      {!producto.piezas?.length ? (
+                        <p className="text-sm text-[#7A7571] text-center py-4">Este kit no tiene piezas registradas</p>
+                      ) : (
+                        producto.piezas.map(pz => {
+                          const dispPieza = Math.max(0, pz.stockActual - pz.stockReservado)
+                          const qty = piezasQty[pz.id] ?? 0
+                          return (
+                            <div key={pz.id} className="p-3 rounded-xl bg-[#F5F0EB] border border-[#E8E5E2] space-y-2">
+                              <div className="flex items-center gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-[#2D2B2A] truncate">{pz.nombre}</p>
+                                  <p className={clsx('text-[11px] font-semibold mt-0.5', dispPieza === 0 ? 'text-[#B23A2A]' : 'text-[#3F7A52]')}>
+                                    {dispPieza} disp.
+                                  </p>
+                                </div>
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className="text-[10px] text-[#7A7571]">Cant.</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={dispPieza}
+                                    value={qty}
+                                    onChange={e => {
+                                      const val = Math.max(0, Math.min(dispPieza, parseInt(e.target.value) || 0))
+                                      setPiezasQty(prev => ({ ...prev, [pz.id]: val }))
+                                    }}
+                                    className="w-16 h-8 text-center text-sm font-bold border border-[#E8E5E2] rounded-lg bg-white focus:outline-none focus:border-[#780e18] transition-all"
+                                  />
+                                </div>
+                              </div>
+                              {qty > 0 && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] text-[#7A7571] shrink-0">Precio (Bs)</span>
+                                  <input
+                                    type="number"
+                                    min="0.01"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={piezasPrecios[pz.id] ?? ''}
+                                    onChange={e => setPiezasPrecios(prev => ({ ...prev, [pz.id]: e.target.value }))}
+                                    className="flex-1 h-8 px-2.5 text-sm border border-[#E8E5E2] rounded-lg bg-white focus:outline-none focus:border-[#780e18] transition-all"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : stockDisponible > 0 ? (
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Cantidad a agregar</label>
@@ -401,7 +531,7 @@ function ScanNotInOrderModal({
           {puedeAgregar && (
             <button
               className="flex-1 h-10 rounded-xl bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] text-sm font-bold active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-              onClick={() => onAgregar(cantidadNum, pieza ? precioNum : undefined)}
+              onClick={handleConfirmar}
               disabled={loading || !puedeAgregar}
             >
               {loading ? 'Agregando…' : 'Agregar al pedido'}
@@ -506,7 +636,7 @@ function PiezaScanPriceModal({
 type AgregarRequest =
   | { tipo: 'producto'; producto: Producto; cantidad: number }
   | { tipo: 'kit_completo'; producto: Producto; cantidad: number }
-  | { tipo: 'piezas_sueltas'; kitProducto: Producto; piezas: { pieza: PiezaKit; cantidad: number }[] }
+  | { tipo: 'piezas_sueltas'; kitProducto: Producto; piezas: { pieza: PiezaKit; cantidad: number; precio: number }[] }
 
 function AgregarProductoModal({
   onAgregar,
@@ -527,7 +657,7 @@ function AgregarProductoModal({
   const [kitDetalle, setKitDetalle] = useState<Producto | null>(null)
   const [fetchingKit, setFetchingKit] = useState(false)
   const [vistaKit, setVistaKit] = useState<'opciones' | 'piezas'>('opciones')
-  const [piezasConfig, setPiezasConfig] = useState<{ pieza: PiezaKit; cantidad: number }[]>([])
+  const [piezasConfig, setPiezasConfig] = useState<{ pieza: PiezaKit; cantidad: number; precio: string }[]>([])
 
   useEffect(() => {
     if (!query.trim() || !isTokenReady) { setResultados([]); return }
@@ -559,7 +689,7 @@ function AgregarProductoModal({
         )
         const full = backendToProducto(res.productos?.nodes?.[0])
         setKitDetalle(full)
-        setPiezasConfig((full.piezas_kit ?? []).map(pz => ({ pieza: pz, cantidad: pz.cantidad_por_kit })))
+        setPiezasConfig((full.piezas_kit ?? []).map(pz => ({ pieza: pz, cantidad: pz.cantidad_por_kit, precio: '' })))
       } catch {
         notify.error('Error al cargar piezas del kit')
         setSeleccionado(null)
@@ -577,7 +707,8 @@ function AgregarProductoModal({
     if (seleccionado.es_kit) {
       if (fetchingKit || !kitDetalle) return false
       if (vistaKit === 'opciones') return cantidadNum >= 1 && cantidadNum <= disp
-      return piezasConfig.some(p => p.cantidad > 0)
+      const activas = piezasConfig.filter(p => p.cantidad > 0)
+      return activas.length > 0 && activas.every(p => parseFloat(p.precio) > 0)
     }
     return cantidadNum >= 1 && cantidadNum <= disp
   })()
@@ -588,7 +719,13 @@ function AgregarProductoModal({
       if (vistaKit === 'opciones') {
         onAgregar({ tipo: 'kit_completo', producto: seleccionado, cantidad: cantidadNum })
       } else {
-        onAgregar({ tipo: 'piezas_sueltas', kitProducto: seleccionado, piezas: piezasConfig.filter(p => p.cantidad > 0) })
+        onAgregar({
+          tipo: 'piezas_sueltas',
+          kitProducto: seleccionado,
+          piezas: piezasConfig
+            .filter(p => p.cantidad > 0)
+            .map(p => ({ pieza: p.pieza, cantidad: p.cantidad, precio: parseFloat(p.precio) })),
+        })
       }
     } else {
       onAgregar({ tipo: 'producto', producto: seleccionado, cantidad: cantidadNum })
@@ -764,24 +901,40 @@ function AgregarProductoModal({
                       piezasConfig.map((pc, idx) => {
                         const dispPieza = Math.max(0, pc.pieza.stock_actual - pc.pieza.stock_reservado)
                         return (
-                          <div key={pc.pieza.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#F5F0EB] border border-[#E8E5E2]">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-[#2D2B2A] truncate">{pc.pieza.nombre}</p>
-                              <p className={clsx('text-[11px] font-semibold mt-0.5', dispPieza === 0 ? 'text-[#B23A2A]' : 'text-[#3F7A52]')}>
-                                {dispPieza} disp.
-                              </p>
+                          <div key={pc.pieza.id} className="p-3 rounded-xl bg-[#F5F0EB] border border-[#E8E5E2] space-y-2">
+                            <div className="flex items-center gap-3">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-[#2D2B2A] truncate">{pc.pieza.nombre}</p>
+                                <p className={clsx('text-[11px] font-semibold mt-0.5', dispPieza === 0 ? 'text-[#B23A2A]' : 'text-[#3F7A52]')}>
+                                  {dispPieza} disp.
+                                </p>
+                              </div>
+                              <input
+                                type="number"
+                                min="0"
+                                max={dispPieza}
+                                value={pc.cantidad}
+                                onChange={e => {
+                                  const val = Math.max(0, parseInt(e.target.value) || 0)
+                                  setPiezasConfig(prev => prev.map((x, i) => i === idx ? { ...x, cantidad: val, precio: val === 0 ? '' : x.precio } : x))
+                                }}
+                                className="w-16 h-8 text-center text-sm font-bold border border-[#E8E5E2] rounded-lg focus:outline-none focus:border-[#780e18] transition-all"
+                              />
                             </div>
-                            <input
-                              type="number"
-                              min="0"
-                              max={dispPieza}
-                              value={pc.cantidad}
-                              onChange={e => {
-                                const val = Math.max(0, parseInt(e.target.value) || 0)
-                                setPiezasConfig(prev => prev.map((x, i) => i === idx ? { ...x, cantidad: val } : x))
-                              }}
-                              className="w-16 h-8 text-center text-sm font-bold border border-[#E8E5E2] rounded-lg focus:outline-none focus:border-[#780e18] transition-all"
-                            />
+                            {pc.cantidad > 0 && (
+                              <div className="flex items-center gap-2">
+                                <label className="text-[11px] font-semibold text-[#7A7571] shrink-0">Precio (Bs)</label>
+                                <input
+                                  type="number"
+                                  min="0.01"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  value={pc.precio}
+                                  onChange={e => setPiezasConfig(prev => prev.map((x, i) => i === idx ? { ...x, precio: e.target.value } : x))}
+                                  className="flex-1 h-8 px-2.5 text-sm font-bold border border-[#E8E5E2] rounded-lg focus:outline-none focus:border-[#780e18] transition-all"
+                                />
+                              </div>
+                            )}
                           </div>
                         )
                       })
@@ -1105,11 +1258,17 @@ export function EscaneoPage() {
     setAgregarLoading(true)
     try {
       if (req.tipo === 'piezas_sueltas') {
-        for (const { pieza, cantidad } of req.piezas) {
+        for (const { pieza, cantidad, precio } of req.piezas) {
           const res = await api.post<AgregarItemOrdenResponse>(
             `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
-            { Id_Producto: parseInt(req.kitProducto.id), Id_Pieza: pieza.id, Cantidad: cantidad }
+            { Id_Producto: parseInt(req.kitProducto.id), Id_Pieza: pieza.id, Cantidad: cantidad, PrecioUnitario: precio }
           )
+          if (res.piezas?.[0]) {
+            await api.post(
+              `/OrdenVenta/${selectedOrden.id}/Items/${res.id}/Piezas/${res.piezas[0].id}/Confirmar`,
+              { PrecioUnitario: precio }
+            )
+          }
           const newItem: ItemOrden = {
             id: String(res.id),
             producto_id: String(res.idProducto ?? parseInt(req.kitProducto.id)),
@@ -1120,9 +1279,9 @@ export function EscaneoPage() {
             producto_fila: '',
             producto_columna: '',
             cantidad_pedida: res.cantidad,
-            precio_unitario: res.precioUnitario,
-            subtotal: res.precioUnitario * res.cantidad,
-            estado: 'pendiente',
+            precio_unitario: precio,
+            subtotal: precio * res.cantidad,
+            estado: 'listo_almacenero',
             kit_id: req.kitProducto.id,
             es_parcial: true,
             piezas_orden: res.piezas?.[0] ? [{
@@ -1130,7 +1289,7 @@ export function EscaneoPage() {
               id_pieza: res.piezas[0].idPieza,
               nombre: pieza.nombre,
               cantidad: res.cantidad,
-              precio_unitario: res.precioUnitario,
+              precio_unitario: precio,
             }] : undefined,
           }
           addItemToOrden(selectedOrden.id, newItem)
@@ -1321,6 +1480,9 @@ export function EscaneoPage() {
         await api.post(`/OrdenVenta/${selectedOrden.id}/Items/${item.id}/Confirmar`, body)
       }
       setConfirmedItemIds(prev => new Set([...prev, item.id]))
+      if (item.estado === 'pendiente') {
+        updateItemEstadoEnOrden(selectedOrden.id, item.id, 'listo_almacenero')
+      }
       playConfirmBeep()
       notify.success(`${item.producto_nombre} confirmado`)
     } catch (err) {
@@ -1332,11 +1494,57 @@ export function EscaneoPage() {
     }
   }
 
-  const handleAgregarItem = async (cantidad: number, precio?: number) => {
+  const handleAgregarItem = async (cantidad: number, precio?: number, piezas?: { piezaId: number; cantidad: number; precio: number }[]) => {
     if (!pendingNotInOrderCode || !selectedOrden || !notInOrderProducto) return
     const p = notInOrderProducto
     setAgregarLoading(true)
     try {
+      if (piezas && piezas.length > 0) {
+        for (const { piezaId, cantidad: cantPieza, precio: precioPieza } of piezas) {
+          if (cantPieza <= 0) continue
+          const res = await api.post<AgregarItemOrdenResponse>(
+            `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
+            { Id_Producto: p.id, Id_Pieza: piezaId, Cantidad: cantPieza, PrecioUnitario: precioPieza }
+          )
+          const piezaItemId = res.piezas![0].id
+          await api.post(
+            `/OrdenVenta/${selectedOrden.id}/Items/${res.id}/Piezas/${piezaItemId}/Confirmar`,
+            { PrecioUnitario: precioPieza }
+          )
+          const parts = (res.producto.ubicacion ?? '').split('/')
+          const [almacen = '', estante = '', fila = '', columna = ''] =
+            parts.length >= 4 ? parts : ['', ...parts]
+          const piezaCatalogo = p.piezas?.find(pz => pz.id === piezaId)
+          addItemToOrden(selectedOrden.id, {
+            id: String(res.id),
+            producto_id: String(res.idProducto ?? p.id),
+            producto_codigo: res.producto.codigo,
+            producto_nombre: res.producto.nombre,
+            producto_almacen: almacen,
+            producto_estante: estante,
+            producto_fila: fila,
+            producto_columna: columna,
+            cantidad_pedida: res.cantidad,
+            precio_unitario: precioPieza,
+            subtotal: precioPieza * res.cantidad,
+            estado: 'listo_almacenero',
+            es_parcial: true,
+            piezas_orden: [{
+              id: piezaItemId,
+              id_pieza: res.piezas![0].idPieza,
+              nombre: piezaCatalogo?.nombre ?? '',
+              cantidad: res.cantidad,
+              precio_unitario: precioPieza,
+            }],
+          })
+        }
+        notify.info(`Piezas de ${p.nombre} agregadas a la orden`)
+        setPendingNotInOrderCode(null)
+        setPendingNotInOrderMarcaId(null)
+        setNotInOrderProducto(null)
+        return
+      }
+
       const body: { Id_Producto?: number; Id_Pieza?: number; Cantidad: number; PrecioUnitario?: number } = { Cantidad: cantidad }
       if (p.piezaEscaneadaId != null) {
         body.Id_Producto = p.id
@@ -1669,6 +1877,9 @@ export function EscaneoPage() {
                                         )}
                                       </div>
                                       <div className="flex-1 min-w-0">
+                                        <p className="text-[10px] font-mono font-semibold text-[#7A7571] truncate leading-none mb-0.5">
+                                          {fmtCodigo(item.producto_codigo, item.marcaId, marcas)}
+                                        </p>
                                         <p className="text-sm font-semibold text-[#2D2B2A] leading-snug truncate">
                                           {pieza.nombre} · ×{cantidadConfirmar}
                                         </p>

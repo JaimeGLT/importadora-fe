@@ -1533,9 +1533,13 @@ export function AlmacenPage() {
       const currentItem = currentOrden?.items.find(i => i.id === itemId)
       if (currentItem?.es_parcial && currentItem.piezas_orden?.length) {
         for (const pieza of currentItem.piezas_orden) {
-          if (!pieza.listo_almacenero && !pieza.confirmado) {
-            if (isConFaltantes) {
-              await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Confirmar`, { PrecioUnitario: pieza.precio_unitario ?? 0 })
+          if (!pieza.listo_almacenero) {
+            if (!pieza.confirmado && isConFaltantes) {
+              if (!pieza.precio_unitario || pieza.precio_unitario <= 0) {
+                notify.error(`Pieza "${pieza.nombre}" sin precio. Solicite al operador que la confirme.`)
+                return
+              }
+              await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Confirmar`, { PrecioUnitario: pieza.precio_unitario })
             } else {
               await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`, null)
             }
@@ -1571,9 +1575,13 @@ export function AlmacenPage() {
 
   const handleConfirmarPieza = async (itemId: string, pieza: PiezaOrden) => {
     if (!pickingOrdenId) return
+    if (!pieza.precio_unitario || pieza.precio_unitario <= 0) {
+      notify.error(`Pieza "${pieza.nombre}" sin precio. Solicite al operador que la confirme.`)
+      return
+    }
     try {
       await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Confirmar`, {
-        PrecioUnitario: pieza.precio_unitario ?? 0,
+        PrecioUnitario: pieza.precio_unitario,
       })
       await loadOrdenes()
       notify.success('Pieza confirmada')
@@ -1597,9 +1605,13 @@ export function AlmacenPage() {
     if (!pickingOrdenId) return
     const orden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)
     try {
-      if (orden?.estado === 'con_faltantes') {
+      if (orden?.estado === 'con_faltantes' && !pieza.confirmado) {
+        if (!pieza.precio_unitario || pieza.precio_unitario <= 0) {
+          notify.error(`Pieza "${pieza.nombre}" sin precio. Solicite al operador que la confirme.`)
+          return
+        }
         await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Confirmar`, {
-          PrecioUnitario: pieza.precio_unitario ?? 0,
+          PrecioUnitario: pieza.precio_unitario,
         })
       } else {
         await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`, null)
@@ -1620,10 +1632,14 @@ export function AlmacenPage() {
         if (pieza.nota_incompleto) {
           await api.delete(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Incompleto`)
         }
-        if (!pieza.listo_almacenero && !pieza.confirmado) {
-          if (isConFaltantes) {
+        if (!pieza.listo_almacenero) {
+          if (!pieza.confirmado && isConFaltantes) {
+            if (!pieza.precio_unitario || pieza.precio_unitario <= 0) {
+              notify.error(`Pieza "${pieza.nombre}" sin precio. Solicite al operador que la confirme.`)
+              return
+            }
             await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Confirmar`, {
-              PrecioUnitario: pieza.precio_unitario ?? 0,
+              PrecioUnitario: pieza.precio_unitario,
             })
           } else {
             await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`, null)

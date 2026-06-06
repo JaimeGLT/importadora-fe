@@ -1001,7 +1001,8 @@ function CobroModal({ orden, clientes, onConfirm, onClose }: {
               return i.piezas_orden.filter(p => p.confirmado).map(p => (
                 <div key={`${i.id}-${p.id}`} className="flex justify-between text-sm gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-semibold text-[#780e18]">{p.nombre} · ×{p.cantidad}</p>
+                    <p className="text-[11px] font-mono font-bold text-[#780e18]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)}</p>
+                    <p className="text-[11px] font-semibold text-[#2D2B2A]">{p.nombre} · ×{p.cantidad}</p>
                   </div>
                   <span className="font-semibold text-[#2D2B2A] shrink-0">{fmtBs((p.precio_unitario ?? 0) * p.cantidad)}</span>
                 </div>
@@ -1205,6 +1206,7 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
               return i.piezas_orden.filter(p => p.confirmado).map(p => (
                 <div key={`${i.id}-${p.id}`} className="flex justify-between text-sm gap-2">
                   <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)}</p>
                     <p className="text-[#4A4744] truncate">{p.nombre} · ×{p.cantidad}</p>
                   </div>
                   <span className="font-semibold shrink-0">{fmtBs((p.precio_unitario ?? 0) * p.cantidad)}</span>
