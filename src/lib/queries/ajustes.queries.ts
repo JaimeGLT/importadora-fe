@@ -14,6 +14,9 @@ export const AJUSTES_HISTORIAL_QUERY = `
         producto { nombre codigo codigoAux codigoAux2 marcaId }
       }
     }
+    marca(order: { nombre: ASC }) {
+      nodes { id nombre prefijo }
+    }
   }
 `
 

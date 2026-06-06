@@ -2,14 +2,9 @@ import { type ReactNode, useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Sidebar } from './Sidebar'
-import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
 import { useConfigStore } from '@/stores/configStore'
 import { TipoCambioModal } from '@/components/ui/TipoCambioModal'
-import { DESCUENTOS_QUERY, CONFIG_VENTA_QUERY, TIPO_CAMBIO_QUERY, backendToDescuento, type DescuentoAPI, type ConfigVentaAPI, type TipoCambioAPI } from '@/lib/queries/config.queries'
-import type { ModoPrecioCajero } from '@/stores/configStore'
-
-let _configLoaded = false
 
 interface MainLayoutProps {
   children: ReactNode
@@ -22,41 +17,12 @@ export function MainLayout({ children }: MainLayoutProps) {
   const [showTipoCambioModal, setShowTipoCambioModal] = useState(false)
   const [tipoCambioApi, setTipoCambioApi] = useState(0)
   const {
-    setDescuentos, setModoPrecioCajero, setTipoCambio, setTipoCambioHabilitado,
+    setTipoCambio, setTipoCambioHabilitado,
     tipoCambioFechaRecordatorio, setTipoCambioFechaRecordatorio,
   } = useConfigStore()
 
   useEffect(() => {
-    if (!isTokenReady || !isAuthenticated || _configLoaded) return
-    _configLoaded = true
-
-    gql<{ descuento: { nodes: DescuentoAPI[] } }>(DESCUENTOS_QUERY)
-      .then(r => setDescuentos(r.descuento.nodes.map(backendToDescuento)))
-      .catch(() => {})
-
-    gql<{ configVenta: ConfigVentaAPI[] }>(CONFIG_VENTA_QUERY)
-      .then(r => {
-        const cfg = r.configVenta[0]
-        if (!cfg) return
-        const mapa: Record<string, ModoPrecioCajero> = {
-          Ambos: 'ambos',
-          PrecioDolarDia: 'solo_dolar_hoy',
-          PrecioImportacion: 'solo_importacion',
-        }
-        setModoPrecioCajero(mapa[cfg.modoVenta] ?? 'solo_importacion')
-      })
-      .catch(() => {})
-
-    gql<{ tipoCambio: TipoCambioAPI }>(TIPO_CAMBIO_QUERY)
-      .then(r => {
-        const valor = r.tipoCambio?.precioDolar ?? 0
-        if (valor > 0) {
-          setTipoCambio(valor)
-          setTipoCambioHabilitado(true)
-        }
-      })
-      .catch(() => {})
-
+    if (!isTokenReady || !isAuthenticated) return
     if (user?.rol === 'admin') {
       const today = new Date().toISOString().split('T')[0]
       if (tipoCambioFechaRecordatorio !== today) {
@@ -69,7 +35,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           .catch(() => {})
       }
     }
-  }, [isTokenReady, isAuthenticated, user, tipoCambioFechaRecordatorio, setDescuentos, setModoPrecioCajero, setTipoCambio, setTipoCambioHabilitado, setTipoCambioFechaRecordatorio])
+  }, [isTokenReady, isAuthenticated, user, tipoCambioFechaRecordatorio])
 
   const handleTipoCambioAccept = async () => {
     setTipoCambio(tipoCambioApi)

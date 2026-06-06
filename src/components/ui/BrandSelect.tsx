@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Modal, Button, Input } from '@/components/ui'
-import { useMarcasStore } from '@/stores/marcasStore'
 import { notify } from '@/lib/notify'
 import { api } from '@/lib/api'
 import { gql } from '@/lib/graphql'
@@ -12,12 +11,12 @@ import { clsx } from 'clsx'
 interface BrandSelectProps {
   value: number | null
   onChange: (id: number | null) => void
+  marcas?: Marca[]
   label?: string
   placeholder?: string
 }
 
-export function BrandSelect({ value, onChange, label, placeholder = 'Seleccionar marca…' }: BrandSelectProps) {
-  const { marcas: allMarcas, setMarcas, addMarca } = useMarcasStore()
+export function BrandSelect({ value, onChange, marcas: marcasProp, label, placeholder = 'Seleccionar marca…' }: BrandSelectProps) {
   const [search, setSearch]           = useState('')
   const [results, setResults]         = useState<Marca[]>([])
   const [fetching, setFetching]       = useState(false)
@@ -36,17 +35,22 @@ export function BrandSelect({ value, onChange, label, placeholder = 'Seleccionar
       .then(data => {
         const mapped = data.marca.nodes.map(backendToMarca)
         setResults(mapped)
-        if (!q?.trim()) setMarcas(mapped)
       })
       .catch(() => {})
       .finally(() => setFetching(false))
-  }, [setMarcas])
+  }, [])
 
+  // Si recibe prop: nunca self-fetcha, solo reacciona cuando el prop se llena
+  // Si no recibe prop (undefined): self-fetcha al montar
   useEffect(() => {
-    if (allMarcas.length > 0) setResults(allMarcas)
-    else fetchMarcas()
+    if (marcasProp === undefined) fetchMarcas()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (marcasProp !== undefined && marcasProp.length > 0) setResults(marcasProp)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marcasProp?.length])
 
   const updatePos = () => {
     if (!inputRef.current) return
@@ -75,7 +79,7 @@ export function BrandSelect({ value, onChange, label, placeholder = 'Seleccionar
     setShowDropdown(false)
   }
 
-  const selectedMarca = allMarcas.find(m => m.id === value) ?? results.find(m => m.id === value)
+  const selectedMarca = results.find(m => m.id === value)
 
   const handleCreate = async () => {
     const nombre = newName.trim()
@@ -84,7 +88,6 @@ export function BrandSelect({ value, onChange, label, placeholder = 'Seleccionar
     try {
       const res = await api.post<{ id: number; nombre: string }>('/marca', { nombre })
       const nueva = backendToMarca({ id: res.id, nombre: res.nombre })
-      addMarca(nueva)
       setResults(prev => [...prev, nueva].sort((a, b) => a.nombre.localeCompare(b.nombre)))
       onChange(nueva.id)
       setNewName('')

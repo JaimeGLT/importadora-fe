@@ -589,15 +589,27 @@ export function PrestamosPage() {
                 <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#780e18] to-[#D4A333] flex items-center justify-center shrink-0">
                   <i className="ti ti-arrows-exchange text-white text-[16px]" />
                 </div>
-                <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#F4ECDB] text-[#780e18]">
-                  <i className="ti ti-circle-check text-[10px]" />
-                  registrados
-                </span>
+                {loading
+                  ? <div className="h-5 w-20 rounded-full bg-[#F0EFEC] animate-pulse" />
+                  : <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#F4ECDB] text-[#780e18]">
+                      <i className="ti ti-circle-check text-[10px]" />
+                      registrados
+                    </span>
+                }
               </div>
-              <div className="font-semibold text-[32px] text-[#2D2B2A] leading-none tracking-[-0.025em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                {kpi.total.toLocaleString('es-BO')}
-              </div>
-              <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Total préstamos</div>
+              {loading ? (
+                <>
+                  <div className="h-8 w-24 rounded bg-[#F0EFEC] animate-pulse" />
+                  <div className="h-2.5 w-20 rounded bg-[#E8E5E2] animate-pulse mt-2" />
+                </>
+              ) : (
+                <>
+                  <div className="font-semibold text-[32px] text-[#2D2B2A] leading-none tracking-[-0.025em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    {kpi.total.toLocaleString('es-BO')}
+                  </div>
+                  <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Total préstamos</div>
+                </>
+              )}
             </div>
 
             {/* Activos */}
@@ -610,21 +622,33 @@ export function PrestamosPage() {
                 <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#D4A333] to-[#B4881C] flex items-center justify-center shrink-0">
                   <i className="ti ti-clock text-[#2D2010] text-[16px]" />
                 </div>
-                <span className={clsx(
-                  'inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full',
-                  kpi.activos > 0 ? 'bg-[#F5E0A8] text-[#7A5200]' : 'bg-[#B8DCCA] text-[#1E5C38]',
-                )}>
-                  <i className={clsx('text-[10px]', kpi.activos > 0 ? 'ti ti-clock' : 'ti ti-mood-smile')} />
-                  {kpi.activos > 0 ? 'en préstamo' : 'todo devuelto'}
-                </span>
+                {loading
+                  ? <div className="h-5 w-20 rounded-full bg-[#F0EFEC] animate-pulse" />
+                  : <span className={clsx(
+                      'inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full',
+                      kpi.activos > 0 ? 'bg-[#F5E0A8] text-[#7A5200]' : 'bg-[#B8DCCA] text-[#1E5C38]',
+                    )}>
+                      <i className={clsx('text-[10px]', kpi.activos > 0 ? 'ti ti-clock' : 'ti ti-mood-smile')} />
+                      {kpi.activos > 0 ? 'en préstamo' : 'todo devuelto'}
+                    </span>
+                }
               </div>
-              <div
-                className={clsx('font-semibold text-[32px] leading-none tracking-[-0.025em]', kpi.activos > 0 ? 'text-[#B4881C]' : 'text-[#2D2B2A]')}
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
-              >
-                {kpi.activos}
-              </div>
-              <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Activos</div>
+              {loading ? (
+                <>
+                  <div className="h-8 w-24 rounded bg-[#F0EFEC] animate-pulse" />
+                  <div className="h-2.5 w-20 rounded bg-[#E8E5E2] animate-pulse mt-2" />
+                </>
+              ) : (
+                <>
+                  <div
+                    className={clsx('font-semibold text-[32px] leading-none tracking-[-0.025em]', kpi.activos > 0 ? 'text-[#B4881C]' : 'text-[#2D2B2A]')}
+                    style={{ fontFamily: "'DM Sans', sans-serif" }}
+                  >
+                    {kpi.activos}
+                  </div>
+                  <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Activos</div>
+                </>
+              )}
             </div>
 
             {/* Devueltos */}
@@ -634,15 +658,27 @@ export function PrestamosPage() {
                 <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#3F7A52] to-[#6BAF80] flex items-center justify-center shrink-0">
                   <i className="ti ti-arrow-back text-white text-[16px]" />
                 </div>
-                <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#B8DCCA] text-[#1E5C38]">
-                  <i className="ti ti-circle-check text-[10px]" />
-                  completados
-                </span>
+                {loading
+                  ? <div className="h-5 w-20 rounded-full bg-[#F0EFEC] animate-pulse" />
+                  : <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#B8DCCA] text-[#1E5C38]">
+                      <i className="ti ti-circle-check text-[10px]" />
+                      completados
+                    </span>
+                }
               </div>
-              <div className="font-semibold text-[32px] text-[#2D2B2A] leading-none tracking-[-0.025em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                {kpi.devueltos}
-              </div>
-              <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Devueltos</div>
+              {loading ? (
+                <>
+                  <div className="h-8 w-24 rounded bg-[#F0EFEC] animate-pulse" />
+                  <div className="h-2.5 w-20 rounded bg-[#E8E5E2] animate-pulse mt-2" />
+                </>
+              ) : (
+                <>
+                  <div className="font-semibold text-[32px] text-[#2D2B2A] leading-none tracking-[-0.025em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    {kpi.devueltos}
+                  </div>
+                  <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Devueltos</div>
+                </>
+              )}
             </div>
 
             {/* Valor activo */}
@@ -652,19 +688,31 @@ export function PrestamosPage() {
                 <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#4A4744] to-[#7A7571] flex items-center justify-center shrink-0">
                   <i className="ti ti-currency-dollar text-white text-[16px]" />
                 </div>
-                <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#F0EFEC] text-[#4A4744]">
-                  <i className="ti ti-trending-up text-[10px]" />
-                  en préstamo
-                </span>
+                {loading
+                  ? <div className="h-5 w-20 rounded-full bg-[#F0EFEC] animate-pulse" />
+                  : <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#F0EFEC] text-[#4A4744]">
+                      <i className="ti ti-trending-up text-[10px]" />
+                      en préstamo
+                    </span>
+                }
               </div>
-              <div
-                className="font-semibold text-[26px] text-[#2D2B2A] leading-none tracking-[-0.025em] flex items-baseline gap-1"
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
-              >
-                <span className="text-[13px] font-semibold text-[#4A4744]">Bs.</span>
-                {fmtBs(kpi.valorActivo)}
-              </div>
-              <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Valor activo</div>
+              {loading ? (
+                <>
+                  <div className="h-8 w-24 rounded bg-[#F0EFEC] animate-pulse" />
+                  <div className="h-2.5 w-20 rounded bg-[#E8E5E2] animate-pulse mt-2" />
+                </>
+              ) : (
+                <>
+                  <div
+                    className="font-semibold text-[26px] text-[#2D2B2A] leading-none tracking-[-0.025em] flex items-baseline gap-1"
+                    style={{ fontFamily: "'DM Sans', sans-serif" }}
+                  >
+                    <span className="text-[13px] font-semibold text-[#4A4744]">Bs.</span>
+                    {fmtBs(kpi.valorActivo)}
+                  </div>
+                  <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Valor activo</div>
+                </>
+              )}
             </div>
 
           </div>

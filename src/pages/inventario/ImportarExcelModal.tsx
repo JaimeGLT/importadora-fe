@@ -5,7 +5,6 @@ import { imprimirLote } from '@/lib/printLabel'
 import type { Producto, Marca } from '@/types'
 import { clsx } from 'clsx'
 import { api } from '@/lib/api'
-import { useMarcasStore } from '@/stores/marcasStore'
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
@@ -207,19 +206,16 @@ interface ImportarExcelModalProps {
 async function resolveMarcaId(
   nombre: string,
   marcas: Marca[],
-  addMarca: (m: Marca) => void,
 ): Promise<number | null> {
   if (!nombre.trim()) return null
   const norm = nombre.trim().toLowerCase()
   const existing = marcas.find((m) => m.nombre.toLowerCase() === norm)
   if (existing) return existing.id
   const res = await api.post<{ id: number; nombre: string }>('/marca', { nombre: nombre.trim() })
-  addMarca({ id: res.id, nombre: res.nombre, prefijo: '', creado_en: new Date().toISOString() })
   return res.id
 }
 
 export function ImportarExcelModal({ open, onClose, onImport, productosExistentes, marcas }: ImportarExcelModalProps) {
-  const { addMarca } = useMarcasStore()
   const [step, setStep]               = useState<Step>('upload')
   const [excelCols, setExcelCols]     = useState<string[]>([])
   const [rawRows, setRawRows]         = useState<Record<string, unknown>[]>([])
@@ -425,7 +421,7 @@ const [dragOver, setDragOver]       = useState(false)
       if (!nombreMarca) continue
       const norm = nombreMarca.toLowerCase()
       if (!marcaCache.has(norm)) {
-        marcaCache.set(norm, await resolveMarcaId(nombreMarca, marcas, addMarca))
+        marcaCache.set(norm, await resolveMarcaId(nombreMarca, marcas))
       }
       result.data.marcaId = marcaCache.get(norm) ?? null
     }

@@ -63,11 +63,11 @@ export function ProveedorFormModal({ open, onClose, onSave, initial, saving = fa
     if (initial) {
       setForm({
         nombre: initial.nombre,
-        pais: initial.pais,
-        moneda: initial.moneda,
-        terminos_pago: initial.terminos_pago,
-        contacto: initial.contacto,
-        email: initial.email,
+        pais: initial.pais ?? '',
+        moneda: initial.moneda ?? 'USD',
+        terminos_pago: initial.terminos_pago ?? 'T/T 30 días',
+        contacto: initial.contacto ?? '',
+        email: initial.email ?? '',
         telefono: initial.telefono ?? '',
         sitio_web: initial.sitio_web ?? '',
         notas: initial.notas ?? '',
@@ -93,7 +93,6 @@ export function ProveedorFormModal({ open, onClose, onSave, initial, saving = fa
   const validate = (): boolean => {
     const e: Partial<Record<keyof Form, string>> = {}
     if (!form.nombre.trim()) e.nombre = 'Requerido'
-    if (!form.pais.trim())   e.pais   = 'Requerido'
     if (form.email.trim() && !/\S+@\S+\.\S+/.test(form.email)) e.email = 'Email inválido'
     if (form.tiempo_reposicion_dias && isNaN(Number(form.tiempo_reposicion_dias))) {
       e.tiempo_reposicion_dias = 'Debe ser número'
@@ -106,11 +105,11 @@ export function ProveedorFormModal({ open, onClose, onSave, initial, saving = fa
     if (!validate()) return
     onSave({
       nombre: form.nombre.trim(),
-      pais: form.pais.trim(),
-      moneda: form.moneda,
-      terminos_pago: form.terminos_pago,
-      contacto: form.contacto.trim(),
-      email: form.email.trim(),
+      pais: form.pais.trim() || undefined,
+      moneda: form.moneda || undefined,
+      terminos_pago: form.terminos_pago || undefined,
+      contacto: form.contacto.trim() || undefined,
+      email: form.email.trim() || undefined,
       telefono: form.telefono.trim() || undefined,
       sitio_web: form.sitio_web.trim() || undefined,
       notas: form.notas.trim() || undefined,
@@ -187,7 +186,7 @@ export function ProveedorFormModal({ open, onClose, onSave, initial, saving = fa
                 {errors.nombre && <p className="text-[11px] text-[#B23A2A] mt-1">{errors.nombre}</p>}
               </div>
               <div>
-                <label className={LABEL}>País <span className="text-[#B23A2A]">*</span></label>
+                <label className={LABEL}>País</label>
                 <input className={clsx(INPUT, errors.pais && 'border-[#D45040]')} value={form.pais} onChange={set('pais')} placeholder="Ej. China" />
                 {errors.pais && <p className="text-[11px] text-[#B23A2A] mt-1">{errors.pais}</p>}
               </div>
@@ -196,13 +195,13 @@ export function ProveedorFormModal({ open, onClose, onSave, initial, saving = fa
             {/* Moneda + Términos */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className={LABEL}>Moneda <span className="text-[#B23A2A]">*</span></label>
+                <label className={LABEL}>Moneda</label>
                 <select className={INPUT} value={form.moneda} onChange={set('moneda')}>
                   {MONEDAS.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
               <div>
-                <label className={LABEL}>Términos de pago <span className="text-[#B23A2A]">*</span></label>
+                <label className={LABEL}>Términos de pago</label>
                 <select className={INPUT} value={form.terminos_pago} onChange={set('terminos_pago')}>
                   {TERMINOS.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
@@ -216,7 +215,7 @@ export function ProveedorFormModal({ open, onClose, onSave, initial, saving = fa
                 <input className={INPUT} value={form.contacto} onChange={set('contacto')} placeholder="Nombre del contacto" />
               </div>
               <div>
-                <label className={LABEL}>Email <span className="text-[#B23A2A]">*</span></label>
+                <label className={LABEL}>Email</label>
                 <input className={clsx(INPUT, errors.email && 'border-[#D45040]')} value={form.email} onChange={set('email')} placeholder="correo@proveedor.com" type="email" />
                 {errors.email && <p className="text-[11px] text-[#B23A2A] mt-1">{errors.email}</p>}
               </div>

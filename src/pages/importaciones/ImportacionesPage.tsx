@@ -11,11 +11,14 @@ import { notify } from '@/lib/notify'
 import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
-import { IMPORTACIONES_QUERY, backendToImportacion } from '@/lib/queries/importaciones.queries'
+import { IMPORTACIONES_QUERY, IMPORTACIONES_INIT_QUERY, backendToImportacion } from '@/lib/queries/importaciones.queries'
 import { PRODUCTOS_QUERY, backendToProductoSimple } from '@/lib/queries/inventario.queries'
-import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
+import type { ProductoAPISimple } from '@/lib/queries/inventario.queries'
+import { backendToMarca } from '@/lib/queries/marcas.queries'
+import { backendToProveedor } from '@/lib/queries/proveedores.queries'
 import { api } from '@/lib/api'
 import type { DtoImportacion } from '@/lib/queries/importaciones.queries'
+import type { MargenGananciaAPI } from '@/lib/queries/config.queries'
 import {
   useReactTable,
   getCoreRowModel,
@@ -27,50 +30,6 @@ import {
   type SortingState,
   type ColumnMeta,
 } from '@tanstack/react-table'
-
-const PROVEEDORES_QUERY = `
-  query ProveedoresList {
-    proveedor {
-      nodes {
-        id
-        nombre
-        nota
-        pais
-        moneda
-        terminos
-        nombre_Contacto
-        email
-        telefono
-        tiempoReposicion
-        sitioWeb
-        estado
-      }
-    }
-  }
-`
-
-function backendToProveedor(b: {
-  id: number; nombre: string; nota: string; pais: string; moneda: string
-  terminos: string; nombre_Contacto: string; email: string; telefono: string
-  tiempoReposicion: number; sitioWeb: string; estado: boolean
-}): Proveedor {
-  return {
-    id: String(b.id),
-    nombre: b.nombre,
-    pais: b.pais,
-    moneda: b.moneda as Proveedor['moneda'],
-    terminos_pago: b.terminos as Proveedor['terminos_pago'],
-    contacto: b.nombre_Contacto,
-    email: b.email,
-    telefono: b.telefono,
-    sitio_web: b.sitioWeb,
-    notas: b.nota,
-    tiempo_reposicion_dias: b.tiempoReposicion,
-    estado: b.estado ? 'activo' : 'inactivo',
-    creado_en: '',
-    actualizado_en: '',
-  }
-}
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -145,6 +104,7 @@ export function ImportacionesPage() {
   const [proveedores, setProveedores] = useState<Proveedor[]>([])
   const [productos, setProductos] = useState<Producto[]>([])
   const [marcas, setMarcas] = useState<Marca[]>([])
+  const [margenGanancia, setMargenGanancia] = useState<number>(1.30)
 
   const { importaciones, setImportaciones } = useImportacionesStore()
 
@@ -153,43 +113,42 @@ export function ImportacionesPage() {
   }), [])
 
   const loadImportaciones = () => {
-    let cancelled = false
-    setLoading(true)
-    gql<{ importacion: { nodes: unknown[] } }>(IMPORTACIONES_QUERY)
+    gql<{ importacion: { nodes: Parameters<typeof backendToImportacion>[0][] } }>(IMPORTACIONES_QUERY)
       .then(res => {
-        if (cancelled) return
-        const mapped = res.importacion.nodes.map((n: unknown) => backendToImportacion(n as Parameters<typeof backendToImportacion>[0]))
+        const mapped = res.importacion.nodes.map(backendToImportacion)
         mapped.sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime())
         setImportaciones(mapped)
       })
       .catch(() => notify.error('Error cargando importaciones'))
-      .finally(() => { if (!cancelled) setLoading(false) })
-  }
-
-  const loadProveedores = () => {
-    gql<{ proveedor: { nodes: { id: number; nombre: string; nota: string; pais: string; moneda: string; terminos: string; nombre_Contacto: string; email: string; telefono: string; tiempoReposicion: number; sitioWeb: string; estado: boolean }[] } }>(PROVEEDORES_QUERY)
-      .then(res => setProveedores(res.proveedor.nodes.map(n => backendToProveedor(n))))
-      .catch(() => notify.error('Error cargando proveedores'))
   }
 
   const loadProductos = () => {
-    gql(PRODUCTOS_QUERY, { first: 5000 })
-      .then((res: any) => setProductos(res.productos.nodes.map(backendToProductoSimple)))
+    gql<{ productos: { nodes: ProductoAPISimple[] } }>(PRODUCTOS_QUERY, { first: 5000 })
+      .then(res => setProductos(res.productos.nodes.map(backendToProductoSimple)))
       .catch(() => notify.error('Error cargando productos'))
-  }
-
-  const loadMarcas = () => {
-    gql<{ marca: { nodes: { id: number; nombre: string }[] } }>(MARCAS_QUERY)
-      .then(res => setMarcas(res.marca.nodes.map(backendToMarca)))
-      .catch(() => {})
   }
 
   useEffect(() => {
     if (!isTokenReady) return
-    loadImportaciones()
-    loadProveedores()
-    loadProductos()
-    loadMarcas()
+    setLoading(true)
+    gql<{
+      importacion: { nodes: Parameters<typeof backendToImportacion>[0][] }
+      proveedor: { nodes: Parameters<typeof backendToProveedor>[0][] }
+      productos: { nodes: ProductoAPISimple[] }
+      marca: { nodes: { id: number; nombre: string; prefijo?: string }[] }
+      margenGanancia: MargenGananciaAPI | null
+    }>(IMPORTACIONES_INIT_QUERY)
+      .then(res => {
+        const mapped = res.importacion.nodes.map(backendToImportacion)
+        mapped.sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime())
+        setImportaciones(mapped)
+        setProveedores(res.proveedor.nodes.map(backendToProveedor))
+        setProductos(res.productos.nodes.map(backendToProductoSimple))
+        setMarcas(res.marca.nodes.map(backendToMarca))
+        if (res.margenGanancia?.valor) setMargenGanancia(res.margenGanancia.valor)
+      })
+      .catch(() => notify.error('Error cargando datos'))
+      .finally(() => setLoading(false))
   }, [isTokenReady])
 
   const handleSaveLocal = async (
@@ -472,18 +431,30 @@ export function ImportacionesPage() {
                 <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#780e18] to-[#D4A333] flex items-center justify-center shrink-0">
                   <i className="ti ti-package-import text-white text-[16px]" />
                 </div>
-                <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#F4ECDB] text-[#780e18]">
-                  <i className="ti ti-circle-check text-[10px]" />
-                  registradas
-                </span>
+                {loading
+                  ? <div className="h-5 w-20 rounded-full bg-[#F0EFEC] animate-pulse" />
+                  : <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#F4ECDB] text-[#780e18]">
+                      <i className="ti ti-circle-check text-[10px]" />
+                      registradas
+                    </span>
+                }
               </div>
-              <div
-                className="font-semibold text-[32px] text-[#2D2B2A] leading-none tracking-[-0.025em]"
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
-              >
-                {kpi.total.toLocaleString('es-BO')}
-              </div>
-              <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Total importaciones</div>
+              {loading ? (
+                <>
+                  <div className="h-8 w-24 rounded bg-[#F0EFEC] animate-pulse" />
+                  <div className="h-2.5 w-20 rounded bg-[#E8E5E2] animate-pulse mt-2" />
+                </>
+              ) : (
+                <>
+                  <div
+                    className="font-semibold text-[32px] text-[#2D2B2A] leading-none tracking-[-0.025em]"
+                    style={{ fontFamily: "'DM Sans', sans-serif" }}
+                  >
+                    {kpi.total.toLocaleString('es-BO')}
+                  </div>
+                  <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Total importaciones</div>
+                </>
+              )}
             </div>
 
             {/* Valor FOB total */}
@@ -493,19 +464,31 @@ export function ImportacionesPage() {
                 <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#3F7A52] to-[#6BAF80] flex items-center justify-center shrink-0">
                   <i className="ti ti-currency-dollar text-white text-[16px]" />
                 </div>
-                <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#B8DCCA] text-[#1E5C38]">
-                  <i className="ti ti-trending-up text-[10px]" />
-                  acumulado
-                </span>
+                {loading
+                  ? <div className="h-5 w-20 rounded-full bg-[#F0EFEC] animate-pulse" />
+                  : <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#B8DCCA] text-[#1E5C38]">
+                      <i className="ti ti-trending-up text-[10px]" />
+                      acumulado
+                    </span>
+                }
               </div>
-              <div
-                className="font-semibold text-[26px] text-[#2D2B2A] leading-none tracking-[-0.025em] flex items-baseline gap-1"
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
-              >
-                <span className="text-[13px] font-semibold text-[#3F7A52]">USD</span>
-                {kpi.valorTotal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </div>
-              <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Valor FOB total</div>
+              {loading ? (
+                <>
+                  <div className="h-8 w-24 rounded bg-[#F0EFEC] animate-pulse" />
+                  <div className="h-2.5 w-20 rounded bg-[#E8E5E2] animate-pulse mt-2" />
+                </>
+              ) : (
+                <>
+                  <div
+                    className="font-semibold text-[26px] text-[#2D2B2A] leading-none tracking-[-0.025em] flex items-baseline gap-1"
+                    style={{ fontFamily: "'DM Sans', sans-serif" }}
+                  >
+                    <span className="text-[13px] font-semibold text-[#3F7A52]">USD</span>
+                    {kpi.valorTotal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  </div>
+                  <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Valor FOB total</div>
+                </>
+              )}
             </div>
 
           </div>
@@ -541,7 +524,7 @@ export function ImportacionesPage() {
             {loading ? (
               <TableSkeleton />
             ) : importaciones.length === 0 || filteredCount === 0 ? (
-              <EmptyState onNew={() => setNuevaOpen(true)} />
+              <EmptyState onNew={() => setTipoOpen(true)} />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse table-fixed">
@@ -644,6 +627,7 @@ export function ImportacionesPage() {
         productos={productos}
         marcas={marcas}
         totalImportaciones={importaciones.length}
+        margenGanancia={margenGanancia}
       />
       <NuevaImportacionLocalModal
         open={localOpen}
@@ -653,6 +637,7 @@ export function ImportacionesPage() {
         productos={productos}
         marcas={marcas}
         totalImportaciones={importaciones.length}
+        margenGanancia={margenGanancia}
       />
       <ImportacionDetailModal
         open={!!detailImport}

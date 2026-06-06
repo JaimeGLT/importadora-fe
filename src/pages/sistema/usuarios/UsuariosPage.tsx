@@ -22,6 +22,7 @@ interface UsuarioAPI {
   activo: boolean
   bloqueadoHasta: string | null
   horario: HorarioAPI | null
+  porcentajeComision: number
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -208,6 +209,76 @@ function HorarioModal({ usuario, onClose, onSuccess }: {
               {deleting ? 'Eliminando…' : 'Eliminar horario recurrente'}
             </button>
           )}
+        </div>
+      </form>
+    </Drawer>
+  )
+}
+
+// ─── ComisionModal ────────────────────────────────────────────────────────────
+
+function ComisionModal({ usuario, onClose, onSuccess }: {
+  usuario: UsuarioAPI; onClose: () => void; onSuccess: (u: UsuarioAPI) => void
+}) {
+  const [porcentaje, setPorcentaje] = useState(String(usuario.porcentajeComision))
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const pct = parseFloat(porcentaje)
+    if (isNaN(pct) || pct < 0 || pct > 100) return
+    setSaving(true)
+    try {
+      await api.patch(`/Usuario/${usuario.id}/comision`, { porcentaje: pct })
+      notify.success('Comisión actualizada', {
+        description: `${usuario.nombre} ${usuario.apellido}: ${pct}% de comisión`,
+      })
+      onSuccess({ ...usuario, porcentajeComision: pct })
+      onClose()
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al guardar comisión')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Drawer onClose={onClose} width="sm:w-[380px]">
+      <DrawerHeader icon="ti ti-percentage" title="Comisión por ventas" subtitle={`${usuario.nombre} ${usuario.apellido}`} onClose={onClose} iconBg="#F0F9F4" iconColor="#3F7A52" />
+      <form onSubmit={handleSave} className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          <p className="text-[12px] text-[#7A7571]">
+            Porcentaje del total de ventas que corresponde a este cajero como comisión.
+          </p>
+          <div>
+            <label className="block text-xs font-semibold text-[#4A4744] mb-1.5">Porcentaje de comisión</label>
+            <div className="relative">
+              <input
+                type="number" min="0" max="100" step="0.01"
+                value={porcentaje}
+                onChange={e => setPorcentaje(e.target.value)}
+                required
+                className="w-full h-11 pl-3 pr-10 rounded-xl border border-[#E8E5E2] bg-white text-[#2D2B2A] text-sm focus:outline-none focus:border-[#3F7A52] focus:ring-2 focus:ring-[#3F7A52]/10 transition-all"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7A7571] text-sm font-semibold">%</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[#F0F9F4]/60 border border-[#C8E6D4]">
+            <i className="ti ti-info-circle text-[#3F7A52] text-[14px] shrink-0" />
+            <p className="text-[11px] text-[#2D5A3D]">El monto a pagar se calcula en el módulo Reportes → Comisiones.</p>
+          </div>
+        </div>
+        <div className="px-6 pb-6 pt-4 border-t border-[#E8E5E2] shrink-0">
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose} disabled={saving}
+              className="flex-1 h-11 rounded-xl border border-[#E8E5E2] text-sm font-medium text-[#4A4744] hover:bg-[#F0EFEC] transition-colors disabled:opacity-50">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex-1 h-11 rounded-xl bg-[#3F7A52] hover:bg-[#2D5A3D] text-white text-sm font-semibold active:scale-[0.98] transition-all disabled:opacity-50">
+              {saving ? 'Guardando…' : 'Guardar'}
+            </button>
+          </div>
         </div>
       </form>
     </Drawer>
@@ -646,6 +717,7 @@ export function UsuariosPage() {
   const [desactivandoTodos, setDesactivandoTodos] = useState(false)
   const [horarioUsuario, setHorarioUsuario] = useState<UsuarioAPI | null>(null)
   const [bloquearHastaUsuario, setBloquearHastaUsuario] = useState<UsuarioAPI | null>(null)
+  const [comisionUsuario, setComisionUsuario] = useState<UsuarioAPI | null>(null)
 
   const dateStr = useMemo(() => {
     return new Date().toLocaleDateString('es-BO', {
@@ -710,6 +782,10 @@ export function UsuariosPage() {
   }
 
   const handleBloquearHastaSuccess = (updated: UsuarioAPI) => {
+    setUsuarios(prev => prev.map(u => u.id === updated.id ? updated : u))
+  }
+
+  const handleComisionSuccess = (updated: UsuarioAPI) => {
     setUsuarios(prev => prev.map(u => u.id === updated.id ? updated : u))
   }
 
@@ -967,6 +1043,7 @@ export function UsuariosPage() {
                           onToggle={() => handleToggle(u)}
                           onHorario={() => setHorarioUsuario(u)}
                           onBloquearHasta={() => setBloquearHastaUsuario(u)}
+                          onComision={() => setComisionUsuario(u)}
                         />
                       ))}
                     </tbody>
@@ -984,6 +1061,7 @@ export function UsuariosPage() {
                       onToggle={() => handleToggle(u)}
                       onHorario={() => setHorarioUsuario(u)}
                       onBloquearHasta={() => setBloquearHastaUsuario(u)}
+                      onComision={() => setComisionUsuario(u)}
                     />
                   ))}
                 </div>
@@ -1016,6 +1094,14 @@ export function UsuariosPage() {
         />
       )}
 
+      {comisionUsuario && (
+        <ComisionModal
+          usuario={comisionUsuario}
+          onClose={() => setComisionUsuario(null)}
+          onSuccess={handleComisionSuccess}
+        />
+      )}
+
       {horarioUsuario && (
         <HorarioModal
           usuario={horarioUsuario}
@@ -1044,6 +1130,7 @@ interface RowProps {
   onToggle: () => void
   onHorario: () => void
   onBloquearHasta: () => void
+  onComision: () => void
 }
 
 function Toggle({ activo, toggling, onToggle, disabled }: { activo: boolean; toggling: boolean; onToggle: () => void; disabled: boolean }) {
@@ -1068,8 +1155,9 @@ function Toggle({ activo, toggling, onToggle, disabled }: { activo: boolean; tog
   )
 }
 
-function UsuarioRow({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloquearHasta }: RowProps) {
+function UsuarioRow({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloquearHasta, onComision }: RowProps) {
   const hasta = fmtBloqueo(u.bloqueadoHasta)
+  const esCajero = u.rol === 'Cajero'
   return (
     <tr
       className="border-t border-[#E8E5E2] hover:bg-[#FAF5EE] transition-colors"
@@ -1090,7 +1178,15 @@ function UsuarioRow({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloqu
         <p className="text-[12px] text-[#7A7571] truncate max-w-[200px]">{u.email}</p>
       </td>
       <td className="px-5 py-3.5">
-        <RolBadge rol={u.rol} />
+        <div className="flex items-center gap-2">
+          <RolBadge rol={u.rol} />
+          {esCajero && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#F0F9F4] text-[#3F7A52] border border-[#C8E6D4]">
+              <i className="ti ti-percentage text-[9px]" />
+              {u.porcentajeComision}%
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-5 py-3.5">
         <div className="flex items-center gap-2">
@@ -1107,6 +1203,15 @@ function UsuarioRow({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloqu
       </td>
       <td className="px-5 py-3.5">
         <div className="flex items-center gap-1 justify-end">
+          {esCajero && (
+            <button
+              onClick={onComision}
+              title="Editar comisión"
+              className="w-8 h-8 flex items-center justify-center rounded-[6px] transition-all border bg-[#F0F9F4] text-[#3F7A52] border-[#C8E6D4] hover:bg-[#C8E6D4]"
+            >
+              <i className="ti ti-percentage text-[14px]" />
+            </button>
+          )}
           <button
             onClick={onBloquearHasta}
             disabled={isSelf}
@@ -1138,8 +1243,9 @@ function UsuarioRow({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloqu
   )
 }
 
-function UsuarioCard({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloquearHasta }: RowProps) {
+function UsuarioCard({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloquearHasta, onComision }: RowProps) {
   const hasta = fmtBloqueo(u.bloqueadoHasta)
+  const esCajero = u.rol === 'Cajero'
   return (
     <div className="px-4 py-4" style={{ opacity: u.activo ? 1 : 0.65 }}>
       <div className="flex items-start justify-between gap-2 mb-3">
@@ -1153,7 +1259,15 @@ function UsuarioCard({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloq
             {isSelf && <span className="text-[10px] text-[#780e18] font-semibold">Tú</span>}
           </div>
         </div>
-        <RolBadge rol={u.rol} />
+        <div className="flex flex-col items-end gap-1">
+          <RolBadge rol={u.rol} />
+          {esCajero && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#F0F9F4] text-[#3F7A52] border border-[#C8E6D4]">
+              <i className="ti ti-percentage text-[9px]" />
+              {u.porcentajeComision}%
+            </span>
+          )}
+        </div>
       </div>
       <div className="flex items-center justify-between pt-3 border-t border-[#E8E5E2]">
         <div className="flex items-center gap-2">
@@ -1168,6 +1282,15 @@ function UsuarioCard({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloq
           </div>
         </div>
         <div className="flex items-center gap-1.5">
+          {esCajero && (
+            <button
+              onClick={onComision}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors border bg-[#F0F9F4] text-[#3F7A52] border-[#C8E6D4] hover:bg-[#C8E6D4]"
+            >
+              <i className="ti ti-percentage text-[12px]" />
+              Comisión
+            </button>
+          )}
           <button
             onClick={onBloquearHasta}
             disabled={isSelf}

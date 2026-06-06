@@ -114,9 +114,7 @@ export function ProveedoresPage() {
 
   const validateProveedor = (data: Omit<Proveedor, 'id' | 'creado_en' | 'actualizado_en'>): boolean => {
     if (!data.nombre.trim()) { notify.error('El nombre es requerido'); return false }
-    if (!data.pais.trim())   { notify.error('El país es requerido'); return false }
-    if (!data.contacto.trim()) { notify.error('El contacto es requerido'); return false }
-    if (!data.email.trim() || !/\S+@\S+\.\S+/.test(data.email)) {
+    if (data.email && !/\S+@\S+\.\S+/.test(data.email)) {
       notify.error('Email inválido')
       return false
     }
@@ -128,8 +126,8 @@ export function ProveedoresPage() {
       const matchSearch =
         !search ||
         p.nombre.toLowerCase().includes(search.toLowerCase()) ||
-        p.pais.toLowerCase().includes(search.toLowerCase()) ||
-        p.contacto.toLowerCase().includes(search.toLowerCase())
+        (p.pais?.toLowerCase() ?? '').includes(search.toLowerCase()) ||
+        (p.contacto?.toLowerCase() ?? '').includes(search.toLowerCase())
       const matchEstado = !filterEstado || p.estado === filterEstado
       return matchSearch && matchEstado
     })
@@ -211,6 +209,7 @@ export function ProveedoresPage() {
               badgeIcon="ti ti-circle-check"
               badgeBg="#B8DCCA"
               badgeColor="#1E5C38"
+              loading={loading}
             />
             <KpiCard
               label="Total registrados"
@@ -220,6 +219,7 @@ export function ProveedoresPage() {
               badgeIcon="ti ti-database"
               badgeBg="#EDE8E3"
               badgeColor="#4A4744"
+              loading={loading}
             />
           </div>
 
@@ -479,9 +479,10 @@ interface KpiCardProps {
   badgeIcon: string
   badgeBg: string
   badgeColor: string
+  loading?: boolean
 }
 
-function KpiCard({ label, value, iconClass, badgeText, badgeIcon, badgeBg, badgeColor }: KpiCardProps) {
+function KpiCard({ label, value, iconClass, badgeText, badgeIcon, badgeBg, badgeColor, loading }: KpiCardProps) {
   return (
     <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#780e18] p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
       <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-[#780e18] opacity-[0.08]" />
@@ -489,23 +490,35 @@ function KpiCard({ label, value, iconClass, badgeText, badgeIcon, badgeBg, badge
         <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#780e18] to-[#D4A333] flex items-center justify-center shrink-0">
           <i className={`${iconClass} text-white text-[16px]`} />
         </div>
-        <span
-          className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full"
-          style={{ background: badgeBg, color: badgeColor }}
-        >
-          <i className={`${badgeIcon} text-[10px]`} />
-          {badgeText}
-        </span>
+        {loading
+          ? <div className="h-5 w-20 rounded-full bg-[#F0EFEC] animate-pulse" />
+          : <span
+              className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full"
+              style={{ background: badgeBg, color: badgeColor }}
+            >
+              <i className={`${badgeIcon} text-[10px]`} />
+              {badgeText}
+            </span>
+        }
       </div>
-      <div
-        className="font-semibold text-[32px] text-[#2D2B2A]"
-        style={{ fontFamily: "'DM Sans', sans-serif" }}
-      >
-        {typeof value === 'number' ? value.toLocaleString('es-BO') : value}
-      </div>
-      <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">
-        {label}
-      </div>
+      {loading ? (
+        <>
+          <div className="h-8 w-24 rounded bg-[#F0EFEC] animate-pulse" />
+          <div className="h-2.5 w-20 rounded bg-[#E8E5E2] animate-pulse mt-2" />
+        </>
+      ) : (
+        <>
+          <div
+            className="font-semibold text-[32px] text-[#2D2B2A]"
+            style={{ fontFamily: "'DM Sans', sans-serif" }}
+          >
+            {typeof value === 'number' ? value.toLocaleString('es-BO') : value}
+          </div>
+          <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">
+            {label}
+          </div>
+        </>
+      )}
     </div>
   )
 }

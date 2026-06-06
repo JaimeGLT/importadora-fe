@@ -45,6 +45,10 @@ function mapToUser(data: ApiUserResponse): Usuario | null {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+// Dedup the initial refresh so StrictMode's double-mount doesn't fire two requests
+// with the same token (backend revokes on first call, second would fail)
+let initialRefreshPromise: Promise<ApiUserResponse | null> | null = null
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Usuario | null>(null)
   const [isTokenReady, setIsTokenReady] = useState(false)
@@ -52,14 +56,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setAuthCallbacks(refreshSession, logout)
     initGqlCallbacks(refreshSession, logout)
-    apiInternal.post<ApiUserResponse>('/Auth/refresh')
-      .then((data) => {
+
+    if (!initialRefreshPromise) {
+      initialRefreshPromise = apiInternal.post<ApiUserResponse>('/Auth/refresh')
+        .catch(() => null)
+        .finally(() => { initialRefreshPromise = null })
+    }
+
+    initialRefreshPromise.then((data) => {
+      if (data) {
         const u = mapToUser(data)
         if (u) setUser(u)
-      })
-      .catch(() => {
-      })
-      .finally(() => setIsTokenReady(true))
+      }
+    }).finally(() => setIsTokenReady(true))
+
     return () => { clearAuthCallbacks(); clearGqlCallbacks() }
   }, [])
 

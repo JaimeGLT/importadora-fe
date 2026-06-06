@@ -1,13 +1,12 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useState, useMemo, useRef, useCallback } from 'react'
 import type * as XLSXType from 'xlsx'
 import { Modal, Button, Input, ExcelColumnMapper, BrandSelect, ProveedorSelect } from '@/components/ui'
 import type { Importacion, ItemImportacion, Producto, Proveedor, Marca } from '@/types'
 import { imprimirLote } from '@/lib/printLabel'
 import { clsx } from 'clsx'
 import { notify } from '@/lib/notify'
-import { gql } from '@/lib/graphql'
-import { MARGEN_GANANCIA_QUERY, type MargenGananciaAPI } from '@/lib/queries/config.queries'
-import { useMarcasStore } from '@/stores/marcasStore'
+import { api } from '@/lib/api'
+import { backendToMarca } from '@/lib/queries/marcas.queries'
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
@@ -77,6 +76,7 @@ const SYSTEM_FIELDS: SystemField[] = [
   { key: 'nombre',           label: 'Nombre',               required: false },
   { key: 'descripcion',      label: 'Descripción',          required: false },
   { key: 'procedencia',      label: 'Procedencia',          required: false, hint: 'País o región de origen' },
+  { key: 'marca',            label: 'Marca',                required: false, hint: 'Marca por producto (sobreescribe la marca global)' },
   { key: 'stock',            label: 'Cantidad',              required: true,  hint: 'Unidades que ingresan al lote' },
   { key: 'precio_costo',     label: 'Precio FOB (USD)',      required: true,  hint: 'Precio unitario al proveedor en dólares' },
 ]
@@ -144,6 +144,7 @@ function calcItems(
   piezasMapeado: boolean,
   marcaDefault: number | null,
   margenBd: number,
+  marcas: import('@/types').Marca[],
 ): DraftItem[] {
   const total_fob_bs = rawItems.reduce(
     (s, i) => s + i.precio_fob_usd * datos.tipo_cambio * i.cantidad, 0,
@@ -168,10 +169,15 @@ function calcItems(
     const precio_venta_final =
       raw.precio_venta_manual > 0 ? raw.precio_venta_manual : precio_venta_sugerido
 
+    const marcaExcel = raw.marca
+      ? marcas.find((m) => m.nombre.toLowerCase() === raw.marca.toLowerCase())?.id ?? null
+      : null
+    const resolvedMarcaId = marcaExcel ?? marcaDefault ?? null
+
     const match = productos.find(
       (p) =>
         raw.codigo_universal.toLowerCase() === p.codigo_universal.toLowerCase() &&
-        (p.marcaId ?? null) === (marcaDefault ?? null),
+        (p.marcaId ?? null) === (resolvedMarcaId ?? null),
     )
 
     return {
@@ -179,7 +185,7 @@ function calcItems(
       codigo_proveedor:     raw.codigo_universal,
       codigos_adicionales:  raw.codigos_adicionales,
       nombre:               raw.nombre,
-      marcaId:              marcaDefault ?? null,
+      marcaId:              resolvedMarcaId,
       descripcion:          raw.descripcion,
       procedencia:          raw.procedencia,
       ubicacion:            raw.ubicacion,
@@ -279,26 +285,16 @@ interface Props {
   productos: Producto[]
   marcas: Marca[]
   totalImportaciones: number
+  margenGanancia: number
 }
 
 export function NuevaImportacionModal({
-  open, onClose, onSave, proveedores, productos, marcas, totalImportaciones,
+  open, onClose, onSave, proveedores, productos, marcas, totalImportaciones, margenGanancia,
 }: Props) {
   // ── Estado ────────────────────────────────────────────────────────────────
   const [step, setStep] = useState<ImportStep>('upload')
-  const [margenBd, setMargenBd] = useState<number>(MARGEN_FALLBACK)
-  const [margenGlobal, setMargenGlobal] = useState<number>(MARGEN_FALLBACK)
-
-  useEffect(() => {
-    gql<{ margenGanancia: MargenGananciaAPI }>(MARGEN_GANANCIA_QUERY)
-      .then(r => {
-        if (r.margenGanancia?.valor) {
-          setMargenBd(r.margenGanancia.valor)
-          setMargenGlobal(r.margenGanancia.valor)
-        }
-      })
-      .catch(() => {})
-  }, [])
+  const [margenBd, setMargenBd] = useState<number>(margenGanancia)
+  const [margenGlobal, setMargenGlobal] = useState<number>(margenGanancia)
 
   // Excel
   const [columns, setColumns]   = useState<string[]>([])
@@ -331,8 +327,13 @@ export function NuevaImportacionModal({
   // Proveedores creados inline durante este flujo
   const [extraProveedores, setExtraProveedores] = useState<Proveedor[]>([])
 
+  // Marcas creadas inline durante este flujo
+  const [extraMarcas, setExtraMarcas] = useState<Marca[]>([])
+  const allMarcas = useMemo(() => [...marcas, ...extraMarcas], [marcas, extraMarcas])
+
   // Guardando
   const [saving, setSaving] = useState(false)
+  const [creatingMarcas, setCreatingMarcas] = useState(false)
   const [successOpen, setSuccessOpen] = useState(false)
   const [successData, setSuccessData] = useState<{ numero: string; totalProductos: number; fobTotal: number; items: DraftItem[] } | null>(null)
 
@@ -345,7 +346,9 @@ export function NuevaImportacionModal({
     setMargenBd(margenGlobal)
     setItems([])
     setExtraProveedores([])
+    setExtraMarcas([])
     setSaving(false)
+    setCreatingMarcas(false)
   }, [margenGlobal])
 
   const handleClose = () => { reset(); onClose() }
@@ -408,10 +411,31 @@ export function NuevaImportacionModal({
     .filter((f) => f.required)
     .every((f) => (mappings[f.key]?.columns.length ?? 0) > 0)
 
-  const handleGoToDatos = () => {
+  const handleGoToDatos = async () => {
     const raw = buildRawItems(rows, mappings)
     if (!raw.length) { notify.error('No se encontraron filas válidas'); return }
     setRawItems(raw)
+
+    if (mappings['marca']) {
+      setCreatingMarcas(true)
+      try {
+        const uniqueNames = [...new Set(raw.map(r => r.marca).filter(Boolean))] as string[]
+        const newMarcas: Marca[] = []
+        for (const nombre of uniqueNames) {
+          const exists = allMarcas.some(m => m.nombre.toLowerCase() === nombre.toLowerCase())
+          if (!exists) {
+            try {
+              const res = await api.post<{ id: number; nombre: string }>('/marca', { nombre })
+              newMarcas.push(backendToMarca({ id: res.id, nombre: res.nombre }))
+            } catch { /* continuar aunque falle una marca individual */ }
+          }
+        }
+        if (newMarcas.length) setExtraMarcas(prev => [...prev, ...newMarcas])
+      } finally {
+        setCreatingMarcas(false)
+      }
+    }
+
     setStep('datos')
   }
 
@@ -438,11 +462,15 @@ export function NuevaImportacionModal({
     if (!validarDatos()) return
     const resolved = getResolvedAmounts(datos, rawItems)
     const piezasMapeado = (mappings['piezas']?.columns.length ?? 0) > 0
-    setItems(calcItems(rawItems, resolved, productos, piezasMapeado, datos.marca_id, margenBd))
+    setItems(calcItems(rawItems, resolved, productos, piezasMapeado, datos.marca_id, margenBd, allMarcas))
     setStep('preview')
   }
 
   // ── Step 4: preview ───────────────────────────────────────────────────────
+  const updateMarcaItem = (index: number, marcaId: number | null) => {
+    setItems((prev) => prev.map((it) => it._index === index ? { ...it, marcaId } : it))
+  }
+
   const updateProcedencia = (index: number, val: string) => {
     setItems((prev) => prev.map((it) => it._index === index ? { ...it, procedencia: val } : it))
   }
@@ -539,12 +567,13 @@ export function NuevaImportacionModal({
           <ModalFooter
             step={step}
             saving={saving}
+            creatingMarcas={creatingMarcas}
             hasFile={columns.length > 0}
             requiredMapped={requiredMapped}
             hasItems={items.length > 0}
             onBack={handleBack}
             onNext={() => {
-              if (step === 'mapear')    handleGoToDatos()
+              if (step === 'mapear')    void handleGoToDatos()
               if (step === 'datos')     handleGoToPreview()
               if (step === 'preview')   setStep('confirmar')
               if (step === 'confirmar') void handleConfirmar()
@@ -605,7 +634,9 @@ export function NuevaImportacionModal({
           onPrecioChange={updatePrecioFinal}
           onPrecioEleccion={updatePrecioEleccion}
           onProcedenciaChange={updateProcedencia}
+          onMarcaChange={updateMarcaItem}
           productos={productos}
+          marcas={allMarcas}
         />
       )}
 
@@ -639,7 +670,7 @@ export function NuevaImportacionModal({
           totalProductos={successData.totalProductos}
           fobTotal={successData.fobTotal}
           items={successData.items}
-          marcas={marcas}
+          marcas={allMarcas}
         />
       )}
     </>
@@ -1059,23 +1090,32 @@ function StepDatos({
 }
 
 function StepPreview({
-  items, tc, onPrecioChange, onPrecioEleccion, onProcedenciaChange, productos,
+  items, tc, onPrecioChange, onPrecioEleccion, onProcedenciaChange, onMarcaChange, productos, marcas,
 }: {
   items: DraftItem[]
   tc: number
   onPrecioChange: (index: number, val: string) => void
   onPrecioEleccion: (index: number, usarNuevo: boolean) => void
   onProcedenciaChange: (index: number, val: string) => void
+  onMarcaChange: (index: number, marcaId: number | null) => void
   productos: Producto[]
+  marcas: Marca[]
 }) {
-  const { marcas } = useMarcasStore()
   const fobTotal   = items.reduce((s, i) => s + i.precio_fob_usd * i.cantidad, 0)
   const nuevos     = items.filter((i) => i.es_nuevo).length
   const existentes = items.filter((i) => !i.es_nuevo).length
   const [openHistorial, setOpenHistorial] = useState<number | null>(null)
+  const [marcaOverrides, setMarcaOverrides] = useState<Record<number, number | null>>(
+    () => Object.fromEntries(items.map(i => [i._index, i.marcaId ?? null]))
+  )
 
   const toggleHistorial = (index: number) =>
     setOpenHistorial((prev) => (prev === index ? null : index))
+
+  const handleMarcaChange = (index: number, marcaId: number | null) => {
+    setMarcaOverrides(prev => ({ ...prev, [index]: marcaId }))
+    onMarcaChange(index, marcaId)
+  }
 
   return (
     <div className="space-y-3">
@@ -1172,9 +1212,16 @@ function StepPreview({
                     </td>
 
                     <td className="px-3 py-2.5">
-                      <span className="text-[11px] text-steel-500">
-                        {item.marcaId ? (marcas.find((m) => m.id === item.marcaId)?.nombre ?? '—') : '—'}
-                      </span>
+                      <select
+                        value={String(marcaOverrides[item._index] ?? '')}
+                        onChange={(e) => handleMarcaChange(item._index, e.target.value ? Number(e.target.value) : null)}
+                        className="text-[11px] border border-steel-200 rounded px-1.5 py-0.5 bg-white text-steel-700 focus:outline-none focus:ring-1 focus:ring-brand-400 max-w-[130px] w-full"
+                      >
+                        <option value="">— sin marca —</option>
+                        {marcas.map((m) => (
+                          <option key={m.id} value={String(m.id)}>{m.nombre}</option>
+                        ))}
+                      </select>
                     </td>
 
                     <td className="px-3 py-2.5 text-right tabular-nums">
@@ -1485,10 +1532,11 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
 }
 
 function ModalFooter({
-  step, saving, hasFile, requiredMapped, hasItems, onBack, onNext, onClose,
+  step, saving, creatingMarcas, hasFile, requiredMapped, hasItems, onBack, onNext, onClose,
 }: {
   step: ImportStep
   saving: boolean
+  creatingMarcas: boolean
   hasFile: boolean
   requiredMapped: boolean
   hasItems: boolean
@@ -1515,18 +1563,18 @@ function ModalFooter({
   return (
     <>
       {!isFirst && (
-        <Button variant="ghost" onClick={onBack} disabled={saving}>
+        <Button variant="ghost" onClick={onBack} disabled={saving || creatingMarcas}>
           Atrás
         </Button>
       )}
-      <Button variant="secondary" onClick={onClose} disabled={saving}>
+      <Button variant="secondary" onClick={onClose} disabled={saving || creatingMarcas}>
         Cancelar
       </Button>
       {step !== 'upload' && (
         <Button
           onClick={onNext}
-          loading={saving && isLast}
-          disabled={nextDisabled}
+          loading={(saving && isLast) || creatingMarcas}
+          disabled={nextDisabled || creatingMarcas}
         >
           {nextLabel[step]}
         </Button>

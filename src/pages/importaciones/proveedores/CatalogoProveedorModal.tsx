@@ -30,6 +30,7 @@ const COLS = [
   { key: 'cod_alt_1',               label: 'Cód. Alt. 1',    w: 110 },
   { key: 'cod_alt_2',               label: 'Cód. Alt. 2',    w: 110 },
   { key: 'marca',                   label: 'Marca',           w: 100 },
+  { key: 'procedencia',             label: 'Procedencia',     w: 110 },
   { key: 'descripcion',             label: 'Descripción',     w: 160 },
   { key: 'cantidad',                label: 'Cant.',           w: 70  },
   { key: 'costo_unitario_total_bs', label: 'Costo Bs',        w: 100 },
@@ -86,6 +87,9 @@ function ProductosTable({ items, tipoCambio }: { items: ItemImportacion[]; tipoC
               </td>
               <td style={{ padding: '10px 12px', borderBottom: '1px solid #E8E5E2', borderRight: '1px solid #E8E5E2' }}>
                 <span className="text-[#4A4744]">{item.marca ?? '—'}</span>
+              </td>
+              <td style={{ padding: '10px 12px', borderBottom: '1px solid #E8E5E2', borderRight: '1px solid #E8E5E2' }}>
+                <span className="text-[12px] text-[#4A4744]">{item.procedencia || '—'}</span>
               </td>
               <td style={{ padding: '10px 12px', borderBottom: '1px solid #E8E5E2', borderRight: '1px solid #E8E5E2', maxWidth: 160 }}>
                 <span className="text-[#7A7571] truncate block">{item.descripcion ?? '—'}</span>

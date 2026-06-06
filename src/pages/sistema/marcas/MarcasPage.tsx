@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { useMarcasStore } from '@/stores/marcasStore'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { ConfirmModal } from '@/components/ui'
 import type { Marca } from '@/types'
@@ -13,7 +12,7 @@ import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
 export function MarcasPage() {
   const { user } = useAuth()
   const { isTokenReady } = useAuth()
-  const { marcas, setMarcas, addMarca, updateMarca, removeMarca } = useMarcasStore()
+  const [marcas, setMarcas] = useState<Marca[]>([])
   const [search, setSearch] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [editingMarca, setEditingMarca] = useState<Marca | null>(null)
@@ -57,11 +56,11 @@ export function MarcasPage() {
     try {
       if (editingMarca) {
         await api.put(`/marca/${editingMarca.id}`, { nombre })
-        updateMarca(editingMarca.id, nombre)
+        setMarcas(prev => prev.map(m => m.id === editingMarca.id ? { ...m, nombre } : m))
         notify.success('Marca actualizada')
       } else {
         const res = await api.post<{ id: number; nombre: string; prefijo: string }>('/marca', { nombre })
-        addMarca(backendToMarca({ id: res.id, nombre: res.nombre, prefijo: res.prefijo }))
+        setMarcas(prev => [...prev, backendToMarca({ id: res.id, nombre: res.nombre, prefijo: res.prefijo })].sort((a, b) => a.nombre.localeCompare(b.nombre)))
         notify.success('Marca creada')
       }
       setFormOpen(false)
@@ -78,7 +77,7 @@ export function MarcasPage() {
     if (!deleteTarget) return
     try {
       await api.delete(`/marca/${deleteTarget.id}`)
-      removeMarca(deleteTarget.id)
+      setMarcas(prev => prev.filter(m => m.id !== deleteTarget.id))
       notify.success('Marca eliminada')
     } catch (err) {
       notify.error(err instanceof Error ? err.message : 'Error al eliminar la marca')

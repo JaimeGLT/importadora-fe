@@ -5,7 +5,7 @@ import { notify } from '@/lib/notify'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
 import {
-  PRODUCTOS_QUERY,
+  PRODUCTOS_CON_MARCAS_QUERY,
   PRODUCTO_BY_ID_QUERY,
   backendToProductoSimple,
   backendToProducto,
@@ -18,7 +18,7 @@ import {
   type AjusteStockAPI,
   type AjusteStockRow,
 } from '@/lib/queries/ajustes.queries'
-import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
+import { backendToMarca } from '@/lib/queries/marcas.queries'
 import type { Producto, PiezaKit, Marca } from '@/types'
 import { clsx } from 'clsx'
 
@@ -130,6 +130,23 @@ function HistorialSkeleton() {
           <div className="h-6 w-12 rounded-full bg-[#F0EFEC]" />
           <div className="h-2.5 w-24 rounded bg-[#F0EFEC]" />
           <div className="h-2.5 w-20 rounded bg-[#F0EFEC]" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function KpiSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-[14px] mb-[22px]">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="bg-white rounded-xl border border-[#D0CBC4] p-[18px] animate-pulse">
+          <div className="flex items-start justify-between mb-[14px]">
+            <div className="w-9 h-9 rounded-lg bg-[#F0EFEC]" />
+            <div className="h-5 w-20 rounded-full bg-[#F0EFEC]" />
+          </div>
+          <div className="h-8 w-16 rounded bg-[#F0EFEC] mb-2" />
+          <div className="h-2.5 w-28 rounded bg-[#E8E5E2]" />
         </div>
       ))}
     </div>
@@ -576,7 +593,7 @@ function fmtFecha(d: Date) {
     ' ' + d.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })
 }
 
-function HistorialTab() {
+function HistorialTab({ refreshKey }: { refreshKey: number }) {
   const [historial, setHistorial] = useState<AjusteStockRow[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(0)
@@ -598,7 +615,10 @@ function HistorialTab() {
         { motivo: { contains: q } },
       ],
     } : undefined
-    gql<{ ajustesStock: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: AjusteStockAPI[] } }>(
+    gql<{
+      ajustesStock: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: AjusteStockAPI[] }
+      marca: { nodes: { id: number; nombre: string; prefijo?: string }[] }
+    }>(
       AJUSTES_HISTORIAL_QUERY,
       { first: size, after: cursors.current[targetPage] ?? null, where, order: [{ fecha: 'DESC' }] },
     )
@@ -609,6 +629,7 @@ function HistorialTab() {
         setHasNext(pageInfo.hasNextPage)
         cursors.current[targetPage + 1] = pageInfo.endCursor
         setPage(targetPage)
+        setMarcas(res.marca.nodes.map(backendToMarca))
       })
       .catch(() => notify.error('Error cargando historial'))
       .finally(() => setLoading(false))
@@ -616,10 +637,14 @@ function HistorialTab() {
 
   useEffect(() => {
     loadHistorial(0, pageSize)
-    gql<{ marca: { nodes: { id: number; nombre: string; prefijo?: string }[] } }>(MARCAS_QUERY)
-      .then(r => setMarcas(r.marca.nodes.map(backendToMarca)))
-      .catch(() => {})
   }, [loadHistorial, pageSize])
+
+  useEffect(() => {
+    if (refreshKey === 0) return
+    cursors.current = [null]
+    setPage(0)
+    loadHistorial(0, pageSize, search)
+  }, [refreshKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSearch = (val: string) => {
     setSearch(val)
@@ -744,6 +769,8 @@ function HistorialTab() {
 
 export function AjustesPage() {
   const [activeTab, setActiveTab] = useState<'ajustes' | 'historial'>('ajustes')
+  const [historialTouched, setHistorialTouched] = useState(false)
+  const [historialRefreshKey, setHistorialRefreshKey] = useState(0)
   const [productos, setProductos] = useState<Producto[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -783,8 +810,11 @@ export function AjustesPage() {
     const conditions: object[] = [{ activo: { eq: true } }]
     if (currentFiltro === 'kits') conditions.push({ esKit: { eq: true } })
     const where = conditions.length === 1 ? conditions[0] : { and: conditions }
-    gql<{ productos: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: ProductoAPI[] } }>(
-      PRODUCTOS_QUERY,
+    gql<{
+      productos: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: ProductoAPI[] }
+      marca: { nodes: { id: number; nombre: string; prefijo?: string }[] }
+    }>(
+      PRODUCTOS_CON_MARCAS_QUERY,
       { first: size, after: cursors.current[targetPage] ?? null, where },
     )
       .then(res => {
@@ -794,6 +824,7 @@ export function AjustesPage() {
         setHasNextPage(pageInfo.hasNextPage)
         cursors.current[targetPage + 1] = pageInfo.endCursor
         setPage(targetPage)
+        setMarcas(res.marca.nodes.map(backendToMarca))
       })
       .catch(() => notify.error('Error cargando productos'))
       .finally(() => setLoading(false))
@@ -817,9 +848,6 @@ export function AjustesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadProductos(0, pageSize)
-    gql<{ marca: { nodes: { id: number; nombre: string; prefijo?: string }[] } }>(MARCAS_QUERY)
-      .then(r => setMarcas(r.marca.nodes.map(backendToMarca)))
-      .catch(() => {})
   }, [loadProductos])
 
   const displayed = useMemo(
@@ -833,6 +861,7 @@ export function AjustesPage() {
     } else {
       loadProductos(page, pageSize, search, filtro)
     }
+    setHistorialRefreshKey(k => k + 1)
   }
 
   const kpi = useMemo(() => ({
@@ -888,7 +917,7 @@ export function AjustesPage() {
             {(['ajustes', 'historial'] as const).map(t => (
               <button
                 key={t}
-                onClick={() => setActiveTab(t)}
+                onClick={() => { setActiveTab(t); if (t === 'historial') setHistorialTouched(true) }}
                 className={clsx(
                   'px-5 py-2 rounded-lg text-sm font-semibold transition-all',
                   activeTab === t
@@ -901,12 +930,16 @@ export function AjustesPage() {
             ))}
           </div>
 
-          {activeTab === 'historial' && <HistorialTab />}
+          {historialTouched && (
+            <div className={activeTab !== 'historial' ? 'hidden' : ''}>
+              <HistorialTab refreshKey={historialRefreshKey} />
+            </div>
+          )}
 
           {activeTab === 'ajustes' && (
             <>
               {/* ── KPI Cards ── */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-[14px] mb-[22px]">
+              {loading ? <KpiSkeleton /> : <div className="grid grid-cols-1 md:grid-cols-3 gap-[14px] mb-[22px]">
 
                 <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#780e18] p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
                   <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-[#780e18] opacity-[0.08]" />
@@ -967,7 +1000,7 @@ export function AjustesPage() {
                   <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Kits en inventario</div>
                 </div>
 
-              </div>
+              </div>}
 
               {/* ── Table Container ── */}
               <div className="bg-white rounded-xl border border-[#D0CBC4] overflow-hidden">

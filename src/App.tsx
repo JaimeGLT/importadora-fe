@@ -22,6 +22,7 @@ const AlertasPage            = lazy(() => import('@/pages/alertas/AlertasPage').
 const VentasReportePage      = lazy(() => import('@/pages/reportes/VentasReportePage').then(m => ({ default: m.VentasReportePage })))
 const InventarioReportePage  = lazy(() => import('@/pages/reportes/InventarioReportePage').then(m => ({ default: m.InventarioReportePage })))
 const OrdenesReportePage     = lazy(() => import('@/pages/reportes/OrdenesReportePage').then(m => ({ default: m.OrdenesReportePage })))
+const ComisionesPage         = lazy(() => import('@/pages/reportes/ComisionesPage').then(m => ({ default: m.ComisionesPage })))
 const ConfiguracionPage      = lazy(() => import('@/pages/config/ConfiguracionPage').then(m => ({ default: m.ConfiguracionPage })))
 const UsuariosPage           = lazy(() => import('@/pages/sistema/usuarios/UsuariosPage').then(m => ({ default: m.UsuariosPage })))
 const MarcasPage             = lazy(() => import('@/pages/sistema/marcas/MarcasPage').then(m => ({ default: m.MarcasPage })))
@@ -69,6 +70,7 @@ export default function App() {
               <Route path="/reportes/ventas" element={<VentasReportePage />} />
               <Route path="/reportes/inventario" element={<InventarioReportePage />} />
               <Route path="/reportes/ordenes" element={<OrdenesReportePage />} />
+              <Route path="/reportes/comisiones" element={<ComisionesPage />} />
               <Route path="/inventario" element={<InventarioPage />} />
               <Route path="/inventario/prestamos" element={<PrestamosPage />} />
               <Route path="/importaciones" element={<ImportacionesPage />} />

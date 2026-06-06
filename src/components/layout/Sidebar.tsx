@@ -60,9 +60,10 @@ const groups: NavGroup[] = [
     icon: <i className="ti ti-chart-bar text-[16px] shrink-0" />,
     roles: ['admin'],
     items: [
-      { label: 'Ventas',     to: '/reportes/ventas',     roles: ['admin'] },
-      { label: 'Inventario', to: '/reportes/inventario', roles: ['admin'] },
-      { label: 'Órdenes',    to: '/reportes/ordenes',    roles: ['admin'] },
+      { label: 'Ventas',      to: '/reportes/ventas',      roles: ['admin'] },
+      { label: 'Inventario',  to: '/reportes/inventario',  roles: ['admin'] },
+      { label: 'Órdenes',     to: '/reportes/ordenes',     roles: ['admin'] },
+      { label: 'Comisiones',  to: '/reportes/comisiones',  roles: ['admin'] },
     ],
   },
   {

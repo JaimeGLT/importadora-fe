@@ -104,10 +104,6 @@ export function ProveedorSelect({
   const validate = (): boolean => {
     const e: Partial<Record<keyof Form, string>> = {}
     if (!form.nombre.trim()) e.nombre = 'Requerido'
-    if (!form.pais.trim())   e.pais   = 'Requerido'
-    if (!form.contacto.trim()) e.contacto = 'Requerido'
-    if (!form.email.trim()) e.email = 'Requerido'
-    else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = 'Email inválido'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -121,8 +117,8 @@ export function ProveedorSelect({
         pais: form.pais.trim(),
         moneda: form.moneda,
         terminos: form.terminos_pago,
-        nombre_Contacto: form.contacto.trim(),
-        email: form.email.trim(),
+        nombre_Contacto: form.contacto.trim() || null,
+        email: form.email.trim() || null,
         telefono: '',
         tiempoReposicion: 0,
         sitioWeb: '',
@@ -250,7 +246,7 @@ export function ProveedorSelect({
             </div>
             <div>
               <label className="block text-[11px] font-semibold text-steel-500 uppercase tracking-wide mb-1">
-                País <span className="text-red-500">*</span>
+                País
               </label>
               <Input value={form.pais} onChange={setField('pais')} placeholder="Ej. China" />
               {errors.pais && <p className="text-[11px] text-red-500 mt-1">{errors.pais}</p>}
@@ -260,7 +256,7 @@ export function ProveedorSelect({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-semibold text-steel-500 uppercase tracking-wide mb-1">
-                Moneda <span className="text-red-500">*</span>
+                Moneda
               </label>
               <Select
                 value={form.moneda}
@@ -270,7 +266,7 @@ export function ProveedorSelect({
             </div>
             <div>
               <label className="block text-[11px] font-semibold text-steel-500 uppercase tracking-wide mb-1">
-                Términos de pago <span className="text-red-500">*</span>
+                Términos de pago
               </label>
               <Select
                 value={form.terminos_pago}
@@ -283,14 +279,14 @@ export function ProveedorSelect({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-semibold text-steel-500 uppercase tracking-wide mb-1">
-                Contacto <span className="text-red-500">*</span>
+                Contacto
               </label>
               <Input value={form.contacto} onChange={setField('contacto')} placeholder="Nombre del contacto" />
               {errors.contacto && <p className="text-[11px] text-red-500 mt-1">{errors.contacto}</p>}
             </div>
             <div>
               <label className="block text-[11px] font-semibold text-steel-500 uppercase tracking-wide mb-1">
-                Email <span className="text-red-500">*</span>
+                Email
               </label>
               <Input value={form.email} onChange={setField('email')} placeholder="correo@proveedor.com" type="email" />
               {errors.email && <p className="text-[11px] text-red-500 mt-1">{errors.email}</p>}

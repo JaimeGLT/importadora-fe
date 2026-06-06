@@ -6,6 +6,7 @@ import type { DtoPiezaKit, KitOps, PieceOp } from '@/lib/queries/inventario.quer
 import { KitPartsSection } from './KitPartsSection'
 import { useConfigStore, calcularPrecioConDescuento } from '@/stores/configStore'
 import { clsx } from 'clsx'
+import { notify } from '@/lib/notify'
 
 export interface PriceUpdate {
   costo: number | null
@@ -22,6 +23,7 @@ interface ProductoModalProps {
   producto: Producto | null
   loading?: boolean
   productosExistentes?: Producto[]
+  marcas?: import('@/types').Marca[]
 }
 
 type FormData = Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>
@@ -117,11 +119,11 @@ function PreciosEspecialesSection({ precioVenta }: { precioVenta: number }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function ProductoModal({
-  open, onClose, onSave, onDelete, producto, loading, productosExistentes = [],
+  open, onClose, onSave, onDelete, producto, loading, productosExistentes = [], marcas,
 }: ProductoModalProps) {
   const [form, setForm]       = useState<FormData>(EMPTY)
   const [tipoCambio, setTipoCambio] = useState('6.96')
-  const [errors, setErrors]   = useState<Partial<Record<keyof FormData | 'tipo_cambio', string>>>({})
+  const [errors, setErrors]   = useState<Partial<Record<keyof FormData | 'tipo_cambio' | 'kit_piezas', string>>>({})
   const [saving, setSaving]   = useState(false)
   const [historialOpen, setHistorialOpen] = useState(false)
   const [actualizarPrecio, setActualizarPrecio] = useState(false)
@@ -207,6 +209,11 @@ export function ProductoModal({
     }
     if (!producto && form.precio_costo <= 0) {
       e.precio_costo = 'El precio costo debe ser mayor a 0'
+    }
+    const isConvertingToKit = form.es_kit && !(producto?.es_kit ?? false)
+    if (isConvertingToKit && kitPieces.length === 0) {
+      e.kit_piezas = 'Debes agregar al menos una pieza al kit'
+      notify.error('Debes agregar al menos una pieza al kit')
     }
     setErrors(e)
     return Object.keys(e).length === 0
@@ -385,6 +392,7 @@ export function ProductoModal({
                 label="Marca"
                 value={form.marcaId ?? null}
                 onChange={(id) => set('marcaId', id)}
+                marcas={marcas}
                 placeholder="Seleccionar marca…"
               />
               <WarmInput

@@ -18,7 +18,7 @@ import { EtiquetaModal } from './EtiquetaModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import {
-  PRODUCTOS_CON_MARCAS_QUERY,
+  PRODUCTOS_QUERY,
   PRODUCTOS_ALL_QUERY,
   PRODUCTO_BY_ID_QUERY,
   backendToProducto,
@@ -30,7 +30,7 @@ import {
   type ProductoAPISimple,
   type KitOps,
 } from '@/lib/queries/inventario.queries'
-import { backendToMarca } from '@/lib/queries/marcas.queries'
+import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
 import type { Marca } from '@/types'
 import { api } from '@/lib/api'
 import { clsx } from 'clsx'
@@ -208,6 +208,25 @@ function MobileSkeletonRows() {
   )
 }
 
+// ─── KPI skeleton ─────────────────────────────────────────────────────────────
+
+function KpiSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[14px] mb-[22px]">
+      {[0, 1, 2, 3].map(i => (
+        <div key={i} className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#D0CBC4] p-[18px] animate-pulse">
+          <div className="flex items-start justify-between mb-[14px]">
+            <div className="w-9 h-9 rounded-lg bg-[#F0EFEC]" />
+            <div className="h-5 w-20 rounded-full bg-[#E8E5E2]" />
+          </div>
+          <div className="h-8 w-24 rounded bg-[#F0EFEC] mb-2" />
+          <div className="h-2.5 w-28 rounded bg-[#E8E5E2]" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ─── Column helper ────────────────────────────────────────────────────────────
 
 const colHelper = createColumnHelper<Producto>()
@@ -283,9 +302,8 @@ export function InventarioPage() {
     const marcaWhere = marcaId ? { marcaId: { eq: marcaId } } : undefined
     gql<{
       productos: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: ProductoAPI[] }
-      marca: { nodes: { id: number; nombre: string; prefijo?: string }[] }
     }>(
-      PRODUCTOS_CON_MARCAS_QUERY,
+      PRODUCTOS_QUERY,
       { first: size, after: cursors.current[targetPage] ?? null, where: marcaWhere }
     )
       .then(res => {
@@ -295,7 +313,6 @@ export function InventarioPage() {
         setHasNextPage(pageInfo.hasNextPage)
         cursors.current[targetPage + 1] = pageInfo.endCursor
         setPage(targetPage)
-        setMarcas(res.marca.nodes.map(backendToMarca))
       })
       .catch(() => notify.error('Error cargando productos'))
       .finally(() => { setLoading(false); setSearching(false) })
@@ -324,6 +341,13 @@ export function InventarioPage() {
     setPageSize(size)
     loadProducts(0, size, searchTerm, selectedMarcaId)
   }
+
+  useEffect(() => {
+    if (!isTokenReady) return
+    gql<{ marca: { nodes: { id: number; nombre: string; prefijo?: string }[] } }>(MARCAS_QUERY)
+      .then(r => setMarcas(r.marca.nodes.map(backendToMarca)))
+      .catch(() => {})
+  }, [isTokenReady])
 
   useEffect(() => {
     if (!isTokenReady) return
@@ -720,7 +744,7 @@ export function InventarioPage() {
           </div>
 
           {/* ── Metrics Grid ─────────────────────────────────────────────── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[14px] mb-[22px]">
+          {loading ? <KpiSkeleton /> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[14px] mb-[22px]">
 
             {/* Total Productos */}
             <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#780e18] p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
@@ -812,7 +836,7 @@ export function InventarioPage() {
               <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Unidades en stock</div>
             </div>
 
-          </div>
+          </div>}
 
           {/* ── Table Container ──────────────────────────────────────────── */}
           <div className="bg-white rounded-xl border border-[#D0CBC4] overflow-hidden">
@@ -1005,6 +1029,7 @@ export function InventarioPage() {
         producto={editingProducto}
         loading={loadingModal}
         productosExistentes={products}
+        marcas={marcas}
       />
       <ConfirmModal
         open={!!confirmDelete}

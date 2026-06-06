@@ -6,11 +6,11 @@ export function backendToProveedor(b: {
   nota: string
   canImportaciones: number
   total: number
-  pais: string
-  moneda: string
-  terminos: string
-  nombre_Contacto: string
-  email: string
+  pais: string | null
+  moneda: string | null
+  terminos: string | null
+  nombre_Contacto: string | null
+  email: string | null
   telefono: string
   tiempoReposicion: number
   sitioWeb: string
@@ -19,11 +19,11 @@ export function backendToProveedor(b: {
   return {
     id: String(b.id),
     nombre: b.nombre,
-    pais: b.pais,
-    moneda: b.moneda as Proveedor['moneda'],
-    terminos_pago: b.terminos as Proveedor['terminos_pago'],
-    contacto: b.nombre_Contacto,
-    email: b.email,
+    pais: b.pais ?? undefined,
+    moneda: (b.moneda ?? undefined) as Proveedor['moneda'],
+    terminos_pago: (b.terminos ?? undefined) as Proveedor['terminos_pago'],
+    contacto: b.nombre_Contacto ?? undefined,
+    email: b.email ?? undefined,
     telefono: b.telefono,
     sitio_web: b.sitioWeb,
     notas: b.nota,
@@ -168,11 +168,11 @@ export const PROVEEDOR_IMPORTACIONES_QUERY = `
 
 export interface DtoProveedor {
   nombre: string
-  pais: string
-  moneda: string
-  terminos: string
-  nombre_Contacto: string
-  email: string
+  pais?: string
+  moneda?: string
+  terminos?: string
+  nombre_Contacto?: string
+  email?: string
   telefono: string
   tiempoReposicion: number
   sitioWeb: string

@@ -55,6 +55,8 @@ interface BackendProveedor {
   moneda: string
 }
 
+export interface BackendDetalleFull extends BackendDetalle {}
+
 interface BackendImportacion {
   id: number
   id_Proveedor: number
@@ -68,7 +70,7 @@ interface BackendImportacion {
   trasporte_Interno: number
   f_Internacional: number
   aduana_Arancel: number
-  detalles: BackendDetalle[]
+  detalles?: BackendDetalle[]
 }
 
 import type { Importacion, EstadoImportacion } from '@/types'
@@ -83,7 +85,7 @@ function normalizeEstadoImportacion(raw: string): EstadoImportacion {
 }
 
 export function backendToImportacion(b: BackendImportacion): Importacion {
-  const firstDetalle = b.detalles[0]
+  const firstDetalle = b.detalles?.[0]
   return {
     id: String(b.id),
     numero: b.codigo,
@@ -98,7 +100,7 @@ export function backendToImportacion(b: BackendImportacion): Importacion {
     aduana_bs: b.aduana_Arancel,
     transporte_interno_bs: b.trasporte_Interno,
     tipo_cambio: firstDetalle?.conversionABs ?? 6.96,
-    items: b.detalles.map((d) => ({
+    items: (b.detalles ?? []).map((d) => ({
       id: String(d.id),
       codigo_proveedor: d.codigo,
       codigos_adicionales: [d.codigoAux, d.codigoAux2].filter(Boolean),
@@ -188,46 +190,129 @@ export function backendToImportacionDashboard(b: DashboardImportacionAPI, tipoCa
   }
 }
 
+const IMP_SUMMARY_NODES = `
+  id
+  id_Proveedor
+  codigo
+  fecha
+  cantProductos
+  total
+  estado
+  proveedor {
+    id
+    nombre
+    pais
+    moneda
+  }
+  trasporte_Interno
+  f_Internacional
+  aduana_Arancel
+  tipo
+  detalles {
+    conversionABs
+  }
+`
+
+const DETALLE_NODES = `
+  id
+  codigo
+  codigoAux
+  codigoAux2
+  nombre
+  descripcion
+  procedencia
+  marcaId
+  unidad_Medida
+  ubicacion
+  stock_Actual
+  stock_Minimo
+  costo
+  precio
+  conversionABs
+  tipo
+  piezas
+`
+
 export const IMPORTACIONES_QUERY = `
   query Importaciones {
     importacion {
       nodes {
-        id
-        id_Proveedor
-        codigo
-        fecha
-        cantProductos
-        total
-        estado
-        proveedor {
-          id
-          nombre
-          pais
-          moneda
-        }
-        trasporte_Interno
-        f_Internacional
-        aduana_Arancel
-        tipo
+        ${IMP_SUMMARY_NODES}
+      }
+    }
+  }
+`
+
+export const IMPORTACION_DETAIL_QUERY = `
+  query ImportacionDetail($id: Int!) {
+    importacion(where: { id: { eq: $id } }) {
+      nodes {
+        ${IMP_SUMMARY_NODES}
         detalles {
-          id
-          codigo
-          codigoAux
-          codigoAux2
-          nombre
-          descripcion
-          procedencia
-          marcaId
-          unidad_Medida
-          ubicacion
-          stock_Actual
-          stock_Minimo
-          costo
-          precio
-          conversionABs
-          tipo
+          ${DETALLE_NODES}
         }
       }
+    }
+  }
+`
+
+export const IMPORTACIONES_INIT_QUERY = `
+  query ImportacionesInit {
+    importacion {
+      nodes {
+        ${IMP_SUMMARY_NODES}
+      }
+    }
+    proveedor {
+      nodes {
+        id
+        nombre
+        nota
+        canImportaciones
+        total
+        pais
+        moneda
+        terminos
+        nombre_Contacto
+        email
+        telefono
+        tiempoReposicion
+        sitioWeb
+        estado
+      }
+    }
+    productos(first: 5000) {
+      nodes {
+        id
+        codigo
+        codigoAux
+        codigoAux2
+        nombre
+        marcaId
+        ubicacion
+        stock_Actual
+        stockReservado
+        stock_Minimo
+        calcularStockKit
+        esKit
+        costo
+        precio
+        conversionABs
+        piezas
+        fechaCreacion
+        fechaActualizacion
+      }
+    }
+    marca(order: { nombre: ASC }) {
+      nodes {
+        id
+        nombre
+        prefijo
+      }
+    }
+    margenGanancia {
+      id
+      valor
     }
   }
 `

@@ -1,5 +1,29 @@
 import type { ResumenVentas } from '@/mock/alertas'
 
+// ─── Comisiones types ────────────────────────────────────────────────────────
+
+export interface ResumenComisionAPI {
+  cajeroId: string
+  nombre: string
+  apellido: string
+  totalVentas: number
+  porcentajeComision: number
+  montoComision: number
+}
+
+export const COMISIONES_QUERY = `
+  query ResumenComisionesCajeros($desde: DateTime!, $hasta: DateTime!) {
+    resumenComisionesCajeros(desde: $desde, hasta: $hasta) {
+      cajeroId
+      nombre
+      apellido
+      totalVentas
+      porcentajeComision
+      montoComision
+    }
+  }
+`
+
 // ─── API types ───────────────────────────────────────────────────────────────
 
 export interface OrdenReporteItemAPI {

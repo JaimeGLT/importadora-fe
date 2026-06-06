@@ -109,11 +109,11 @@ export type TerminosPago =
 export interface Proveedor {
   id: string
   nombre: string
-  pais: string
-  moneda: MonedaProveedor
-  terminos_pago: TerminosPago
-  contacto: string
-  email: string
+  pais?: string
+  moneda?: MonedaProveedor
+  terminos_pago?: TerminosPago
+  contacto?: string
+  email?: string
   telefono?: string
   sitio_web?: string
   notas?: string

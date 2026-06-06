@@ -1,6 +1,9 @@
-import { Fragment } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react'
-import type { Importacion, Marca } from '@/types'
+import type { Importacion, ItemImportacion, Marca } from '@/types'
+import { gql } from '@/lib/graphql'
+import { IMPORTACION_DETAIL_QUERY, backendToImportacion } from '@/lib/queries/importaciones.queries'
+import { notify } from '@/lib/notify'
 
 interface Props {
   open: boolean
@@ -22,6 +25,25 @@ function fmtBs(n: number) {
 }
 
 export function ImportacionDetailModal({ open, onClose, importacion, marcas }: Props) {
+  const [items, setItems] = useState<ItemImportacion[]>([])
+  const [loadingItems, setLoadingItems] = useState(false)
+
+  useEffect(() => {
+    if (!open || !importacion) return
+    setItems([])
+    setLoadingItems(true)
+    gql<{ importacion: { nodes: Parameters<typeof backendToImportacion>[0][] } }>(
+      IMPORTACION_DETAIL_QUERY,
+      { id: Number(importacion.id) },
+    )
+      .then(res => {
+        const node = res.importacion.nodes[0]
+        if (node) setItems(backendToImportacion(node).items)
+      })
+      .catch(() => notify.error('Error cargando detalle'))
+      .finally(() => setLoadingItems(false))
+  }, [open, importacion?.id])
+
   if (!importacion) return null
 
   const getMarcaNombre = (marcaId?: number | null) =>
@@ -93,7 +115,7 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas }: P
                       className="font-semibold text-[26px] text-[#2D2B2A] leading-none tracking-[-0.025em]"
                       style={{ fontFamily: "'DM Sans', sans-serif" }}
                     >
-                      {importacion.items.length}
+                      {loadingItems ? <span className="text-[18px] text-[#7A7571]">…</span> : items.length}
                     </p>
                   </div>
                   <div className="text-center">
@@ -154,63 +176,76 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas }: P
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#D0CBC4]">
-                    {importacion.items.map((item) => (
-                      <tr key={item.id} className="hover:bg-[#FAF5EE] transition-colors">
-                        <td className="px-4 py-3 overflow-hidden">
-                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-[6px] text-[11px] font-mono font-bold bg-[#780e18] text-white shrink-0">
-                              {item.codigo_proveedor}
-                            </span>
-                            {item.codigos_adicionales?.[0] && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-[6px] text-[10px] font-mono font-medium bg-[#F5F0EB] text-[#5C5654] border border-[#D0CBC4] shrink-0">
-                                {item.codigos_adicionales[0]}
-                              </span>
-                            )}
-                            {item.codigos_adicionales?.[1] && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-[6px] text-[10px] font-mono font-medium bg-[#F5F0EB] text-[#5C5654] border border-[#D0CBC4] shrink-0">
-                                {item.codigos_adicionales[1]}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm font-semibold text-[#2D2B2A] leading-tight truncate">{item.nombre}</p>
-                        </td>
-                        <td className="px-2 py-3">
-                          {getMarcaNombre(item.marcaId) ? (
-                            <div className="inline-flex items-center gap-1.5 bg-[#E8D4B8] text-[#780e18] text-xs font-semibold px-2.5 py-0.5 rounded-full">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#780e18] shrink-0" />
-                              {getMarcaNombre(item.marcaId)}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-[#7A7571]">—</span>
-                          )}
-                        </td>
-                        <td className="px-2 py-3">
-                          <span className="text-[12px] text-[#5C5654]">{item.procedencia || '—'}</span>
-                        </td>
-                        <td className="px-2 py-3 text-center">
-                          <span className="font-mono font-semibold text-[13px] text-[#2D2B2A] tabular-nums">{item.cantidad}</span>
-                        </td>
-                        <td className="px-2 py-3 text-right">
-                          <span className="text-[11px] font-medium text-[#7A7571]">Bs</span>
-                          <span className="text-sm font-semibold text-[#5C5654] tabular-nums ml-1">{item.costo_unitario_total_bs.toFixed(2)}</span>
-                        </td>
-                        <td className="px-2 py-3 text-right">
-                          <span className="text-[11px] font-medium text-[#7A7571]">Bs</span>
-                          <span className="text-sm font-semibold text-[#3F7A52] tabular-nums ml-1">{item.precio_venta_final.toFixed(2)}</span>
-                        </td>
-                        <td className="px-3 py-3 text-center">
-                          {item.es_nuevo ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#F4ECDB] text-[#780e18]">
-                              Nuevo
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#B8DCCA] text-[#1E5C38]">
-                              Stock+
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {loadingItems
+                      ? Array.from({ length: 5 }).map((_, i) => (
+                          <tr key={i} className="animate-pulse">
+                            <td className="px-4 py-3"><div className="h-3 w-32 rounded bg-[#F0EFEC] mb-1.5" /><div className="h-2.5 w-24 rounded bg-[#E8E5E2]" /></td>
+                            <td className="px-2 py-3"><div className="h-5 w-16 rounded-full bg-[#F0EFEC]" /></td>
+                            <td className="px-2 py-3"><div className="h-2.5 w-14 rounded bg-[#F0EFEC]" /></td>
+                            <td className="px-2 py-3 text-center"><div className="h-2.5 w-6 rounded bg-[#F0EFEC] mx-auto" /></td>
+                            <td className="px-2 py-3 text-right"><div className="h-2.5 w-16 rounded bg-[#F0EFEC] ml-auto" /></td>
+                            <td className="px-2 py-3 text-right"><div className="h-2.5 w-16 rounded bg-[#F0EFEC] ml-auto" /></td>
+                            <td className="px-3 py-3 text-center"><div className="h-5 w-12 rounded-full bg-[#F0EFEC] mx-auto" /></td>
+                          </tr>
+                        ))
+                      : items.map((item) => (
+                          <tr key={item.id} className="hover:bg-[#FAF5EE] transition-colors">
+                            <td className="px-4 py-3 overflow-hidden">
+                              <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-[6px] text-[11px] font-mono font-bold bg-[#780e18] text-white shrink-0">
+                                  {item.codigo_proveedor}
+                                </span>
+                                {item.codigos_adicionales?.[0] && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-[6px] text-[10px] font-mono font-medium bg-[#F5F0EB] text-[#5C5654] border border-[#D0CBC4] shrink-0">
+                                    {item.codigos_adicionales[0]}
+                                  </span>
+                                )}
+                                {item.codigos_adicionales?.[1] && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-[6px] text-[10px] font-mono font-medium bg-[#F5F0EB] text-[#5C5654] border border-[#D0CBC4] shrink-0">
+                                    {item.codigos_adicionales[1]}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm font-semibold text-[#2D2B2A] leading-tight truncate">{item.nombre}</p>
+                            </td>
+                            <td className="px-2 py-3">
+                              {getMarcaNombre(item.marcaId) ? (
+                                <div className="inline-flex items-center gap-1.5 bg-[#E8D4B8] text-[#780e18] text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#780e18] shrink-0" />
+                                  {getMarcaNombre(item.marcaId)}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-[#7A7571]">—</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-3">
+                              <span className="text-[12px] text-[#5C5654]">{item.procedencia || '—'}</span>
+                            </td>
+                            <td className="px-2 py-3 text-center">
+                              <span className="font-mono font-semibold text-[13px] text-[#2D2B2A] tabular-nums">{item.cantidad}</span>
+                            </td>
+                            <td className="px-2 py-3 text-right">
+                              <span className="text-[11px] font-medium text-[#7A7571]">Bs</span>
+                              <span className="text-sm font-semibold text-[#5C5654] tabular-nums ml-1">{item.costo_unitario_total_bs.toFixed(2)}</span>
+                            </td>
+                            <td className="px-2 py-3 text-right">
+                              <span className="text-[11px] font-medium text-[#7A7571]">Bs</span>
+                              <span className="text-sm font-semibold text-[#3F7A52] tabular-nums ml-1">{item.precio_venta_final.toFixed(2)}</span>
+                            </td>
+                            <td className="px-3 py-3 text-center">
+                              {item.es_nuevo ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#F4ECDB] text-[#780e18]">
+                                  Nuevo
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#B8DCCA] text-[#1E5C38]">
+                                  Stock+
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                    }
                   </tbody>
                 </table>
               </div>
