@@ -186,6 +186,7 @@ interface PiezaKitAPI {
   cantidadPorKit: number
   stockActual: number
   stockReservado: number
+  codigo?: string
 }
 
 interface HistorialPrecioAPI {
@@ -238,6 +239,7 @@ function mapPiezasKit(raw: PiezaKitAPI[] | undefined): PiezaKit[] {
     cantidad_por_kit: p.cantidadPorKit ?? 1,
     stock_actual: p.stockActual ?? 0,
     stock_reservado: p.stockReservado ?? 0,
+    codigo_universal: p.codigo,
   }))
 }
 

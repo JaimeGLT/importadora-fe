@@ -4,7 +4,6 @@ import { BrandSelect } from '@/components/ui/BrandSelect'
 import type { Producto, HistorialPrecio } from '@/types'
 import type { DtoPiezaKit, KitOps, PieceOp } from '@/lib/queries/inventario.queries'
 import { KitPartsSection } from './KitPartsSection'
-import { clsx } from 'clsx'
 import { notify } from '@/lib/notify'
 
 export interface PriceUpdate {

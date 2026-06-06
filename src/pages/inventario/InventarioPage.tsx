@@ -276,11 +276,6 @@ export function InventarioPage() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [exportando, setExportando] = useState(false)
 
-  const dateStr = useMemo(() => {
-    return new Date().toLocaleDateString('es-BO', {
-      weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-    })
-  }, [])
 
   // ── Load products ──────────────────────────────────────────────────────────
   const loadProducts = (targetPage: number, size: number, q: string = '', marcaId: number | null = null) => {

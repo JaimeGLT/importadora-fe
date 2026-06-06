@@ -550,6 +550,7 @@ function CartItem({
             </button>
           </div>
           <p className="text-xs text-[#7A7571] mt-0.5 truncate">{item.producto_nombre}</p>
+          {item.producto_descripcion && <p className="text-[10px] text-[#7A7571] truncate mt-0.5">{item.producto_descripcion}</p>}
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-1">
               <button onClick={() => onQtyChange(idx, -1)} className="h-7 w-7 rounded-lg border border-[#E8E5E2] text-[#4A4744] hover:bg-[#F0EFEC] flex items-center justify-center text-base font-bold transition-colors">−</button>
@@ -1454,6 +1455,7 @@ export function CajaPage() {
         producto_codigo: productoSeleccionado.codigo_universal,
         marcaId: productoSeleccionado.marcaId ?? null,
         producto_nombre: productoSeleccionado.nombre,
+        producto_descripcion: productoSeleccionado.descripcion || undefined,
         producto_almacen: productoSeleccionado.almacen,
         producto_estante: productoSeleccionado.estante,
         producto_fila: productoSeleccionado.fila,
@@ -1474,13 +1476,13 @@ export function CajaPage() {
   }, [productoSeleccionado, kitCompletoQty, playBeep])
 
   const agregarPiezasAlCarrito = useCallback((
-    piezas: { producto_id: string; nombre: string; codigo: string; cantidad: number; precio: number }[],
+    piezas: { producto_id: string; nombre: string; codigo?: string; cantidad: number; precio: number }[],
     kitId: string,
   ) => {
     setCart(prev => {
       const newItems: CartItem[] = piezas.map(p => ({
         producto_id: p.producto_id,
-        producto_codigo: p.codigo,
+        producto_codigo: p.codigo ?? '',
         producto_nombre: p.nombre,
         producto_almacen: '',
         producto_estante: '',

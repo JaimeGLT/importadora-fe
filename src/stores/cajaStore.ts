@@ -5,6 +5,7 @@ export interface CartItem {
   producto_id: string
   producto_codigo: string
   producto_nombre: string
+  producto_descripcion?: string
   producto_almacen: string
   producto_estante: string
   producto_fila: string

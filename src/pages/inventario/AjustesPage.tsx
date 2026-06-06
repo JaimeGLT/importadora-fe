@@ -785,12 +785,6 @@ export function AjustesPage() {
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [marcas, setMarcas] = useState<Marca[]>([])
 
-  const dateStr = useMemo(() => {
-    return new Date().toLocaleDateString('es-BO', {
-      weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-    })
-  }, [])
-
   const loadProductos = useCallback((targetPage: number, size: number, q = '', currentFiltro: 'todos' | 'bajo' | 'kits' = 'todos') => {
     setLoading(true)
 

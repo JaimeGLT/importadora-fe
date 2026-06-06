@@ -109,9 +109,6 @@ export function ImportacionesPage() {
 
   const { importaciones, setImportaciones } = useImportacionesStore()
 
-  const dateStr = useMemo(() => new Date().toLocaleDateString('es-BO', {
-    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-  }), [])
 
   const loadImportaciones = () => {
     gql<{ importacion: { nodes: Parameters<typeof backendToImportacion>[0][] } }>(IMPORTACIONES_QUERY)

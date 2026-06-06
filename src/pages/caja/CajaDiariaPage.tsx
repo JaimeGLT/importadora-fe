@@ -407,11 +407,6 @@ export function CajaDiariaPage() {
   const [modalTipo, setModalTipo] = useState<TipoBackend | null>(null)
   const [showCierre, setShowCierre] = useState(false)
 
-  const dateStr = useMemo(() => {
-    return new Date().toLocaleDateString('es-BO', {
-      weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-    })
-  }, [])
 
   const movimientos = caja?.movimientos ?? []
 

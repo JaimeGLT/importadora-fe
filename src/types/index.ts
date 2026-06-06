@@ -91,6 +91,7 @@ export interface PiezaKit {
   cantidad_por_kit: number
   stock_actual: number
   stock_reservado: number
+  codigo_universal?: string
 }
 
 export type MonedaProveedor = 'USD' | 'EUR' | 'CNY' | 'GBP' | 'JPY' | 'KRW' | 'BRL' | 'ARS' | 'CLP' | 'PEN'

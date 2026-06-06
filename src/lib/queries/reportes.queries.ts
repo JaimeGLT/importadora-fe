@@ -1,4 +1,9 @@
-import type { ResumenVentas } from '@/mock/alertas'
+export interface ResumenVentas {
+  producto_id: string
+  unidades_7d: number
+  unidades_prev7d: number
+  unidades_30d: number
+}
 
 // ─── Comisiones types ────────────────────────────────────────────────────────
 

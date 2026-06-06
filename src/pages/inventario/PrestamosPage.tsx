@@ -324,10 +324,6 @@ export function PrestamosPage() {
   const [confirmDevolver, setConfirmDevolver] = useState<Prestamo | null>(null)
   const [devolviendo, setDevolviendo]         = useState(false)
 
-  const dateStr = useMemo(() => new Date().toLocaleDateString('es-BO', {
-    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-  }), [])
-
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const loadPrestamos = (cursor?: string | null) => {
     setLoading(true)
