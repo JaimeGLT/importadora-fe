@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout } from '@/components/layout/MainLayout'
+import { PageTopBar } from '@/components/layout/PageTopBar'
 import { ConfirmModal } from '@/components/ui'
 import type { Marca } from '@/types'
 import { notify } from '@/lib/notify'
@@ -106,22 +107,7 @@ export function MarcasPage() {
     <MainLayout>
       <div className="bg-[#F7F7F7] min-h-screen">
 
-        {/* TopBar */}
-        <header className="bg-[#F7F7F7] sticky top-0 z-40 flex justify-between items-center w-full h-[62px] px-7 border-b border-[#D0CBC4]">
-          <div className="flex items-center gap-2 text-sm text-[#7A7571] font-semibold">
-            <span>Sistema</span>
-            <span className="text-[10px] opacity-40">/</span>
-            <strong className="text-[#2D2B2A] font-bold">Marcas</strong>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border border-[#D0CBC4] text-[#4A4744] hover:bg-[#F5F0EB] transition-colors">
-              <i className="ti ti-bell text-[18px]" />
-            </button>
-            <button className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-white border border-[#D0CBC4] text-[#4A4744] hover:bg-[#F5F0EB] transition-colors">
-              <i className="ti ti-settings text-[18px]" />
-            </button>
-          </div>
-        </header>
+        <PageTopBar section="Sistema" title="Marcas" />
 
         <div className="px-7 py-6 max-w-[1400px] mx-auto">
 

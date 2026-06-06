@@ -67,8 +67,6 @@ interface DatosForm {
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-const MARGEN_FALLBACK = 1.30
-
 const SYSTEM_FIELDS: SystemField[] = [
   { key: 'codigo_universal', label: 'Código universal',     required: true,  hint: 'Código principal del producto', maxColumns: 1 },
   { key: 'codigo_alt1',      label: 'Código alternativo 1', required: false, hint: 'Código secundario (caja / proveedor)' },
@@ -294,7 +292,7 @@ export function NuevaImportacionModal({
   // ── Estado ────────────────────────────────────────────────────────────────
   const [step, setStep] = useState<ImportStep>('upload')
   const [margenBd, setMargenBd] = useState<number>(margenGanancia)
-  const [margenGlobal, setMargenGlobal] = useState<number>(margenGanancia)
+  const [margenGlobal] = useState<number>(margenGanancia)
 
   // Excel
   const [columns, setColumns]   = useState<string[]>([])

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import Select, { type SingleValue, type GroupBase } from 'react-select'
+import AsyncSelect from 'react-select/async'
 import { DrawerWrapper, WarmInput, FormSection } from '@/components/ui'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
@@ -41,24 +42,7 @@ interface ClienteOpt {
   cliente: ClienteFE
 }
 
-type ItemRow = { codigo: string; cantidad: number; key: number }
-
-const PRODUCTOS_MODAL_QUERY = `
-  query ProductosModal {
-    productos(first: 50) {
-      nodes {
-        id
-        codigo
-        codigoAux
-        codigoAux2
-        nombre
-        calcularStockKit
-        esKit
-        stock_Actual
-      }
-    }
-  }
-`
+type ItemRow = { opt: ProductoOpt | null; cantidad: number; key: number }
 
 function mapProductoOpt(raw: ProductoRaw): ProductoOpt {
   return {
@@ -122,6 +106,12 @@ const warmSelectStyles = {
     input: { boxShadow: 'none !important' } as any,
   }),
   noOptionsMessage: (base: object) => ({
+    ...base,
+    color: '#A09080',
+    fontSize: '13px',
+    padding: '10px 12px',
+  }),
+  loadingMessage: (base: object) => ({
     ...base,
     color: '#A09080',
     fontSize: '13px',
@@ -203,14 +193,13 @@ let keyCounter = 0
 
 export function PrestamoModal({ open, onClose, onSave }: PrestamoModalProps) {
   const [clientes, setClientes]       = useState<ClienteFE[]>([])
-  const [productos, setProductos]     = useState<ProductoOpt[]>([])
   const [loadingData, setLoadingData] = useState(false)
 
   // Form state
   const [id_Cliente, setIdCliente]   = useState<number | null>(null)
   const [fecha, setFecha]             = useState(hoy())
   const [nota, setNota]               = useState('')
-  const [itemRows, setItemRows]       = useState<ItemRow[]>([{ codigo: '', cantidad: 1, key: ++keyCounter }])
+  const [itemRows, setItemRows]       = useState<ItemRow[]>([{ opt: null, cantidad: 1, key: ++keyCounter }])
   const [saving, setSaving]           = useState(false)
   const [errors, setErrors]           = useState<Record<string, string>>({})
 
@@ -221,19 +210,13 @@ export function PrestamoModal({ open, onClose, onSave }: PrestamoModalProps) {
   const [nuevoTelefono, setNuevoTelefono] = useState('')
   const [creandoCliente, setCreandoCliente] = useState(false)
 
-  // Fetch data when modal opens
+  // Fetch clientes when modal opens
   useEffect(() => {
     if (!open) return
     setLoadingData(true)
-    Promise.all([
-      gql<{ clientes: { nodes: ClienteAPI[] } }>(CLIENTES_QUERY),
-      gql<{ productos: { nodes: ProductoRaw[] } }>(PRODUCTOS_MODAL_QUERY),
-    ])
-      .then(([cRes, pRes]) => {
-        setClientes((cRes.clientes?.nodes ?? []).map(backendToCliente))
-        setProductos((pRes.productos?.nodes ?? []).map(mapProductoOpt))
-      })
-      .catch(() => notify.error('Error cargando datos'))
+    gql<{ clientes: { nodes: ClienteAPI[] } }>(CLIENTES_QUERY)
+      .then((cRes) => setClientes((cRes.clientes?.nodes ?? []).map(backendToCliente)))
+      .catch(() => notify.error('Error cargando clientes'))
       .finally(() => setLoadingData(false))
   }, [open])
 
@@ -243,13 +226,25 @@ export function PrestamoModal({ open, onClose, onSave }: PrestamoModalProps) {
     setIdCliente(null)
     setFecha(hoy())
     setNota('')
-    setItemRows([{ codigo: '', cantidad: 1, key: ++keyCounter }])
+    setItemRows([{ opt: null, cantidad: 1, key: ++keyCounter }])
     setErrors({})
     setCrearCliente(false)
     setNuevoNombre('')
     setNuevoApellido('')
     setNuevoTelefono('')
   }, [open])
+
+  // ── Async product search ───────────────────────────────────────────────────
+  const loadProductoOptions = async (inputValue: string): Promise<ProductoOpt[]> => {
+    if (inputValue.trim().length < 2) return []
+    try {
+      const clean = inputValue.trim().replace(/'/g, '-')
+      const res = await api.get<ProductoRaw[]>(`/Producto/buscar-lista?q=${encodeURIComponent(clean)}`)
+      return (res ?? []).map(mapProductoOpt)
+    } catch {
+      return []
+    }
+  }
 
   // ── Client options ─────────────────────────────────────────────────────────
   const clienteOptions: ClienteOpt[] = useMemo(
@@ -286,11 +281,11 @@ export function PrestamoModal({ open, onClose, onSave }: PrestamoModalProps) {
   }
 
   // ── Item rows ──────────────────────────────────────────────────────────────
-  const addRow = () => setItemRows((prev) => [...prev, { codigo: '', cantidad: 1, key: ++keyCounter }])
+  const addRow = () => setItemRows((prev) => [...prev, { opt: null, cantidad: 1, key: ++keyCounter }])
   const removeRow = (key: number) => setItemRows((prev) => prev.filter((r) => r.key !== key))
 
-  const setRowCodigo = (key: number, codigo: string) =>
-    setItemRows((prev) => prev.map((r) => r.key === key ? { ...r, codigo } : r))
+  const setRowOpt = (key: number, opt: ProductoOpt | null) =>
+    setItemRows((prev) => prev.map((r) => r.key === key ? { ...r, opt } : r))
 
   const setRowCantidad = (key: number, cantidad: number) =>
     setItemRows((prev) => prev.map((r) => r.key === key ? { ...r, cantidad: Math.max(1, cantidad) } : r))
@@ -301,7 +296,7 @@ export function PrestamoModal({ open, onClose, onSave }: PrestamoModalProps) {
     if (!id_Cliente) e.cliente = 'Selecciona un cliente'
     if (!fecha) e.fecha = 'Requerido'
     if (itemRows.length === 0) e.items = 'Agrega al menos un producto'
-    if (itemRows.some((r) => !r.codigo)) e.items = 'Completa todos los productos'
+    if (itemRows.some((r) => !r.opt?.value)) e.items = 'Completa todos los productos'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -314,20 +309,12 @@ export function PrestamoModal({ open, onClose, onSave }: PrestamoModalProps) {
         id_Cliente: id_Cliente!,
         fecha: new Date(fecha + 'T00:00:00').toISOString(),
         nota: nota.trim(),
-        detalles: itemRows.map((r) => ({ codigo: r.codigo, cantidad: r.cantidad })),
+        detalles: itemRows.map((r) => ({ codigo: r.opt?.value ?? '', cantidad: r.cantidad })),
       })
     } finally {
       setSaving(false)
     }
   }
-
-  // ── Total estimado ─────────────────────────────────────────────────────────
-  const totalEstimado = useMemo(() => {
-    return itemRows.reduce((sum, row) => {
-      if (!row.codigo) return sum
-      return sum
-    }, 0)
-  }, [itemRows])
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -342,7 +329,7 @@ export function PrestamoModal({ open, onClose, onSave }: PrestamoModalProps) {
       </button>
       <button
         onClick={() => void handleSave()}
-        disabled={saving || !id_Cliente || itemRows.some((r) => !r.codigo)}
+        disabled={saving || !id_Cliente || itemRows.some((r) => !r.opt?.value)}
         className="h-[44px] px-6 rounded-[10px] text-[13.5px] font-semibold bg-terra text-white hover:bg-terra-deep transition-colors disabled:opacity-40"
         style={{ boxShadow: '0 1px 2px rgba(200,80,31,0.25)' }}
       >
@@ -484,77 +471,64 @@ export function PrestamoModal({ open, onClose, onSave }: PrestamoModalProps) {
               {errors.items && (
                 <p className="text-[11px] text-terra">{errors.items}</p>
               )}
-              {itemRows.map((row) => {
-                const selectedOpt = productos.find((p) => p.value === row.codigo) ?? null
-                const stockInfo = selectedOpt
-                return (
-                  <div key={row.key} className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1">
-                        <Select<ProductoOpt, false, GroupBase<ProductoOpt>>
-                          options={productos}
-                          value={selectedOpt}
-                          onChange={(opt: SingleValue<ProductoOpt>) => setRowCodigo(row.key, opt?.value ?? '')}
-                          placeholder="Código o nombre del producto..."
-                          noOptionsMessage={() => 'Sin resultados'}
-                          styles={warmSelectStyles}
-                          menuPortalTarget={document.body}
-                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                          components={{ Option: ProductoOptionComp as React.ComponentType<any> }}
-                          filterOption={(opt, input) => {
-                            const q = input.toLowerCase()
-                            const p = opt.data
-                            return (
-                              p.codigo.toLowerCase().includes(q) ||
-                              p.nombre.toLowerCase().includes(q) ||
-                              p.codigosAlt.some((c) => c.toLowerCase().includes(q))
-                            )
-                          }}
-                        />
-                      </div>
-                      <div className="w-[72px] shrink-0">
-                        <input
-                          type="number"
-                          min={1}
-                          value={row.cantidad}
-                          onChange={(e) => setRowCantidad(row.key, Number(e.target.value))}
-                          className="w-full h-[42px] px-3 rounded-[10px] border border-hair bg-cream text-[13.5px] text-ink text-center focus:outline-none focus:border-terra transition-colors"
-                        />
-                      </div>
-                      <button
-                        onClick={() => removeRow(row.key)}
-                        disabled={itemRows.length === 1}
-                        className="p-2 rounded-[8px] text-muted hover:text-terra hover:bg-terra-soft transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
-                      >
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 6 6 18M6 6l12 12"/></svg>
-                      </button>
+              {itemRows.map((row) => (
+                <div key={row.key} className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <AsyncSelect<ProductoOpt>
+                        value={row.opt}
+                        loadOptions={loadProductoOptions}
+                        onChange={(opt) => setRowOpt(row.key, opt as ProductoOpt | null)}
+                        placeholder="Buscar por código, nombre, marca..."
+                        noOptionsMessage={({ inputValue }) =>
+                          inputValue.trim().length < 2 ? 'Escribe al menos 2 caracteres' : 'Sin resultados'
+                        }
+                        loadingMessage={() => 'Buscando…'}
+                        styles={warmSelectStyles}
+                        menuPortalTarget={document.body}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        components={{ Option: ProductoOptionComp as React.ComponentType<any> }}
+                        isClearable
+                      />
                     </div>
-                    {stockInfo && (
-                      <p className="text-[11px] pl-1 text-muted-2">
-                        Stock disponible:{' '}
-                        <span className={clsx(
-                          'font-semibold',
-                          stockInfo.stock <= 0 ? 'text-terra' : stockInfo.stock <= 3 ? 'text-amber-600' : 'text-emerald-600',
-                        )}>
-                          {stockInfo.stock}
-                        </span>
-                      </p>
-                    )}
+                    <div className="w-[72px] shrink-0">
+                      <input
+                        type="number"
+                        min={1}
+                        value={row.cantidad}
+                        onChange={(e) => setRowCantidad(row.key, Number(e.target.value))}
+                        className="w-full h-[42px] px-3 rounded-[10px] border border-hair bg-cream text-[13.5px] text-ink text-center focus:outline-none focus:border-terra transition-colors"
+                      />
+                    </div>
+                    <button
+                      onClick={() => removeRow(row.key)}
+                      disabled={itemRows.length === 1}
+                      className="p-2 rounded-[8px] text-muted hover:text-terra hover:bg-terra-soft transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 6 6 18M6 6l12 12"/></svg>
+                    </button>
                   </div>
-                )
-              })}
+                  {row.opt && (
+                    <p className="text-[11px] pl-1 text-muted-2">
+                      Stock disponible:{' '}
+                      <span className={clsx(
+                        'font-semibold',
+                        row.opt.stock <= 0 ? 'text-terra' : row.opt.stock <= 3 ? 'text-amber-600' : 'text-emerald-600',
+                      )}>
+                        {row.opt.stock}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
           </FormSection>
 
-          {/* Total hint (no prices known before save) */}
-          {itemRows.some((r) => r.codigo) && (
+          {itemRows.some((r) => r.opt) && (
             <div className="flex items-center justify-end gap-2 text-[12.5px] text-muted">
-              <span>{itemRows.filter((r) => r.codigo).length} producto{itemRows.filter((r) => r.codigo).length !== 1 ? 's' : ''} seleccionado{itemRows.filter((r) => r.codigo).length !== 1 ? 's' : ''}</span>
+              <span>{itemRows.filter((r) => r.opt).length} producto{itemRows.filter((r) => r.opt).length !== 1 ? 's' : ''} seleccionado{itemRows.filter((r) => r.opt).length !== 1 ? 's' : ''}</span>
             </div>
           )}
-
-          {/* Keep totalEstimado in scope to avoid lint warning */}
-          {totalEstimado > 0 && null}
 
         </div>
       )}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
+import { PageTopBar } from '@/components/layout/PageTopBar'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import { DASHBOARD_ORDENES_QUERY, backendOrdenToDashboard, type DashboardOrdenAPI, type DashboardOrden } from '@/lib/queries/ventas.queries'
@@ -105,6 +106,7 @@ export function VentasReportePage() {
 
   return (
     <MainLayout>
+      <PageTopBar section="Reportes" title="Ventas" />
       <PageContainer>
         <PageHeader title="Ventas" description="Análisis de ventas del período actual" />
 

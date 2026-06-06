@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
+import { PageTopBar } from '@/components/layout/PageTopBar'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import { backendToProductoSimple } from '@/lib/queries/inventario.queries'
@@ -9,7 +10,7 @@ import { DASHBOARD_QUERY, type DashboardQueryResult } from '@/lib/queries/dashbo
 import { SalesChart } from '@/components/ui/SalesChart'
 import type { Producto } from '@/types'
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const fmtBs = (n: number) =>
   `Bs ${n.toLocaleString('es-BO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
@@ -27,7 +28,7 @@ function relativeTime(iso: string) {
   return `hace ${Math.floor(hrs / 24)}d`
 }
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function SkCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
@@ -70,7 +71,7 @@ function DashboardSkeleton() {
         ))}
       </div>
 
-      {/* Gráfico + Top productos */}
+      {/* GrÃ¡fico + Top productos */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
         <SkCard className="lg:col-span-2 p-5">
           <div className="h-4 w-40 rounded bg-[#F0EFEC] mb-4" />
@@ -93,7 +94,7 @@ function DashboardSkeleton() {
         </SkCard>
       </div>
 
-      {/* Stock crítico + Valor inventario */}
+      {/* Stock crÃ­tico + Valor inventario */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
         <SkCard className="lg:col-span-2 p-5">
           <div className="h-3 w-28 rounded bg-[#E8E5E2] mb-5" />
@@ -167,7 +168,7 @@ function DashboardSkeleton() {
   )
 }
 
-// ─── Mini bar ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Mini bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function MiniBar({ pct, color = 'bg-[#D4A333]' }: { pct: number; color?: string }) {
   return (
@@ -177,7 +178,7 @@ function MiniBar({ pct, color = 'bg-[#D4A333]' }: { pct: number; color?: string 
   )
 }
 
-// ─── Card ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
@@ -187,7 +188,7 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
   )
 }
 
-// ─── Section title con acento ─────────────────────────────────────────────────
+// â”€â”€â”€ Section title con acento â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function SectionTitle({ children, to }: { children: React.ReactNode; to?: string }) {
   return (
@@ -198,14 +199,14 @@ function SectionTitle({ children, to }: { children: React.ReactNode; to?: string
       </div>
       {to && (
         <Link to={to} className="text-xs text-[#780e18] hover:text-[#5a0a12] font-semibold">
-          Ver todo →
+          Ver todo â†’
         </Link>
       )}
     </div>
   )
 }
 
-// ─── Badge sólido ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Badge sÃ³lido â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type BadgeVariant = 'red' | 'amber' | 'green' | 'blue' | 'gray' | 'yellow'
 
@@ -226,19 +227,19 @@ function Badge({ label, variant }: { label: string; variant: BadgeVariant }) {
   )
 }
 
-// ─── Stat pill ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Stat pill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function StatPill({ label, value, up }: { label: string; value: string; up: boolean }) {
   return (
     <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
       up ? 'bg-[#B8DCCA] text-[#1E5C38]' : 'bg-[#F5C9C0] text-[#8A1E12]'
     }`}>
-      {up ? '▲' : '▼'} {value} <span className="font-normal opacity-70">{label}</span>
+      {up ? 'â–²' : 'â–¼'} {value} <span className="font-normal opacity-70">{label}</span>
     </span>
   )
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function DashboardPage() {
   const { isTokenReady } = useAuth()
@@ -346,7 +347,7 @@ export function DashboardPage() {
 
   const [chartHover, setChartHover] = useState<number | null>(null)
 
-  const saludo = "Reportes de Acceso Rápido"
+  const saludo = "Reportes de Acceso RÃ¡pido"
   const maxTop = top5productos[0]?.unidades ?? 1
 
   const estadoBadge: Record<string, { label: string; variant: BadgeVariant }> = {
@@ -372,6 +373,7 @@ export function DashboardPage() {
   if (isLoading) {
     return (
       <MainLayout>
+        <PageTopBar title="Dashboard" section="Principal" />
         <PageContainer>
           <DashboardSkeleton />
         </PageContainer>
@@ -381,9 +383,10 @@ export function DashboardPage() {
 
   return (
     <MainLayout>
+      <PageTopBar title="Dashboard" section="Principal" />
       <PageContainer>
 
-        {/* ── Header ───────────────────────────────────────────────────── */}
+        {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
             <p className="text-[11px] font-bold text-[#7A7571] uppercase tracking-widest mb-1">
@@ -394,7 +397,7 @@ export function DashboardPage() {
             </h1>
           </div>
           {stockCritico.length > 0 && (
-            <Link to="/alertas"
+            <Link to="/reportes/inventario"
               className="flex items-center gap-2 px-4 py-2.5 bg-[#780e18] hover:bg-[#5a0a12] text-white text-xs font-bold rounded-xl transition-colors shadow-sm shrink-0">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -405,10 +408,10 @@ export function DashboardPage() {
           )}
         </div>
 
-        {/* ── KPIs ─────────────────────────────────────────────────────── */}
+        {/* â”€â”€ KPIs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
 
-          {/* Hero — ventas hoy */}
+          {/* Hero â€” ventas hoy */}
           <Link to="/ventas/historial">
             <div className="relative overflow-hidden rounded-xl bg-[#780e18] p-5 text-white shadow-md hover:shadow-lg hover:bg-[#5a0a12] transition-all h-full">
               <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-[#5a0a12] opacity-40" />
@@ -424,7 +427,7 @@ export function DashboardPage() {
                   {deltaDia && <StatPill label="vs ayer" value={deltaDia.val} up={deltaDia.up} />}
                 </div>
                 <p className="text-2xl font-black tabular-nums leading-tight">{fmtBs(ventasHoy)}</p>
-                <p className="text-xs text-white/70 font-semibold mt-0.5">Ventas del día</p>
+                <p className="text-xs text-white/70 font-semibold mt-0.5">Ventas del dÃ­a</p>
                 <p className="text-[10px] text-white/45 mt-2">Ayer: {fmtBs(ventasHoyPrev)}</p>
               </div>
             </div>
@@ -443,11 +446,11 @@ export function DashboardPage() {
               </div>
               <p className="text-2xl font-black tabular-nums text-[#2D2B2A] leading-tight">{fmtBs(ventasMes)}</p>
               <p className="text-xs text-[#7A7571] font-semibold mt-0.5">Ventas del mes</p>
-              <p className="text-[10px] text-[#7A7571] mt-2">Últimos 30 días</p>
+              <p className="text-[10px] text-[#7A7571] mt-2">Ãšltimos 30 dÃ­as</p>
             </Card>
           </Link>
 
-          {/* Órdenes activas */}
+          {/* Ã“rdenes activas */}
           <Link to="/ventas/caja">
             <Card className="p-5 h-full hover:-translate-y-0.5 hover:shadow-md transition-all">
               <div className="flex items-start justify-between mb-3">
@@ -460,12 +463,12 @@ export function DashboardPage() {
                 {ordenesActivas > 0 && <Badge label="Activas" variant="yellow" />}
               </div>
               <p className="text-2xl font-black tabular-nums text-[#2D2B2A] leading-tight">{ordenesActivas}</p>
-              <p className="text-xs text-[#7A7571] font-semibold mt-0.5">Órdenes activas</p>
+              <p className="text-xs text-[#7A7571] font-semibold mt-0.5">Ã“rdenes activas</p>
             </Card>
           </Link>
 
-          {/* Stock crítico */}
-          <Link to="/alertas">
+          {/* Stock crÃ­tico */}
+          <Link to="/reportes/inventario">
             <Card className={`p-5 h-full hover:-translate-y-0.5 hover:shadow-md transition-all ${stockCritico.length > 0 ? 'border-[#F5C9C0]' : ''}`}>
               <div className="flex items-start justify-between mb-3">
                 <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${stockCritico.length > 0 ? 'bg-[#F5C9C0]' : 'bg-[#F0EFEC]'}`}>
@@ -480,19 +483,19 @@ export function DashboardPage() {
               <p className={`text-2xl font-black tabular-nums leading-tight ${stockCritico.length > 0 ? 'text-[#8A1E12]' : 'text-[#2D2B2A]'}`}>
                 {stockCritico.length}
               </p>
-              <p className="text-xs text-[#7A7571] font-semibold mt-0.5">Stock crítico</p>
-              <p className="text-[10px] text-[#7A7571] mt-2">Productos bajo mínimo</p>
+              <p className="text-xs text-[#7A7571] font-semibold mt-0.5">Stock crÃ­tico</p>
+              <p className="text-[10px] text-[#7A7571] mt-2">Productos bajo mÃ­nimo</p>
             </Card>
           </Link>
         </div>
 
-        {/* ── Gráfico ventas + Top productos ───────────────────────────── */}
+        {/* â”€â”€ GrÃ¡fico ventas + Top productos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5" style={{ minHeight: 320 }}>
 
           <Card className="lg:col-span-2 p-5 flex flex-col">
             <div className="flex items-start justify-between shrink-0">
               <div>
-                <h2 className="text-sm font-bold text-[#2D2B2A]">Ventas — últimos 14 días</h2>
+                <h2 className="text-sm font-bold text-[#2D2B2A]">Ventas â€” Ãºltimos 14 dÃ­as</h2>
                 <div className="flex items-center gap-2 mt-0.5 h-5">
                   {chartHover !== null ? (
                     <>
@@ -502,13 +505,13 @@ export function DashboardPage() {
                       </span>
                     </>
                   ) : (
-                    <p className="text-xs text-[#7A7571]">Pasa el cursor para ver cada día</p>
+                    <p className="text-xs text-[#7A7571]">Pasa el cursor para ver cada dÃ­a</p>
                   )}
                 </div>
               </div>
               <Link to="/reportes/ventas"
                 className="text-xs text-[#780e18] hover:text-[#5a0a12] font-bold shrink-0">
-                Ver reporte →
+                Ver reporte â†’
               </Link>
             </div>
             <SalesChart data={sparkline14d} dates={chartDates} onHover={setChartHover} />
@@ -539,11 +542,11 @@ export function DashboardPage() {
           </Card>
         </div>
 
-        {/* ── Stock crítico + Valor inventario ──────────────────────────── */}
+        {/* â”€â”€ Stock crÃ­tico + Valor inventario â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
 
           <Card className="lg:col-span-2 p-5">
-            <SectionTitle to="/alertas">Stock crítico</SectionTitle>
+            <SectionTitle to="/reportes/inventario">Stock crÃ­tico</SectionTitle>
             {stockCritico.length === 0 ? (
               <div className="flex items-center gap-3 py-10 justify-center">
                 <div className="h-10 w-10 rounded-full bg-[#B8DCCA] flex items-center justify-center">
@@ -551,7 +554,7 @@ export function DashboardPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <span className="text-sm font-semibold text-[#7A7571]">Todos los productos sobre el mínimo</span>
+                <span className="text-sm font-semibold text-[#7A7571]">Todos los productos sobre el mÃ­nimo</span>
               </div>
             ) : (
               <table className="w-full text-xs">
@@ -559,7 +562,7 @@ export function DashboardPage() {
                   <tr className="bg-[#F5F0EB] border-b border-[#D0CBC4]">
                     <th className="text-left px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px]">Producto</th>
                     <th className="text-center px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px]">Stock</th>
-                    <th className="text-center px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px]">Mín.</th>
+                    <th className="text-center px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px]">MÃ­n.</th>
                     <th className="text-left px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px]">Estado</th>
                   </tr>
                 </thead>
@@ -577,7 +580,7 @@ export function DashboardPage() {
                       </td>
                       <td className="py-3 text-center text-[#7A7571] font-semibold tabular-nums">{p.stock_minimo}</td>
                       <td className="py-3">
-                        <Badge label={p.stock === 0 ? 'Sin stock' : 'Bajo mínimo'} variant={p.stock === 0 ? 'red' : 'amber'} />
+                        <Badge label={p.stock === 0 ? 'Sin stock' : 'Bajo mÃ­nimo'} variant={p.stock === 0 ? 'red' : 'amber'} />
                       </td>
                     </tr>
                   ))}
@@ -585,8 +588,8 @@ export function DashboardPage() {
               </table>
             )}
             {stockCritico.length > 6 && (
-              <Link to="/alertas" className="block mt-3 text-center text-xs text-[#780e18] hover:text-[#5a0a12] font-bold">
-                +{stockCritico.length - 6} productos más →
+              <Link to="/reportes/inventario" className="block mt-3 text-center text-xs text-[#780e18] hover:text-[#5a0a12] font-bold">
+                +{stockCritico.length - 6} productos mÃ¡s â†’
               </Link>
             )}
           </Card>
@@ -617,14 +620,14 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* ── Pedidos recientes ─────────────────────────────────────────── */}
+        {/* â”€â”€ Pedidos recientes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div className="grid grid-cols-1 gap-5 mb-5">
 
           <Card className="p-5">
             <SectionTitle to="/ventas/caja">Pedidos recientes</SectionTitle>
             <div className="space-y-1">
               {ordenes.length === 0 ? (
-                <p className="text-sm text-[#7A7571] text-center py-10">Sin órdenes</p>
+                <p className="text-sm text-[#7A7571] text-center py-10">Sin Ã³rdenes</p>
               ) : (
                 [...ordenes].reverse().slice(0, 10).map(o => {
                   const bs = estadoBadge[o.estado] ?? { label: o.estado, variant: 'gray' as BadgeVariant }
@@ -651,10 +654,10 @@ export function DashboardPage() {
           </Card>
         </div>
 
-        {/* ── Sin movimiento ────────────────────────────────────────────── */}
+        {/* â”€â”€ Sin movimiento â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         {sinMovimiento.length > 0 && (
           <Card className="p-5">
-            <SectionTitle to="/reportes/stock-muerto">Sin movimiento — últimos 30 días</SectionTitle>
+            <SectionTitle to="/reportes/stock-muerto">Sin movimiento â€” Ãºltimos 30 dÃ­as</SectionTitle>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {sinMovimiento.slice(0, 6).map(p => {
                 if (!p) return null
@@ -665,7 +668,7 @@ export function DashboardPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-[#2D2B2A] truncate">{p.nombre}</p>
                       <p className="text-[10px] text-[#7A7571] mt-0.5 tabular-nums">
-                        {p.codigo_universal} · {p.stock} uds · {fmtBs(p.stock * p.precio_costo)}
+                        {p.codigo_universal} Â· {p.stock} uds Â· {fmtBs(p.stock * p.precio_costo)}
                       </p>
                     </div>
                   </div>
@@ -675,7 +678,7 @@ export function DashboardPage() {
             {sinMovimiento.length > 6 && (
               <div className="mt-3 text-center">
                 <Link to="/reportes/stock-muerto" className="text-xs text-[#780e18] hover:text-[#5a0a12] font-bold">
-                  +{sinMovimiento.length - 6} más →
+                  +{sinMovimiento.length - 6} mÃ¡s â†’
                 </Link>
               </div>
             )}

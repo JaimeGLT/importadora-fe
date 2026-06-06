@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
+import { PageTopBar } from '@/components/layout/PageTopBar'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import { PRODUCTOS_QUERY, backendToProductoSimple, type ProductoAPI } from '@/lib/queries/inventario.queries'
@@ -81,6 +82,7 @@ export function InventarioReportePage() {
 
   return (
     <MainLayout>
+      <PageTopBar section="Reportes" title="Inventario" />
       <PageContainer>
         <PageHeader title="Inventario" description="Estado actual del stock y valor del inventario" />
 

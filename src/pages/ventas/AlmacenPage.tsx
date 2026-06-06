@@ -321,7 +321,6 @@ function FaltantesModal({
                               <CheckBox checked={checked} />
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-[#2D2B2A] truncate">{p.nombre}</p>
-                                <span className="text-[11px] font-mono text-[#7A7571]">{p.codigo}</span>
                               </div>
                               <span className="text-sm font-bold text-[#4A4744] shrink-0">×{p.cantidad}</span>
                             </div>
@@ -563,7 +562,6 @@ function ItemCard({
         <div className="border-t border-[#E8E5E2] bg-[#F7F7F7] divide-y divide-[#E8E5E2]">
           {item.piezas_orden.map(p => (
             <div key={p.id_pieza} className="flex items-center gap-2 px-4 py-2">
-              <span className="text-[10px] font-mono text-[#7A7571] bg-white px-1 py-0.5 rounded border border-[#E8E5E2] shrink-0">{p.codigo}</span>
               <span className="text-xs text-[#4A4744] flex-1 min-w-0 truncate">{p.nombre}</span>
               <span className="text-xs font-bold text-[#2D2B2A] shrink-0">×{p.cantidad}</span>
             </div>
@@ -764,7 +762,6 @@ function KitGroupCard({
                 )}>
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="font-mono text-[10px] text-[#7A7571] leading-none mb-0.5">{fmtCodigo(pieza.codigo, pieza.marcaId, marcas)}</p>
                       <p className="text-sm font-bold text-[#2D2B2A] leading-snug">{pieza.nombre}</p>
                       <p className="text-[11px] text-[#7A7571] mt-0.5">
                         {pieza.cantidad} unidades pedidas · sale de kit {fmtCodigo(piezasSueltas.producto_codigo, piezasSueltas.marcaId, marcas)}
@@ -1533,10 +1530,21 @@ export function AlmacenPage() {
     const currentOrden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)
     const isConFaltantes = currentOrden?.estado === 'con_faltantes'
     try {
+      const currentItem = currentOrden?.items.find(i => i.id === itemId)
+      if (currentItem?.es_parcial && currentItem.piezas_orden?.length) {
+        for (const pieza of currentItem.piezas_orden) {
+          if (!pieza.listo_almacenero && !pieza.confirmado) {
+            if (isConFaltantes) {
+              await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Confirmar`, { PrecioUnitario: pieza.precio_unitario ?? 0 })
+            } else {
+              await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`, null)
+            }
+          }
+        }
+      }
       if (isConFaltantes) {
         await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Confirmar`, undefined)
       } else {
-        const currentItem = currentOrden?.items.find(i => i.id === itemId)
         if (currentItem?.estado === 'faltante') {
           await api.delete(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Incompleto`)
         }
@@ -1548,6 +1556,7 @@ export function AlmacenPage() {
       if (updatedOrden?.estado === 'con_faltantes') {
         const remainingPendientes = updatedOrden.items.filter(i => i.estado === 'pendiente').length
         if (remainingPendientes === 0) {
+          await api.post(`/OrdenVenta/${pickingOrdenId}/Lista`, null)
           updateOrden(pickingOrdenId, { estado: 'listo_para_escaneo' })
           setPickingOrdenId(null)
           notify.success('Todos los productos listos — orden de vuelta en escaneo')

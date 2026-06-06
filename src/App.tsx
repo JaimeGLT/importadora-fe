@@ -18,7 +18,6 @@ const MarcasPageImportaciones = lazy(() => import('@/pages/importaciones/marcas/
 const CajaDiariaPage         = lazy(() => import('@/pages/caja/CajaDiariaPage').then(m => ({ default: m.CajaDiariaPage })))
 const CajaPage               = lazy(() => import('@/pages/ventas/CajaPage').then(m => ({ default: m.CajaPage })))
 const AlmacenPage            = lazy(() => import('@/pages/ventas/AlmacenPage').then(m => ({ default: m.AlmacenPage })))
-const AlertasPage            = lazy(() => import('@/pages/alertas/AlertasPage').then(m => ({ default: m.AlertasPage })))
 const VentasReportePage      = lazy(() => import('@/pages/reportes/VentasReportePage').then(m => ({ default: m.VentasReportePage })))
 const InventarioReportePage  = lazy(() => import('@/pages/reportes/InventarioReportePage').then(m => ({ default: m.InventarioReportePage })))
 const OrdenesReportePage     = lazy(() => import('@/pages/reportes/OrdenesReportePage').then(m => ({ default: m.OrdenesReportePage })))
@@ -62,7 +61,6 @@ export default function App() {
 
             <Route element={<RoleGuard allowedRoles={['admin']} />}>
               <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/alertas" element={<AlertasPage />} />
             </Route>
 
             <Route element={<RoleGuard allowedRoles={['admin']} />}>

@@ -112,6 +112,7 @@ function OrdenDrawer({ orden, onClose }: { orden: OrdenVenta; onClose: () => voi
               {orden.items.length} ítem{orden.items.length !== 1 ? 's' : ''}
             </span>
           </div>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-[#F5F0EB]">
               <tr>
@@ -155,6 +156,7 @@ function OrdenDrawer({ orden, onClose }: { orden: OrdenVenta; onClose: () => voi
               </tr>
             </tfoot>
           </table>
+          </div>
         </div>
 
       </div>

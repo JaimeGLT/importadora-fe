@@ -87,7 +87,6 @@ export interface KitRelacion {
 export interface PiezaKit {
   id: number
   id_producto: number
-  codigo_universal: string
   nombre: string
   cantidad_por_kit: number
   stock_actual: number
@@ -361,7 +360,6 @@ export interface PiezaOrden {
   id_pieza: number
   item_id?: string
   nombre: string
-  codigo: string
   marcaId?: number | null
   cantidad: number
   precio_unitario?: number

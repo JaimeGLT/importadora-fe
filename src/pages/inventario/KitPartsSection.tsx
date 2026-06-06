@@ -17,7 +17,6 @@ interface KitPartsSectionProps {
 
 type DisplayPart = {
   key: string
-  codigo: string
   nombre: string
   cantidad: number
   stock?: number
@@ -37,10 +36,9 @@ export function KitPartsSection({
 }: KitPartsSectionProps) {
   const [mode, setMode] = useState<'idle' | 'search' | 'create'>('idle')
   const [q, setQ] = useState('')
-  const [newCodigo, setNewCodigo] = useState('')
   const [newNombre, setNewNombre] = useState('')
   const [newCantidad, setNewCantidad] = useState(1)
-  const [pending, setPending] = useState<{ codigo: string; nombre: string } | null>(null)
+  const [pending, setPending] = useState<{ nombre: string } | null>(null)
   const [pendingQty, setPendingQty] = useState(1)
   const [searchResults, setSearchResults] = useState<Producto[]>([])
   const [searching, setSearching] = useState(false)
@@ -83,7 +81,6 @@ export function KitPartsSection({
         .filter((p) => !deletedIds.has(p.id))
         .map((p) => ({
           key: `b-${p.id}`,
-          codigo: p.codigo_universal,
           nombre: p.nombre,
           cantidad: updatedMap.get(p.id)?.cantidadPorKit ?? p.cantidad_por_kit,
           stock: p.stock_actual,
@@ -92,7 +89,6 @@ export function KitPartsSection({
 
       const addRows: DisplayPart[] = addOps.map((op, i) => ({
         key: `add-${i}`,
-        codigo: op.data.codigoUniversal,
         nombre: op.data.nombre,
         cantidad: op.data.cantidadPorKit,
         addOpIdx: i,
@@ -102,7 +98,6 @@ export function KitPartsSection({
     } else {
       return localPieces.map((p, i) => ({
         key: `local-${i}`,
-        codigo: p.codigoUniversal,
         nombre: p.nombre,
         cantidad: p.cantidadPorKit,
         localIdx: i,
@@ -148,13 +143,12 @@ export function KitPartsSection({
 
   // ── Add piece ────────────────────────────────────────────────────────────────
 
-  const addPiece = (codigo: string, nombre: string, cantidad = 1) => {
-    const dto: DtoPiezaKit = { codigoUniversal: codigo || `PIEZA-${Date.now()}`, nombre, cantidadPorKit: Math.max(1, cantidad) }
+  const addPiece = (nombre: string, cantidad = 1) => {
+    const dto: DtoPiezaKit = { nombre, cantidadPorKit: Math.max(1, cantidad) }
     if (wasKit) {
       onPieceOpsChange([...pieceOps, { type: 'add', data: dto }])
     } else {
-      const duplicate = localPieces.some((p) => p.codigoUniversal === dto.codigoUniversal)
-      if (!duplicate) onLocalPiecesChange([...localPieces, dto])
+      onLocalPiecesChange([...localPieces, dto])
     }
     setQ('')
     setPending(null)
@@ -164,12 +158,11 @@ export function KitPartsSection({
 
   // ── Search results ───────────────────────────────────────────────────────────
 
-  const existingCodes = new Set(displayParts.map((d) => d.codigo))
   const filteredResults = searchResults.filter(
-    (p) => !p.es_kit && p.id !== productoId && !existingCodes.has(p.codigo_universal)
+    (p) => !p.es_kit && p.id !== productoId
   )
 
-  const resetCreate = () => { setMode('idle'); setNewCodigo(''); setNewNombre(''); setNewCantidad(1) }
+  const resetCreate = () => { setMode('idle'); setNewNombre(''); setNewCantidad(1) }
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -187,13 +180,12 @@ export function KitPartsSection({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="font-mono text-[12px] font-bold text-ink tracking-[0.05em] leading-tight flex items-center gap-1.5 flex-wrap">
-                      {part.codigo}
+                    <div className="text-[13px] font-semibold text-ink leading-tight flex items-center gap-1.5 flex-wrap">
+                      {part.nombre}
                       {part.addOpIdx !== undefined && (
                         <span className="text-[9px] font-semibold px-1 py-px rounded bg-navy/10 text-navy uppercase tracking-wider">nuevo</span>
                       )}
                     </div>
-                    <div className="text-[11px] text-muted-2 truncate mt-0.5">{part.nombre}</div>
                   </div>
                   {part.stock !== undefined && (
                     <div className={clsx(
@@ -277,10 +269,10 @@ export function KitPartsSection({
             ) : (
               filteredResults.map((p) => (
                 <button key={p.id} type="button"
-                  onClick={() => { setPending({ codigo: p.codigo_universal, nombre: p.nombre }); setPendingQty(1) }}
+                  onClick={() => { setPending({ nombre: p.nombre }); setPendingQty(1) }}
                   className={clsx(
                     'w-full flex items-center gap-3 px-4 py-2.5 text-left border-b border-hair/50 last:border-0 transition-colors',
-                    pending?.codigo === p.codigo_universal ? 'bg-navy/[0.06]' : 'hover:bg-cream-2',
+                    pending?.nombre === p.nombre ? 'bg-navy/[0.06]' : 'hover:bg-cream-2',
                   )}>
                   <div className="flex-1 min-w-0">
                     <div className="font-mono font-bold text-[12px] text-ink tracking-[0.05em]">{p.codigo_universal}</div>
@@ -311,7 +303,7 @@ export function KitPartsSection({
                   className="w-6 h-6 sm:w-7 sm:h-7 rounded-r-[6px] border border-hair bg-white hover:bg-cream-2 text-ink-2 text-[15px] flex items-center justify-center border-l-0">+</button>
               </div>
               <button type="button"
-                onClick={() => addPiece(pending.codigo, pending.nombre, pendingQty)}
+                onClick={() => addPiece(pending.nombre, pendingQty)}
                 className="h-7 px-3 rounded-[7px] bg-terra text-white text-[12px] font-semibold hover:bg-terra-deep transition-colors shrink-0">
                 Agregar
               </button>
@@ -329,13 +321,10 @@ export function KitPartsSection({
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-            <input value={newCodigo} onChange={(e) => setNewCodigo(e.target.value)}
-              placeholder="Código (opcional)" autoFocus
-              className="h-[38px] px-3 text-[13px] border border-hair rounded-[8px] bg-white text-ink focus:outline-none focus:border-terra placeholder:text-muted-2" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
             <input value={newNombre} onChange={(e) => setNewNombre(e.target.value)}
-              placeholder="Nombre *"
-              onKeyDown={(e) => e.key === 'Enter' && newNombre.trim() && (addPiece(newCodigo, newNombre, newCantidad), setNewCodigo(''), setNewNombre(''), setNewCantidad(1))}
+              placeholder="Nombre *" autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && newNombre.trim() && (addPiece(newNombre, newCantidad), setNewNombre(''), setNewCantidad(1))}
               className="h-[38px] px-3 text-[13px] border border-hair rounded-[8px] bg-white text-ink focus:outline-none focus:border-terra placeholder:text-muted-2" />
             <div className="flex items-center gap-1.5">
               <input type="number" min={1} value={newCantidad}
@@ -346,7 +335,7 @@ export function KitPartsSection({
           </div>
           <div className="flex justify-end">
             <button type="button"
-              onClick={() => { if (newNombre.trim()) { addPiece(newCodigo, newNombre, newCantidad); setNewCodigo(''); setNewNombre(''); setNewCantidad(1) } }}
+              onClick={() => { if (newNombre.trim()) { addPiece(newNombre, newCantidad); setNewNombre(''); setNewCantidad(1) } }}
               disabled={!newNombre.trim()}
               className="w-full sm:w-auto h-[34px] px-4 rounded-[8px] bg-terra text-white text-[12.5px] font-semibold hover:bg-terra-deep transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
               Agregar pieza

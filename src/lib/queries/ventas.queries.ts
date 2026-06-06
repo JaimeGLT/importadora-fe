@@ -25,7 +25,7 @@ export interface OrdenItemPiezaAPI {
   confirmado: boolean
   listoAlmacenero: boolean
   notaIncompleto: string | null
-  pieza?: { nombre: string; codigoUniversal: string } | null
+  pieza?: { nombre: string } | null
 }
 
 export interface OrdenItemAPI {
@@ -138,7 +138,6 @@ export const MIS_ORDENES_QUERY = `
             notaIncompleto
             pieza {
               nombre
-              codigoUniversal
             }
           }
         }
@@ -214,7 +213,6 @@ export const ORDENES_PENDIENTES_QUERY = `
             notaIncompleto
             pieza {
               nombre
-              codigoUniversal
             }
           }
         }
@@ -290,7 +288,6 @@ export const MIS_ORDENES_ALMACEN_QUERY = `
             notaIncompleto
             pieza {
               nombre
-              codigoUniversal
             }
           }
         }
@@ -365,7 +362,6 @@ export const TODAS_ORDENES_QUERY = `
             notaIncompleto
             pieza {
               nombre
-              codigoUniversal
             }
           }
         }
@@ -448,7 +444,6 @@ function backendToItemOrden(api: OrdenItemAPI): ItemOrden {
           id: p.id,
           id_pieza: p.id_Pieza,
           nombre: p.pieza?.nombre ?? `Pieza #${p.id_Pieza}`,
-          codigo: p.pieza?.codigoUniversal ?? '',
           marcaId: api.producto?.marca?.id ?? null,
           cantidad: p.cantidad,
           precio_unitario: p.precioUnitario,

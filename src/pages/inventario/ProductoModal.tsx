@@ -4,7 +4,6 @@ import { BrandSelect } from '@/components/ui/BrandSelect'
 import type { Producto, HistorialPrecio } from '@/types'
 import type { DtoPiezaKit, KitOps, PieceOp } from '@/lib/queries/inventario.queries'
 import { KitPartsSection } from './KitPartsSection'
-import { useConfigStore, calcularPrecioConDescuento } from '@/stores/configStore'
 import { clsx } from 'clsx'
 import { notify } from '@/lib/notify'
 
@@ -64,55 +63,6 @@ function SkeletonField({ labelWidth = 24 }: { labelWidth?: number }) {
       <div className="h-2.5 rounded bg-[#F0EFEC] animate-pulse" style={{ width: `${labelWidth}%` }} />
       <div className="h-[42px] w-full rounded-xl bg-[#F0EFEC] animate-pulse" />
     </div>
-  )
-}
-
-// ─── Precios especiales ───────────────────────────────────────────────────────
-
-const COLOR_STYLES: Record<string, { bg: string; text: string; border: string }> = {
-  emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-  blue:    { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200' },
-  amber:   { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200' },
-  purple:  { bg: 'bg-purple-50',  text: 'text-purple-700',  border: 'border-purple-200' },
-  rose:    { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200' },
-  cyan:    { bg: 'bg-cyan-50',    text: 'text-cyan-700',    border: 'border-cyan-200' },
-}
-
-function PreciosEspecialesSection({ precioVenta }: { precioVenta: number }) {
-  const { descuentos } = useConfigStore()
-  const descuentosActivos = descuentos.filter((d) => d.activo)
-  if (descuentosActivos.length === 0 || precioVenta <= 0) return null
-
-  return (
-    <section className="rounded-2xl border border-[#E8E5E2] overflow-hidden">
-      <div className="flex items-center gap-3 px-5 py-3.5 bg-white border-b border-[#E8E5E2]">
-        <div className="flex items-center justify-center w-[30px] h-[30px] rounded-[8px] bg-white border border-hair text-ink-2 shadow-sm flex-shrink-0">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[12.5px] font-bold text-[#2D2B2A]">Precios especiales</p>
-          <p className="text-[11px] text-[#7A7571] leading-tight">Descuentos automáticos configurados</p>
-        </div>
-      </div>
-      <div className="p-5 bg-white">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {descuentosActivos.map((d) => {
-            const styles = COLOR_STYLES[d.color] || COLOR_STYLES.emerald
-            const precioFinal = calcularPrecioConDescuento(precioVenta, d.porcentaje)
-            return (
-              <div key={d.id} className={clsx('px-3 py-2.5 rounded-[10px] border', styles.bg, styles.border)}>
-                <p className={clsx('text-[10px] font-semibold uppercase tracking-wide', styles.text)}>{d.nombre}</p>
-                <p className="text-[11px] text-muted-2 line-through mt-0.5">Bs {precioVenta.toFixed(2)}</p>
-                <p className={clsx('text-sm font-bold', styles.text)}>Bs {precioFinal.toFixed(2)}</p>
-                <p className="text-[10px] text-muted-2">-{d.porcentaje}%</p>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </section>
   )
 }
 
@@ -667,8 +617,6 @@ export function ProductoModal({
               )}
             </div>
           )}
-
-          <PreciosEspecialesSection precioVenta={form.precio_venta} />
 
           {/* Historial de precios */}
           {form.historial_precios.length > 0 && (

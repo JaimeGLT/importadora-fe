@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { MainLayout } from '@/components/layout/MainLayout'
+import { PageTopBar } from '@/components/layout/PageTopBar'
 import { ServerPagination } from '@/components/ui'
 import { notify } from '@/lib/notify'
 import { gql } from '@/lib/graphql'
@@ -874,31 +875,7 @@ export function AjustesPage() {
     <MainLayout>
       <div className="bg-[#F7F7F7] min-h-screen">
 
-        {/* ── TopBar ── */}
-        <header className="bg-[#F7F7F7]/85 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full h-[62px] px-7 border-b border-[#E8E5E2]">
-          <div className="flex items-center gap-2 text-sm text-[#7A7571]">
-            <span>Operaciones</span>
-            <span className="text-[10px] opacity-40">/</span>
-            <span>Inventario</span>
-            <span className="text-[10px] opacity-40">/</span>
-            <strong className="text-[#2D2B2A] font-semibold">Ajustes</strong>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <div className="hidden sm:flex bg-white px-3.5 py-1.5 rounded-lg items-center gap-2 border border-[#D8D4D0]">
-              <i className="ti ti-calendar text-[#7A7571] text-[15px]" />
-              <span className="text-xs text-[#4A4744]">{dateStr}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <button className="w-[34px] h-[34px] flex items-center justify-center rounded-full bg-white border border-[#D8D4D0] text-[#4A4744] hover:bg-[#F7F7F7] transition-colors relative" title="Notificaciones">
-                <i className="ti ti-bell text-[15px]" />
-                <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#B23A2A]" />
-              </button>
-              <button className="w-[34px] h-[34px] flex items-center justify-center rounded-full bg-white border border-[#D8D4D0] text-[#4A4744] hover:bg-[#F7F7F7] transition-colors" title="Configuración">
-                <i className="ti ti-settings text-[15px]" />
-              </button>
-            </div>
-          </div>
-        </header>
+        <PageTopBar subsection="Inventario" title="Ajustes" />
 
         <div className="px-7 py-6 max-w-[1400px] mx-auto">
 

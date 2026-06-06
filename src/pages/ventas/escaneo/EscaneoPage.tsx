@@ -457,7 +457,6 @@ function PiezaScanPriceModal({
               Pieza de kit
             </span>
           </div>
-          <p className="text-xs font-mono text-[#7A7571]">{fmtCodigo(pieza.codigo, pieza.marcaId, marcas)}</p>
         </div>
 
         <div className="px-6 py-5 space-y-3">
@@ -635,7 +634,7 @@ function AgregarProductoModal({
                   autoFocus
                   type="text"
                   value={query}
-                  onChange={e => setQuery(e.target.value)}
+                  onChange={e => setQuery(e.target.value.replace(/'/g, '-'))}
                   placeholder="Buscar por código, nombre o marca…"
                   className="flex-1 py-2.5 bg-transparent text-[13px] text-[#2D2B2A] placeholder:text-[#7A7571] outline-none border-none"
                 />
@@ -768,7 +767,6 @@ function AgregarProductoModal({
                           <div key={pc.pieza.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#F5F0EB] border border-[#E8E5E2]">
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-[#2D2B2A] truncate">{pc.pieza.nombre}</p>
-                              <p className="text-[11px] font-mono text-[#7A7571]">{pc.pieza.codigo_universal}</p>
                               <p className={clsx('text-[11px] font-semibold mt-0.5', dispPieza === 0 ? 'text-[#B23A2A]' : 'text-[#3F7A52]')}>
                                 {dispPieza} disp.
                               </p>
@@ -1114,7 +1112,7 @@ export function EscaneoPage() {
           )
           const newItem: ItemOrden = {
             id: String(res.id),
-            producto_id: String(res.idProducto ?? res.Id_Producto ?? parseInt(req.kitProducto.id)),
+            producto_id: String(res.idProducto ?? parseInt(req.kitProducto.id)),
             producto_codigo: res.producto.codigo,
             producto_nombre: res.producto.nombre,
             producto_almacen: '',
@@ -1131,7 +1129,6 @@ export function EscaneoPage() {
               id: res.piezas[0].id,
               id_pieza: res.piezas[0].idPieza,
               nombre: pieza.nombre,
-              codigo: pieza.codigo_universal,
               cantidad: res.cantidad,
               precio_unitario: res.precioUnitario,
             }] : undefined,
@@ -1147,7 +1144,7 @@ export function EscaneoPage() {
         )
         const newItem: ItemOrden = {
           id: String(res.id),
-          producto_id: String(res.idProducto ?? res.Id_Producto ?? parseInt(producto.id)),
+          producto_id: String(res.idProducto ?? parseInt(producto.id)),
           producto_codigo: res.producto.codigo,
           producto_nombre: res.producto.nombre,
           producto_almacen: producto.almacen,
@@ -1290,31 +1287,6 @@ export function EscaneoPage() {
       return
     }
 
-    // Buscar si el código pertenece a una pieza de un kit parcial
-    const piezaFound = itemsEscaneables
-      .flatMap(i => (i.piezas_orden ?? []).map(p => ({ item: i, pieza: p })))
-      .find(({ pieza }) => pieza.codigo.toLowerCase() === codeLower)
-
-    if (piezaFound) {
-      const { item, pieza } = piezaFound
-      if (confirmedPiezaIds.has(pieza.id) || pieza.confirmado) {
-        notify.warning(`${pieza.nombre} ya fue confirmada`)
-        return
-      }
-      if (pieza.nota_incompleto && !(pieza.cantidad_recogida ?? 0)) {
-        notify.warning(`${pieza.nombre} está marcada como faltante`)
-        return
-      }
-      if (pieza.precio_unitario && pieza.precio_unitario > 0) {
-        // Precio conocido → auto-confirmar
-        handleConfirmarPieza(item, pieza)
-      } else {
-        // Sin precio → pedir precio
-        setPendingPiezaScan({ item, pieza })
-      }
-      return
-    }
-
     // Not found in order — pasar código original con prefijo; backend lo resuelve
     setPendingNotInOrderMarcaId(resolvedMarcaId)
     setPendingNotInOrderCode(code)
@@ -1365,13 +1337,13 @@ export function EscaneoPage() {
     const p = notInOrderProducto
     setAgregarLoading(true)
     try {
-      const body: { Id_Produto?: number; Id_Pieza?: number; Cantidad: number; PrecioUnitario?: number } = { Cantidad: cantidad }
+      const body: { Id_Producto?: number; Id_Pieza?: number; Cantidad: number; PrecioUnitario?: number } = { Cantidad: cantidad }
       if (p.piezaEscaneadaId != null) {
-        body.Id_Produto = p.id
+        body.Id_Producto = p.id
         body.Id_Pieza = p.piezaEscaneadaId
         body.PrecioUnitario = precio
       } else {
-        body.Id_Produto = p.id
+        body.Id_Producto = p.id
         // Si el mismo producto ya existe en la orden, usar su precio (puede tener descuento)
         const existingItem = itemsParaEscanear.find(
           i => i.producto_id === String(p.id) && !i.es_parcial
@@ -1391,7 +1363,7 @@ export function EscaneoPage() {
         const piezaCatalogo = p.piezas?.find(pz => pz.id === res.piezas![0].idPieza)
         newItem = {
           id: String(res.id),
-          producto_id: String(res.idProducto ?? res.Id_Produto ?? p.id),
+          producto_id: String(res.idProducto ?? p.id),
           producto_codigo: res.producto.codigo,
           producto_nombre: res.producto.nombre,
           producto_almacen: almacen,
@@ -1407,7 +1379,6 @@ export function EscaneoPage() {
             id: piezaItemId,
             id_pieza: res.piezas[0].idPieza,
             nombre: piezaCatalogo?.nombre ?? '',
-            codigo: piezaCatalogo?.codigoUniversal ?? '',
             cantidad: res.cantidad,
             precio_unitario: res.precioUnitario,
           }],
@@ -1415,7 +1386,7 @@ export function EscaneoPage() {
       } else {
         newItem = {
           id: String(res.id),
-          producto_id: String(res.idProducto ?? res.Id_Produto ?? p.id),
+          producto_id: String(res.idProducto ?? p.id),
           producto_codigo: res.producto.codigo,
           producto_nombre: res.producto.nombre,
           producto_almacen: almacen,
@@ -1635,7 +1606,7 @@ export function EscaneoPage() {
                         className="flex-1 py-2.5 bg-transparent text-[13px] text-[#2D2B2A] placeholder:text-[#7A7571] outline-none border-none disabled:opacity-50 disabled:cursor-not-allowed"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
-                            const val = (e.currentTarget as HTMLInputElement).value.trim()
+                            const val = (e.currentTarget as HTMLInputElement).value.trim().replace(/'/g, '-')
                             if (val) handleScan(val)
                             ;(e.currentTarget as HTMLInputElement).value = ''
                           }
@@ -1698,7 +1669,6 @@ export function EscaneoPage() {
                                         )}
                                       </div>
                                       <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-mono text-[#7A7571] leading-none">{fmtCodigo(pieza.codigo, pieza.marcaId, marcas)}</p>
                                         <p className="text-sm font-semibold text-[#2D2B2A] leading-snug truncate">
                                           {pieza.nombre} · ×{cantidadConfirmar}
                                         </p>
@@ -1915,7 +1885,6 @@ export function EscaneoPage() {
                                 <i className="ti ti-x text-[#B23A2A] text-[14px]" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-mono text-[#D0CBC4] line-through leading-none">{fmtCodigo(pieza.codigo, pieza.marcaId, marcas)}</p>
                                 <p className="text-sm text-[#7A7571] line-through leading-snug truncate">{itemNombre} — {pieza.nombre} · ×{pieza.cantidad}</p>
                               </div>
                               <span className="px-2.5 py-1 rounded-lg bg-[#F5C9C0] text-[#8A1E12] text-xs font-bold shrink-0">No disponible</span>

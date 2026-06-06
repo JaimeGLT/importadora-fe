@@ -115,7 +115,7 @@ function buildRawItems(rows: Record<string, unknown>[], mappings: FieldMappings)
     return {
       codigo_universal: codigo,
       codigos_adicionales: [get('codigo_alt1'), get('codigo_alt2')].filter(Boolean),
-      nombre:        get('nombre') || codigo,
+      nombre:        get('nombre'),
       descripcion:   get('descripcion'),
       procedencia:   get('procedencia'),
       marca:         get('marca'),

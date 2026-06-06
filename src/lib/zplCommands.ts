@@ -36,31 +36,32 @@ function buildLabel(data: ZPLLabelData): string {
 
   const parts = [
     `^XA`,
-    `^PW${LABEL_W_DOTS}`,   // 240 — ancho de UNA etiqueta
-    `^LL${LABEL_H_DOTS}`,   // 160
+    `^PW${LABEL_W_DOTS}`,
+    `^LL${LABEL_H_DOTS}`,
     `^CI28`,
     `^LH0,0`,
+    `^MTT`,
+    `^PR1`,
+    `^MD12`,
 
-    // Empresa — centrada, Y=4
-    `^FO0,4^FB${LABEL_W_DOTS},1,,C,0^A0N,12,12^FDUsa AutoPartes\&^FS`,
+    // Empresa — más grande (alto 20, ancho 16)
+    `^FO0,4^FB${LABEL_W_DOTS},1,,C,0^A0N,20,16^FDUsa AutoPartes\&^FS`,
 
-    // Barcode — X=4, Y=20, altura 55 dots, sin HRI interno
-    `^FO4,20^BY2,2,55^BCN,,N,N,N^FD${codigo}^FS`,
+    // Barcode
+    `^FO12,28^BY1,2,46^BCN,,N,N,N^FD${codigo}^FS`,
 
-    // Código texto — centrado, Y=82
-    `^FO0,82^FB${LABEL_W_DOTS},1,,C,0^A0N,10,10^FD${codigo}\&^FS`,
+    // Código texto — más grande (alto 20, ancho 16)
+    `^FO0,80^FB${LABEL_W_DOTS},1,,C,0^A0N,20,16^FD${codigo}\&^FS`,
 
-    // Fecha — centrada, Y=120
+    // Fecha — más grande (alto 20, ancho 18)
     ...(fecha
-      ? [`^FO0,120^FB${LABEL_W_DOTS},1,,C,0^A0N,10,10^FD${fecha}\&^FS`]
+      ? [`^FO0,112^FB${LABEL_W_DOTS},1,,C,0^A0N,20,18^FD${fecha}\&^FS`]
       : []),
 
     `^XZ`,
   ]
 
-  const zpl = parts.join('')
-  console.log('[ZPL]', zpl)
-  return zpl
+  return parts.join('')
 }
 
 export function generarZPLMultiple(

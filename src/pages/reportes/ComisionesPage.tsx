@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
+import { PageTopBar } from '@/components/layout/PageTopBar'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import { COMISIONES_QUERY, type ResumenComisionAPI } from '@/lib/queries/reportes.queries'
@@ -42,6 +43,7 @@ export function ComisionesPage() {
 
   return (
     <MainLayout>
+      <PageTopBar section="Reportes" title="Comisiones" />
       <PageContainer>
         <PageHeader
           title="Comisiones de cajeros"

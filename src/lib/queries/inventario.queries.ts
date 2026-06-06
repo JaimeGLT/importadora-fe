@@ -88,6 +88,23 @@ export const PRODUCTOS_CON_MARCAS_QUERY = `
 `
 
 
+export const PRODUCTOS_NOTIFICACIONES_QUERY = `
+  query ProductosNotificaciones {
+    productos {
+      nodes {
+        id
+        codigo
+        nombre
+        stock_Actual
+        stock_Minimo
+        esKit
+        calcularStockKit
+        marcaId
+      }
+    }
+  }
+`
+
 export const PRODUCTOS_ALL_QUERY = `
   query ProductosTodos {
     productos {
@@ -145,7 +162,6 @@ export const PRODUCTO_BY_ID_QUERY = `
         piezasKit {
           id
           id_Producto
-          codigoUniversal
           nombre
           cantidadPorKit
           stockActual
@@ -166,7 +182,6 @@ export const PRODUCTO_BY_ID_QUERY = `
 interface PiezaKitAPI {
   id: number
   id_Producto: number
-  codigoUniversal: string
   nombre: string
   cantidadPorKit: number
   stockActual: number
@@ -219,7 +234,6 @@ function mapPiezasKit(raw: PiezaKitAPI[] | undefined): PiezaKit[] {
   return raw.map((p) => ({
     id: p.id,
     id_producto: p.id_Producto,
-    codigo_universal: p.codigoUniversal ?? '',
     nombre: p.nombre ?? '',
     cantidad_por_kit: p.cantidadPorKit ?? 1,
     stock_actual: p.stockActual ?? 0,
@@ -356,14 +370,13 @@ export type ProductoAPIBulkInput = Omit<ProductoAPIInput, 'conversionABs' | 'sto
 // ─── Kit operation types ───────────────────────────────────────────────────────
 
 export type DtoPiezaKit = {
-  codigoUniversal: string
   nombre: string
   cantidadPorKit: number
 }
 
 export type PieceOp =
   | { type: 'add'; data: DtoPiezaKit }
-  | { type: 'update'; piezaId: number; data: { codigoBase?: string | null; nombre?: string | null; cantidadPorKit: number } }
+  | { type: 'update'; piezaId: number; data: { nombre?: string | null; cantidadPorKit: number } }
   | { type: 'delete'; piezaId: number }
 
 export type KitOpsMode = 'none' | 'convertirKit' | 'convertirRegular' | 'managePieces'

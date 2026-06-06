@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
+import { PageTopBar } from '@/components/layout/PageTopBar'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import { DASHBOARD_ORDENES_QUERY, backendOrdenToDashboard, type DashboardOrdenAPI, type DashboardOrden } from '@/lib/queries/ventas.queries'
@@ -95,6 +96,7 @@ export function OrdenesReportePage() {
 
   return (
     <MainLayout>
+      <PageTopBar section="Reportes" title="Órdenes" />
       <PageContainer>
         <PageHeader title="Órdenes" description="Historial y estado de todas las órdenes de venta" />
 

@@ -7,7 +7,6 @@ import { fmtCodigo } from '@/lib/formatCodigo'
 interface PiezaSeleccionada {
   producto_id: string
   nombre: string
-  codigo: string
   stock: number
   cantidad: number
   cantidad_por_kit: number
@@ -44,7 +43,6 @@ export function KitSeleccionModal({ open, onClose, kit, onConfirm }: KitSeleccio
     (kit.piezas_kit ?? []).map(p => ({
       producto_id: String(p.id),
       nombre: p.nombre,
-      codigo: p.codigo_universal,
       stock: Math.max(0, p.stock_actual - p.stock_reservado),
       cantidad_por_kit: p.cantidad_por_kit,
       precio: 0,
@@ -308,8 +306,7 @@ export function KitSeleccionModal({ open, onClose, kit, onConfirm }: KitSeleccio
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <p className="font-mono font-bold text-[13px] text-[#2D2B2A] truncate tracking-[0.04em]">{pieza.codigo}</p>
-                          <p className="text-[11px] text-[#7A7571] truncate mt-0.5">{pieza.nombre}</p>
+                          <p className="text-[13px] font-semibold text-[#2D2B2A] truncate">{pieza.nombre}</p>
                           <p className="text-[10px] font-mono text-[#7A7571] mt-0.5">
                             Stock: {pieza.stock}
                             <span className="mx-1 opacity-40">·</span>

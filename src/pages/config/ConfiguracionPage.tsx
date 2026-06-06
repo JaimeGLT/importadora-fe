@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout } from '@/components/layout/MainLayout'
+import { PageTopBar } from '@/components/layout/PageTopBar'
 import { Button, Input, Modal, ConfirmModal } from '@/components/ui'
 import { notify } from '@/lib/notify'
 import { gql } from '@/lib/graphql'
@@ -24,30 +25,6 @@ import {
   MODO_PRECIO_LABELS,
 } from '@/lib/queries/config.queries'
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
-
-function IcoCal() {
-  return (
-    <svg className="w-[15px] h-[15px] text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>
-    </svg>
-  )
-}
-function IcoBell() {
-  return (
-    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
-    </svg>
-  )
-}
-function IcoSettings() {
-  return (
-    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3"/>
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-    </svg>
-  )
-}
 function IcoPlus() {
   return (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
@@ -298,12 +275,6 @@ export function ConfiguracionPage() {
   const [margenNuevo, setMargenNuevo] = useState<number | null>(null)
   const [savingMargen, setSavingMargen] = useState(false)
 
-  const dateStr = useMemo(() => {
-    return new Date().toLocaleDateString('es-BO', {
-      weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-    })
-  }, [])
-
   const loadAll = () => {
     setLoading(true)
     Promise.all([
@@ -440,32 +411,12 @@ export function ConfiguracionPage() {
 
   return (
     <MainLayout>
+      <PageTopBar section="Sistema" title="Configuración" />
       <div className="relative px-4 sm:px-8 md:px-14 py-5 md:py-9 pb-10 md:pb-20 min-h-screen"
            style={{ background: 'linear-gradient(180deg, #F4EFE6 0%, #FAF8F5 200px, #FAF8F5 100%)' }}>
 
         <div className="relative z-[1]">
           <AutopartsWatermark />
-
-          {/* ── Topbar ──────────────────────────────────────────────────── */}
-          <div className="flex items-center justify-between mb-9">
-            <div className="flex items-center gap-1.5 text-[12.5px] text-muted tracking-[0.02em]">
-              <span>Operaciones</span>
-              <span className="opacity-50">/</span>
-              <span className="text-ink">Sistema</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex h-[38px] px-3.5 border border-hair bg-paper rounded-[10px] items-center gap-2 text-[13px] text-ink-2">
-                <IcoCal /><span>{dateStr}</span>
-              </div>
-              <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors relative">
-                <IcoBell />
-                <span className="absolute top-[9px] right-[10px] w-[7px] h-[7px] rounded-full bg-terra border-2 border-paper" />
-              </button>
-              <button className="w-[38px] h-[38px] rounded-[10px] border border-hair bg-paper flex items-center justify-center text-ink-2 hover:border-hair-2 transition-colors">
-                <IcoSettings />
-              </button>
-            </div>
-          </div>
 
           {/* ── Header ──────────────────────────────────────────────────── */}
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-8 mb-7 md:mb-10">
