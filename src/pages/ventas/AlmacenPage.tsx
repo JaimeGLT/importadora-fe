@@ -1548,19 +1548,38 @@ export function AlmacenPage() {
       }
       await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/MarcarListoIndividual`, null)
       markItemListoEnOrden(pickingOrdenId, itemId)
+      notify.success('Producto marcado como listo — cajero notificado')
 
+      // Refrescar la lista para obtener el estado REAL de la orden desde el backend.
+      // El backend puede haber promovido automáticamente la orden a 'lista' cuando
+      // todos los items quedaron resueltos; en ese caso NO debemos llamar a /Lista.
+      await loadOrdenes()
       const updatedOrden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)
+
+      // Si la orden ya pasó a 'listo_para_escaneo' por promoción automática del backend, salir.
+      if (updatedOrden?.estado === 'listo_para_escaneo') {
+        setPickingOrdenId(null)
+        notify.success('Todos los productos listos — orden de vuelta en escaneo')
+        return
+      }
+
+      // Si la orden quedó en 'con_faltantes' (no promovida) y no quedan pendientes,
+      // intentar promoverla manualmente. Si el backend ya la promovió entre el
+      // loadOrdenes y este POST, ignorar el error (la orden ya está como debe estar).
       if (updatedOrden?.estado === 'con_faltantes') {
         const remainingPendientes = updatedOrden.items.filter(i => i.estado === 'pendiente').length
         if (remainingPendientes === 0) {
-          await api.post(`/OrdenVenta/${pickingOrdenId}/Lista`, null)
+          try {
+            await api.post(`/OrdenVenta/${pickingOrdenId}/Lista`, null)
+          } catch {
+            // Race condition: el backend pudo haber promovido la orden entre el
+            // loadOrdenes y este POST. Ignorar el error.
+          }
           updateOrden(pickingOrdenId, { estado: 'listo_para_escaneo' })
           setPickingOrdenId(null)
           notify.success('Todos los productos listos — orden de vuelta en escaneo')
-          return
         }
       }
-      notify.success('Producto marcado como listo — cajero notificado')
     } catch (e) {
       notify.error(e instanceof Error ? e.message : 'Error al marcar como listo')
     }

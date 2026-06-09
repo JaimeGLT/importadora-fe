@@ -13,6 +13,9 @@ interface HubHandlers {
   onItemListoParaScaneo?: (p: { ordenId: number; itemId: number }) => void
   onOrdenConFaltantes?: (p: { ordenId: number }) => void
   onOrdenEsperandoPago?: (p: { id: number }) => void
+  onItemFaltanteReportado?: (p: { ordenId: number; itemId: number }) => void
+  onPiezaFaltanteReportado?: (p: { ordenId: number; itemId: number; piezaItemId: number }) => void
+  onFaltanteRevertido?: (p: { ordenId: number; itemId: number; piezaItemId?: number }) => void
 }
 
 export function useVentasHub(
@@ -50,6 +53,9 @@ export function useVentasHub(
     conn.on('ItemListoParaScaneo', (p) => handlersRef.current.onItemListoParaScaneo?.(p))
     conn.on('OrdenConFaltantes', (p) => handlersRef.current.onOrdenConFaltantes?.(p))
     conn.on('OrdenEsperandoPago', (p) => handlersRef.current.onOrdenEsperandoPago?.(p))
+    conn.on('ItemFaltanteReportado', (p) => handlersRef.current.onItemFaltanteReportado?.(p))
+    conn.on('PiezaFaltanteReportado', (p) => handlersRef.current.onPiezaFaltanteReportado?.(p))
+    conn.on('FaltanteRevertido', (p) => handlersRef.current.onFaltanteRevertido?.(p))
 
     conn.onreconnecting(() => setIsConnected(false))
     conn.onreconnected(async () => {

@@ -1238,6 +1238,18 @@ export function EscaneoPage() {
         scanInputRef.current?.focus()
       }
     }, [selectedOrdenId, updateOrden]),
+    onItemFaltanteReportado: useCallback((_p: { ordenId: number; itemId: number }) => {
+      // El item/pieza cambió de estado en el almacén; refrescar la orden
+      handleRecargarRef.current()
+    }, []),
+    onPiezaFaltanteReportado: useCallback((_p: { ordenId: number; itemId: number; piezaItemId: number }) => {
+      // La pieza cambió de estado en el almacén; refrescar la orden
+      handleRecargarRef.current()
+    }, []),
+    onFaltanteRevertido: useCallback((_p: { ordenId: number; itemId: number; piezaItemId?: number }) => {
+      // Se revirtió un faltante en el almacén; refrescar la orden
+      handleRecargarRef.current()
+    }, []),
   }, isTokenReady, ['Escaneo'])
 
   const joinGrupoRef = useRef<(g: string) => Promise<void>>(() => Promise.resolve())
@@ -1322,9 +1334,8 @@ export function EscaneoPage() {
     return confirmedItemIds.has(item.id)
   }
 
-  const allConfirmed = itemsEscaneables.length > 0 &&
-    itemsEscaneables.every(i => isItemConfirmed(i)) &&
-    itemsParaEscanear.every(i => i.estado !== 'pendiente')
+  const allConfirmed = itemsParaEscanear.length > 0 &&
+    itemsParaEscanear.every(i => isItemConfirmed(i) || i.estado === 'faltante')
 
   // Solo los faltantes totales (0 encontrados) van tachados abajo
   // Los parciales también aparecen tachados pero solo por la cantidad faltante
@@ -1558,6 +1569,8 @@ export function EscaneoPage() {
             producto_id: String(res.idProducto ?? parseInt(req.kitProducto.id)),
             producto_codigo: res.producto.codigo,
             producto_nombre: res.producto.nombre,
+            marcaId: req.kitProducto.marcaId ?? null,
+            marca_nombre: req.kitProducto.marca ?? undefined,
             producto_almacen: '',
             producto_estante: '',
             producto_fila: '',
@@ -1599,6 +1612,8 @@ export function EscaneoPage() {
           producto_id: String(res.idProducto ?? parseInt(producto.id)),
           producto_codigo: res.producto.codigo,
           producto_nombre: res.producto.nombre,
+          marcaId: producto.marcaId ?? null,
+          marca_nombre: producto.marca ?? undefined,
           producto_almacen: producto.almacen,
           producto_estante: producto.estante,
           producto_fila: producto.fila,
@@ -1840,6 +1855,8 @@ export function EscaneoPage() {
             producto_id: String(res.idProducto ?? p.id),
             producto_codigo: res.producto.codigo,
             producto_nombre: res.producto.nombre,
+            marcaId: p.marcaId,
+            marca_nombre: marcas.find(m => m.id === p.marcaId)?.nombre,
             producto_almacen: almacen,
             producto_estante: estante,
             producto_fila: fila,
@@ -1932,6 +1949,8 @@ export function EscaneoPage() {
           producto_id: String(res.idProducto ?? p.id),
           producto_codigo: res.producto.codigo,
           producto_nombre: res.producto.nombre,
+          marcaId: p.marcaId,
+          marca_nombre: marcas.find(m => m.id === p.marcaId)?.nombre,
           producto_almacen: almacen,
           producto_estante: estante,
           producto_fila: fila,
@@ -1997,6 +2016,8 @@ export function EscaneoPage() {
         producto_id: String(res.idProducto ?? p.id),
         producto_codigo: res.producto.codigo,
         producto_nombre: res.producto.nombre,
+        marcaId: p.marcaId,
+        marca_nombre: marcas.find(m => m.id === p.marcaId)?.nombre,
         producto_almacen: almacen,
         producto_estante: estante,
         producto_fila: fila,
@@ -2252,6 +2273,7 @@ export function EscaneoPage() {
                                   const piezaConfirmada = confirmedPiezaIds.has(pieza.id) || !!pieza.confirmado
                                   const esPiezaFaltante = !!pieza.nota_incompleto && !(pieza.cantidad_recogida ?? 0)
                                   const esPiezaParcial = !!pieza.nota_incompleto && (pieza.cantidad_recogida ?? 0) > 0
+                                  const esPiezaLista = !!pieza.listo_almacenero
                                   const cantidadConfirmar = esPiezaParcial ? pieza.cantidad_recogida! : pieza.cantidad
                                   const cantidadFaltante = esPiezaParcial ? pieza.cantidad - pieza.cantidad_recogida! : 0
                                   const loadingPieza = !!piezaLoading[pieza.id]
@@ -2263,19 +2285,19 @@ export function EscaneoPage() {
                                         'flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-300',
                                         esPiezaFaltante ? 'border-[#F5C9C0] bg-[#F5C9C0]/20' :
                                         esPiezaParcial ? 'border-[#B47A1F]/30 bg-[#F5E0A8]/20' :
-                                        piezaConfirmada ? 'border-[#3F7A52]/30 bg-[#B8DCCA]/20' :
+                                        (piezaConfirmada || esPiezaLista) ? 'border-[#3F7A52]/30 bg-[#B8DCCA]/20' :
                                         'border-[#D0CBC4] bg-white'
                                       )}
                                     >
                                       <div className={clsx(
                                         'h-8 w-8 rounded-full flex items-center justify-center shrink-0',
-                                        esPiezaFaltante ? 'bg-[#F5C9C0]' : esPiezaParcial ? 'bg-[#F5E0A8]' : piezaConfirmada ? 'bg-[#B8DCCA]' : 'bg-[#F0EFEC]'
+                                        esPiezaFaltante ? 'bg-[#F5C9C0]' : esPiezaParcial ? 'bg-[#F5E0A8]' : (piezaConfirmada || esPiezaLista) ? 'bg-[#B8DCCA]' : 'bg-[#F0EFEC]'
                                       )}>
                                         {esPiezaFaltante ? (
                                           <i className="ti ti-x text-[#B23A2A] text-[14px]" />
                                         ) : esPiezaParcial ? (
                                           <i className="ti ti-alert-triangle text-[#B47A1F] text-[14px]" />
-                                        ) : piezaConfirmada ? (
+                                        ) : (piezaConfirmada || esPiezaLista) ? (
                                           <i className="ti ti-check text-[#3F7A52] text-[14px]" />
                                         ) : (
                                           <i className="ti ti-package text-[#7A7571] text-[14px]" />
@@ -2309,6 +2331,12 @@ export function EscaneoPage() {
                                         </span>
                                       ) : (
                                         <div className="flex items-center gap-1.5 shrink-0">
+                                          {esPiezaLista && (
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-[#B8DCCA] text-[#1E5C38] text-[10px] font-bold shrink-0">
+                                              <i className="ti ti-check text-[9px]" />
+                                              Lista
+                                            </span>
+                                          )}
                                           <input
                                             type="number"
                                             min="0"
@@ -2325,22 +2353,26 @@ export function EscaneoPage() {
                                           >
                                             {loadingPieza ? <i className="ti ti-loader-2 animate-spin text-[12px]" /> : <i className="ti ti-check text-[12px]" />}
                                           </button>
-                                          <button
-                                            onClick={() => handleAjustarCantidadPieza(item, pieza)}
-                                            disabled={loadingPieza}
-                                            title={pieza.cantidad > 1 ? 'Reducir stock en 1' : 'Eliminar pieza'}
-                                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#E8E5E2] text-[#7A7571] hover:bg-[#F0EFEC] hover:text-[#2D2B2A] transition-colors disabled:opacity-50"
-                                          >
-                                            <i className="ti ti-minus text-[11px]" />
-                                          </button>
-                                          <button
-                                            onClick={() => handleEliminarPieza(item, pieza)}
-                                            disabled={loadingPieza}
-                                            title="Eliminar pieza"
-                                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#F5C9C0]/40 text-[#B23A2A] hover:bg-[#F5C9C0]/30 transition-colors disabled:opacity-50"
-                                          >
-                                            <i className="ti ti-trash text-[11px]" />
-                                          </button>
+                                          {!esPiezaLista && (
+                                            <>
+                                              <button
+                                                onClick={() => handleAjustarCantidadPieza(item, pieza)}
+                                                disabled={loadingPieza}
+                                                title={pieza.cantidad > 1 ? 'Reducir stock en 1' : 'Eliminar pieza'}
+                                                className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#E8E5E2] text-[#7A7571] hover:bg-[#F0EFEC] hover:text-[#2D2B2A] transition-colors disabled:opacity-50"
+                                              >
+                                                <i className="ti ti-minus text-[11px]" />
+                                              </button>
+                                              <button
+                                                onClick={() => handleEliminarPieza(item, pieza)}
+                                                disabled={loadingPieza}
+                                                title="Eliminar pieza"
+                                                className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#F5C9C0]/40 text-[#B23A2A] hover:bg-[#F5C9C0]/30 transition-colors disabled:opacity-50"
+                                              >
+                                                <i className="ti ti-trash text-[11px]" />
+                                              </button>
+                                            </>
+                                          )}
                                         </div>
                                       )}
                                     </div>
@@ -2557,7 +2589,7 @@ export function EscaneoPage() {
                     <button
                       className="w-full py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-xl text-sm font-bold active:scale-[0.99] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                       onClick={handleMarcarEsperandoPago}
-                      disabled={!allConfirmed || completarLoading || selectedOrden.estado === 'con_faltantes'}
+                      disabled={!allConfirmed || completarLoading}
                     >
                       {completarLoading
                         ? <><i className="ti ti-loader-2 animate-spin text-base mr-1.5" />Enviando…</>

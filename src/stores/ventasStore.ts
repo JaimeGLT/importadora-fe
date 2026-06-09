@@ -2,6 +2,21 @@ import { create } from 'zustand'
 import type { OrdenVenta, ItemOrden } from '@/types'
 import { useConfigStore } from './configStore'
 
+// Misma fórmula que backendToOrdenVenta (lib/queries/ventas.queries.ts):
+// para items no parciales usa precio_unitario * cantidad_pedida (descuento prorrateado),
+// para items parciales suma precio_unitario * cantidad de cada pieza.
+function recalcularTotal(items: ItemOrden[]): number {
+  return items.reduce((s, i) => {
+    if (i.es_parcial && i.piezas_orden?.length) {
+      return s + i.piezas_orden.reduce(
+        (ps, p) => ps + (p.precio_unitario ?? i.precio_unitario) * p.cantidad,
+        0,
+      )
+    }
+    return s + i.precio_unitario * i.cantidad_pedida
+  }, 0)
+}
+
 interface VentasState {
   ordenes: OrdenVenta[]
   setOrdenes: (ordenes: OrdenVenta[]) => void
@@ -44,7 +59,9 @@ export const useVentasStore = create<VentasState>()((set, get) => ({
   addItemToOrden: (ordenId, item) => {
     set((s) => ({
       ordenes: s.ordenes.map((o) =>
-        o.id === ordenId ? { ...o, items: [...o.items, item] } : o,
+        o.id === ordenId
+          ? { ...o, items: [...o.items, item], total: recalcularTotal([...o.items, item]) }
+          : o,
       ),
     }))
     broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })
@@ -52,27 +69,26 @@ export const useVentasStore = create<VentasState>()((set, get) => ({
 
   removeItemFromOrden: (ordenId, itemId) => {
     set((s) => ({
-      ordenes: s.ordenes.map((o) =>
-        o.id === ordenId ? { ...o, items: o.items.filter((i) => i.id !== itemId) } : o,
-      ),
+      ordenes: s.ordenes.map((o) => {
+        if (o.id !== ordenId) return o
+        const items = o.items.filter((i) => i.id !== itemId)
+        return { ...o, items, total: recalcularTotal(items) }
+      }),
     }))
     broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })
   },
 
   updateItemQtyInOrden: (ordenId, itemId, cantidad) => {
     set((s) => ({
-      ordenes: s.ordenes.map((o) =>
-        o.id === ordenId
-          ? {
-              ...o,
-              items: o.items.map((i) =>
-                i.id === itemId
-                  ? { ...i, cantidad_pedida: cantidad, subtotal: i.precio_unitario * cantidad }
-                  : i,
-              ),
-            }
-          : o,
-      ),
+      ordenes: s.ordenes.map((o) => {
+        if (o.id !== ordenId) return o
+        const items = o.items.map((i) =>
+          i.id === itemId
+            ? { ...i, cantidad_pedida: cantidad, subtotal: i.precio_unitario * cantidad }
+            : i,
+        )
+        return { ...o, items, total: recalcularTotal(items) }
+      }),
     }))
     broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })
   },
@@ -141,26 +157,24 @@ export const useVentasStore = create<VentasState>()((set, get) => ({
     set((s) => ({
       ordenes: s.ordenes.map((o) => {
         if (o.id !== ordenId) return o
-        return {
-          ...o,
-          items: o.items.map((i) => {
-            if (i.id !== itemId) return i
-            const piezasActualizadas = (i.piezas_orden ?? []).map((p) =>
-              p.id === piezaId ? { ...p, cantidad } : p,
-            )
-            const cantidadTotal = piezasActualizadas.reduce((acc, p) => acc + p.cantidad, 0)
-            const subtotalTotal = piezasActualizadas.reduce(
-              (acc, p) => acc + p.cantidad * (p.precio_unitario ?? i.precio_unitario),
-              0,
-            )
-            return {
-              ...i,
-              piezas_orden: piezasActualizadas,
-              cantidad_pedida: cantidadTotal,
-              subtotal: subtotalTotal,
-            }
-          }),
-        }
+        const items = o.items.map((i) => {
+          if (i.id !== itemId) return i
+          const piezasActualizadas = (i.piezas_orden ?? []).map((p) =>
+            p.id === piezaId ? { ...p, cantidad } : p,
+          )
+          const cantidadTotal = piezasActualizadas.reduce((acc, p) => acc + p.cantidad, 0)
+          const subtotalTotal = piezasActualizadas.reduce(
+            (acc, p) => acc + p.cantidad * (p.precio_unitario ?? i.precio_unitario),
+            0,
+          )
+          return {
+            ...i,
+            piezas_orden: piezasActualizadas,
+            cantidad_pedida: cantidadTotal,
+            subtotal: subtotalTotal,
+          }
+        })
+        return { ...o, items, total: recalcularTotal(items) }
       }),
     }))
     broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })
@@ -181,23 +195,21 @@ export const useVentasStore = create<VentasState>()((set, get) => ({
     set((s) => ({
       ordenes: s.ordenes.map((o) => {
         if (o.id !== ordenId) return o
-        return {
-          ...o,
-          items: o.items.map((i) => {
-            if (i.id !== itemId) return i
-            const cantidadTotal = piezasRestantes.reduce((acc, p) => acc + p.cantidad, 0)
-            const subtotalTotal = piezasRestantes.reduce(
-              (acc, p) => acc + p.cantidad * (p.precio_unitario ?? i.precio_unitario),
-              0,
-            )
-            return {
-              ...i,
-              piezas_orden: piezasRestantes,
-              cantidad_pedida: cantidadTotal,
-              subtotal: subtotalTotal,
-            }
-          }),
-        }
+        const items = o.items.map((i) => {
+          if (i.id !== itemId) return i
+          const cantidadTotal = piezasRestantes.reduce((acc, p) => acc + p.cantidad, 0)
+          const subtotalTotal = piezasRestantes.reduce(
+            (acc, p) => acc + p.cantidad * (p.precio_unitario ?? i.precio_unitario),
+            0,
+          )
+          return {
+            ...i,
+            piezas_orden: piezasRestantes,
+            cantidad_pedida: cantidadTotal,
+            subtotal: subtotalTotal,
+          }
+        })
+        return { ...o, items, total: recalcularTotal(items) }
       }),
     }))
     broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })
