@@ -1138,7 +1138,7 @@ function MarcarListoPromptModal({
 
 export function EscaneoPage() {
   const { isTokenReady } = useAuth()
-  const { ordenes, setOrdenes, updateOrden, addItemToOrden, removeItemFromOrden, updateItemQtyInOrden, markItemListoEnOrden, updateItemEstadoEnOrden } = useVentasStore()
+  const { ordenes, setOrdenes, updateOrden, addItemToOrden, removeItemFromOrden, updateItemQtyInOrden, markItemListoEnOrden, updateItemEstadoEnOrden, updatePiezaQtyInOrden, removePiezaFromOrden } = useVentasStore()
   const { marcas, setMarcas } = useMarcasStore()
   const [selectedOrdenId, setSelectedOrdenId] = useState<string | null>(null)
   const [loadingOrdenes, setLoadingOrdenes] = useState(false)
@@ -1417,6 +1417,87 @@ export function EscaneoPage() {
       notify.success(`${pieza.nombre} confirmada`)
     } catch (err) {
       notify.error(err instanceof Error ? err.message : 'Error al confirmar pieza')
+    } finally {
+      setPiezaLoading(prev => ({ ...prev, [pieza.id]: false }))
+    }
+  }
+
+  const handleAjustarCantidadPieza = async (item: ItemOrden, pieza: PiezaOrden) => {
+    if (!selectedOrden) return
+    if (pieza.cantidad <= 1) {
+      // Si la pieza tiene cantidad 1, -1 = eliminar
+      return handleEliminarPieza(item, pieza)
+    }
+    const nuevaCantidad = pieza.cantidad - 1
+    const cantidadAnterior = pieza.cantidad
+    setPiezaLoading(prev => ({ ...prev, [pieza.id]: true }))
+    try {
+      await api.put(
+        `/OrdenVenta/${selectedOrden.id}/Items/${item.id}/Piezas/${pieza.id}/Cantidad`,
+        { cantidad: nuevaCantidad },
+      )
+      updatePiezaQtyInOrden(selectedOrden.id, item.id, pieza.id, nuevaCantidad)
+      notify.info(`${pieza.nombre}: stock reducido a ${nuevaCantidad}`, {
+        duration: 5000,
+        action: {
+          label: 'Deshacer',
+          onClick: async () => {
+            try {
+              await api.put(
+                `/OrdenVenta/${selectedOrden.id}/Items/${item.id}/Piezas/${pieza.id}/Cantidad`,
+                { cantidad: cantidadAnterior },
+              )
+              updatePiezaQtyInOrden(selectedOrden.id, item.id, pieza.id, cantidadAnterior)
+            } catch (err) {
+              notify.error(err instanceof Error ? err.message : 'Error al deshacer')
+            }
+          },
+        },
+      })
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al ajustar stock')
+    } finally {
+      setPiezaLoading(prev => ({ ...prev, [pieza.id]: false }))
+    }
+  }
+
+  const handleEliminarPieza = async (item: ItemOrden, pieza: PiezaOrden) => {
+    if (!selectedOrden) return
+    setPiezaLoading(prev => ({ ...prev, [pieza.id]: true }))
+    // Snapshot para undo
+    const snapshot = {
+      idProducto: Number(item.producto_id),
+      idPieza: pieza.id_pieza,
+      cantidad: pieza.cantidad,
+      precioUnitario: pieza.precio_unitario ?? item.precio_unitario,
+    }
+    try {
+      await api.delete(
+        `/OrdenVenta/${selectedOrden.id}/Items/${item.id}/Piezas/${pieza.id}`,
+      )
+      removePiezaFromOrden(selectedOrden.id, item.id, pieza.id)
+      notify.info(`${pieza.nombre} eliminado de la orden`, {
+        duration: 5000,
+        action: {
+          label: 'Deshacer',
+          onClick: async () => {
+            try {
+              await api.post(`/OrdenVenta/${selectedOrden.id}/AgregarItem`, {
+                Id_Producto: snapshot.idProducto,
+                Id_Pieza: snapshot.idPieza,
+                Cantidad: snapshot.cantidad,
+                PrecioUnitario: snapshot.precioUnitario,
+              })
+              // Refrescar para que el frontend refleje la pieza restaurada en su item original
+              await handleRecargar()
+            } catch (err) {
+              notify.error(err instanceof Error ? err.message : 'Error al deshacer')
+            }
+          },
+        },
+      })
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al eliminar pieza')
     } finally {
       setPiezaLoading(prev => ({ ...prev, [pieza.id]: false }))
     }
@@ -2243,6 +2324,22 @@ export function EscaneoPage() {
                                             className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] font-bold text-sm disabled:opacity-50 transition-colors"
                                           >
                                             {loadingPieza ? <i className="ti ti-loader-2 animate-spin text-[12px]" /> : <i className="ti ti-check text-[12px]" />}
+                                          </button>
+                                          <button
+                                            onClick={() => handleAjustarCantidadPieza(item, pieza)}
+                                            disabled={loadingPieza}
+                                            title={pieza.cantidad > 1 ? 'Reducir stock en 1' : 'Eliminar pieza'}
+                                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#E8E5E2] text-[#7A7571] hover:bg-[#F0EFEC] hover:text-[#2D2B2A] transition-colors disabled:opacity-50"
+                                          >
+                                            <i className="ti ti-minus text-[11px]" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleEliminarPieza(item, pieza)}
+                                            disabled={loadingPieza}
+                                            title="Eliminar pieza"
+                                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#F5C9C0]/40 text-[#B23A2A] hover:bg-[#F5C9C0]/30 transition-colors disabled:opacity-50"
+                                          >
+                                            <i className="ti ti-trash text-[11px]" />
                                           </button>
                                         </div>
                                       )}

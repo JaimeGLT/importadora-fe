@@ -14,6 +14,8 @@ interface VentasState {
   updateItemEstadoEnOrden: (ordenId: string, itemId: string, estado: ItemOrden['estado']) => void
   marcarItemFaltante: (ordenId: string, itemId: string, cantidad: number) => void
   cancelarOrdenYLiberarStock: (id: string) => void
+  updatePiezaQtyInOrden: (ordenId: string, itemId: string, piezaId: number, cantidad: number) => void
+  removePiezaFromOrden: (ordenId: string, itemId: string, piezaId: number) => void
 }
 
 const broadcast = typeof window !== 'undefined'
@@ -128,6 +130,77 @@ export const useVentasStore = create<VentasState>()((set, get) => ({
     }))
     broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })
     broadcast?.postMessage({ type: 'alert', alertType: 'cancelado', ordenId: id })
+  },
+
+  updatePiezaQtyInOrden: (ordenId, itemId, piezaId, cantidad) => {
+    if (cantidad <= 0) {
+      // Si la cantidad llega a 0, eliminar la pieza (que también puede eliminar el item padre)
+      get().removePiezaFromOrden(ordenId, itemId, piezaId)
+      return
+    }
+    set((s) => ({
+      ordenes: s.ordenes.map((o) => {
+        if (o.id !== ordenId) return o
+        return {
+          ...o,
+          items: o.items.map((i) => {
+            if (i.id !== itemId) return i
+            const piezasActualizadas = (i.piezas_orden ?? []).map((p) =>
+              p.id === piezaId ? { ...p, cantidad } : p,
+            )
+            const cantidadTotal = piezasActualizadas.reduce((acc, p) => acc + p.cantidad, 0)
+            const subtotalTotal = piezasActualizadas.reduce(
+              (acc, p) => acc + p.cantidad * (p.precio_unitario ?? i.precio_unitario),
+              0,
+            )
+            return {
+              ...i,
+              piezas_orden: piezasActualizadas,
+              cantidad_pedida: cantidadTotal,
+              subtotal: subtotalTotal,
+            }
+          }),
+        }
+      }),
+    }))
+    broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })
+  },
+
+  removePiezaFromOrden: (ordenId, itemId, piezaId) => {
+    // Detectar si el item padre quedará sin piezas antes de aplicar el cambio
+    const ordenActual = get().ordenes.find((o) => o.id === ordenId)
+    const itemActual = ordenActual?.items.find((i) => i.id === itemId)
+    const piezasRestantes = (itemActual?.piezas_orden ?? []).filter((p) => p.id !== piezaId)
+    const itemQuedoVacio = piezasRestantes.length === 0
+
+    if (itemQuedoVacio) {
+      get().removeItemFromOrden(ordenId, itemId)
+      return
+    }
+
+    set((s) => ({
+      ordenes: s.ordenes.map((o) => {
+        if (o.id !== ordenId) return o
+        return {
+          ...o,
+          items: o.items.map((i) => {
+            if (i.id !== itemId) return i
+            const cantidadTotal = piezasRestantes.reduce((acc, p) => acc + p.cantidad, 0)
+            const subtotalTotal = piezasRestantes.reduce(
+              (acc, p) => acc + p.cantidad * (p.precio_unitario ?? i.precio_unitario),
+              0,
+            )
+            return {
+              ...i,
+              piezas_orden: piezasRestantes,
+              cantidad_pedida: cantidadTotal,
+              subtotal: subtotalTotal,
+            }
+          }),
+        }
+      }),
+    }))
+    broadcast?.postMessage({ type: 'sync', ordenes: get().ordenes })
   },
 }))
 
