@@ -20,6 +20,10 @@ export interface CartItem {
   descuento_porcentaje?: number
   diferencia_kit?: number
   kit_id?: string
+  kit_nombre?: string
+  kit_codigo?: string
+  kit_marcaId?: number | null
+  es_kit?: boolean
 }
 
 export interface Cart {

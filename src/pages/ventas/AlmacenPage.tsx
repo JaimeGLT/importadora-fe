@@ -1124,6 +1124,12 @@ function PickingView({
             </div>
           </div>
         </div>
+        {orden.nota && (
+          <p className="mt-2 text-xs text-[#7A5200] italic bg-[#F5E0A8] px-2.5 py-1.5 rounded-lg border border-[#B47A1F]/30 flex items-start gap-1.5 mx-4 mb-1">
+            <i className="ti ti-note text-[12px] shrink-0 mt-0.5" />
+            {orden.nota}
+          </p>
+        )}
       </div>
 
       {/* Items list */}
@@ -1528,32 +1534,19 @@ export function AlmacenPage() {
   const handleMarcarListoIndividual = async (itemId: string) => {
     if (!pickingOrdenId) return
     const currentOrden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)
-    const isConFaltantes = currentOrden?.estado === 'con_faltantes'
     try {
       const currentItem = currentOrden?.items.find(i => i.id === itemId)
       if (currentItem?.es_parcial && currentItem.piezas_orden?.length) {
         for (const pieza of currentItem.piezas_orden) {
           if (!pieza.listo_almacenero) {
-            if (!pieza.confirmado && isConFaltantes) {
-              if (!pieza.precio_unitario || pieza.precio_unitario <= 0) {
-                notify.error(`Pieza "${pieza.nombre}" sin precio. Solicite al operador que la confirme.`)
-                return
-              }
-              await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Confirmar`, { PrecioUnitario: pieza.precio_unitario })
-            } else {
-              await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`, null)
-            }
+            await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`, null)
           }
         }
       }
-      if (isConFaltantes) {
-        await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Confirmar`, undefined)
-      } else {
-        if (currentItem?.estado === 'faltante') {
-          await api.delete(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Incompleto`)
-        }
-        await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/MarcarListoIndividual`, null)
+      if (currentItem?.estado === 'faltante') {
+        await api.delete(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Incompleto`)
       }
+      await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/MarcarListoIndividual`, null)
       markItemListoEnOrden(pickingOrdenId, itemId)
 
       const updatedOrden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)
@@ -1603,19 +1596,8 @@ export function AlmacenPage() {
 
   const handleListoPiezaIndividual = async (itemId: string, pieza: PiezaOrden) => {
     if (!pickingOrdenId) return
-    const orden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)
     try {
-      if (orden?.estado === 'con_faltantes' && !pieza.confirmado) {
-        if (!pieza.precio_unitario || pieza.precio_unitario <= 0) {
-          notify.error(`Pieza "${pieza.nombre}" sin precio. Solicite al operador que la confirme.`)
-          return
-        }
-        await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Confirmar`, {
-          PrecioUnitario: pieza.precio_unitario,
-        })
-      } else {
-        await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`, null)
-      }
+      await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`, null)
       await loadOrdenes()
       notify.success(`Pieza "${pieza.nombre}" marcada como lista`)
     } catch (e) {
@@ -1625,25 +1607,13 @@ export function AlmacenPage() {
 
   const handleFaltantePiezaIndividual = async (itemId: string, pieza: PiezaOrden, cantidadEncontrada: number) => {
     if (!pickingOrdenId) return
-    const orden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)
-    const isConFaltantes = orden?.estado === 'con_faltantes'
     try {
       if (cantidadEncontrada >= pieza.cantidad) {
         if (pieza.nota_incompleto) {
           await api.delete(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Incompleto`)
         }
         if (!pieza.listo_almacenero) {
-          if (!pieza.confirmado && isConFaltantes) {
-            if (!pieza.precio_unitario || pieza.precio_unitario <= 0) {
-              notify.error(`Pieza "${pieza.nombre}" sin precio. Solicite al operador que la confirme.`)
-              return
-            }
-            await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/Confirmar`, {
-              PrecioUnitario: pieza.precio_unitario,
-            })
-          } else {
-            await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`, null)
-          }
+          await api.post(`/OrdenVenta/${pickingOrdenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`, null)
         }
         await loadOrdenes()
         const updatedOrden = useVentasStore.getState().ordenes.find(o => o.id === pickingOrdenId)

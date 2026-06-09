@@ -9,7 +9,7 @@ import { notify } from '@/lib/notify'
 import { api } from '@/lib/api'
 import { gql } from '@/lib/graphql'
 import { PRODUCTO_BY_ID_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI, type ProductoAPISimple } from '@/lib/queries/inventario.queries'
-import { MIS_ORDENES_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
+import { ORDENES_PARA_ESCANEO_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
 import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
 import { fmtCodigo } from '@/lib/formatCodigo'
 import { useVentasHub } from '@/hooks/useVentasHub'
@@ -307,7 +307,7 @@ function ScanNotInOrderModal({
   }, [puedeAgregar, loading, cantidadNum, precioNum, pieza, piezasQty, vistaKit, onAgregar, onDescartar])
 
   const tipoLabel = pieza
-    ? 'Pieza suelta'
+    ? 'Pieza'
     : producto?.esKit
       ? 'Kit'
       : null
@@ -327,9 +327,16 @@ function ScanNotInOrderModal({
             <div className="h-9 w-9 rounded-xl bg-[#F5E0A8] flex items-center justify-center shrink-0">
               <i className="ti ti-alert-triangle text-[#B47A1F] text-[18px]" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <h3 className="text-sm font-bold text-[#2D2B2A]">Código no está en esta orden</h3>
-              <p className="text-[11px] font-mono text-[#7A7571]">{code}</p>
+              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                <p className="text-[11px] font-mono text-[#7A7571]">{code}</p>
+                {producto?.esKit && (
+                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider">
+                    KIT
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -354,15 +361,20 @@ function ScanNotInOrderModal({
                     </p>
                     {tipoLabel && (
                       <span className={clsx(
-                        'text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0',
+                        'text-[9px] font-black px-1.5 py-0.5 rounded-full shrink-0 tracking-wider',
                         pieza ? 'bg-[#F5E0A8] text-[#7A5200]' : 'bg-[#E8D4B8] text-[#780e18]'
                       )}>
-                        {tipoLabel}
+                        {pieza ? 'PIEZA' : 'KIT'}
                       </span>
                     )}
                   </div>
                   {pieza && (
-                    <p className="text-[11px] text-[#7A7571] mt-0.5">Kit: {producto.nombre}</p>
+                    <p className="text-[11px] text-[#7A7571] mt-1 flex items-center gap-1">
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider">
+                        KIT
+                      </span>
+                      <span>{producto.nombre}</span>
+                    </p>
                   )}
                 </div>
               </div>
@@ -998,6 +1010,69 @@ function AgregarProductoModal({
   )
 }
 
+// ─── MarcarListoPromptModal ───────────────────────────────────────────────────
+
+function MarcarListoPromptModal({
+  item,
+  onConfirmar,
+  onRechazar,
+}: {
+  item: ItemOrden
+  onConfirmar: () => void
+  onRechazar: () => void
+}) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onRechazar()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onRechazar])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
+      style={{ background: 'rgba(45,43,42,0.45)' }}
+      onClick={onRechazar}
+    >
+      <div
+        className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-sm overflow-hidden border border-[#E8E5E2]"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="px-6 pt-5 pb-4 border-b border-[#E8E5E2]">
+          <h3 className="text-sm font-bold text-[#2D2B2A]">¿Marcar como listo ahora?</h3>
+          <p className="text-xs text-[#7A7571] mt-1">Item recién agregado a la orden</p>
+        </div>
+
+        <div className="px-6 py-5 space-y-2">
+          <p className="text-base font-bold text-[#2D2B2A]">{item.producto_nombre}</p>
+          <p className="text-sm text-[#4A4744] leading-relaxed">
+            ¿Querés marcarlo como listo para que el cajero lo escanee directamente, o lo dejas para
+            que el almacenero lo busque?
+          </p>
+        </div>
+
+        <div className="px-6 pb-6 flex flex-col gap-2">
+          <button
+            type="button"
+            className="w-full h-10 rounded-xl bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] text-sm font-bold active:scale-[0.98] transition-all shadow-sm"
+            onClick={onConfirmar}
+          >
+            Sí, marcar como listo
+          </button>
+          <button
+            type="button"
+            className="w-full h-10 rounded-xl border border-[#E8E5E2] text-sm font-semibold text-[#4A4744] hover:bg-[#F0EFEC] transition-colors"
+            onClick={onRechazar}
+          >
+            No, enviar al almacenero
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── EscaneoPage ──────────────────────────────────────────────────────────────
 
 export function EscaneoPage() {
@@ -1025,6 +1100,7 @@ export function EscaneoPage() {
   const [notInOrderLoading, setNotInOrderLoading] = useState(false)
   const [_pendingNotInOrderMarcaId, setPendingNotInOrderMarcaId] = useState<number | null>(null)
   const [pendingPiezaScan, setPendingPiezaScan] = useState<{ item: ItemOrden; pieza: PiezaOrden } | null>(null)
+  const [pendingMarcarListoItem, setPendingMarcarListoItem] = useState<ItemOrden | null>(null)
   const [scanCounts, setScanCounts] = useState<Record<string, number>>({})
   const scanInputRef = useRef<HTMLInputElement>(null)
 
@@ -1052,6 +1128,8 @@ export function EscaneoPage() {
       .catch(() => { setNotInOrderProducto(null); setNotInOrderLoading(false) })
   }, [pendingNotInOrderCode, isTokenReady])
 
+  const handleRecargarRef = useRef<() => void>(() => {})
+
   const { joinGrupo } = useVentasHub({
     onItemListoParaScaneo: useCallback((p: { ordenId: number; itemId: number }) => {
       if (selectedOrdenId === String(p.ordenId)) {
@@ -1060,16 +1138,26 @@ export function EscaneoPage() {
       }
     }, [selectedOrdenId, markItemListoEnOrden]),
     onOrdenConFaltantes: useCallback((p: { ordenId: number }) => {
-      updateOrden(String(p.ordenId), { estado: 'con_faltantes' })
+      const existe = useVentasStore.getState().ordenes.find(o => o.id === String(p.ordenId))
+      if (existe) {
+        updateOrden(String(p.ordenId), { estado: 'con_faltantes' })
+      } else {
+        handleRecargarRef.current()
+      }
     }, [updateOrden]),
     onOrdenLista: useCallback((p: { id: number }) => {
-      updateOrden(String(p.id), { estado: 'listo_para_escaneo' })
+      const existe = useVentasStore.getState().ordenes.find(o => o.id === String(p.id))
+      if (existe) {
+        updateOrden(String(p.id), { estado: 'listo_para_escaneo' })
+      } else {
+        handleRecargarRef.current()
+      }
       if (selectedOrdenId === String(p.id)) {
         notify.success('Almacenero listo', { description: 'Ya puedes continuar escaneando' })
         scanInputRef.current?.focus()
       }
     }, [selectedOrdenId, updateOrden]),
-  }, isTokenReady)
+  }, isTokenReady, ['Escaneo'])
 
   const joinGrupoRef = useRef<(g: string) => Promise<void>>(() => Promise.resolve())
   joinGrupoRef.current = joinGrupo
@@ -1077,9 +1165,9 @@ export function EscaneoPage() {
   const handleRecargar = useCallback(() => {
     if (!isTokenReady) return
     setLoadingOrdenes(true)
-    gql<{ misOrdenes: { nodes: OrdenVentaAPI[] } }>(MIS_ORDENES_QUERY)
+    gql<{ ordenesParaEscaneo: { nodes: OrdenVentaAPI[] } }>(ORDENES_PARA_ESCANEO_QUERY)
       .then(data => {
-        const fetched = (data.misOrdenes?.nodes ?? [])
+        const fetched = (data.ordenesParaEscaneo?.nodes ?? [])
           .map(backendToOrdenVenta)
           .filter(o => o.estado !== 'completada' && o.estado !== 'cancelada')
         const { ordenes: current } = useVentasStore.getState()
@@ -1093,6 +1181,7 @@ export function EscaneoPage() {
       .catch(() => notify.error('Error al cargar órdenes'))
       .finally(() => setLoadingOrdenes(false))
   }, [isTokenReady, setOrdenes])
+  handleRecargarRef.current = handleRecargar
 
   useEffect(() => {
     handleRecargar()
@@ -1252,22 +1341,45 @@ export function EscaneoPage() {
     }
   }
 
+  const handleConfirmarMarcarListo = async (item: ItemOrden) => {
+    if (!selectedOrden) return
+    const ordenId = selectedOrden.id
+    const itemId = item.id
+    setPendingMarcarListoItem(null)
+    try {
+      if (item.es_parcial && item.piezas_orden?.[0]) {
+        const pieza = item.piezas_orden[0]
+        await api.post(
+          `/OrdenVenta/${ordenId}/Items/${itemId}/Piezas/${pieza.id}/ListoAlmacenero`,
+          null
+        )
+      } else {
+        await api.post(
+          `/OrdenVenta/${ordenId}/Items/${itemId}/MarcarListoIndividual`,
+          null
+        )
+      }
+      markItemListoEnOrden(ordenId, itemId)
+      playConfirmBeep()
+      notify.success(`${item.producto_nombre} marcado como listo`)
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al marcar como listo')
+    } finally {
+      scanInputRef.current?.focus()
+    }
+  }
+
   const handleAgregarProducto = async (req: AgregarRequest) => {
     if (!selectedOrden) return
     setAgregarLoading(true)
     try {
       if (req.tipo === 'piezas_sueltas') {
+        let lastItem: ItemOrden | null = null
         for (const { pieza, cantidad, precio } of req.piezas) {
           const res = await api.post<AgregarItemOrdenResponse>(
             `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
             { Id_Producto: parseInt(req.kitProducto.id), Id_Pieza: pieza.id, Cantidad: cantidad, PrecioUnitario: precio }
           )
-          if (res.piezas?.[0]) {
-            await api.post(
-              `/OrdenVenta/${selectedOrden.id}/Items/${res.id}/Piezas/${res.piezas[0].id}/Confirmar`,
-              { PrecioUnitario: precio }
-            )
-          }
           const newItem: ItemOrden = {
             id: String(res.id),
             producto_id: String(res.idProducto ?? parseInt(req.kitProducto.id)),
@@ -1280,7 +1392,7 @@ export function EscaneoPage() {
             cantidad_pedida: res.cantidad,
             precio_unitario: precio,
             subtotal: precio * res.cantidad,
-            estado: 'listo_almacenero',
+            estado: 'pendiente',
             kit_id: req.kitProducto.id,
             es_parcial: true,
             piezas_orden: res.piezas?.[0] ? [{
@@ -1292,8 +1404,10 @@ export function EscaneoPage() {
             }] : undefined,
           }
           addItemToOrden(selectedOrden.id, newItem)
+          lastItem = newItem
         }
         notify.success(`Piezas de ${req.kitProducto.nombre} agregadas — almacén notificado`)
+        if (lastItem) setPendingMarcarListoItem(lastItem)
       } else {
         const { producto, cantidad } = req
         const res = await api.post<AgregarItemOrdenResponse>(
@@ -1317,6 +1431,7 @@ export function EscaneoPage() {
         }
         addItemToOrden(selectedOrden.id, newItem)
         notify.success(`${newItem.producto_nombre} agregado — almacén notificado`)
+        setPendingMarcarListoItem(newItem)
       }
       setShowAgregarModal(false)
       scanInputRef.current?.focus()
@@ -1499,6 +1614,7 @@ export function EscaneoPage() {
     setAgregarLoading(true)
     try {
       if (piezas && piezas.length > 0) {
+        let lastItem: ItemOrden | null = null
         for (const { piezaId, cantidad: cantPieza, precio: precioPieza } of piezas) {
           if (cantPieza <= 0) continue
           const res = await api.post<AgregarItemOrdenResponse>(
@@ -1506,15 +1622,11 @@ export function EscaneoPage() {
             { Id_Producto: p.id, Id_Pieza: piezaId, Cantidad: cantPieza, PrecioUnitario: precioPieza }
           )
           const piezaItemId = res.piezas![0].id
-          await api.post(
-            `/OrdenVenta/${selectedOrden.id}/Items/${res.id}/Piezas/${piezaItemId}/Confirmar`,
-            { PrecioUnitario: precioPieza }
-          )
           const parts = (res.producto.ubicacion ?? '').split('/')
           const [almacen = '', estante = '', fila = '', columna = ''] =
             parts.length >= 4 ? parts : ['', ...parts]
           const piezaCatalogo = p.piezas?.find(pz => pz.id === piezaId)
-          addItemToOrden(selectedOrden.id, {
+          const newItem: ItemOrden = {
             id: String(res.id),
             producto_id: String(res.idProducto ?? p.id),
             producto_codigo: res.producto.codigo,
@@ -1526,7 +1638,7 @@ export function EscaneoPage() {
             cantidad_pedida: res.cantidad,
             precio_unitario: precioPieza,
             subtotal: precioPieza * res.cantidad,
-            estado: 'listo_almacenero',
+            estado: 'pendiente',
             es_parcial: true,
             piezas_orden: [{
               id: piezaItemId,
@@ -1535,12 +1647,15 @@ export function EscaneoPage() {
               cantidad: res.cantidad,
               precio_unitario: precioPieza,
             }],
-          })
+          }
+          addItemToOrden(selectedOrden.id, newItem)
+          lastItem = newItem
         }
         notify.info(`Piezas de ${p.nombre} agregadas a la orden`)
         setPendingNotInOrderCode(null)
         setPendingNotInOrderMarcaId(null)
         setNotInOrderProducto(null)
+        if (lastItem) setPendingMarcarListoItem(lastItem)
         return
       }
 
@@ -1612,7 +1727,7 @@ export function EscaneoPage() {
       setPendingNotInOrderCode(null)
       setPendingNotInOrderMarcaId(null)
       setNotInOrderProducto(null)
-      setPendingConfirmItem(newItem)
+      setPendingMarcarListoItem(newItem)
     } catch (err) {
       notify.error(err instanceof Error ? err.message : 'Error al agregar')
     } finally {
@@ -1876,11 +1991,19 @@ export function EscaneoPage() {
                                         )}
                                       </div>
                                       <div className="flex-1 min-w-0">
-                                        <p className="text-[10px] font-mono font-semibold text-[#7A7571] truncate leading-none mb-0.5">
-                                          {fmtCodigo(item.producto_codigo, item.marcaId, marcas)}
-                                        </p>
-                                        <p className="text-sm font-semibold text-[#2D2B2A] leading-snug truncate">
-                                          {pieza.nombre} · ×{cantidadConfirmar}
+                                        <div className="flex items-center gap-1.5 mb-0.5">
+                                          <p className="text-[10px] font-mono font-semibold text-[#7A7571] truncate leading-none">
+                                            {fmtCodigo(item.producto_codigo, item.marcaId, marcas)}
+                                          </p>
+                                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">
+                                            KIT
+                                          </span>
+                                        </div>
+                                        <p className="text-sm font-semibold text-[#2D2B2A] leading-snug truncate flex items-center gap-1.5">
+                                          <span className="truncate">{pieza.nombre} · ×{cantidadConfirmar}</span>
+                                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#F5E0A8] text-[#7A5200] tracking-wider shrink-0">
+                                            PIEZA
+                                          </span>
                                         </p>
                                         {esPiezaParcial && (
                                           <p className="text-xs text-[#B47A1F] leading-none mt-0.5">×{cantidadFaltante} faltantes</p>
@@ -1957,14 +2080,16 @@ export function EscaneoPage() {
 
                               {/* Info */}
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-mono text-[#7A7571] leading-none">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</p>
-                                <p className="text-sm font-semibold text-[#2D2B2A] leading-snug truncate">
-                                  {item.producto_nombre} · ×{cantidadEscanear}
+                                <div className="flex items-center gap-1.5 leading-none">
+                                  <p className="text-xs font-mono text-[#7A7571] truncate">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</p>
                                   {isKit && !isPendiente && (
-                                    <span className={clsx('ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full align-middle', isParcialKit ? 'bg-[#F5E0A8] text-[#7A5200]' : 'bg-[#E8D4B8] text-[#780e18]')}>
-                                      {isParcialKit ? 'Parcial' : 'Kit'}
+                                    <span className={clsx('text-[9px] font-black px-1.5 py-0.5 rounded-full tracking-wider shrink-0', isParcialKit ? 'bg-[#F5E0A8] text-[#7A5200]' : 'bg-[#E8D4B8] text-[#780e18]')}>
+                                      {isParcialKit ? 'PARCIAL' : 'KIT'}
                                     </span>
                                   )}
+                                </div>
+                                <p className="text-sm font-semibold text-[#2D2B2A] leading-snug truncate">
+                                  {item.producto_nombre} · ×{cantidadEscanear}
                                 </p>
                                 {!confirmed && !isKit && (scanCounts[item.id] ?? 0) > 0 && (
                                   <p className="text-[11px] font-bold text-[#780e18] mt-0.5">
@@ -2195,6 +2320,17 @@ export function EscaneoPage() {
           onAgregar={handleAgregarProducto}
           onClose={() => setShowAgregarModal(false)}
           loading={agregarLoading}
+        />
+      )}
+
+      {pendingMarcarListoItem && selectedOrden && (
+        <MarcarListoPromptModal
+          item={pendingMarcarListoItem}
+          onConfirmar={() => handleConfirmarMarcarListo(pendingMarcarListoItem)}
+          onRechazar={() => {
+            setPendingMarcarListoItem(null)
+            scanInputRef.current?.focus()
+          }}
         />
       )}
 

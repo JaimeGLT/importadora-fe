@@ -10,13 +10,13 @@ El sistema es un sistema de gestión de inventario y ventas para un importadora 
 
 ## Módulos y estado
 El sistema cuenta con los siguientes modulos:
-- Dashboard - Terminado con los datos que se mostrarán, pero falta mejor el diseño
-- Inventario: Terminado
-- Importaciones: Terminado
-- Caja: Terminado
-- Ventas: En desarrollo
-- reportes: Aún no está, falta desarrollar
-- Sistema: No terminado
+- Dashboard 
+- Inventario:
+- Importaciones:
+- Caja:
+- Ventas: 
+- reportes:
+- Sistema:
 
 ## Stack técnico
 - React + typeScript para el frontend.

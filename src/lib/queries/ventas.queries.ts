@@ -53,6 +53,7 @@ export interface OrdenVentaAPI {
   estado: string
   fecha: string
   fechaCompletada: string | null
+  nota: string | null
   notaCancelacion: string | null
   numero?: string
   cajero: { id: string; nombre: string; apellido: string } | null
@@ -66,6 +67,90 @@ export interface OrdenVentaAPI {
 export const MIS_ORDENES_QUERY = `
   query MisOrdenes {
     misOrdenes {
+      nodes {
+        id
+        id_Cajero
+        id_Almacenero
+        id_Cliente
+        id_Caja
+        estado
+        fecha
+        fechaCompletada
+        nota
+        notaCancelacion
+        cajero {
+          id
+          nombre
+          apellido
+        }
+        almacenero {
+          id
+          nombre
+          apellido
+        }
+        cliente {
+          id
+          nombre
+          apellido
+          telefono
+        }
+        items {
+          id
+          id_Orden
+          id_Producto
+          cantidad
+          esParcial
+          estado
+          notaIncompleto
+          precioUnitario
+          id_Descuento
+          montoDescuento
+          descuento {
+            id
+            nombre
+            cantDescuento
+            color
+            activo
+          }
+          producto {
+            id
+            codigo
+            nombre
+            marca {
+              id
+              nombre
+            }
+            ubicacion
+            stock_Actual
+            stock_Minimo
+            costo
+            precio
+            esKit
+            stockReservado
+          }
+          esParcial
+          piezas {
+            id
+            id_Item
+            id_Pieza
+            cantidad
+            precioUnitario
+            confirmado
+            listoAlmacenero
+            notaIncompleto
+            pieza {
+              nombre
+            }
+          }
+        }
+      }
+    }
+  }
+`
+
+export const ORDENES_PARA_ESCANEO_QUERY = `
+  query OrdenesParaEscaneo {
+    ordenesParaEscaneo {
       nodes {
         id
         id_Cajero
@@ -158,6 +243,7 @@ export const ORDENES_PENDIENTES_QUERY = `
         estado
         fecha
         fechaCompletada
+        nota
         notaCancelacion
         cajero {
           id
@@ -233,6 +319,7 @@ export const MIS_ORDENES_ALMACEN_QUERY = `
         estado
         fecha
         fechaCompletada
+        nota
         notaCancelacion
         cajero {
           id
@@ -562,7 +649,7 @@ export function backendToOrdenVenta(api: OrdenVentaAPI): OrdenVenta {
     items,
     total,
     estado,
-    nota: api.notaCancelacion ?? undefined,
+    nota: api.nota ?? undefined,
     creado_en: api.fecha,
     actualizado_en: api.fecha,
   }

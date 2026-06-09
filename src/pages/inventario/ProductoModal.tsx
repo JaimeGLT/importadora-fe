@@ -239,13 +239,21 @@ export function ProductoModal({
       ? (form.precio_venta - form.precio_costo).toFixed(2)
       : null
 
+  const skuDisplay = (() => {
+    if (!producto) return undefined
+    const prefijo = producto.marcaId != null
+      ? marcas?.find((m) => m.id === producto.marcaId)?.prefijo ?? ''
+      : ''
+    return prefijo ? `${prefijo}-${producto.codigo_universal}` : producto.codigo_universal
+  })()
+
   return (
     <DrawerWrapper
       open={open}
       onClose={onClose}
       subtitle={producto ? 'Detalle del producto' : 'Nuevo producto'}
       title={producto ? producto.nombre : 'Registrar autoparte'}
-      sku={producto?.codigo_universal}
+      sku={skuDisplay}
       footer={
         <>
           {producto && onDelete && (

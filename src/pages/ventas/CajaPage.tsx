@@ -364,6 +364,9 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
   const getCartQty = (productoId: string) =>
     cart.items.filter(i => i.producto_id === productoId).reduce((acc, i) => acc + i.cantidad, 0)
 
+  const isKitInCart = (kitId: string) =>
+    cart.items.some(i => i.kit_id === kitId)
+
   return (
     <div className="flex flex-col h-full">
       <div className="px-4 pt-3 pb-2 border-b border-[#D0CBC4]">
@@ -415,18 +418,18 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
             {resultados.map(p => {
               const disp = stockDisponible(p)
               const stockCls = disp === 0 ? 'text-[#B23A2A]' : disp <= p.stock_minimo ? 'text-[#B47A1F]' : 'text-[#3F7A52]'
+              const inCart = p.es_kit ? isKitInCart(p.id) : getCartQty(p.id) > 0
               return (
                 <div
                   key={p.id}
                   onClick={() => { if (disp > 0 || p.es_kit) onSelectProducto(p) }}
                   className={clsx(
                     'flex items-center gap-3 px-4 py-3 transition-colors',
+                    p.es_kit && 'border-l-[4px] !border-l-[#B47A1F]',
                     disp === 0 && !p.es_kit ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
-                    p.es_kit
-                      ? 'border-l-[3px] border-l-[#D4A333] hover:bg-[#FAF5EE]'
-                      : getCartQty(p.id) > 0
-                        ? 'bg-[#F4ECDB]/60 border-l-[3px] border-l-[#D4A333] hover:bg-[#F4ECDB]'
-                        : 'hover:bg-[#FAF5EE]'
+                    inCart
+                      ? 'bg-[#F4ECDB]'
+                      : 'hover:bg-[#FAF5EE]'
                   )}
                 >
                   {p.imagen ? (
@@ -520,8 +523,24 @@ function CartItem({
   const [qtyValue, setQtyValue] = useState(String(item.cantidad))
 
   return (
-    <div className={clsx('px-4 py-3', item.kit_id && 'border-l-[3px] border-l-[#D4A333]')}>
-      <div className="flex items-start gap-3">
+    <div className={clsx('px-4 py-3', item.kit_id && 'border-l-[4px] !border-l-[#B47A1F]')}>
+      {item.kit_id && (item.kit_nombre || item.kit_codigo) && (
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <i className="ti ti-stack text-[10px] text-[#D4A333]" />
+          {item.kit_codigo && (
+            <span className="font-mono text-[10px] font-bold text-[#7A5200] bg-[#F5E0A8] px-1.5 py-0.5 rounded">
+              {fmtCodigo(item.kit_codigo, item.kit_marcaId, marcas)}
+            </span>
+          )}
+          {item.kit_nombre && (
+            <span className="text-[10px] font-semibold text-[#7A5200] truncate">{item.kit_nombre}</span>
+          )}
+          <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">
+            KIT
+          </span>
+        </div>
+      )}
+      <div className={clsx('flex gap-3', item.kit_id ? 'items-center' : 'items-start')}>
         {item.producto_imagen ? (
           <img src={item.producto_imagen} alt={item.producto_nombre} className="h-12 w-12 rounded-lg object-cover bg-[#F0EFEC] border border-[#E8E5E2] shrink-0" />
         ) : (
@@ -530,26 +549,45 @@ function CartItem({
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {item.descuento_nombre ? (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 min-w-0">
+              {!item.kit_id && (item.descuento_nombre ? (
                 <div className="flex items-center gap-1.5">
                   <span className="font-mono text-sm font-bold text-[#780e18] bg-[#F4ECDB] px-2 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#B8DCCA] text-[#1E5C38]">{item.descuento_nombre} -{item.descuento_porcentaje}%</span>
                 </div>
               ) : (
-                <span className="font-mono text-sm font-bold text-[#780e18] bg-[#F4ECDB] px-2 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
+                <>
+                  <span className="font-mono text-sm font-bold text-[#780e18] bg-[#F4ECDB] px-2 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
+                  {item.es_kit && (
+                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">
+                      KIT
+                    </span>
+                  )}
+                </>
+              ))}
+              {item.kit_id && item.descuento_nombre && (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#B8DCCA] text-[#1E5C38]">{item.descuento_nombre} -{item.descuento_porcentaje}%</span>
               )}
             </div>
-            <button
-              onClick={() => onEditPrice(item.producto_id)}
-              className="p-1.5 text-[#7A7571] hover:text-[#780e18] hover:bg-[#F4ECDB] rounded-lg transition-colors"
-              title="Cambiar precio"
-            >
-              <i className="ti ti-edit text-[14px]" />
-            </button>
+            {!item.kit_id && (
+              <button
+                onClick={() => onEditPrice(item.producto_id)}
+                className="p-1.5 text-[#7A7571] hover:text-[#780e18] hover:bg-[#F4ECDB] rounded-lg transition-colors"
+                title="Cambiar precio"
+              >
+                <i className="ti ti-edit text-[14px]" />
+              </button>
+            )}
           </div>
-          <p className="text-xs text-[#7A7571] mt-0.5 truncate">{item.producto_nombre}</p>
+          <p className={clsx('mt-0.5 truncate flex items-center gap-1.5', item.kit_id ? 'text-sm font-medium text-[#4A4744]' : 'text-xs text-[#7A7571]')}>
+            <span className="truncate">{item.producto_nombre}</span>
+            {item.kit_id && (
+              <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#F5E0A8] text-[#7A5200] tracking-wider shrink-0">
+                PIEZA
+              </span>
+            )}
+          </p>
           {item.producto_descripcion && <p className="text-[10px] text-[#7A7571] truncate mt-0.5">{item.producto_descripcion}</p>}
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-1">
@@ -604,7 +642,12 @@ function CartItem({
               )}
               <button onClick={() => onQtyChange(idx, +1)} disabled={item.cantidad >= disp} className={clsx('h-7 w-7 rounded-lg border flex items-center justify-center text-base font-bold transition-colors', item.cantidad >= disp ? 'border-[#E8E5E2] text-[#7A7571] cursor-not-allowed' : 'border-[#E8E5E2] text-[#4A4744] hover:bg-[#F0EFEC]')}>+</button>
             </div>
-            <span className="text-sm font-bold text-[#2D2B2A]">{fmtBs(item.precio_unitario * item.cantidad)}</span>
+            <div className="text-right">
+              <span className="text-sm font-bold text-[#2D2B2A]">{fmtBs(item.precio_unitario * item.cantidad)}</span>
+              {item.cantidad > 1 && (
+                <p className="text-[10px] text-[#7A7571] font-mono mt-0.5">{fmtBs(item.precio_unitario)} / u</p>
+              )}
+            </div>
           </div>
         </div>
         <button onClick={() => onRemoveItem(idx)} className="text-[#7A7571] hover:text-[#B23A2A] transition-colors shrink-0">
@@ -660,7 +703,7 @@ function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChan
               const disp = stockDisponible(item.producto_id)
               return (
                 <CartItem
-                  key={item.producto_id}
+                  key={`${item.producto_id}-${item.kit_id ?? 'root'}-${idx}`}
                   item={item}
                   idx={idx}
                   disp={disp}
@@ -890,6 +933,11 @@ function CancelarOrdenModal({
               <div key={item.id} className="flex items-center justify-between px-4 py-2.5">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-xs font-mono text-[#780e18] bg-[#F4ECDB] px-1.5 py-0.5 rounded shrink-0">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
+                  {item.es_kit && !item.es_parcial && (
+                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">
+                      KIT
+                    </span>
+                  )}
                   <span className="text-xs text-[#4A4744] truncate">{item.producto_nombre}</span>
                 </div>
                 <span className="text-xs font-semibold text-[#4A4744] ml-2 shrink-0">×{item.cantidad_pedida}</span>
@@ -1002,8 +1050,14 @@ function CobroModal({ orden, clientes, onConfirm, onClose }: {
               return i.piezas_orden.filter(p => p.confirmado).map(p => (
                 <div key={`${i.id}-${p.id}`} className="flex justify-between text-sm gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-mono font-bold text-[#780e18]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)}</p>
-                    <p className="text-[11px] font-semibold text-[#2D2B2A]">{p.nombre} · ×{p.cantidad}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-[11px] font-mono font-bold text-[#780e18]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)}</p>
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">KIT</span>
+                    </div>
+                    <p className="text-[11px] font-semibold text-[#2D2B2A] flex items-center gap-1.5">
+                      <span className="truncate">{p.nombre} · ×{p.cantidad}</span>
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#F5E0A8] text-[#7A5200] tracking-wider shrink-0">PIEZA</span>
+                    </p>
                   </div>
                   <span className="font-semibold text-[#2D2B2A] shrink-0">{fmtBs((p.precio_unitario ?? 0) * p.cantidad)}</span>
                 </div>
@@ -1012,7 +1066,12 @@ function CobroModal({ orden, clientes, onConfirm, onClose }: {
             return (
               <div key={i.id} className="flex justify-between text-sm gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-mono font-bold text-[#780e18]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-[11px] font-mono font-bold text-[#780e18]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
+                    {i.es_kit && (
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">KIT</span>
+                    )}
+                  </div>
                   <p className="text-[11px] text-[#7A7571] truncate">{i.producto_nombre}</p>
                 </div>
                 <span className="font-semibold text-[#2D2B2A] shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
@@ -1207,8 +1266,14 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
               return i.piezas_orden.filter(p => p.confirmado).map(p => (
                 <div key={`${i.id}-${p.id}`} className="flex justify-between text-sm gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)}</p>
-                    <p className="text-[#4A4744] truncate">{p.nombre} · ×{p.cantidad}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)}</p>
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">KIT</span>
+                    </div>
+                    <p className="text-[#4A4744] truncate flex items-center gap-1.5">
+                      <span className="truncate">{p.nombre} · ×{p.cantidad}</span>
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#F5E0A8] text-[#7A5200] tracking-wider shrink-0">PIEZA</span>
+                    </p>
                   </div>
                   <span className="font-semibold shrink-0">{fmtBs((p.precio_unitario ?? 0) * p.cantidad)}</span>
                 </div>
@@ -1218,7 +1283,12 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
               <div key={i.id} className="flex justify-between text-sm gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-[#4A4744] truncate">{i.producto_nombre}</p>
-                  <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
+                    {i.es_kit && (
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">KIT</span>
+                    )}
+                  </div>
                 </div>
                 <span className="font-semibold shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
               </div>
@@ -1354,8 +1424,8 @@ export function CajaPage() {
       playAlertSequence()
       notify.info('Almacenero tomó la orden')
     },
-    onOrdenLista: ({ id }) => {
-      updateOrden(String(id), { estado: 'listo_para_escaneo' })
+    onOrdenLista: () => {
+      loadOrdenes()
       playAlertSequence()
       notify.success('¡Orden lista!', { description: 'Mercadería preparada', duration: 8000 })
     },
@@ -1365,11 +1435,18 @@ export function CajaPage() {
     onOrdenCancelada: ({ id }) => {
       updateOrden(String(id), { estado: 'cancelada' })
     },
+    onOrdenConFaltantes: () => {
+      loadOrdenes()
+    },
     onOrdenEsperandoPago: ({ id }) => {
-      updateOrden(String(id), { estado: 'esperando_pago' })
+      loadOrdenes()
       playAlertSequence()
       notify.success('Orden lista para cobrar', { description: `Orden #${id} — escaneo completado`, duration: 8000 })
     },
+    onNuevoItemAgregado: () => loadOrdenes(),
+    onItemEliminado: () => loadOrdenes(),
+    onCantidadItemActualizada: () => loadOrdenes(),
+    onItemListoParaScaneo: () => loadOrdenes(),
   }, isTokenReady)
   joinGrupoRef.current = joinGrupo
 
@@ -1467,6 +1544,7 @@ export function CajaPage() {
         descuento_id,
         descuento_nombre,
         descuento_porcentaje,
+        es_kit: productoSeleccionado.es_kit,
       }] }
     })
     setProductoSeleccionado(null)
@@ -1478,22 +1556,36 @@ export function CajaPage() {
   const agregarPiezasAlCarrito = useCallback((
     piezas: { producto_id: string; nombre: string; codigo?: string; cantidad: number; precio: number }[],
     kitId: string,
+    kitNombre?: string,
+    kitCodigo?: string,
+    kitMarcaId?: number | null,
   ) => {
     setCart(prev => {
-      const newItems: CartItem[] = piezas.map(p => ({
-        producto_id: p.producto_id,
-        producto_codigo: p.codigo ?? '',
-        producto_nombre: p.nombre,
-        producto_almacen: '',
-        producto_estante: '',
-        producto_fila: '',
-        producto_columna: '',
-        cantidad: p.cantidad,
-        precio_unitario: p.precio,
-        precio_base: p.precio,
-        kit_id: kitId,
-      }))
-      return { ...prev, items: [...prev.items, ...newItems] }
+      const items = [...prev.items]
+      for (const p of piezas) {
+        const existingIdx = items.findIndex(i => i.producto_id === p.producto_id && i.kit_id === kitId)
+        if (existingIdx >= 0) {
+          items[existingIdx] = { ...items[existingIdx], cantidad: items[existingIdx].cantidad + p.cantidad, precio_unitario: p.precio, precio_base: p.precio }
+        } else {
+          items.push({
+            producto_id: p.producto_id,
+            producto_codigo: p.codigo ?? '',
+            producto_nombre: p.nombre,
+            producto_almacen: '',
+            producto_estante: '',
+            producto_fila: '',
+            producto_columna: '',
+            cantidad: p.cantidad,
+            precio_unitario: p.precio,
+            precio_base: p.precio,
+            kit_id: kitId,
+            kit_nombre: kitNombre,
+            kit_codigo: kitCodigo,
+            kit_marcaId: kitMarcaId,
+          })
+        }
+      }
+      return { ...prev, items }
     })
   }, [])
 
@@ -1508,7 +1600,7 @@ export function CajaPage() {
     }
 
     if (result.tipo === 'piezas_sueltas') {
-      agregarPiezasAlCarrito(result.piezas, kitSeleccionado.id)
+      agregarPiezasAlCarrito(result.piezas, kitSeleccionado.id, kitSeleccionado.nombre, kitSeleccionado.codigo_universal, kitSeleccionado.marcaId)
       setKitSeleccionado(null)
       playBeep({ frequency: 600, duration: 60 })
       notify.success(`${result.piezas.length} pieza(s) agregada(s)`)
@@ -1516,7 +1608,7 @@ export function CajaPage() {
     }
 
     // tipo === 'ambos': agregar piezas al carrito Y abrir selección de precio para el kit
-    agregarPiezasAlCarrito(result.piezas, kitSeleccionado.id)
+    agregarPiezasAlCarrito(result.piezas, kitSeleccionado.id, kitSeleccionado.nombre, kitSeleccionado.codigo_universal, kitSeleccionado.marcaId)
     setKitCompletoQty(result.cantidad_kit)
     setProductoSeleccionado(kitSeleccionado)
     setKitSeleccionado(null)
@@ -1634,6 +1726,7 @@ export function CajaPage() {
     try {
       const result = await api.post<{ ordenId: number; message: string }>('/OrdenVenta', {
         id_Cliente: null,
+        nota: cart.nota || null,
         items: apiItems,
       })
       await joinGrupo(`orden-${result.ordenId}`)
@@ -1797,14 +1890,22 @@ export function CajaPage() {
           onClose={() => setProductoSeleccionado(null)}
         />
       )}
-      {kitSeleccionado && (
-        <KitSeleccionModal
-          open={!!kitSeleccionado}
-          onClose={() => setKitSeleccionado(null)}
-          kit={kitSeleccionado}
-          onConfirm={handleKitSeleccion}
-        />
-      )}
+      {kitSeleccionado && (() => {
+        const preciosIniciales = Object.fromEntries(
+          cart.items
+            .filter(i => i.kit_id === kitSeleccionado.id && i.precio_unitario > 0)
+            .map(i => [i.producto_id, i.precio_unitario])
+        )
+        return (
+          <KitSeleccionModal
+            open
+            onClose={() => setKitSeleccionado(null)}
+            kit={kitSeleccionado}
+            onConfirm={handleKitSeleccion}
+            preciosIniciales={preciosIniciales}
+          />
+        )
+      })()}
     </MainLayout>
   )
 }

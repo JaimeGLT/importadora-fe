@@ -23,13 +23,27 @@ interface KitSeleccionModalProps {
   onClose: () => void
   kit: Producto
   onConfirm: (result: KitSeleccionResult) => void
+  preciosIniciales?: Record<string, number>
 }
 
-export function KitSeleccionModal({ open, onClose, kit, onConfirm }: KitSeleccionModalProps) {
+export function KitSeleccionModal({ open, onClose, kit, onConfirm, preciosIniciales }: KitSeleccionModalProps) {
   const { marcas } = useMarcasStore()
   const [cantidadKit, setCantidadKit] = useState(0)
-  const [seleccionadas, setSeleccionadas] = useState<PiezaSeleccionada[]>([])
-  const [precios, setPrecios] = useState<Record<string, string>>({})
+  const [seleccionadas, setSeleccionadas] = useState<PiezaSeleccionada[]>(() => {
+    if (!preciosIniciales) return []
+    return (kit.piezas_kit ?? [])
+      .filter(p => (preciosIniciales[String(p.id)] ?? 0) > 0)
+      .map(p => ({
+        producto_id: String(p.id),
+        nombre: p.nombre,
+        stock: Math.max(0, p.stock_actual - p.stock_reservado),
+        cantidad_por_kit: p.cantidad_por_kit,
+        precio: preciosIniciales[String(p.id)],
+      }))
+  })
+  const [precios, setPrecios] = useState<Record<string, string>>(
+    () => Object.fromEntries(Object.entries(preciosIniciales ?? {}).map(([k, v]) => [k, String(v)]))
+  )
   const [errorPrecios, setErrorPrecios] = useState(false)
 
   const stockDisponible = Math.max(0, kit.stock - (kit.stock_reservado ?? 0))
