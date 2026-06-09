@@ -37,6 +37,7 @@ export function KitSeleccionModal({ open, onClose, kit, onConfirm, preciosInicia
         producto_id: String(p.id),
         nombre: p.nombre,
         stock: Math.max(0, p.stock_actual - p.stock_reservado),
+        cantidad: p.cantidad_por_kit,
         cantidad_por_kit: p.cantidad_por_kit,
         precio: preciosIniciales[String(p.id)],
       }))

@@ -393,6 +393,12 @@ export interface ItemOrden {
   es_kit?: boolean
   es_parcial?: boolean
   piezas_orden?: PiezaOrden[]
+  // Campos de descuento
+  descuento_id?: string
+  descuento_nombre?: string
+  descuento_porcentaje?: number
+  descuento_color?: string
+  precio_base?: number // sin descuento
 }
 
 export interface AgregarItemOrdenResponse {

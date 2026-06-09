@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useVentasStore } from '@/stores/ventasStore'
 import { useMarcasStore } from '@/stores/marcasStore'
 import { MainLayout } from '@/components/layout/MainLayout'
+import { SelectPriceModal } from '@/components/ui'
 import type { ItemOrden, PiezaOrden, Producto, AgregarItemOrdenResponse, PiezaKit, ProductoBusquedaEscaneo } from '@/types'
 import { playConfirmBeep } from '@/lib/sounds'
 import { notify } from '@/lib/notify'
@@ -11,9 +12,11 @@ import { gql } from '@/lib/graphql'
 import { PRODUCTO_BY_ID_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI, type ProductoAPISimple } from '@/lib/queries/inventario.queries'
 import { ORDENES_PARA_ESCANEO_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
 import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
+import { DESCUENTOS_QUERY, backendToDescuento, type DescuentoAPI } from '@/lib/queries/config.queries'
 import { fmtCodigo } from '@/lib/formatCodigo'
 import { useVentasHub } from '@/hooks/useVentasHub'
 import { clsx } from 'clsx'
+import type { DescuentoConfig } from '@/stores/configStore'
 
 // ─── LineSelectionModal ───────────────────────────────────────────────────────
 
@@ -645,18 +648,20 @@ function PiezaScanPriceModal({
 // ─── AgregarProductoModal ─────────────────────────────────────────────────────
 
 type AgregarRequest =
-  | { tipo: 'producto'; producto: Producto; cantidad: number }
-  | { tipo: 'kit_completo'; producto: Producto; cantidad: number }
+  | { tipo: 'producto'; producto: Producto; cantidad: number; precioUnitario: number; idDescuento?: number; montoDescuento: number }
+  | { tipo: 'kit_completo'; producto: Producto; cantidad: number; precioUnitario: number; idDescuento?: number; montoDescuento: number }
   | { tipo: 'piezas_sueltas'; kitProducto: Producto; piezas: { pieza: PiezaKit; cantidad: number; precio: number }[] }
 
 function AgregarProductoModal({
   onAgregar,
   onClose,
   loading,
+  existingItems,
 }: {
   onAgregar: (req: AgregarRequest) => void
   onClose: () => void
   loading: boolean
+  existingItems: ItemOrden[]
 }) {
   const { isTokenReady } = useAuth()
   const { marcas } = useMarcasStore()
@@ -700,7 +705,18 @@ function AgregarProductoModal({
         )
         const full = backendToProducto(res.productos?.nodes?.[0])
         setKitDetalle(full)
-        setPiezasConfig((full.piezas_kit ?? []).map(pz => ({ pieza: pz, cantidad: pz.cantidad_por_kit, precio: '' })))
+        // Prellenar precio de piezas que ya existen en la orden
+        const piezasEnOrden = new Map<number, number>()
+        for (const it of existingItems) {
+          for (const pz of it.piezas_orden ?? []) {
+            if (pz.precio_unitario != null) piezasEnOrden.set(pz.id_pieza, pz.precio_unitario)
+          }
+        }
+        setPiezasConfig((full.piezas_kit ?? []).map(pz => ({
+          pieza: pz,
+          cantidad: pz.cantidad_por_kit,
+          precio: piezasEnOrden.has(pz.id) ? String(piezasEnOrden.get(pz.id)) : '',
+        })))
       } catch {
         notify.error('Error al cargar piezas del kit')
         setSeleccionado(null)
@@ -709,6 +725,14 @@ function AgregarProductoModal({
       }
     }
   }
+
+  // Detectar si el producto/kit seleccionado ya existe en la orden (para heredar precio/descuento)
+  const existingItemMatch = seleccionado
+    ? existingItems.find(i => i.producto_id === seleccionado.id && !i.es_parcial)
+    : null
+  const existingPartialItemMatch = seleccionado
+    ? existingItems.find(i => i.producto_id === seleccionado.id && i.es_parcial)
+    : null
 
   const cantidadNum = parseInt(cantidad) || 0
   const disp = seleccionado ? Math.max(0, seleccionado.stock - (seleccionado.stock_reservado ?? 0)) : 0
@@ -728,7 +752,18 @@ function AgregarProductoModal({
     if (!seleccionado) return
     if (seleccionado.es_kit && kitDetalle) {
       if (vistaKit === 'opciones') {
-        onAgregar({ tipo: 'kit_completo', producto: seleccionado, cantidad: cantidadNum })
+        // Kit completo: heredar precio/descuento si ya existe; si no, precio base sin descuento
+        const inherited = existingItemMatch
+        onAgregar({
+          tipo: 'kit_completo',
+          producto: seleccionado,
+          cantidad: cantidadNum,
+          precioUnitario: inherited ? inherited.precio_unitario : seleccionado.precio_venta,
+          idDescuento: inherited?.descuento_id ? Number(inherited.descuento_id) : undefined,
+          montoDescuento: inherited && inherited.precio_base && inherited.precio_base > inherited.precio_unitario
+            ? (inherited.precio_base - inherited.precio_unitario) * cantidadNum
+            : 0,
+        })
       } else {
         onAgregar({
           tipo: 'piezas_sueltas',
@@ -739,7 +774,18 @@ function AgregarProductoModal({
         })
       }
     } else {
-      onAgregar({ tipo: 'producto', producto: seleccionado, cantidad: cantidadNum })
+      // Producto regular: heredar precio/descuento si ya existe; si no, precio base sin descuento
+      const inherited = existingItemMatch
+      onAgregar({
+        tipo: 'producto',
+        producto: seleccionado,
+        cantidad: cantidadNum,
+        precioUnitario: inherited ? inherited.precio_unitario : seleccionado.precio_venta,
+        idDescuento: inherited?.descuento_id ? Number(inherited.descuento_id) : undefined,
+        montoDescuento: inherited && inherited.precio_base && inherited.precio_base > inherited.precio_unitario
+          ? (inherited.precio_base - inherited.precio_unitario) * cantidadNum
+          : 0,
+      })
     }
   }
 
@@ -984,6 +1030,21 @@ function AgregarProductoModal({
                 className="w-full h-10 px-3.5 rounded-xl border border-[#E8E5E2] bg-white text-[#2D2B2A] text-sm focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 transition-all"
               />
             </div>
+            {existingItemMatch && (
+              <div className="p-2.5 rounded-lg bg-[#F5E0A8]/40 border border-[#F5E0A8] text-[12px] text-[#7A5200]">
+                <i className="ti ti-info-circle mr-1" />
+                Ya en la orden con precio <strong>Bs {existingItemMatch.precio_unitario.toFixed(2)}</strong>
+                {existingItemMatch.descuento_nombre && (
+                  <> · {existingItemMatch.descuento_nombre} ({existingItemMatch.descuento_porcentaje}%)</>
+                )}. Se agregará con el mismo precio/descuento.
+              </div>
+            )}
+            {existingPartialItemMatch && (
+              <div className="p-2.5 rounded-lg bg-[#EAF4EE] border border-[#B8DCCA] text-[12px] text-[#1E5C38]">
+                <i className="ti ti-info-circle mr-1" />
+                Este producto ya tiene <strong>{existingPartialItemMatch.piezas_orden?.length ?? 0}</strong> pieza(s) suelta(s) en la orden.
+              </div>
+            )}
           </div>
         )}
 
@@ -1102,6 +1163,18 @@ export function EscaneoPage() {
   const [pendingPiezaScan, setPendingPiezaScan] = useState<{ item: ItemOrden; pieza: PiezaOrden } | null>(null)
   const [pendingMarcarListoItem, setPendingMarcarListoItem] = useState<ItemOrden | null>(null)
   const [scanCounts, setScanCounts] = useState<Record<string, number>>({})
+  const [descuentos, setDescuentos] = useState<DescuentoConfig[]>([])
+  const [pendingAgregarConPrecio, setPendingAgregarConPrecio] = useState<AgregarRequest | null>(null)
+  const [pendingAgregarConPrecioA, setPendingAgregarConPrecioA] = useState<{
+    idProducto: number
+    idPieza?: number
+    cantidad: number
+    codigo: string
+    nombre: string
+    precioBase: number
+    esKit?: boolean
+    idPiezaCatalogo?: number
+  } | null>(null)
   const scanInputRef = useRef<HTMLInputElement>(null)
 
   const dateStr = useMemo(() => {
@@ -1117,6 +1190,14 @@ export function EscaneoPage() {
       .then(res => setMarcas((res.marca?.nodes ?? []).map(backendToMarca)))
       .catch(() => {})
   }, [isTokenReady, marcas.length, setMarcas])
+
+  // Cargar descuentos activos para el modal de precios
+  useEffect(() => {
+    if (!isTokenReady) return
+    gql<{ descuento: { nodes: DescuentoAPI[] } }>(DESCUENTOS_QUERY)
+      .then(res => setDescuentos((res.descuento?.nodes ?? []).map(backendToDescuento)))
+      .catch(() => {})
+  }, [isTokenReady])
 
   // Buscar producto por código cuando se escanea algo fuera de la orden
   useEffect(() => {
@@ -1371,6 +1452,17 @@ export function EscaneoPage() {
 
   const handleAgregarProducto = async (req: AgregarRequest) => {
     if (!selectedOrden) return
+    // Si es producto/kit (no piezas sueltas) y NO hereda precio/descuento de un item existente,
+    // abrir el modal de descuentos para que el operador elija.
+    if (req.tipo !== 'piezas_sueltas' && req.idDescuento == null && req.montoDescuento === 0) {
+      setPendingAgregarConPrecio(req)
+      return
+    }
+    return ejecutarAgregarProducto(req)
+  }
+
+  const ejecutarAgregarProducto = async (req: AgregarRequest) => {
+    if (!selectedOrden) return
     setAgregarLoading(true)
     try {
       if (req.tipo === 'piezas_sueltas') {
@@ -1409,11 +1501,18 @@ export function EscaneoPage() {
         notify.success(`Piezas de ${req.kitProducto.nombre} agregadas — almacén notificado`)
         if (lastItem) setPendingMarcarListoItem(lastItem)
       } else {
-        const { producto, cantidad } = req
+        const { producto, cantidad, precioUnitario, idDescuento, montoDescuento } = req
         const res = await api.post<AgregarItemOrdenResponse>(
           `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
-          { Id_Producto: parseInt(producto.id), Cantidad: cantidad }
+          {
+            Id_Producto: parseInt(producto.id),
+            Cantidad: cantidad,
+            PrecioUnitario: precioUnitario,
+            Id_Descuento: idDescuento ?? null,
+            MontoDescuento: montoDescuento ?? 0,
+          }
         )
+        const subtotalCalculado = precioUnitario * res.cantidad
         const newItem: ItemOrden = {
           id: String(res.id),
           producto_id: String(res.idProducto ?? parseInt(producto.id)),
@@ -1424,10 +1523,16 @@ export function EscaneoPage() {
           producto_fila: producto.fila,
           producto_columna: producto.columna,
           cantidad_pedida: res.cantidad,
-          precio_unitario: res.precioUnitario,
-          subtotal: res.precioUnitario * res.cantidad,
+          precio_unitario: precioUnitario,
+          subtotal: subtotalCalculado,
           estado: 'pendiente',
           es_kit: res.producto.esKit,
+          descuento_id: idDescuento != null ? String(idDescuento) : undefined,
+          descuento_nombre: undefined,
+          descuento_porcentaje: undefined,
+          precio_base: montoDescuento && montoDescuento > 0
+            ? precioUnitario + montoDescuento / res.cantidad
+            : precioUnitario,
         }
         addItemToOrden(selectedOrden.id, newItem)
         notify.success(`${newItem.producto_nombre} agregado — almacén notificado`)
@@ -1611,6 +1716,29 @@ export function EscaneoPage() {
   const handleAgregarItem = async (cantidad: number, precio?: number, piezas?: { piezaId: number; cantidad: number; precio: number }[]) => {
     if (!pendingNotInOrderCode || !selectedOrden || !notInOrderProducto) return
     const p = notInOrderProducto
+    // Camino A: si es producto/kit (no pieza) y NO existe en la orden, abrir modal de descuentos
+    if (piezas == null && p.piezaEscaneadaId == null) {
+      const existingItem = itemsParaEscanear.find(
+        i => i.producto_id === String(p.id) && !i.es_parcial
+      )
+      if (!existingItem) {
+        setPendingAgregarConPrecioA({
+          idProducto: p.id,
+          cantidad: cantidad,
+          codigo: p.codigo,
+          nombre: p.nombre,
+          precioBase: p.precio,
+          esKit: p.esKit,
+        })
+        return
+      }
+    }
+    return ejecutarAgregarItemA(cantidad, precio, piezas)
+  }
+
+  const ejecutarAgregarItemA = async (cantidad: number, precio?: number, piezas?: { piezaId: number; cantidad: number; precio: number }[]) => {
+    if (!selectedOrden || !notInOrderProducto) return
+    const p = notInOrderProducto
     setAgregarLoading(true)
     try {
       if (piezas && piezas.length > 0) {
@@ -1659,18 +1787,26 @@ export function EscaneoPage() {
         return
       }
 
-      const body: { Id_Producto?: number; Id_Pieza?: number; Cantidad: number; PrecioUnitario?: number } = { Cantidad: cantidad }
+      const body: { Id_Producto?: number; Id_Pieza?: number; Cantidad: number; PrecioUnitario?: number; Id_Descuento?: number; MontoDescuento?: number } = { Cantidad: cantidad }
       if (p.piezaEscaneadaId != null) {
         body.Id_Producto = p.id
         body.Id_Pieza = p.piezaEscaneadaId
         body.PrecioUnitario = precio
       } else {
         body.Id_Producto = p.id
-        // Si el mismo producto ya existe en la orden, usar su precio (puede tener descuento)
+        // Si el mismo producto ya existe en la orden, heredar su precio + descuento
         const existingItem = itemsParaEscanear.find(
           i => i.producto_id === String(p.id) && !i.es_parcial
         )
-        if (existingItem) body.PrecioUnitario = existingItem.precio_unitario
+        if (existingItem) {
+          body.PrecioUnitario = existingItem.precio_unitario
+          if (existingItem.descuento_id) {
+            body.Id_Descuento = Number(existingItem.descuento_id)
+            // MontoDescuento = (precio_base - precio_unitario) * cantidad
+            const precioBase = existingItem.precio_base ?? existingItem.precio_unitario
+            body.MontoDescuento = (precioBase - existingItem.precio_unitario) * existingItem.cantidad_pedida
+          }
+        }
       }
       const res = await api.post<AgregarItemOrdenResponse>(
         `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
@@ -1679,6 +1815,10 @@ export function EscaneoPage() {
       const parts = (res.producto.ubicacion ?? '').split('/')
       const [almacen = '', estante = '', fila = '', columna = ''] =
         parts.length >= 4 ? parts : ['', ...parts]
+      // Datos de descuento heredados (si se envió Id_Descuento en el body)
+      const descuentoHeredado = body.Id_Descuento
+        ? itemsParaEscanear.find(i => i.producto_id === String(p.id) && !i.es_parcial)
+        : null
       let newItem: ItemOrden
       if (res.esParcial && res.piezas?.[0]) {
         const piezaItemId = res.piezas[0].id
@@ -1720,7 +1860,77 @@ export function EscaneoPage() {
           subtotal: res.precioUnitario * res.cantidad,
           estado: 'pendiente',
           es_kit: res.producto.esKit,
+          // Heredar descuento si se envió en el body
+          ...(descuentoHeredado && {
+            descuento_id: descuentoHeredado.descuento_id,
+            descuento_nombre: descuentoHeredado.descuento_nombre,
+            descuento_porcentaje: descuentoHeredado.descuento_porcentaje,
+            descuento_color: descuentoHeredado.descuento_color,
+            precio_base: descuentoHeredado.precio_base ?? descuentoHeredado.precio_unitario,
+          }),
         }
+      }
+      addItemToOrden(selectedOrden.id, newItem)
+      notify.info(`${newItem.producto_nombre} agregado a la orden`)
+      setPendingNotInOrderCode(null)
+      setPendingNotInOrderMarcaId(null)
+      setNotInOrderProducto(null)
+      setPendingMarcarListoItem(newItem)
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al agregar')
+    } finally {
+      setAgregarLoading(false)
+    }
+  }
+
+  const ejecutarAgregarItemAConDescuento = async (
+    cantidad: number,
+    precio: number,
+    idDescuento: number | undefined,
+    montoDescuento: number,
+    descuentoNombre: string | undefined,
+    descuentoPorcentaje: number | undefined,
+  ) => {
+    if (!selectedOrden || !notInOrderProducto) return
+    const p = notInOrderProducto
+    setAgregarLoading(true)
+    try {
+      const body: { Id_Producto: number; Cantidad: number; PrecioUnitario: number; Id_Descuento?: number; MontoDescuento?: number } = {
+        Id_Producto: p.id,
+        Cantidad: cantidad,
+        PrecioUnitario: precio,
+      }
+      if (idDescuento != null) {
+        body.Id_Descuento = idDescuento
+        body.MontoDescuento = montoDescuento
+      }
+      const res = await api.post<AgregarItemOrdenResponse>(
+        `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
+        body
+      )
+      const parts = (res.producto.ubicacion ?? '').split('/')
+      const [almacen = '', estante = '', fila = '', columna = ''] =
+        parts.length >= 4 ? parts : ['', ...parts]
+      const newItem: ItemOrden = {
+        id: String(res.id),
+        producto_id: String(res.idProducto ?? p.id),
+        producto_codigo: res.producto.codigo,
+        producto_nombre: res.producto.nombre,
+        producto_almacen: almacen,
+        producto_estante: estante,
+        producto_fila: fila,
+        producto_columna: columna,
+        cantidad_pedida: res.cantidad,
+        precio_unitario: res.precioUnitario,
+        subtotal: res.precioUnitario * res.cantidad,
+        estado: 'pendiente',
+        es_kit: res.producto.esKit,
+        ...(idDescuento != null && {
+          descuento_id: String(idDescuento),
+          descuento_nombre: descuentoNombre,
+          descuento_porcentaje: descuentoPorcentaje,
+          precio_base: p.precio,
+        }),
       }
       addItemToOrden(selectedOrden.id, newItem)
       notify.info(`${newItem.producto_nombre} agregado a la orden`)
@@ -2320,6 +2530,58 @@ export function EscaneoPage() {
           onAgregar={handleAgregarProducto}
           onClose={() => setShowAgregarModal(false)}
           loading={agregarLoading}
+          existingItems={itemsParaEscanear}
+        />
+      )}
+
+      {pendingAgregarConPrecio && (pendingAgregarConPrecio.tipo === 'producto' || pendingAgregarConPrecio.tipo === 'kit_completo') && (
+        <SelectPriceModal
+          producto={pendingAgregarConPrecio.producto}
+          precioBase={pendingAgregarConPrecio.producto.precio_venta}
+          descuentos={descuentos}
+          onSelect={(precio, descuento_id, _descuento_nombre, descuento_porcentaje) => {
+            const req = pendingAgregarConPrecio
+            const idDescuento = descuento_id ? Number(descuento_id) : undefined
+            const montoDescuento = descuento_porcentaje
+              ? (pendingAgregarConPrecio.producto.precio_venta - precio) * req.cantidad
+              : 0
+            const updated: AgregarRequest = { ...req, precioUnitario: precio, idDescuento, montoDescuento }
+            setPendingAgregarConPrecio(null)
+            ejecutarAgregarProducto(updated)
+          }}
+          onClose={() => {
+            setPendingAgregarConPrecio(null)
+            scanInputRef.current?.focus()
+          }}
+        />
+      )}
+
+      {pendingAgregarConPrecioA && (
+        <SelectPriceModal
+          producto={{
+            id: String(pendingAgregarConPrecioA.idProducto),
+            codigo_universal: pendingAgregarConPrecioA.codigo,
+            codigos_alternativos: [],
+            nombre: pendingAgregarConPrecioA.nombre,
+            stock: 0,
+            stock_minimo: 0,
+            es_kit: pendingAgregarConPrecioA.esKit,
+          } as unknown as Producto}
+          precioBase={pendingAgregarConPrecioA.precioBase}
+          descuentos={descuentos}
+          onSelect={(precio, descuento_id, descuento_nombre, descuento_porcentaje) => {
+            const req = pendingAgregarConPrecioA
+            const idDescuento = descuento_id ? Number(descuento_id) : undefined
+            const montoDescuento = descuento_porcentaje
+              ? (req.precioBase - precio) * req.cantidad
+              : 0
+            setPendingAgregarConPrecioA(null)
+            ejecutarAgregarItemAConDescuento(req.cantidad, precio, idDescuento, montoDescuento, descuento_nombre, descuento_porcentaje)
+          }}
+          onClose={() => {
+            setPendingAgregarConPrecioA(null)
+            scanInputRef.current?.focus()
+          }}
         />
       )}
 

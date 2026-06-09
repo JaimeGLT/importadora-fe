@@ -272,6 +272,7 @@ export const ORDENES_PENDIENTES_QUERY = `
           precioUnitario
           id_Descuento
           montoDescuento
+          descuento { id nombre cantDescuento color activo }
           producto {
             id
             codigo
@@ -348,6 +349,7 @@ export const MIS_ORDENES_ALMACEN_QUERY = `
           precioUnitario
           id_Descuento
           montoDescuento
+          descuento { id nombre cantDescuento color activo }
           producto {
             id
             codigo
@@ -423,6 +425,7 @@ export const TODAS_ORDENES_QUERY = `
           precioUnitario
           id_Descuento
           montoDescuento
+          descuento { id nombre cantDescuento color activo }
           producto {
             id
             codigo
@@ -526,6 +529,11 @@ function backendToItemOrden(api: OrdenItemAPI): ItemOrden {
     cantidad_recogida: parseCantidadRecogida(api.notaIncompleto),
     es_kit: api.producto?.esKit ?? false,
     es_parcial: api.esParcial,
+    descuento_id: api.id_Descuento != null ? String(api.id_Descuento) : undefined,
+    descuento_nombre: api.descuento?.nombre,
+    descuento_porcentaje: api.descuento?.cantDescuento,
+    descuento_color: api.descuento?.color,
+    precio_base: api.precioUnitario,
     piezas_orden: api.esParcial && api.piezas?.length
       ? api.piezas.map(p => ({
           id: p.id,
