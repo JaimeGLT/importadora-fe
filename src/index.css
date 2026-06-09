@@ -38,3 +38,33 @@
   vertical-align: middle;
   font-family: 'Material Symbols Outlined';
 }
+
+/* ─── Print: comprobante 80mm ──────────────────────────────────── */
+@page {
+  size: 80mm auto;
+  margin: 0;
+}
+
+@media print {
+  html, body {
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  body {
+    position: relative !important;
+  }
+  body * { visibility: hidden; }
+  #comprobante-print, #comprobante-print * { visibility: visible; }
+  #comprobante-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    padding: 4mm 4mm 6mm;
+    margin: 0;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+  }
+}

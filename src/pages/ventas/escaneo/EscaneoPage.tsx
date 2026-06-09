@@ -1335,7 +1335,7 @@ export function EscaneoPage() {
   }
 
   const allConfirmed = itemsParaEscanear.length > 0 &&
-    itemsParaEscanear.every(i => isItemConfirmed(i) || i.estado === 'faltante')
+    itemsParaEscanear.every(i => isItemConfirmed(i))
 
   // Solo los faltantes totales (0 encontrados) van tachados abajo
   // Los parciales también aparecen tachados pero solo por la cantidad faltante
@@ -2397,21 +2397,21 @@ export function EscaneoPage() {
                                 isFlashing ? 'border-[#3F7A52]/40 bg-[#B8DCCA]/30 scale-[1.01]' :
                                 confirmed ? 'border-[#3F7A52]/30 bg-[#B8DCCA]/20' :
                                 isPendiente ? 'border-[#B47A1F]/30 bg-[#F5E0A8]/20' :
-                                isParcialFaltante ? 'border-[#B23A2A]/20 bg-[#F5C9C0]/20' :
+                                isParcialFaltante ? 'border-[#B47A1F]/30 bg-[#F5E0A8]/20' :
                                 'border-[#D0CBC4] bg-white'
                               )}
                             >
                               {/* Icono */}
                               <div className={clsx(
                                 'h-8 w-8 rounded-full flex items-center justify-center shrink-0',
-                                confirmed ? 'bg-[#B8DCCA]' : isPendiente ? 'bg-[#F5E0A8]' : isParcialFaltante ? 'bg-[#F5C9C0]' : 'bg-[#F0EFEC]'
+                                confirmed ? 'bg-[#B8DCCA]' : isPendiente ? 'bg-[#F5E0A8]' : isParcialFaltante ? 'bg-[#F5E0A8]' : 'bg-[#F0EFEC]'
                               )}>
                                 {confirmed ? (
                                   <i className="ti ti-check text-[#3F7A52] text-[14px]" />
                                 ) : isPendiente ? (
                                   <i className="ti ti-clock text-[#B47A1F] text-[14px]" />
                                 ) : isParcialFaltante ? (
-                                  <i className="ti ti-alert-triangle text-[#B23A2A] text-[14px]" />
+                                  <i className="ti ti-clock text-[#B47A1F] text-[14px]" />
                                 ) : (
                                   <i className="ti ti-package text-[#7A7571] text-[14px]" />
                                 )}

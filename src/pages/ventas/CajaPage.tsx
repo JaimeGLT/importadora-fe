@@ -656,8 +656,13 @@ function OrdersModal({
 // ─── Modals ───────────────────────────────────────────────────────────────────
 
 function PickingParcialModal({ orden, onPartial, onCancelar, onClose }: { orden: OrdenVenta; onPartial: () => void; onCancelar: () => void; onClose: () => void }) {
-  const completos = orden.items.filter(i => i.estado === 'completo' || i.estado === 'parcial')
-  const faltantes = orden.items.filter(i => i.estado === 'faltante')
+  const completos = orden.items.filter(i =>
+    i.estado === 'completo' || i.estado === 'parcial' ||
+    (i.estado === 'faltante' && (i.cantidad_recogida ?? 0) > 0)
+  )
+  const faltantes = orden.items.filter(i =>
+    i.estado === 'faltante' && ((i.cantidad_recogida ?? 0) === 0)
+  )
   return (
     <Modal open onClose={onClose} title="Orden con faltantes">
       <div className="space-y-4 pt-1">
@@ -765,14 +770,18 @@ function CobroModal({ orden, clientes, onConfirm, onClose }: {
   onClose: () => void
 }) {
   const { marcas } = useMarcasStore()
-  const itemsDespachados = orden.items.filter(i => i.estado === 'completo' || i.estado === 'parcial')
-  const itemsFaltantes = orden.items.filter(i => i.estado === 'faltante')
+  const itemsDespachados = orden.items.filter(i =>
+    i.estado === 'completo' || i.estado === 'parcial' ||
+    (i.estado === 'faltante' && (i.cantidad_recogida ?? 0) > 0)
+  )
+  const itemsFaltantes = orden.items.filter(i =>
+    i.estado === 'faltante' && ((i.cantidad_recogida ?? 0) === 0)
+  )
   const totalReal = itemsDespachados.reduce((s, i) => {
     if (i.es_parcial && i.piezas_orden?.length)
       return s + i.piezas_orden.filter(p => p.confirmado).reduce((ps, p) => ps + (p.precio_unitario ?? 0) * p.cantidad, 0)
     return s + i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida)
   }, 0)
-
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
   const [montoStr, setMontoStr] = useState(totalReal.toFixed(2))
   const [pagoMixto, setPagoMixto] = useState(false)
@@ -876,7 +885,7 @@ function CobroModal({ orden, clientes, onConfirm, onClose }: {
           {itemsFaltantes.map(i => (
             <div key={i.id} className="flex justify-between text-sm gap-2 opacity-50">
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-mono font-bold text-[#7A7571] line-through">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_pedida}</p>
+                <p className="text-[11px] font-mono font-bold text-[#7A7571] line-through">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_pedida - (i.cantidad_recogida ?? 0)}</p>
                 <p className="text-[11px] text-[#7A7571] truncate">{i.producto_nombre}</p>
               </div>
               <span className="text-[#7A7571] shrink-0">N/A</span>
@@ -1013,8 +1022,10 @@ function CobroModal({ orden, clientes, onConfirm, onClose }: {
 function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => void }) {
   const { marcas } = useMarcasStore()
   const isFactura = orden.tipoDocumento === 'factura'
-  const itemsDespachados = orden.items.filter(i => i.estado === 'completo' || i.estado === 'parcial')
-  const itemsFaltantes = orden.items.filter(i => i.estado === 'faltante')
+  const itemsDespachados = orden.items.filter(i =>
+    i.estado === 'completo' || i.estado === 'parcial' ||
+    (i.estado === 'faltante' && (i.cantidad_recogida ?? 0) > 0)
+  )
   const totalReal = itemsDespachados.reduce((s, i) => {
     if (i.es_parcial && i.piezas_orden?.length)
       return s + i.piezas_orden.filter(p => p.confirmado).reduce((ps, p) => ps + (p.precio_unitario ?? 0) * p.cantidad, 0)
@@ -1023,110 +1034,134 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
   const cambio = orden.monto_recibido != null ? orden.monto_recibido - totalReal : null
 
   const docLabel = isFactura ? 'FACTURA' : 'NOTA DE VENTA'
-  const docColorCls = isFactura ? 'bg-[#B8DCCA] text-[#1E5C38]' : 'bg-[#F0EFEC] text-[#4A4744]'
 
   return (
-    <Modal open onClose={onClose} title="Comprobante de venta" size="md">
-      <div className="space-y-4">
-        <div className="text-center pb-3 border-b border-[#E8E5E2]">
-          <span className={clsx('inline-block text-[10px] font-black px-2 py-1 rounded mb-2 tracking-widest', docColorCls)}>{docLabel}</span>
-          {isFactura && orden.facturaNro && (
-            <p className="text-xs font-mono font-bold text-[#4A4744] mt-1">N° {orden.facturaNro}</p>
-          )}
-          <p className="text-lg font-black text-[#2D2B2A]">{orden.numero}</p>
-          <p className="text-xs text-[#7A7571] mt-0.5">{new Date(orden.pagado_en ?? orden.actualizado_en).toLocaleString('es-BO')}</p>
-          <p className="text-xs text-[#7A7571] mt-0.5">Cajero: {orden.cajero_nombre}</p>
-        </div>
-
-        {isFactura && orden.cliente_nombre && (
-          <div className="rounded-xl bg-[#F7F7F7] border border-[#E8E5E2] p-3 space-y-1">
-            <p className="text-[10px] font-bold text-[#7A7571] uppercase tracking-widest">Datos del cliente</p>
-            <p className="text-sm font-semibold text-[#2D2B2A]">{orden.cliente_nombre}</p>
-            {orden.cliente_tipo_id && orden.cliente_numero_id && (
-              <p className="text-xs text-[#9996b0]">
-                {orden.cliente_tipo_id === 'nit' ? `NIT: ${orden.cliente_numero_id}` :
-                 orden.cliente_tipo_id === 'ci' ? `CI: ${orden.cliente_numero_id}` :
-                 'Sin NIT (99001)'}
-              </p>
+    <Modal open onClose={onClose} title="Comprobante de venta" size="sm">
+      <div className="flex justify-center bg-[#F0EFEC] -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 py-4 print:py-0 print:bg-transparent">
+        <div
+          id="comprobante-print"
+          className="w-[80mm] bg-white text-black font-mono text-[11px] leading-tight p-4 shadow-md print:shadow-none print:p-0"
+        >
+          {/* Header */}
+          <div className="text-center">
+            <p className="font-black text-[13px] uppercase tracking-wide">{docLabel}</p>
+            {isFactura && orden.facturaNro && (
+              <p className="font-bold">N° {orden.facturaNro}</p>
             )}
-            {orden.cliente_nit && orden.cliente_tipo_id !== 'nit' && (
-              <p className="text-xs text-[#9996b0]">NIT: {orden.cliente_nit}</p>
-            )}
+            <p>Orden {orden.numero}</p>
+            <p>{new Date(orden.pagado_en ?? orden.actualizado_en).toLocaleString('es-BO')}</p>
+            <p>Cajero: {orden.cajero_nombre}</p>
           </div>
-        )}
 
-        <div className="space-y-1.5">
+          <div className="border-t border-dashed border-black/40 my-1.5" />
+
+          {/* Cliente */}
+          {orden.cliente_nombre && (
+            <>
+              <p>Cliente: {orden.cliente_nombre}</p>
+              {orden.cliente_tipo_id && orden.cliente_numero_id && (
+                <p>
+                  {orden.cliente_tipo_id === 'nit' ? 'NIT' :
+                   orden.cliente_tipo_id === 'ci' ? 'CI' :
+                   'Doc'}: {orden.cliente_numero_id}
+                </p>
+              )}
+              {orden.cliente_nit && orden.cliente_tipo_id !== 'nit' && (
+                <p>NIT: {orden.cliente_nit}</p>
+              )}
+              <div className="border-t border-dashed border-black/40 my-1.5" />
+            </>
+          )}
+
+          {/* Items */}
           {itemsDespachados.map(i => {
             if (i.es_parcial && i.piezas_orden?.length) {
               return i.piezas_orden.filter(p => p.confirmado).map(p => (
-                <div key={`${i.id}-${p.id}`} className="flex justify-between text-sm gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)}</p>
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">KIT</span>
-                    </div>
-                    <p className="text-[#4A4744] truncate flex items-center gap-1.5">
-                      <span className="truncate">{p.nombre} · ×{p.cantidad}</span>
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#F5E0A8] text-[#7A5200] tracking-wider shrink-0">PIEZA</span>
-                    </p>
+                <div key={`${i.id}-${p.id}`} className="mb-1.5">
+                  <p className="font-bold">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)}</p>
+                  <p className="truncate">{p.nombre}</p>
+                  <div className="flex justify-between pl-1">
+                    <span>{p.cantidad} x {fmtBs(p.precio_unitario ?? 0)}</span>
+                    <span className="font-bold">{fmtBs((p.precio_unitario ?? 0) * p.cantidad)}</span>
                   </div>
-                  <span className="font-semibold shrink-0">{fmtBs((p.precio_unitario ?? 0) * p.cantidad)}</span>
                 </div>
               ))
             }
+            const qty = i.cantidad_recogida ?? i.cantidad_pedida
             return (
-              <div key={i.id} className="flex justify-between text-sm gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-[#4A4744] truncate">{i.producto_nombre}</p>
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
-                    {i.es_kit && (
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">KIT</span>
-                    )}
-                  </div>
+              <div key={i.id} className="mb-1.5">
+                <p className="font-bold">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)}</p>
+                <p className="truncate">{i.producto_nombre}</p>
+                <div className="flex justify-between pl-1">
+                  <span>{qty} x {fmtBs(i.precio_unitario)}</span>
+                  <span className="font-bold">{fmtBs(i.precio_unitario * qty)}</span>
                 </div>
-                <span className="font-semibold shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
               </div>
             )
           })}
-          {itemsFaltantes.map(i => (
-            <div key={i.id} className="flex justify-between text-sm gap-2 opacity-40">
-              <div className="flex-1 min-w-0">
-                <p className="text-[#7A7571] truncate line-through">{i.producto_nombre}</p>
-                <p className="text-[10px] font-mono text-[#7A7571]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_pedida}</p>
-              </div>
-              <span className="text-[#7A7571] shrink-0">N/A</span>
-            </div>
-          ))}
-        </div>
-        <div className="border-t border-[#E8E5E2] pt-3 space-y-1">
-          <div className="flex justify-between text-sm font-bold text-[#2D2B2A]"><span>Total</span><span>{fmtBs(totalReal)}</span></div>
-          {orden.metodo_pago && <div className="flex justify-between text-xs text-[#7A7571]"><span>Método</span><span className="capitalize">{orden.metodo_pago}</span></div>}
-          {cambio != null && cambio > 0 && <div className="flex justify-between text-xs text-[#3F7A52]"><span>Cambio</span><span>{fmtBs(cambio)}</span></div>}
-        </div>
 
-        {isFactura && (
-          <div className="rounded-xl bg-white border border-[#E8E5E2] p-4 flex items-center gap-4">
-            <div className="h-20 w-20 rounded-lg bg-[#F0EFEC] border-2 border-dashed border-[#D0CBC4] flex items-center justify-center shrink-0">
-              <span className="text-[10px] text-[#7A7571] font-bold text-center leading-tight">QR{'\n'}SIAT</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-[#7A7571] uppercase tracking-widest mb-1">Código QR</p>
-              <p className="text-xs text-[#7A7571]">Verifique su factura en el portal del SIN</p>
-              {orden.facturaNro && <p className="text-[10px] font-mono text-[#7A7571] mt-1">{orden.facturaNro}</p>}
-            </div>
+          <div className="border-t border-dashed border-black/40 my-1.5" />
+
+          {/* Totales */}
+          <div className="flex justify-between font-black text-[12px]">
+            <span>TOTAL</span>
+            <span>{fmtBs(totalReal)}</span>
           </div>
-        )}
+          {orden.metodo_pago && (
+            <div className="flex justify-between">
+              <span>Método:</span>
+              <span className="capitalize">{orden.metodo_pago}</span>
+            </div>
+          )}
+          {orden.monto_recibido != null && (
+            <div className="flex justify-between">
+              <span>Recibido:</span>
+              <span>{fmtBs(orden.monto_recibido)}</span>
+            </div>
+          )}
+          {cambio != null && cambio > 0 && (
+            <div className="flex justify-between">
+              <span>Cambio:</span>
+              <span>{fmtBs(cambio)}</span>
+            </div>
+          )}
 
-        <div className="flex gap-2 pt-1">
-          <Button variant="secondary" className="flex-1" onClick={onClose}>Cerrar</Button>
-          <Button className="flex-1" onClick={() => window.print()}>
-            <svg className="h-3.5 w-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-            </svg>
-            Imprimir
-          </Button>
+          {isFactura && (
+            <>
+              <div className="border-t border-dashed border-black/40 my-1.5" />
+              <div className="flex items-center gap-2">
+                <div className="h-16 w-16 border border-dashed border-black/40 flex items-center justify-center shrink-0">
+                  <span className="text-[8px] font-bold text-center leading-tight">QR{'\n'}SIAT</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-[10px]">Verifique su factura</p>
+                  <p className="text-[9px]">en el portal del SIN</p>
+                  {orden.facturaNro && <p className="text-[9px]">{orden.facturaNro}</p>}
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="border-t border-dashed border-black/40 my-1.5" />
+
+          {/* Footer */}
+          <div className="text-center space-y-0.5">
+            <p className="font-bold">¡Gracias por su compra!</p>
+            {!isFactura && (
+              <p className="text-[9px]">Esta nota no es válida como factura</p>
+            )}
+          </div>
         </div>
+      </div>
+
+      <div className="flex gap-2 pt-4 print:hidden">
+        <Button variant="secondary" className="flex-1" onClick={onClose}>Cerrar</Button>
+        <Button className="flex-1" onClick={() => window.print()}>
+          <svg className="h-3.5 w-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          </svg>
+          Imprimir
+        </Button>
       </div>
     </Modal>
   )
