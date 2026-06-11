@@ -141,6 +141,7 @@ export const PRODUCTO_BY_ID_QUERY = `
         ubicacion
         stock_Actual
         calcularStockKit
+        calcularStockKitDisponible
         stockReservado
         stock_Minimo
         piezas
@@ -214,6 +215,13 @@ export interface ProductoAPISimple {
   stockReservado?: number
   stock_Minimo: number
   calcularStockKit?: number | null
+  /**
+   * Stock del kit descontando piezas reservadas por otras órdenes.
+   * Solo presente en respuestas que lo incluyan explícitamente
+   * (REST `buscar-lista`, `PRODUCTO_BY_ID_QUERY`). Cuando es null/undefined,
+   * el mapping cae al `calcularStockKit` raw.
+   */
+  calcularStockKitDisponible?: number | null
   piezas: number
   costo: number
   precio: number
@@ -273,7 +281,12 @@ function mapProductoBase(p: ProductoAPISimple): Producto {
     marcaId: p.marcaId ?? null,
     vehiculo: '',
     unidad: (p.unidad_Medida?.toLowerCase() as Producto['unidad']) ?? 'pieza',
-    stock: p.esKit ? (p.calcularStockKit ?? 0) : (p.stock_Actual ?? 0),
+    // Para kits, preferimos `calcularStockKitDisponible` (descuenta reservas
+    // de piezas). Si la respuesta no lo incluye (queries viejas), caemos al
+    // `calcularStockKit` raw para no romper nada.
+    stock: p.esKit
+      ? (p.calcularStockKitDisponible ?? p.calcularStockKit ?? 0)
+      : (p.stock_Actual ?? 0),
     stock_reservado: p.stockReservado ?? 0,
     stock_minimo: p.stock_Minimo ?? 0,
     piezas: p.piezas ?? 1,

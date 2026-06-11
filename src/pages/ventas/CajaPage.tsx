@@ -23,6 +23,7 @@ import { useVentasHub } from '@/hooks/useVentasHub'
 import { useMarcasStore } from '@/stores/marcasStore'
 import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
 import { fmtCodigo } from '@/lib/formatCodigo'
+import { getStockEfectivo, getStockEfectivoPieza } from '@/utils/stockValidator'
 import type { Producto, OrdenVenta, MetodoPago, Cliente, PagoOrden } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -137,24 +138,53 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
+  // Búsqueda con debounce. showLoading=true sólo en el search inicial del usuario;
+  // los refetch en background (periódico / al volver a la pestaña) pasan false
+  // para no flashear el skeleton ni perder foco del input.
+  const searchProductos = useCallback(async (q: string, showLoading: boolean) => {
+    if (!q.trim() || !isTokenReady) { setResultados([]); return }
+    if (showLoading) setLoading(true)
+    try {
+      const res = await api.get<ProductoAPISimple[]>(`/Producto/buscar-lista?q=${encodeURIComponent(q)}`)
+      setResultados((res ?? []).map(backendToProductoSimple))
+    } catch {
+      // En error, conservar los últimos resultados buenos. Sólo el search
+      // inicial limpia la lista (manejado arriba con `setResultados([])`).
+    } finally {
+      if (showLoading) setLoading(false)
+    }
+  }, [isTokenReady])
+
+  // Búsqueda inicial al tipear (debounced 300ms, con skeleton).
   useEffect(() => {
     if (!query.trim() || !isTokenReady) { setResultados([]); return }
     const q = query.trim()
-    const timer = setTimeout(async () => {
-      setLoading(true)
-      try {
-        const res = await api.get<ProductoAPISimple[]>(`/Producto/buscar-lista?q=${encodeURIComponent(q)}`)
-        setResultados((res ?? []).map(backendToProductoSimple))
-      } catch {
-        setResultados([])
-      } finally {
-        setLoading(false)
-      }
-    }, 300)
+    const timer = setTimeout(() => searchProductos(q, true), 300)
     return () => clearTimeout(timer)
-  }, [query, isTokenReady])
+  }, [query, isTokenReady, searchProductos])
 
-  const stockDisponible = (p: Producto) => Math.max(0, p.stock - (p.stock_reservado ?? 0))
+  // Refetch silencioso cada 20s mientras hay query activa: cubre la actividad
+  // de otros cajeros en segundo plano sin agregar lag perceptible.
+  useEffect(() => {
+    if (!query.trim() || !isTokenReady) return
+    const q = query.trim()
+    const interval = setInterval(() => searchProductos(q, false), 20_000)
+    return () => clearInterval(interval)
+  }, [query, isTokenReady, searchProductos])
+
+  // Refetch silencioso al volver a la pestaña: cubre "me fui a otra ventana
+  // y volví, mientras tanto hubo cambios".
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && query.trim() && isTokenReady) {
+        searchProductos(query.trim(), false)
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [query, isTokenReady, searchProductos])
+
+  const stockDisponible = (p: Producto) => getStockEfectivo(p, cart).stockEfectivo
 
   const getCartQty = (productoId: string) =>
     cart.items.filter(i => i.producto_id === productoId).reduce((acc, i) => acc + i.cantidad, 0)
@@ -459,7 +489,7 @@ function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChan
   const [confirmCancelar, setConfirmCancelar] = useState(false)
   const stockDisponible = (id: string) => {
     const p = productosCache[id]
-    return p ? Math.max(0, p.stock - (p.stock_reservado ?? 0)) : Infinity
+    return p ? getStockEfectivo(p, cart).stockEfectivo : Infinity
   }
   const total = cart.items.reduce((s, i) => s + i.precio_unitario * i.cantidad, 0)
 
@@ -1333,7 +1363,7 @@ export function CajaPage() {
     setCart(prev => {
       const existingIdx = prev.items.findIndex(i => i.producto_id === producto.id)
       if (existingIdx >= 0) {
-        const disp = Math.max(0, producto.stock - (producto.stock_reservado ?? 0))
+        const disp = getStockEfectivo(producto, prev).stockEfectivo
         if (prev.items[existingIdx].cantidad >= disp) {
           notify.error('Stock máximo alcanzado')
           return prev
@@ -1366,7 +1396,7 @@ export function CajaPage() {
     setCart(prev => {
       const existing = prev.items.findIndex(i => i.producto_id === productoSeleccionado.id)
       if (existing >= 0) {
-        const disp = Math.max(0, productoSeleccionado.stock - (productoSeleccionado.stock_reservado ?? 0))
+        const disp = getStockEfectivo(productoSeleccionado, prev).stockEfectivo
         if (prev.items[existing].cantidad >= disp) { notify.error('Stock máximo alcanzado'); return prev }
         return { ...prev, items: prev.items.map((item, idx) => idx === existing ? { ...item, cantidad: item.cantidad + 1 } : item) }
       }
@@ -1468,7 +1498,7 @@ export function CajaPage() {
     setCart(prev => {
       const existingIdx = prev.items.findIndex(i => i.producto_id === productoSeleccionado.id)
       if (existingIdx >= 0) {
-        const disp = Math.max(0, productoSeleccionado.stock - (productoSeleccionado.stock_reservado ?? 0))
+        const disp = getStockEfectivo(productoSeleccionado, prev).stockEfectivo
         if (prev.items[existingIdx].cantidad >= disp) { notify.error('Stock máximo alcanzado'); return prev }
         const updatedItems = prev.items.map((item, idx) => {
           if (idx === existingIdx) {
@@ -1534,6 +1564,63 @@ export function CajaPage() {
   const handleFlyingComplete = async () => {
     if (!flyingBall) return
     setFlyingBall(null)
+
+    // Refetch fresh stock para todos los productos del carrito.
+    // Cubre el caso "otro cajero emitió entremedio y el cache quedó stale".
+    const productIds = new Set<string>()
+    for (const item of cart.items) {
+      if (item.kit_id) productIds.add(item.kit_id)        // kit padre (incluye piezas_kit)
+      else productIds.add(item.producto_id)
+    }
+
+    const freshCache: Record<string, Producto> = {}
+    try {
+      await Promise.all(
+        Array.from(productIds).map(async (id) => {
+          const data = await gql<{ productos: { nodes: ProductoAPI[] } }>(
+            PRODUCTO_BY_ID_QUERY,
+            { id: Number(id) },
+          )
+          const node = data.productos?.nodes?.[0]
+          if (node) freshCache[id] = backendToProducto(node)
+        }),
+      )
+      if (Object.keys(freshCache).length > 0) {
+        setProductosCache(prev => ({ ...prev, ...freshCache }))
+      }
+    } catch {
+      // Si falla el refetch, seguimos con el cache; el backend será la red de seguridad.
+    }
+
+    // Validación final pre-emitir con stock fresco.
+    // Comparamos `item.cantidad` contra `stockTotal` (no `stockEfectivo`):
+    // `stockEfectivo = stockTotal − enCarrito`, así que comparar contra él
+    // siempre falla cuando el carrito ya tiene todo el stock cargado,
+    // y el frontend termina rechazando su propia orden.
+    const errores: string[] = []
+    for (const item of cart.items) {
+      if (item.kit_id) {
+        const parentKit = freshCache[item.kit_id] ?? productosCache[item.kit_id]
+        if (!parentKit) continue
+        const pieza = parentKit.piezas_kit?.find(pk => String(pk.id) === item.producto_id)
+        if (!pieza) continue
+        const info = getStockEfectivoPieza(pieza, cart, item.kit_id)
+        if (item.cantidad > info.stockTotal) {
+          errores.push(`${item.producto_nombre}: tenés ${item.cantidad} · hay ${info.stockTotal} en stock`)
+        }
+      } else {
+        const p = freshCache[item.producto_id] ?? productosCache[item.producto_id]
+        if (!p) continue
+        const info = getStockEfectivo(p, cart)
+        if (item.cantidad > info.stockTotal) {
+          errores.push(`${item.producto_nombre}: tenés ${item.cantidad} · hay ${info.stockTotal} en stock`)
+        }
+      }
+    }
+    if (errores.length > 0) {
+      notify.error('Stock insuficiente', { description: errores.join(' · '), duration: 8000 })
+      return
+    }
 
     // Agrupar piezas de kit por kit_id
     const regularItems = cart.items.filter(i => !i.kit_id)

@@ -2,7 +2,9 @@ import { useState, useMemo } from 'react'
 import { clsx } from 'clsx'
 import type { Producto } from '@/types'
 import { useMarcasStore } from '@/stores/marcasStore'
+import { useCajaStore } from '@/stores/cajaStore'
 import { fmtCodigo } from '@/lib/formatCodigo'
+import { getStockEfectivo, getStockEfectivoPieza } from '@/utils/stockValidator'
 
 interface PiezaSeleccionada {
   producto_id: string
@@ -28,26 +30,39 @@ interface KitSeleccionModalProps {
 
 export function KitSeleccionModal({ open, onClose, kit, onConfirm, preciosIniciales }: KitSeleccionModalProps) {
   const { marcas } = useMarcasStore()
+  const cart = useCajaStore(s => s.cart)
   const [cantidadKit, setCantidadKit] = useState(0)
   const [seleccionadas, setSeleccionadas] = useState<PiezaSeleccionada[]>(() => {
     if (!preciosIniciales) return []
     return (kit.piezas_kit ?? [])
       .filter(p => (preciosIniciales[String(p.id)] ?? 0) > 0)
-      .map(p => ({
-        producto_id: String(p.id),
-        nombre: p.nombre,
-        stock: Math.max(0, p.stock_actual - p.stock_reservado),
-        cantidad: p.cantidad_por_kit,
-        cantidad_por_kit: p.cantidad_por_kit,
-        precio: preciosIniciales[String(p.id)],
-      }))
+      .map(p => {
+        // Si la pieza ya está en el carrito, pre-cargamos la cantidad real
+        // del carrito (no el default por kit) para que el cajero vea cuánto
+        // tiene actualmente. Si confirma sin tocar nada, se le suma esa misma
+        // cantidad al carrito (semántica "agregar más"), comportamiento que
+        // ya existía — el bug anterior era que mostraba `cantidad_por_kit`
+        // (típicamente 2) en vez de la cantidad real (ej. 5), causando
+        // confusión entre lo que el modal mostraba y lo que estaba en el carrito.
+        const cartItem = cart.items.find(
+          i => i.kit_id === kit.id && i.producto_id === String(p.id),
+        )
+        return {
+          producto_id: String(p.id),
+          nombre: p.nombre,
+          stock: Math.max(0, p.stock_actual - p.stock_reservado),
+          cantidad: cartItem?.cantidad ?? p.cantidad_por_kit,
+          cantidad_por_kit: p.cantidad_por_kit,
+          precio: preciosIniciales[String(p.id)],
+        }
+      })
   })
   const [precios, setPrecios] = useState<Record<string, string>>(
     () => Object.fromEntries(Object.entries(preciosIniciales ?? {}).map(([k, v]) => [k, String(v)]))
   )
   const [errorPrecios, setErrorPrecios] = useState(false)
 
-  const stockDisponible = Math.max(0, kit.stock - (kit.stock_reservado ?? 0))
+  const stockDisponible = getStockEfectivo(kit, cart).stockEfectivo
   const stockCls = stockDisponible === 0
     ? 'bg-[#F5C9C0] text-[#8A1E12]'
     : stockDisponible <= kit.stock_minimo
@@ -55,14 +70,17 @@ export function KitSeleccionModal({ open, onClose, kit, onConfirm, preciosInicia
       : 'bg-[#B8DCCA] text-[#1E5C38]'
 
   const piezasKit = useMemo(() =>
-    (kit.piezas_kit ?? []).map(p => ({
-      producto_id: String(p.id),
-      nombre: p.nombre,
-      stock: Math.max(0, p.stock_actual - p.stock_reservado),
-      cantidad_por_kit: p.cantidad_por_kit,
-      precio: 0,
-    })),
-    [kit.piezas_kit],
+    (kit.piezas_kit ?? []).map(p => {
+      const info = getStockEfectivoPieza(p, cart, kit.id)
+      return {
+        producto_id: String(p.id),
+        nombre: p.nombre,
+        stock: info.stockEfectivo,
+        cantidad_por_kit: p.cantidad_por_kit,
+        precio: 0,
+      }
+    }),
+    [kit.piezas_kit, kit.id, cart],
   )
 
   const togglePieza = (productoId: string) => {
