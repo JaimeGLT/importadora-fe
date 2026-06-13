@@ -298,23 +298,27 @@ export function DashboardPage() {
     const valorInventarioUSD = productos.reduce((s, p) => s + p.stock * (p.precio_costo / tipoCambio), 0)
 
     const hace7 = new Date(todayDate.getTime() - 7 * 86400000)
-    const itemsUlt7d = completadas
-      .filter(o => new Date(o.fechaCompletada!) >= hace7)
-      .flatMap(o => o.items)
+    const ordenesUlt7d = completadas.filter(o => new Date(o.fechaCompletada!) >= hace7)
+    // Atribuir el descuento de orden proporcionalmente al subtotal de cada item
+    // para que el ingreso por producto refleje el neto que aportó.
     const porProducto = new Map<string, { nombre: string; codigo: string; unidades: number; ingreso: number }>()
-    for (const item of itemsUlt7d) {
-      const prev = porProducto.get(item.productoId)
-      const precio = item.precioUnitario
-      if (prev) {
-        prev.unidades += item.cantidad
-        prev.ingreso  += precio * item.cantidad - item.montoDescuento
-      } else {
-        porProducto.set(item.productoId, {
-          nombre:   item.productoNombre,
-          codigo:   item.productoCodigo,
-          unidades: item.cantidad,
-          ingreso:  precio * item.cantidad - item.montoDescuento,
-        })
+    for (const orden of ordenesUlt7d) {
+      const subtotalOrden = orden.items.reduce((s, i) => s + i.precioUnitario * i.cantidad, 0)
+      const factor = subtotalOrden > 0 ? 1 - (orden.montoDescuento ?? 0) / subtotalOrden : 1
+      for (const item of orden.items) {
+        const prev = porProducto.get(item.productoId)
+        const ingresoItem = item.precioUnitario * item.cantidad * factor
+        if (prev) {
+          prev.unidades += item.cantidad
+          prev.ingreso  += ingresoItem
+        } else {
+          porProducto.set(item.productoId, {
+            nombre:   item.productoNombre,
+            codigo:   item.productoCodigo,
+            unidades: item.cantidad,
+            ingreso:  ingresoItem,
+          })
+        }
       }
     }
     const top5productos = [...porProducto.values()]

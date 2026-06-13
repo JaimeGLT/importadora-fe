@@ -92,6 +92,10 @@ export interface PiezaKit {
   stock_actual: number
   stock_reservado: number
   codigo_universal?: string
+  /** Código técnico autogenerado por el backend. Formato: P{Orden}-{PrefijoMarcaKit}-{CodigoKit}. */
+  codigo_pieza: string
+  /** Posición secuencial de la pieza dentro del kit (1, 2, 3...). Autogenerado. */
+  orden: number
 }
 
 export type MonedaProveedor = 'USD' | 'EUR' | 'CNY' | 'GBP' | 'JPY' | 'KRW' | 'BRL' | 'ARS' | 'CLP' | 'PEN'
@@ -253,6 +257,7 @@ export interface Filters {
 
 export type CategoriaMovimientoCaja =
   | 'Ventas'
+  | 'CobranzaCredito'
   | 'OtroIngreso'
   | 'Compra'
   | 'GastoOperativo'
@@ -295,6 +300,12 @@ export interface CierreCajaResponse {
   efectivoEsperado: number
   montoContado: number
   justificacion: string | null
+  // Desglose ventas contado vs cobros de crédito (Devuelto por DtoCajaResumen)
+  ingresoVentasTotal?: number
+  ingresoCobranzasTotal?: number
+  ingresoCobranzaEfectivo?: number
+  ingresoCobranzaQR?: number
+  ingresoCobranzaTarjeta?: number
 }
 
 export interface Caja {
@@ -361,6 +372,8 @@ export interface PiezaOrden {
   id_pieza: number
   item_id?: string
   nombre: string
+  /** Código técnico de la pieza (formato "P{N}-{Prefijo}-{CodigoKit}"). */
+  codigo_pieza?: string
   marcaId?: number | null
   cantidad: number
   precio_unitario?: number
@@ -393,12 +406,8 @@ export interface ItemOrden {
   es_kit?: boolean
   es_parcial?: boolean
   piezas_orden?: PiezaOrden[]
-  // Campos de descuento
-  descuento_id?: string
-  descuento_nombre?: string
-  descuento_porcentaje?: number
-  descuento_color?: string
-  precio_base?: number // sin descuento
+  /** Precio base sin descuento. Por ahora siempre igual a `precio_unitario` (no hay descuento por línea). */
+  precio_base?: number
 }
 
 export interface AgregarItemOrdenResponse {
@@ -431,10 +440,12 @@ export interface ProductoBusquedaEscaneo {
 export interface PiezaBusquedaEscaneo {
   id: number
   codigoUniversal: string
+  codigoPieza: string
   nombre: string
   stockActual: number
   stockReservado: number
   cantidadPorKit: number
+  orden: number
 }
 
 export type TipoDocumento = 'nota_venta' | 'factura'
@@ -460,6 +471,10 @@ export interface OrdenVenta {
   metodo_pago?: MetodoPago
   monto_recibido?: number
   nota?: string
+  /** Descuento global aplicado a toda la orden (elegido al cobrar). */
+  descuento?: DescuentoConfig
+  /** Monto en Bs del descuento global. 0 si no hay descuento. */
+  monto_descuento?: number
   creado_en: string
   actualizado_en: string
   aceptado_en?: string
@@ -503,3 +518,52 @@ export interface TipoCambio {
   precioDolar: number
   fecha: string
 }
+
+// ─── Créditos ─────────────────────────────────────────────────────────────────
+
+export type EstadoCredito = 'Pendiente' | 'Parcial' | 'Pagado' | 'Cancelado'
+
+export interface CreditoItem {
+  id: number
+  id_producto: number | null
+  producto_codigo?: string | null
+  producto_nombre?: string | null
+  cantidad: number
+  precioUnitario: number
+  subtotal: number
+}
+
+export interface CreditoPago {
+  id: number
+  id_caja: number
+  id_usuario: string
+  usuario_nombre?: string | null
+  fecha: string
+  monto: number
+  tipoPago: 'Efectivo' | 'QR' | 'Tarjeta'
+  nota?: string | null
+}
+
+export interface Credito {
+  id: number
+  id_cliente: number
+  cliente_nombre?: string | null
+  cliente_apellido?: string | null
+  cliente_telefono?: string | null
+  id_ordenVenta: number | null
+  id_cajero: string
+  cajero_nombre?: string | null
+  id_cajaOrigen: number
+  estado: EstadoCredito
+  total: number
+  saldoPendiente: number
+  fechaCreacion: string
+  fechaPagoCompleto: string | null
+  fechaCancelacion: string | null
+  nota: string | null
+  items: CreditoItem[]
+  pagos: CreditoPago[]
+}
+
+// Forma que devuelve el backend REST (en snake_case según DtoCreditoResponse)
+// Definida en src/lib/queries/creditos.queries.ts (patrón del proyecto).

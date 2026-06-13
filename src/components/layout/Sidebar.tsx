@@ -52,6 +52,7 @@ const groups: NavGroup[] = [
       { label: 'Almacén',  to: '/ventas/almacen',  roles: ['admin', 'almacenero'] },
       { label: 'Escaneo',  to: '/ventas/escaneo',  roles: ['admin', 'cajero', 'operador'] },
       { label: 'Clientes',  to: '/ventas/clientes',  roles: ['admin', 'cajero'] },
+      { label: 'Créditos',  to: '/ventas/creditos',  roles: ['admin', 'cajero'] },
       { label: 'Historial', to: '/ventas/historial', roles: ['admin', 'cajero'] },
     ],
   },

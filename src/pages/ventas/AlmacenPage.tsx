@@ -562,7 +562,16 @@ function ItemCard({
         <div className="border-t border-[#E8E5E2] bg-[#F7F7F7] divide-y divide-[#E8E5E2]">
           {item.piezas_orden.map(p => (
             <div key={p.id_pieza} className="flex items-center gap-2 px-4 py-2">
-              <span className="text-xs text-[#4A4744] flex-1 min-w-0 truncate">{p.nombre}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  {p.codigo_pieza && (
+                    <span className="text-[10px] font-mono font-bold text-[#780e18] bg-white px-1.5 py-0.5 rounded border border-[#E8E5E2] shrink-0">
+                      {p.codigo_pieza}
+                    </span>
+                  )}
+                  <span className="text-xs text-[#4A4744] truncate">{p.nombre}</span>
+                </div>
+              </div>
               <span className="text-xs font-bold text-[#2D2B2A] shrink-0">×{p.cantidad}</span>
             </div>
           ))}
@@ -648,8 +657,9 @@ function KitGroupCard({
                 <i className="ti ti-stack text-[10px]" />
                 Kit completo
               </span>
-              <span className="text-xs text-[#7A7571] font-mono">{fmtCodigo(kitCompleto.producto_codigo, kitCompleto.marcaId, marcas)}</span>
-              <span className="text-xs text-[#7A7571]">×{kitCompleto.cantidad_pedida} pedidos</span>
+              <span className="text-xs text-[#7A7571] font-mono shrink-0">{fmtCodigo(kitCompleto.producto_codigo, kitCompleto.marcaId, marcas)}</span>
+              <span className="text-xs text-[#4A4744] font-medium truncate min-w-0">{kitCompleto.producto_nombre}</span>
+              <span className="text-xs text-[#7A7571] shrink-0">×{kitCompleto.cantidad_pedida} pedidos</span>
             </div>
             <span className="text-[10px] text-[#7A7571] hidden sm:block">Busca el kit armado físicamente</span>
           </div>
@@ -762,9 +772,18 @@ function KitGroupCard({
                 )}>
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-[#2D2B2A] leading-snug">{pieza.nombre}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {pieza.codigo_pieza && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md font-mono font-bold text-[10px] bg-[#780e18] text-white shrink-0">
+                            {pieza.codigo_pieza}
+                          </span>
+                        )}
+                        <p className="text-sm font-bold text-[#2D2B2A] leading-snug">{pieza.nombre}</p>
+                      </div>
                       <p className="text-[11px] text-[#7A7571] mt-0.5">
-                        {pieza.cantidad} unidades pedidas · sale de kit {fmtCodigo(piezasSueltas.producto_codigo, piezasSueltas.marcaId, marcas)}
+                        {pieza.cantidad} unidades pedidas · sale de kit{' '}
+                        <span className="font-mono">{fmtCodigo(piezasSueltas.producto_codigo, piezasSueltas.marcaId, marcas)}</span>
+                        <span className="text-[#4A4744] font-medium"> · {piezasSueltas.producto_nombre}</span>
                       </p>
                       {(piezasSueltas.producto_almacen || piezasSueltas.producto_estante || piezasSueltas.producto_fila || piezasSueltas.producto_columna) && (
                         <p className="text-[11px] text-[#7A7571] mt-0.5 flex items-center gap-0.5">

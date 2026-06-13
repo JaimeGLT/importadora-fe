@@ -25,7 +25,7 @@ export interface OrdenItemPiezaAPI {
   confirmado: boolean
   listoAlmacenero: boolean
   notaIncompleto: string | null
-  pieza?: { nombre: string } | null
+  pieza?: { nombre: string; codigoPieza: string } | null
 }
 
 export interface OrdenItemAPI {
@@ -37,10 +37,7 @@ export interface OrdenItemAPI {
   estado: string
   notaIncompleto: string | null
   precioUnitario: number
-  id_Descuento: number | null
-  montoDescuento: number
   producto: OrdenItemProductoAPI
-  descuento: { id: number; nombre: string; cantDescuento: number; color: string; activo: boolean } | null
   piezas: OrdenItemPiezaAPI[]
 }
 
@@ -55,6 +52,9 @@ export interface OrdenVentaAPI {
   fechaCompletada: string | null
   nota: string | null
   notaCancelacion: string | null
+  id_Descuento: number | null
+  montoDescuento: number
+  descuento: { id: number; nombre: string; cantDescuento: number; color: string; activo: boolean } | null
   numero?: string
   cajero: { id: string; nombre: string; apellido: string } | null
   almacenero: { id: string; nombre: string; apellido: string } | null
@@ -78,6 +78,15 @@ export const MIS_ORDENES_QUERY = `
         fechaCompletada
         nota
         notaCancelacion
+        id_Descuento
+        montoDescuento
+        descuento {
+          id
+          nombre
+          cantDescuento
+          color
+          activo
+        }
         cajero {
           id
           nombre
@@ -103,15 +112,6 @@ export const MIS_ORDENES_QUERY = `
           estado
           notaIncompleto
           precioUnitario
-          id_Descuento
-          montoDescuento
-          descuento {
-            id
-            nombre
-            cantDescuento
-            color
-            activo
-          }
           producto {
             id
             codigo
@@ -140,6 +140,7 @@ export const MIS_ORDENES_QUERY = `
             notaIncompleto
             pieza {
               nombre
+              codigoPieza
             }
           }
         }
@@ -161,6 +162,15 @@ export const ORDENES_PARA_ESCANEO_QUERY = `
         fecha
         fechaCompletada
         notaCancelacion
+        id_Descuento
+        montoDescuento
+        descuento {
+          id
+          nombre
+          cantDescuento
+          color
+          activo
+        }
         cajero {
           id
           nombre
@@ -186,15 +196,6 @@ export const ORDENES_PARA_ESCANEO_QUERY = `
           estado
           notaIncompleto
           precioUnitario
-          id_Descuento
-          montoDescuento
-          descuento {
-            id
-            nombre
-            cantDescuento
-            color
-            activo
-          }
           producto {
             id
             codigo
@@ -223,6 +224,7 @@ export const ORDENES_PARA_ESCANEO_QUERY = `
             notaIncompleto
             pieza {
               nombre
+              codigoPieza
             }
           }
         }
@@ -245,6 +247,15 @@ export const ORDENES_PENDIENTES_QUERY = `
         fechaCompletada
         nota
         notaCancelacion
+        id_Descuento
+        montoDescuento
+        descuento {
+          id
+          nombre
+          cantDescuento
+          color
+          activo
+        }
         cajero {
           id
           nombre
@@ -270,9 +281,6 @@ export const ORDENES_PENDIENTES_QUERY = `
           estado
           notaIncompleto
           precioUnitario
-          id_Descuento
-          montoDescuento
-          descuento { id nombre cantDescuento color activo }
           producto {
             id
             codigo
@@ -300,6 +308,7 @@ export const ORDENES_PENDIENTES_QUERY = `
             notaIncompleto
             pieza {
               nombre
+              codigoPieza
             }
           }
         }
@@ -322,6 +331,15 @@ export const MIS_ORDENES_ALMACEN_QUERY = `
         fechaCompletada
         nota
         notaCancelacion
+        id_Descuento
+        montoDescuento
+        descuento {
+          id
+          nombre
+          cantDescuento
+          color
+          activo
+        }
         cajero {
           id
           nombre
@@ -347,9 +365,6 @@ export const MIS_ORDENES_ALMACEN_QUERY = `
           estado
           notaIncompleto
           precioUnitario
-          id_Descuento
-          montoDescuento
-          descuento { id nombre cantDescuento color activo }
           producto {
             id
             codigo
@@ -377,6 +392,7 @@ export const MIS_ORDENES_ALMACEN_QUERY = `
             notaIncompleto
             pieza {
               nombre
+              codigoPieza
             }
           }
         }
@@ -398,6 +414,15 @@ export const TODAS_ORDENES_QUERY = `
         fecha
         fechaCompletada
         notaCancelacion
+        id_Descuento
+        montoDescuento
+        descuento {
+          id
+          nombre
+          cantDescuento
+          color
+          activo
+        }
         cajero {
           id
           nombre
@@ -423,9 +448,6 @@ export const TODAS_ORDENES_QUERY = `
           estado
           notaIncompleto
           precioUnitario
-          id_Descuento
-          montoDescuento
-          descuento { id nombre cantDescuento color activo }
           producto {
             id
             codigo
@@ -452,6 +474,7 @@ export const TODAS_ORDENES_QUERY = `
             notaIncompleto
             pieza {
               nombre
+              codigoPieza
             }
           }
         }
@@ -520,25 +543,20 @@ function backendToItemOrden(api: OrdenItemAPI): ItemOrden {
     producto_fila: loc.fila,
     producto_columna: loc.columna,
     cantidad_pedida: api.cantidad,
-    precio_unitario: api.montoDescuento > 0
-      ? api.precioUnitario - api.montoDescuento / api.cantidad
-      : api.precioUnitario,
-    subtotal: api.precioUnitario * api.cantidad - api.montoDescuento,
+    precio_unitario: api.precioUnitario,
+    subtotal: api.precioUnitario * api.cantidad,
     estado,
     nota: parseNotaUsuario(api.notaIncompleto),
     cantidad_recogida: parseCantidadRecogida(api.notaIncompleto),
     es_kit: api.producto?.esKit ?? false,
     es_parcial: api.esParcial,
-    descuento_id: api.id_Descuento != null ? String(api.id_Descuento) : undefined,
-    descuento_nombre: api.descuento?.nombre,
-    descuento_porcentaje: api.descuento?.cantDescuento,
-    descuento_color: api.descuento?.color,
     precio_base: api.precioUnitario,
     piezas_orden: api.esParcial && api.piezas?.length
       ? api.piezas.map(p => ({
           id: p.id,
           id_pieza: p.id_Pieza,
           nombre: p.pieza?.nombre ?? `Pieza #${p.id_Pieza}`,
+          codigo_pieza: p.pieza?.codigoPieza,
           marcaId: api.producto?.marca?.id ?? null,
           cantidad: p.cantidad,
           precio_unitario: p.precioUnitario,
@@ -557,7 +575,6 @@ export interface DashboardOrdenItemAPI {
   id_Producto: number
   cantidad: number
   precioUnitario: number
-  montoDescuento: number
   producto: { id: number; codigo: string; nombre: string } | null
 }
 
@@ -566,6 +583,7 @@ export interface DashboardOrdenAPI {
   estado: string
   fecha: string
   fechaCompletada: string | null
+  montoDescuento: number
   cajero: { nombre: string; apellido: string } | null
   items: DashboardOrdenItemAPI[]
 }
@@ -578,7 +596,8 @@ export interface DashboardOrden {
   fechaCompletada: string | null
   cajeroNombre: string
   total: number
-  items: { productoId: string; productoNombre: string; productoCodigo: string; cantidad: number; precioUnitario: number; montoDescuento: number }[]
+  montoDescuento: number
+  items: { productoId: string; productoNombre: string; productoCodigo: string; cantidad: number; precioUnitario: number }[]
 }
 
 export const DASHBOARD_ORDENES_QUERY = `
@@ -589,12 +608,12 @@ export const DASHBOARD_ORDENES_QUERY = `
         estado
         fecha
         fechaCompletada
+        montoDescuento
         cajero { nombre apellido }
         items {
           id_Producto
           cantidad
           precioUnitario
-          montoDescuento
           producto { id codigo nombre }
         }
       }
@@ -610,9 +629,8 @@ export function backendOrdenToDashboard(api: DashboardOrdenAPI): DashboardOrden 
     productoCodigo:  i.producto?.codigo  ?? '',
     cantidad:        i.cantidad,
     precioUnitario:  i.precioUnitario,
-    montoDescuento:  i.montoDescuento,
   }))
-  const total = items.reduce((s, i) => s + i.precioUnitario * i.cantidad - i.montoDescuento, 0)
+  const total = items.reduce((s, i) => s + i.precioUnitario * i.cantidad, 0) - (api.montoDescuento ?? 0)
   return {
     id:              String(api.id),
     numero:          `#${api.id}`,
@@ -621,6 +639,7 @@ export function backendOrdenToDashboard(api: DashboardOrdenAPI): DashboardOrden 
     fechaCompletada: api.fechaCompletada ?? null,
     cajeroNombre:    api.cajero ? `${api.cajero.nombre} ${api.cajero.apellido}`.trim() : '',
     total,
+    montoDescuento:  api.montoDescuento ?? 0,
     items,
   }
 }
@@ -628,11 +647,13 @@ export function backendOrdenToDashboard(api: DashboardOrdenAPI): DashboardOrden 
 export function backendToOrdenVenta(api: OrdenVentaAPI): OrdenVenta {
   const estado = ESTADO_ORDEN_MAP[api.estado?.toLowerCase()] ?? 'pendiente_almacenero'
   const items = (api.items ?? []).map(backendToItemOrden)
-  const total = items.reduce((s, i) => {
+  const subtotal = items.reduce((s, i) => {
     if (i.es_parcial && i.piezas_orden?.length)
       return s + i.piezas_orden.reduce((ps, p) => ps + (p.precio_unitario ?? 0) * p.cantidad, 0)
     return s + i.precio_unitario * i.cantidad_pedida
   }, 0)
+  const descuentoMonto = api.montoDescuento ?? 0
+  const total = Math.max(0, subtotal - descuentoMonto)
   const clienteNombre = api.cliente
     ? `${api.cliente.nombre} ${api.cliente.apellido}`.trim()
     : undefined
@@ -658,6 +679,16 @@ export function backendToOrdenVenta(api: OrdenVentaAPI): OrdenVenta {
     total,
     estado,
     nota: api.nota ?? undefined,
+    descuento: api.descuento
+      ? {
+          id: String(api.descuento.id),
+          nombre: api.descuento.nombre,
+          porcentaje: api.descuento.cantDescuento,
+          color: api.descuento.color,
+          activo: api.descuento.activo,
+        }
+      : undefined,
+    monto_descuento: descuentoMonto,
     creado_en: api.fecha,
     actualizado_en: api.fecha,
   }

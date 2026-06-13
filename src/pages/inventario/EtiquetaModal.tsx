@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type JsBarcodeType from 'jsbarcode'
 import { Modal, Button } from '@/components/ui'
-import { imprimirLote, imprimirLoteZPL, connectQZTray } from '@/lib/printLabel'
+import { imprimirLote, imprimirLoteZPL, connectQZTray, type LabelData } from '@/lib/printLabel'
 import { getAvailablePrinters } from '@/lib/qzTray'
-import type { Producto } from '@/types'
 
 const EMPRESA_NOMBRE = 'Usa AutoPartes'
 const PRINTER_NAME_PARTIAL = 'GS-2406'
@@ -20,9 +19,9 @@ function formatearFecha(iso: string): string {
 interface EtiquetaModalProps {
   open: boolean
   onClose: () => void
-  producto: Producto | null
-  marcaNombre?: string
-  marcaPrefijo?: string
+  etiqueta: LabelData | null
+  /** Título secundario (ej. nombre de la pieza) mostrado bajo el código en la cabecera. */
+  subtitulo?: string
 }
 
 function EtiquetaSimulada({ codigo, fecha }: { codigo: string; fecha: string; }) {
@@ -60,7 +59,7 @@ function EtiquetaSimulada({ codigo, fecha }: { codigo: string; fecha: string; })
   )
 }
 
-export function EtiquetaModal({ open, onClose, producto, marcaNombre = '', marcaPrefijo = '' }: EtiquetaModalProps) {
+export function EtiquetaModal({ open, onClose, etiqueta, subtitulo }: EtiquetaModalProps) {
   const [copias, setCopias] = useState(1)
   const [printing, setPrinting] = useState(false)
   const [qzConnected, setQzConnected] = useState(false)
@@ -91,29 +90,32 @@ export function EtiquetaModal({ open, onClose, producto, marcaNombre = '', marca
   }, [open])
 
   const handlePrint = async () => {
-    if (!producto) return
+    if (!etiqueta) return
     setPrinting(true)
     setQzError(null)
 
-    const labelData = { ...producto, marca: marcaNombre, marcaPrefijo }
     if (printMode === 'zpl' && selectedPrinter) {
-      const result = await imprimirLoteZPL([{ producto: labelData, copias }], selectedPrinter)
+      const result = await imprimirLoteZPL([{ producto: etiqueta, copias }], selectedPrinter)
       if (!result.success && result.error) {
         setQzError(result.error)
       }
     } else {
-      await imprimirLote([{ producto: labelData, copias }])
+      await imprimirLote([{ producto: etiqueta, copias }])
     }
 
     setPrinting(false)
   }
 
-  if (!producto) return null
+  if (!etiqueta) return null
 
-  const fechaLabel = producto.creado_en ? formatearFecha(producto.creado_en) : ''
-  const codigoBarras = marcaPrefijo
-    ? `${marcaPrefijo}-${producto.codigo_universal}`
-    : producto.codigo_universal
+  const fechaLabel = etiqueta.creado_en
+    ? formatearFecha(etiqueta.creado_en)
+    : etiqueta.fecha_importacion
+      ? formatearFecha(etiqueta.fecha_importacion)
+      : ''
+  const codigoBarras = etiqueta.marcaPrefijo
+    ? `${etiqueta.marcaPrefijo}-${etiqueta.codigo_universal}`
+    : etiqueta.codigo_universal
 
   return (
     <Modal
@@ -213,6 +215,9 @@ export function EtiquetaModal({ open, onClose, producto, marcaNombre = '', marca
         </div>
 
         <p className="text-[10px] text-steel-400 text-center font-mono">{codigoBarras}</p>
+        {subtitulo && (
+          <p className="text-[10px] text-steel-500 text-center truncate max-w-[200px]">{subtitulo}</p>
+        )}
       </div>
 
       <div className="flex items-center justify-between px-1">

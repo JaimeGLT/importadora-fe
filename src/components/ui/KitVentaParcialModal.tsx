@@ -75,6 +75,7 @@ export function KitSeleccionModal({ open, onClose, kit, onConfirm, preciosInicia
       return {
         producto_id: String(p.id),
         nombre: p.nombre,
+        codigo_pieza: p.codigo_pieza,
         stock: info.stockEfectivo,
         cantidad_por_kit: p.cantidad_por_kit,
         precio: 0,
@@ -340,6 +341,11 @@ export function KitSeleccionModal({ open, onClose, kit, onConfirm, preciosInicia
 
                         <div className="flex-1 min-w-0">
                           <p className="text-[13px] font-semibold text-[#2D2B2A] truncate">{pieza.nombre}</p>
+                          {pieza.codigo_pieza && (
+                            <p className="font-mono text-[10px] text-[#7A7571] tracking-[0.04em] mt-0.5">
+                              {pieza.codigo_pieza}
+                            </p>
+                          )}
                           <p className="text-[10px] font-mono text-[#7A7571] mt-0.5">
                             Stock: {pieza.stock}
                             <span className="mx-1 opacity-40">·</span>

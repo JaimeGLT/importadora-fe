@@ -35,7 +35,6 @@ export interface OrdenReporteItemAPI {
   id_Producto: number
   cantidad: number
   precioUnitario: number
-  montoDescuento: number
   producto: { id: number; nombre: string }
 }
 
@@ -46,6 +45,7 @@ export interface OrdenReporteAPI {
   id_Cliente: number | null
   cliente: { id: number; nombre: string; apellido: string } | null
   estado: string
+  montoDescuento: number
   items: OrdenReporteItemAPI[]
 }
 
@@ -87,11 +87,11 @@ export const ORDENES_REPORTE_QUERY = `
         id_Cliente
         cliente { id nombre apellido }
         estado
+        montoDescuento
         items {
           id_Producto
           cantidad
           precioUnitario
-          montoDescuento
           producto { id nombre }
         }
       }
@@ -181,7 +181,7 @@ export function buildClientesFugaData(ordenes: OrdenReporteAPI[]): ClienteCaidaD
       const age  = now - t
       if (age > MS_60) return
 
-      const total = o.items.reduce((s, i) => s + (i.precioUnitario - i.montoDescuento) * i.cantidad, 0)
+      const total = o.items.reduce((s, i) => s + i.precioUnitario * i.cantidad, 0) - (o.montoDescuento ?? 0)
 
       if (!byClient[cid]) {
         byClient[cid] = {

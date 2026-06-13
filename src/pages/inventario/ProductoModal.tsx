@@ -247,6 +247,16 @@ export function ProductoModal({
     return prefijo ? `${prefijo}-${producto.codigo_universal}` : producto.codigo_universal
   })()
 
+  // Prefijo y código del kit (en edición vienen del producto cargado; al crear
+  // un kit nuevo se toman del form). Se pasan a KitPartsSection para previsualizar
+  // el código autogenerado de la próxima pieza.
+  const kitPrefijoActual = (() => {
+    const marcaId = producto?.marcaId ?? form.marcaId
+    if (marcaId == null) return ''
+    return marcas?.find((m) => m.id === marcaId)?.prefijo ?? ''
+  })()
+  const kitCodigoActual = producto?.codigo_universal ?? form.codigo_universal
+
   return (
     <DrawerWrapper
       open={open}
@@ -472,16 +482,29 @@ export function ProductoModal({
 
               {/* Kit parts management */}
               {form.es_kit && (
-                <KitPartsSection
-                  productoId={producto?.id}
-                  wasKit={producto?.es_kit ?? false}
-                  piezasFromBackend={producto?.piezas_kit}
+                <>
+                  {kitPrefijoActual && kitCodigoActual && (
+                    <div className="rounded-[10px] bg-[#F4ECDB] border border-[#D4A333]/30 px-3 py-2 text-[11px] text-[#7A5A0E]">
+                      Las piezas de este kit usarán el formato{' '}
+                      <span className="font-mono font-semibold text-[#5A3F00]">
+                        P{'{Orden}'}-{kitPrefijoActual}-{kitCodigoActual}
+                      </span>{' '}
+                      (autogenerado por el servidor).
+                    </div>
+                  )}
+                  <KitPartsSection
+                    productoId={producto?.id}
+                    wasKit={producto?.es_kit ?? false}
+                    piezasFromBackend={producto?.piezas_kit}
 
-                  localPieces={kitPieces}
-                  onLocalPiecesChange={setKitPieces}
-                  pieceOps={pieceOps}
-                  onPieceOpsChange={setPieceOps}
-                />
+                    localPieces={kitPieces}
+                    onLocalPiecesChange={setKitPieces}
+                    pieceOps={pieceOps}
+                    onPieceOpsChange={setPieceOps}
+                    kitPrefijo={kitPrefijoActual}
+                    kitCodigo={kitCodigoActual}
+                  />
+                </>
               )}
 
               {!form.es_kit && !producto?.es_kit && producto?.kit_id && (

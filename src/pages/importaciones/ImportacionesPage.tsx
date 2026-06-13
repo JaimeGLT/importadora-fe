@@ -105,7 +105,7 @@ export function ImportacionesPage() {
   const [proveedores, setProveedores] = useState<Proveedor[]>([])
   const [productos, setProductos] = useState<Producto[]>([])
   const [marcas, setMarcas] = useState<Marca[]>([])
-  const [margenGanancia, setMargenGanancia] = useState<number>(1.30)
+  const [margenGanancia, setMargenGanancia] = useState<number>(1)
 
   const { importaciones, setImportaciones } = useImportacionesStore()
 
@@ -143,7 +143,7 @@ export function ImportacionesPage() {
         setProveedores(res.proveedor.nodes.map(backendToProveedor))
         setProductos(res.productos.nodes.map(backendToProductoSimple))
         setMarcas(res.marca.nodes.map(backendToMarca))
-        if (res.margenGanancia?.valor) setMargenGanancia(res.margenGanancia.valor)
+        if (res.margenGanancia?.valor != null) setMargenGanancia(res.margenGanancia.valor)
       })
       .catch(() => notify.error('Error cargando datos'))
       .finally(() => setLoading(false))

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react'
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import type * as XLSXType from 'xlsx'
 import { Modal, Button, Input, ExcelColumnMapper, BrandSelect, ProveedorSelect } from '@/components/ui'
 import type { Importacion, ItemImportacion, Producto, Proveedor, Marca } from '@/types'
@@ -121,7 +121,7 @@ function buildRawItems(rows: Record<string, unknown>[], mappings: FieldMappings)
     return {
       codigo_universal: codigo,
       codigos_adicionales: [get('codigo_alt1'), get('codigo_alt2')].filter(Boolean),
-      nombre:        get('nombre') || codigo,
+      nombre:        get('nombre'),
       descripcion:   get('descripcion'),
       procedencia:   get('procedencia'),
       marca:         get('marca'),
@@ -293,6 +293,11 @@ export function NuevaImportacionModal({
   const [step, setStep] = useState<ImportStep>('upload')
   const [margenBd, setMargenBd] = useState<number>(margenGanancia)
   const [margenGlobal] = useState<number>(margenGanancia)
+
+  // Sincronizar con el margen configurado en cuanto llegue del backend
+  useEffect(() => {
+    setMargenBd(margenGanancia)
+  }, [margenGanancia])
 
   // Excel
   const [columns, setColumns]   = useState<string[]>([])
@@ -1061,26 +1066,8 @@ function StepDatos({
               const pct = parseFloat(e.target.value)
               if (!isNaN(pct) && pct >= 0) onMargenChange(1 + pct / 100)
             }}
-            hint={`Precio = Costo total Bs × ${margen.toFixed(2)} | Global: ${((margenGlobal - 1) * 100).toFixed(0)}%`}
           />
           <span className="absolute right-3 top-[9px] text-[12px] font-semibold text-steel-400 pointer-events-none select-none">%</span>
-        </div>
-        <div className="mt-2 flex items-center gap-2 flex-wrap">
-          {[10, 20, 30, 40, 50].map((pct) => (
-            <button
-              key={pct}
-              type="button"
-              onClick={() => onMargenChange(1 + pct / 100)}
-              className={clsx(
-                'px-2.5 py-1 text-[11px] font-semibold rounded-md border transition-colors',
-                Math.round((margen - 1) * 100) === pct
-                  ? 'bg-brand-600 text-white border-brand-600'
-                  : 'bg-white text-steel-500 border-steel-200 hover:border-brand-400',
-              )}
-            >
-              {pct}%
-            </button>
-          ))}
         </div>
       </div>
     </div>

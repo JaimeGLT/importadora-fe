@@ -167,6 +167,8 @@ export const PRODUCTO_BY_ID_QUERY = `
           cantidadPorKit
           stockActual
           stockReservado
+          orden
+          codigoPieza
         }
         codigoAux
         codigoAux2
@@ -188,6 +190,10 @@ interface PiezaKitAPI {
   stockActual: number
   stockReservado: number
   codigo?: string
+  /** Autogenerado por el backend. Formato: P{Orden}-{PrefijoMarcaKit}-{CodigoKit}. */
+  codigoPieza: string
+  /** Posición secuencial (1, 2, 3...) dentro del kit. Autogenerado. */
+  orden: number
 }
 
 interface HistorialPrecioAPI {
@@ -248,6 +254,8 @@ function mapPiezasKit(raw: PiezaKitAPI[] | undefined): PiezaKit[] {
     stock_actual: p.stockActual ?? 0,
     stock_reservado: p.stockReservado ?? 0,
     codigo_universal: p.codigo,
+    codigo_pieza: p.codigoPieza ?? '',
+    orden: p.orden ?? 0,
   }))
 }
 

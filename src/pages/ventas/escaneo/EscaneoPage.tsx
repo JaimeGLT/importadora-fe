@@ -3,7 +3,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useVentasStore } from '@/stores/ventasStore'
 import { useMarcasStore } from '@/stores/marcasStore'
 import { MainLayout } from '@/components/layout/MainLayout'
-import { SelectPriceModal } from '@/components/ui'
 import type { ItemOrden, PiezaOrden, Producto, AgregarItemOrdenResponse, PiezaKit, ProductoBusquedaEscaneo } from '@/types'
 import { playConfirmBeep } from '@/lib/sounds'
 import { notify } from '@/lib/notify'
@@ -12,11 +11,16 @@ import { gql } from '@/lib/graphql'
 import { PRODUCTO_BY_ID_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI, type ProductoAPISimple } from '@/lib/queries/inventario.queries'
 import { ORDENES_PARA_ESCANEO_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
 import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
-import { DESCUENTOS_QUERY, backendToDescuento, type DescuentoAPI } from '@/lib/queries/config.queries'
 import { fmtCodigo } from '@/lib/formatCodigo'
 import { useVentasHub } from '@/hooks/useVentasHub'
 import { clsx } from 'clsx'
-import type { DescuentoConfig } from '@/stores/configStore'
+import { EtiquetaModal } from '@/pages/inventario/EtiquetaModal'
+import type { LabelData } from '@/lib/printLabel'
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const fmtBs = (n: number) =>
+  `Bs ${n.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 // ─── LineSelectionModal ───────────────────────────────────────────────────────
 
@@ -130,7 +134,9 @@ function ScanConfirmModal({
   loading: boolean
 }) {
   const { marcas } = useMarcasStore()
-  const [precio, setPrecio] = useState('')
+  const [precio, setPrecio] = useState(
+    item.precio_unitario > 0 ? item.precio_unitario.toFixed(2) : ''
+  )
   const isKit = !!item.kit_id
   const isParcial = !!item.es_parcial
   const precioValido = isParcial || !isKit || (parseFloat(precio) > 0)
@@ -257,19 +263,37 @@ function ScanNotInOrderModal({
   existingPrice?: number
 }) {
   const [cantidad, setCantidad] = useState('1')
-  const [precio, setPrecio] = useState(existingPrice != null ? String(existingPrice) : '')
+  const [precio, setPrecio] = useState(
+    existingPrice != null
+      ? String(existingPrice)
+      : producto?.precio != null
+        ? producto.precio.toFixed(2)
+        : ''
+  )
   const [vistaKit, setVistaKit] = useState<'completo' | 'piezas'>('completo')
   const [piezasQty, setPiezasQty] = useState<Record<number, number>>({})
   const [piezasPrecios, setPiezasPrecios] = useState<Record<number, string>>({})
   const cantidadNum = parseInt(cantidad) || 0
 
   useEffect(() => {
-    if (producto?.esKit && producto.piezas) {
-      setPiezasQty(Object.fromEntries(producto.piezas.map(p => [p.id, p.cantidadPorKit])))
-      setPiezasPrecios(Object.fromEntries(producto.piezas.map(p => [p.id, ''])))
+    if (!producto) return
+    // Sincronizar precio base del producto cada vez que cambia el producto cargado
+    setPrecio(prev => {
+      if (existingPrice != null) return String(existingPrice)
+      if (prev && parseFloat(prev) > 0) return prev
+      return producto.precio != null ? producto.precio.toFixed(2) : ''
+    })
+    if (producto.esKit && producto.piezas) {
+      const piezas = producto.piezas
+      // Precio sugerido: precio del kit dividido equitativamente entre las piezas
+      const sugeridoUnit = producto.precio && piezas.length > 0
+        ? (producto.precio / piezas.length).toFixed(2)
+        : ''
+      setPiezasQty(Object.fromEntries(piezas.map(p => [p.id, p.cantidadPorKit])))
+      setPiezasPrecios(Object.fromEntries(piezas.map(p => [p.id, sugeridoUnit])))
       setVistaKit('completo')
     }
-  }, [producto])
+  }, [producto, existingPrice])
 
   const pieza = producto?.piezaEscaneadaId != null
     ? producto.piezas?.find(p => p.id === producto.piezaEscaneadaId) ?? null
@@ -451,6 +475,11 @@ function ScanNotInOrderModal({
                               <div className="flex items-center gap-3">
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-[#2D2B2A] truncate">{pz.nombre}</p>
+                                  {pz.codigoPieza && (
+                                    <p className="font-mono text-[10.5px] text-[#7A7571] tracking-[0.04em] mt-0.5">
+                                      {pz.codigoPieza}
+                                    </p>
+                                  )}
                                   <p className={clsx('text-[11px] font-semibold mt-0.5', dispPieza === 0 ? 'text-[#B23A2A]' : 'text-[#3F7A52]')}>
                                     {dispPieza} disp.
                                   </p>
@@ -562,15 +591,18 @@ function ScanNotInOrderModal({
 
 function PiezaScanPriceModal({
   pieza,
+  item,
   onConfirm,
   onCancel,
   loading,
 }: {
   pieza: PiezaOrden
+  item: ItemOrden
   onConfirm: (precio: number) => void
   onCancel: () => void
   loading: boolean
 }) {
+  const { marcas } = useMarcasStore()
   const [precio, setPrecio] = useState(pieza.precio_unitario ? pieza.precio_unitario.toFixed(2) : '')
   const precioNum = parseFloat(precio)
   const valido = !isNaN(precioNum) && precioNum > 0
@@ -584,6 +616,10 @@ function PiezaScanPriceModal({
     return () => window.removeEventListener('keydown', handler)
   }, [loading, valido, precioNum, onConfirm, onCancel])
 
+  const esFaltanteParcial = pieza.nota_incompleto != null && (pieza.cantidad_recogida ?? 0) > 0
+  const cantidadMostrar = esFaltanteParcial ? pieza.cantidad_recogida! : pieza.cantidad
+  const labelCantidad = esFaltanteParcial ? 'Cantidad encontrada' : 'Cantidad pedida'
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
@@ -595,20 +631,36 @@ function PiezaScanPriceModal({
         onClick={e => e.stopPropagation()}
       >
         <div className="px-6 pt-5 pb-4 border-b border-[#E8E5E2]">
-          <div className="flex items-center gap-2 mb-0.5">
-            <h3 className="text-sm font-bold text-[#2D2B2A]">Confirmar pieza</h3>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#F4ECDB] text-[#780e18]">
-              Pieza de kit
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="text-sm font-bold text-[#2D2B2A]">Confirmar despacho</h3>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#F5E0A8] text-[#7A5200]">
+              PIEZA
             </span>
           </div>
+          {pieza.codigo_pieza && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md font-mono font-bold text-[10px] bg-[#780e18] text-white">
+              {pieza.codigo_pieza}
+            </span>
+          )}
         </div>
 
         <div className="px-6 py-5 space-y-3">
-          <p className="text-base font-bold text-[#2D2B2A]">{pieza.nombre}</p>
-          <div className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-[#F5F0EB] border border-[#E8E5E2]">
-            <span className="text-xs text-[#7A7571]">Cantidad</span>
-            <span className="text-sm font-black text-[#2D2B2A]">× {pieza.cantidad}</span>
+          <div>
+            <p className="text-base font-bold text-[#2D2B2A] leading-snug">{pieza.nombre}</p>
+            <div className="flex items-center gap-1.5 mt-1 text-[11px] text-[#7A7571]">
+              <span className="font-mono">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
+              <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">
+                KIT
+              </span>
+              <span className="font-medium text-[#4A4744] truncate">{item.producto_nombre}</span>
+            </div>
           </div>
+
+          <div className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-[#F5F0EB] border border-[#E8E5E2]">
+            <span className="text-xs text-[#7A7571]">{labelCantidad}</span>
+            <span className="text-sm font-black text-[#2D2B2A]">× {cantidadMostrar}</span>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Precio unitario (Bs)</label>
             <input
@@ -648,8 +700,8 @@ function PiezaScanPriceModal({
 // ─── AgregarProductoModal ─────────────────────────────────────────────────────
 
 type AgregarRequest =
-  | { tipo: 'producto'; producto: Producto; cantidad: number; precioUnitario: number; idDescuento?: number; montoDescuento: number }
-  | { tipo: 'kit_completo'; producto: Producto; cantidad: number; precioUnitario: number; idDescuento?: number; montoDescuento: number }
+  | { tipo: 'producto'; producto: Producto; cantidad: number; precioUnitario: number }
+  | { tipo: 'kit_completo'; producto: Producto; cantidad: number; precioUnitario: number }
   | { tipo: 'piezas_sueltas'; kitProducto: Producto; piezas: { pieza: PiezaKit; cantidad: number; precio: number }[] }
 
 function AgregarProductoModal({
@@ -705,17 +757,23 @@ function AgregarProductoModal({
         )
         const full = backendToProducto(res.productos?.nodes?.[0])
         setKitDetalle(full)
-        // Prellenar precio de piezas que ya existen en la orden
+        // Prellenar precio de piezas: primero las que ya existen en la orden; si no, división equitativa del precio del kit
         const piezasEnOrden = new Map<number, number>()
         for (const it of existingItems) {
           for (const pz of it.piezas_orden ?? []) {
             if (pz.precio_unitario != null) piezasEnOrden.set(pz.id_pieza, pz.precio_unitario)
           }
         }
-        setPiezasConfig((full.piezas_kit ?? []).map(pz => ({
+        const piezasKit = full.piezas_kit ?? []
+        const sugeridoUnit = piezasKit.length > 0 && full.precio_venta > 0
+          ? (full.precio_venta / piezasKit.length).toFixed(2)
+          : ''
+        setPiezasConfig(piezasKit.map(pz => ({
           pieza: pz,
           cantidad: pz.cantidad_por_kit,
-          precio: piezasEnOrden.has(pz.id) ? String(piezasEnOrden.get(pz.id)) : '',
+          precio: piezasEnOrden.has(pz.id)
+            ? String(piezasEnOrden.get(pz.id))
+            : sugeridoUnit,
         })))
       } catch {
         notify.error('Error al cargar piezas del kit')
@@ -752,17 +810,13 @@ function AgregarProductoModal({
     if (!seleccionado) return
     if (seleccionado.es_kit && kitDetalle) {
       if (vistaKit === 'opciones') {
-        // Kit completo: heredar precio/descuento si ya existe; si no, precio base sin descuento
+        // Kit completo: heredar precio si ya existe; si no, precio base
         const inherited = existingItemMatch
         onAgregar({
           tipo: 'kit_completo',
           producto: seleccionado,
           cantidad: cantidadNum,
           precioUnitario: inherited ? inherited.precio_unitario : seleccionado.precio_venta,
-          idDescuento: inherited?.descuento_id ? Number(inherited.descuento_id) : undefined,
-          montoDescuento: inherited && inherited.precio_base && inherited.precio_base > inherited.precio_unitario
-            ? (inherited.precio_base - inherited.precio_unitario) * cantidadNum
-            : 0,
         })
       } else {
         onAgregar({
@@ -774,17 +828,13 @@ function AgregarProductoModal({
         })
       }
     } else {
-      // Producto regular: heredar precio/descuento si ya existe; si no, precio base sin descuento
+      // Producto regular: heredar precio si ya existe; si no, precio base
       const inherited = existingItemMatch
       onAgregar({
         tipo: 'producto',
         producto: seleccionado,
         cantidad: cantidadNum,
         precioUnitario: inherited ? inherited.precio_unitario : seleccionado.precio_venta,
-        idDescuento: inherited?.descuento_id ? Number(inherited.descuento_id) : undefined,
-        montoDescuento: inherited && inherited.precio_base && inherited.precio_base > inherited.precio_unitario
-          ? (inherited.precio_base - inherited.precio_unitario) * cantidadNum
-          : 0,
       })
     }
   }
@@ -872,9 +922,17 @@ function AgregarProductoModal({
                           </div>
                           <p className="text-sm font-medium text-[#4A4744] truncate mt-0.5">{p.nombre}</p>
                           {p.es_kit ? (
-                            <p className="text-[11px] font-semibold mt-0.5 text-[#780e18]">Kit de productos</p>
+                            <p className="text-[11px] font-semibold mt-0.5 text-[#780e18] flex items-center gap-1.5">
+                              <span>Kit de productos</span>
+                              <span className="text-[#D0CBC4]">·</span>
+                              <span className="font-mono font-bold text-[#2D2B2A]">{fmtBs(p.precio_venta)}</span>
+                            </p>
                           ) : (
-                            <p className={clsx('text-[11px] font-semibold mt-0.5', dispP === 0 ? 'text-[#B23A2A]' : 'text-[#3F7A52]')}>{dispP} disponibles</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <p className={clsx('text-[11px] font-semibold', dispP === 0 ? 'text-[#B23A2A]' : 'text-[#3F7A52]')}>{dispP} disponibles</p>
+                              <span className="text-[#D0CBC4]">·</span>
+                              <p className="text-[11px] font-mono font-bold text-[#2D2B2A]">{fmtBs(p.precio_venta)}</p>
+                            </div>
                           )}
                         </div>
                         <i className="ti ti-chevron-right text-[#D0CBC4] text-[16px] shrink-0" />
@@ -962,6 +1020,11 @@ function AgregarProductoModal({
                             <div className="flex items-center gap-3">
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-[#2D2B2A] truncate">{pc.pieza.nombre}</p>
+                                {pc.pieza.codigo_pieza && (
+                                  <p className="font-mono text-[10.5px] text-[#7A7571] tracking-[0.04em] mt-0.5">
+                                    {pc.pieza.codigo_pieza}
+                                  </p>
+                                )}
                                 <p className={clsx('text-[11px] font-semibold mt-0.5', dispPieza === 0 ? 'text-[#B23A2A]' : 'text-[#3F7A52]')}>
                                   {dispPieza} disp.
                                 </p>
@@ -1033,10 +1096,8 @@ function AgregarProductoModal({
             {existingItemMatch && (
               <div className="p-2.5 rounded-lg bg-[#F5E0A8]/40 border border-[#F5E0A8] text-[12px] text-[#7A5200]">
                 <i className="ti ti-info-circle mr-1" />
-                Ya en la orden con precio <strong>Bs {existingItemMatch.precio_unitario.toFixed(2)}</strong>
-                {existingItemMatch.descuento_nombre && (
-                  <> · {existingItemMatch.descuento_nombre} ({existingItemMatch.descuento_porcentaje}%)</>
-                )}. Se agregará con el mismo precio/descuento.
+                Ya en la orden con precio <strong>Bs {existingItemMatch.precio_unitario.toFixed(2)}</strong>.
+                Se agregará con el mismo precio.
               </div>
             )}
             {existingPartialItemMatch && (
@@ -1153,8 +1214,9 @@ export function EscaneoPage() {
   const [itemLoading, setItemLoading] = useState<Record<string, boolean>>({})
   const [confirmEliminar, setConfirmEliminar] = useState<string | null>(null)
   const [flashItemId, setFlashItemId] = useState<string | null>(null)
+  const [flashPiezaId, setFlashPiezaId] = useState<string | null>(null)
   const [piezaPrecios, setPiezaPrecios] = useState<Record<number, string>>({})
-  const [piezaLoading, setPiezaLoading] = useState<Record<number, boolean>>({})
+  const [piezaLoading, setPiezaLoading] = useState<Record<string, boolean>>({})
   const [confirmedPiezaPrices, setConfirmedPiezaPrices] = useState<Record<number, number>>({})
   const [confirmedPiezaIds, setConfirmedPiezaIds] = useState<Set<number>>(new Set())
   const [notInOrderProducto, setNotInOrderProducto] = useState<ProductoBusquedaEscaneo | null>(null)
@@ -1163,18 +1225,10 @@ export function EscaneoPage() {
   const [pendingPiezaScan, setPendingPiezaScan] = useState<{ item: ItemOrden; pieza: PiezaOrden } | null>(null)
   const [pendingMarcarListoItem, setPendingMarcarListoItem] = useState<ItemOrden | null>(null)
   const [scanCounts, setScanCounts] = useState<Record<string, number>>({})
-  const [descuentos, setDescuentos] = useState<DescuentoConfig[]>([])
-  const [pendingAgregarConPrecio, setPendingAgregarConPrecio] = useState<AgregarRequest | null>(null)
-  const [pendingAgregarConPrecioA, setPendingAgregarConPrecioA] = useState<{
-    idProducto: number
-    idPieza?: number
-    cantidad: number
-    codigo: string
-    nombre: string
-    precioBase: number
-    esKit?: boolean
-    idPiezaCatalogo?: number
-  } | null>(null)
+  // Contador de escaneos por pieza (similar a scanCounts de productos).
+  // Cuando el contador llega a pieza.cantidad, se abre el PiezaScanPriceModal.
+  const [piezaScanCounts, setPiezaScanCounts] = useState<Record<string, number>>({})
+  const [etiquetaPieza, setEtiquetaPieza] = useState<{ etiqueta: LabelData; subtitulo: string } | null>(null)
   const scanInputRef = useRef<HTMLInputElement>(null)
 
   const dateStr = useMemo(() => {
@@ -1191,13 +1245,8 @@ export function EscaneoPage() {
       .catch(() => {})
   }, [isTokenReady, marcas.length, setMarcas])
 
-  // Cargar descuentos activos para el modal de precios
-  useEffect(() => {
-    if (!isTokenReady) return
-    gql<{ descuento: { nodes: DescuentoAPI[] } }>(DESCUENTOS_QUERY)
-      .then(res => setDescuentos((res.descuento?.nodes ?? []).map(backendToDescuento)))
-      .catch(() => {})
-  }, [isTokenReady])
+  // El modal de precios ya no muestra descuentos (se eligen al cobrar).
+  // El estado `descuentos` se mantiene en CajaPage para alimentar el CheckoutModal.
 
   // Buscar producto por código cuando se escanea algo fuera de la orden
   useEffect(() => {
@@ -1289,6 +1338,9 @@ export function EscaneoPage() {
       joinGrupo(`orden-${selectedOrdenId}`)
     }
   }, [selectedOrdenId, joinGrupo])
+
+  // Ref + listener global de teclado: agregados más abajo (después de
+  // declarar `handleScan` para evitar TDZ). Se busca "Listener global".
 
   const selectedOrden = useMemo(
     () => ordenes.find((o) => o.id === selectedOrdenId) ?? null,
@@ -1514,6 +1566,30 @@ export function EscaneoPage() {
     }
   }
 
+  const handleImprimirPieza = (item: ItemOrden, pieza: PiezaOrden) => {
+    if (!pieza.codigo_pieza) {
+      notify.error('La pieza no tiene código para imprimir')
+      return
+    }
+    const marca = item.marcaId != null ? marcas.find(m => m.id === item.marcaId) : null
+    const etiqueta: LabelData = {
+      // Imprimimos el codigo_pieza tal cual viene (ej. "P1-TY-ABC123"),
+      // sin concatenarle el prefijo de la marca del kit padre.
+      codigo_universal: pieza.codigo_pieza,
+      nombre: pieza.nombre,
+      marca: marca?.nombre ?? item.marca_nombre ?? '',
+      marcaPrefijo: '',
+      vehiculo: '',
+      precio_venta: pieza.precio_unitario ?? item.precio_unitario,
+      unidad: 'pieza',
+      creado_en: new Date().toISOString(),
+    }
+    setEtiquetaPieza({
+      etiqueta,
+      subtitulo: `${pieza.nombre} · de ${item.producto_nombre}`,
+    })
+  }
+
   const handleConfirmarMarcarListo = async (item: ItemOrden) => {
     if (!selectedOrden) return
     const ordenId = selectedOrden.id
@@ -1544,12 +1620,6 @@ export function EscaneoPage() {
 
   const handleAgregarProducto = async (req: AgregarRequest) => {
     if (!selectedOrden) return
-    // Si es producto/kit (no piezas sueltas) y NO hereda precio/descuento de un item existente,
-    // abrir el modal de descuentos para que el operador elija.
-    if (req.tipo !== 'piezas_sueltas' && req.idDescuento == null && req.montoDescuento === 0) {
-      setPendingAgregarConPrecio(req)
-      return
-    }
     return ejecutarAgregarProducto(req)
   }
 
@@ -1595,15 +1665,13 @@ export function EscaneoPage() {
         notify.success(`Piezas de ${req.kitProducto.nombre} agregadas — almacén notificado`)
         if (lastItem) setPendingMarcarListoItem(lastItem)
       } else {
-        const { producto, cantidad, precioUnitario, idDescuento, montoDescuento } = req
+        const { producto, cantidad, precioUnitario } = req
         const res = await api.post<AgregarItemOrdenResponse>(
           `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
           {
             Id_Producto: parseInt(producto.id),
             Cantidad: cantidad,
             PrecioUnitario: precioUnitario,
-            Id_Descuento: idDescuento ?? null,
-            MontoDescuento: montoDescuento ?? 0,
           }
         )
         const subtotalCalculado = precioUnitario * res.cantidad
@@ -1623,12 +1691,7 @@ export function EscaneoPage() {
           subtotal: subtotalCalculado,
           estado: 'pendiente',
           es_kit: res.producto.esKit,
-          descuento_id: idDescuento != null ? String(idDescuento) : undefined,
-          descuento_nombre: undefined,
-          descuento_porcentaje: undefined,
-          precio_base: montoDescuento && montoDescuento > 0
-            ? precioUnitario + montoDescuento / res.cantidad
-            : precioUnitario,
+          precio_base: precioUnitario,
         }
         addItemToOrden(selectedOrden.id, newItem)
         notify.success(`${newItem.producto_nombre} agregado — almacén notificado`)
@@ -1665,6 +1728,45 @@ export function EscaneoPage() {
     // Guard: ignore scan if any modal is open
     if (pendingConfirmItem || pendingNotInOrderCode !== null || selectMultipleMatches.length > 0 || pendingPiezaScan) return
 
+    // 1) Match contra codigo_pieza de cualquier pieza de la orden
+    // (se hace antes del parseo por guion porque el codigo_pieza incluye la marca
+    // del kit padre y ya tiene guiones: ej. "P1-TY-ABC123")
+    const codeTrimmed = code.trim()
+    const codeLower = codeTrimmed.toLowerCase()
+    for (const item of selectedOrden.items) {
+      if (!item.es_parcial || !item.piezas_orden) continue
+      const pieza = item.piezas_orden.find(
+        (p) => p.codigo_pieza && p.codigo_pieza.toLowerCase() === codeLower,
+      )
+      if (pieza) {
+        if (pieza.confirmado) {
+          notify.warning('Esta pieza ya fue confirmada')
+          return
+        }
+
+        // Flujo "producto normal": N escaneos = N unidades. El modal de precio
+        // aparece solo en el último escaneo (cuando se completa la cantidad).
+        // Si la pieza es parcial con faltante, se confirma la cantidad recogida.
+        const esPiezaParcial = !!pieza.nota_incompleto && (pieza.cantidad_recogida ?? 0) > 0
+        const targetQty = esPiezaParcial ? pieza.cantidad_recogida! : pieza.cantidad
+        const current = piezaScanCounts[pieza.id] ?? 0
+        const next = current + 1
+
+        playConfirmBeep()
+        setFlashPiezaId(pieza.id)
+        setTimeout(() => setFlashPiezaId(null), 600)
+
+        if (next >= targetQty) {
+          // Última unidad → limpiar counter y abrir modal de precio
+          setPiezaScanCounts(prev => { const n = { ...prev }; delete n[pieza.id]; return n })
+          setPendingPiezaScan({ item, pieza })
+        } else {
+          setPiezaScanCounts(prev => ({ ...prev, [pieza.id]: next }))
+        }
+        return
+      }
+    }
+
     // Detectar formato PREFIJO-CODIGOUNIVERSAL
     const dashIdx = code.indexOf('-')
     let resolvedCode = code
@@ -1679,9 +1781,9 @@ export function EscaneoPage() {
       }
     }
 
-    const codeLower = resolvedCode.toLowerCase().trim()
+    const resolvedCodeLower = resolvedCode.toLowerCase().trim()
     const matched = itemsEscaneables.filter((i) => {
-      const codeMatch = i.producto_codigo.toLowerCase() === codeLower || i.producto_id.toLowerCase() === codeLower
+      const codeMatch = i.producto_codigo.toLowerCase() === resolvedCodeLower || i.producto_id.toLowerCase() === resolvedCodeLower
       if (!codeMatch) return false
       // Si se detectó prefijo de marca, filtrar también por marcaId
       if (resolvedMarcaId !== null) return i.marcaId === resolvedMarcaId
@@ -1766,6 +1868,78 @@ export function EscaneoPage() {
     setPendingNotInOrderCode(code)
   }
 
+  // Listener global: si el operador escanea con la pistola desde cualquier parte
+  // de la página (no necesita hacer click en el input de escaneo), enfocamos
+  // el input y le inyectamos los caracteres que ya se tipearon. A partir de ahí
+  // el onKeyDown existente del input se encarga del Enter → handleScan.
+  //
+  // Heurística: las pistolas tipean a < 50ms entre caracteres. Un humano no.
+  useEffect(() => {
+    if (!selectedOrden) return
+
+    let buffer = ''
+    let lastKeyTime = 0
+    const SCAN_CHAR_INTERVAL_MS = 50
+
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      const isTextInput =
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        !!target?.isContentEditable
+
+      // El usuario está escribiendo en un input (puede ser el de escaneo u otro).
+      // Dejamos pasar la tecla al input y reseteamos nuestro buffer.
+      if (isTextInput) {
+        buffer = ''
+        lastKeyTime = 0
+        return
+      }
+
+      // Solo nos importan los caracteres imprimibles
+      if (e.key.length !== 1) {
+        buffer = ''
+        lastKeyTime = 0
+        return
+      }
+
+      const now = performance.now()
+      const dt = lastKeyTime === 0 ? Infinity : now - lastKeyTime
+      lastKeyTime = now
+
+      if (buffer.length === 0) {
+        // Primer char: bufferear silenciosamente (no es suficiente para saber
+        // si es un scan; esperamos al segundo)
+        buffer = e.key
+        return
+      }
+
+      if (dt < SCAN_CHAR_INTERVAL_MS) {
+        // Segundo char llegó rápido: es un scan. Enfocamos el input de escaneo
+        // y le inyectamos el buffer + el char actual. A partir de acá el input
+        // recibe los chars restantes y el Enter por su cuenta.
+        //
+        // ⚠ preventDefault es crítico: sin él, el navegador hace su acción
+        // por defecto del keydown (insertar el char en el input enfocado),
+        // lo que duplica el último char. Ej: buffer="P" + e.key="1" → seteamos
+        // input.value="P1" y enfocamos, pero el default mete "1" otra vez → "P11".
+        const input = scanInputRef.current
+        if (input && !input.disabled) {
+          input.value = buffer + e.key
+          input.focus()
+          e.preventDefault()
+        }
+        buffer = ''
+      } else {
+        // Tipeo humano lento, reseteamos y empezamos de nuevo
+        buffer = e.key
+      }
+    }
+
+    document.addEventListener('keydown', handler, true)
+    return () => document.removeEventListener('keydown', handler, true)
+  }, [selectedOrden])
+
   const handleSelectMatch = (item: ItemOrden) => {
     setSelectMultipleMatches([])
     if (confirmedItemIds.has(item.id)) {
@@ -1812,22 +1986,16 @@ export function EscaneoPage() {
   const handleAgregarItem = async (cantidad: number, precio?: number, piezas?: { piezaId: number; cantidad: number; precio: number }[]) => {
     if (!pendingNotInOrderCode || !selectedOrden || !notInOrderProducto) return
     const p = notInOrderProducto
-    // Camino A: si es producto/kit (no pieza) y NO existe en la orden, abrir modal de descuentos
+    // Camino A: producto/kit (no pieza). Si ya existe en la orden, heredar su precio; si no, usar el precio base.
     if (piezas == null && p.piezaEscaneadaId == null) {
       const existingItem = itemsParaEscanear.find(
         i => i.producto_id === String(p.id) && !i.es_parcial
       )
-      if (!existingItem) {
-        setPendingAgregarConPrecioA({
-          idProducto: p.id,
-          cantidad: cantidad,
-          codigo: p.codigo,
-          nombre: p.nombre,
-          precioBase: p.precio,
-          esKit: p.esKit,
-        })
-        return
-      }
+      return ejecutarAgregarItemA(
+        cantidad,
+        existingItem ? existingItem.precio_unitario : p.precio,
+        piezas
+      )
     }
     return ejecutarAgregarItemA(cantidad, precio, piezas)
   }
@@ -1885,26 +2053,14 @@ export function EscaneoPage() {
         return
       }
 
-      const body: { Id_Producto?: number; Id_Pieza?: number; Cantidad: number; PrecioUnitario?: number; Id_Descuento?: number; MontoDescuento?: number } = { Cantidad: cantidad }
+      const body: { Id_Producto?: number; Id_Pieza?: number; Cantidad: number; PrecioUnitario?: number } = { Cantidad: cantidad }
       if (p.piezaEscaneadaId != null) {
         body.Id_Producto = p.id
         body.Id_Pieza = p.piezaEscaneadaId
         body.PrecioUnitario = precio
       } else {
         body.Id_Producto = p.id
-        // Si el mismo producto ya existe en la orden, heredar su precio + descuento
-        const existingItem = itemsParaEscanear.find(
-          i => i.producto_id === String(p.id) && !i.es_parcial
-        )
-        if (existingItem) {
-          body.PrecioUnitario = existingItem.precio_unitario
-          if (existingItem.descuento_id) {
-            body.Id_Descuento = Number(existingItem.descuento_id)
-            // MontoDescuento = (precio_base - precio_unitario) * cantidad
-            const precioBase = existingItem.precio_base ?? existingItem.precio_unitario
-            body.MontoDescuento = (precioBase - existingItem.precio_unitario) * existingItem.cantidad_pedida
-          }
-        }
+        body.PrecioUnitario = precio
       }
       const res = await api.post<AgregarItemOrdenResponse>(
         `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
@@ -1913,10 +2069,6 @@ export function EscaneoPage() {
       const parts = (res.producto.ubicacion ?? '').split('/')
       const [almacen = '', estante = '', fila = '', columna = ''] =
         parts.length >= 4 ? parts : ['', ...parts]
-      // Datos de descuento heredados (si se envió Id_Descuento en el body)
-      const descuentoHeredado = body.Id_Descuento
-        ? itemsParaEscanear.find(i => i.producto_id === String(p.id) && !i.es_parcial)
-        : null
       let newItem: ItemOrden
       if (res.esParcial && res.piezas?.[0]) {
         const piezaItemId = res.piezas[0].id
@@ -1960,14 +2112,7 @@ export function EscaneoPage() {
           subtotal: res.precioUnitario * res.cantidad,
           estado: 'pendiente',
           es_kit: res.producto.esKit,
-          // Heredar descuento si se envió en el body
-          ...(descuentoHeredado && {
-            descuento_id: descuentoHeredado.descuento_id,
-            descuento_nombre: descuentoHeredado.descuento_nombre,
-            descuento_porcentaje: descuentoHeredado.descuento_porcentaje,
-            descuento_color: descuentoHeredado.descuento_color,
-            precio_base: descuentoHeredado.precio_base ?? descuentoHeredado.precio_unitario,
-          }),
+          precio_base: precio,
         }
       }
       addItemToOrden(selectedOrden.id, newItem)
@@ -1983,73 +2128,7 @@ export function EscaneoPage() {
     }
   }
 
-  const ejecutarAgregarItemAConDescuento = async (
-    cantidad: number,
-    precio: number,
-    idDescuento: number | undefined,
-    montoDescuento: number,
-    descuentoNombre: string | undefined,
-    descuentoPorcentaje: number | undefined,
-  ) => {
-    if (!selectedOrden || !notInOrderProducto) return
-    const p = notInOrderProducto
-    setAgregarLoading(true)
-    try {
-      const body: { Id_Producto: number; Cantidad: number; PrecioUnitario: number; Id_Descuento?: number; MontoDescuento?: number } = {
-        Id_Producto: p.id,
-        Cantidad: cantidad,
-        PrecioUnitario: precio,
-      }
-      if (idDescuento != null) {
-        body.Id_Descuento = idDescuento
-        body.MontoDescuento = montoDescuento
-      }
-      const res = await api.post<AgregarItemOrdenResponse>(
-        `/OrdenVenta/${selectedOrden.id}/AgregarItem`,
-        body
-      )
-      const parts = (res.producto.ubicacion ?? '').split('/')
-      const [almacen = '', estante = '', fila = '', columna = ''] =
-        parts.length >= 4 ? parts : ['', ...parts]
-      const newItem: ItemOrden = {
-        id: String(res.id),
-        producto_id: String(res.idProducto ?? p.id),
-        producto_codigo: res.producto.codigo,
-        producto_nombre: res.producto.nombre,
-        marcaId: p.marcaId,
-        marca_nombre: marcas.find(m => m.id === p.marcaId)?.nombre,
-        producto_almacen: almacen,
-        producto_estante: estante,
-        producto_fila: fila,
-        producto_columna: columna,
-        cantidad_pedida: res.cantidad,
-        precio_unitario: res.precioUnitario,
-        subtotal: res.precioUnitario * res.cantidad,
-        estado: 'pendiente',
-        es_kit: res.producto.esKit,
-        ...(idDescuento != null && {
-          descuento_id: String(idDescuento),
-          descuento_nombre: descuentoNombre,
-          descuento_porcentaje: descuentoPorcentaje,
-          precio_base: p.precio,
-        }),
-      }
-      addItemToOrden(selectedOrden.id, newItem)
-      notify.info(`${newItem.producto_nombre} agregado a la orden`)
-      setPendingNotInOrderCode(null)
-      setPendingNotInOrderMarcaId(null)
-      setNotInOrderProducto(null)
-      setPendingMarcarListoItem(newItem)
-    } catch (err) {
-      notify.error(err instanceof Error ? err.message : 'Error al agregar')
-    } finally {
-      setAgregarLoading(false)
-    }
-  }
-
   const handleMarcarEsperandoPago = async () => {
-    if (!selectedOrden) return
-    setCompletarLoading(true)
     try {
       await api.post(`/OrdenVenta/${selectedOrden.id}/MarcarEsperandoPago`, undefined)
       updateOrden(selectedOrden.id, { estado: 'esperando_pago' })
@@ -2154,6 +2233,7 @@ export function EscaneoPage() {
                       setPendingNotInOrderCode(null)
                       setPendingNotInOrderMarcaId(null)
                       setScanCounts({})
+                      setPiezaScanCounts({})
                     }}
                     className={clsx(
                       'w-full text-left p-4 rounded-xl border transition-all',
@@ -2277,6 +2357,8 @@ export function EscaneoPage() {
                                   const cantidadConfirmar = esPiezaParcial ? pieza.cantidad_recogida! : pieza.cantidad
                                   const cantidadFaltante = esPiezaParcial ? pieza.cantidad - pieza.cantidad_recogida! : 0
                                   const loadingPieza = !!piezaLoading[pieza.id]
+                                  const piezaScanCount = piezaScanCounts[pieza.id] ?? 0
+                                  const isPiezaFlashing = flashPiezaId === pieza.id
                                   if (esPiezaFaltante) return null
                                   return (
                                     <div
@@ -2285,20 +2367,31 @@ export function EscaneoPage() {
                                         'flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-300',
                                         esPiezaFaltante ? 'border-[#F5C9C0] bg-[#F5C9C0]/20' :
                                         esPiezaParcial ? 'border-[#B47A1F]/30 bg-[#F5E0A8]/20' :
-                                        (piezaConfirmada || esPiezaLista) ? 'border-[#3F7A52]/30 bg-[#B8DCCA]/20' :
+                                        piezaConfirmada ? 'border-[#3F7A52]/30 bg-[#B8DCCA]/20' :
+                                        esPiezaLista ? 'border-[#B47A1F]/30 bg-[#F5E0A8]/20' :
+                                        isPiezaFlashing ? 'border-[#780e18] bg-[#F4ECDB]/40' :
                                         'border-[#D0CBC4] bg-white'
                                       )}
                                     >
                                       <div className={clsx(
                                         'h-8 w-8 rounded-full flex items-center justify-center shrink-0',
-                                        esPiezaFaltante ? 'bg-[#F5C9C0]' : esPiezaParcial ? 'bg-[#F5E0A8]' : (piezaConfirmada || esPiezaLista) ? 'bg-[#B8DCCA]' : 'bg-[#F0EFEC]'
+                                        esPiezaFaltante ? 'bg-[#F5C9C0]' :
+                                        esPiezaParcial ? 'bg-[#F5E0A8]' :
+                                        piezaConfirmada ? 'bg-[#B8DCCA]' :
+                                        esPiezaLista ? 'bg-[#F5E0A8]' :
+                                        isPiezaFlashing ? 'bg-[#F4ECDB]' :
+                                        'bg-[#F0EFEC]'
                                       )}>
                                         {esPiezaFaltante ? (
                                           <i className="ti ti-x text-[#B23A2A] text-[14px]" />
                                         ) : esPiezaParcial ? (
                                           <i className="ti ti-alert-triangle text-[#B47A1F] text-[14px]" />
-                                        ) : (piezaConfirmada || esPiezaLista) ? (
+                                        ) : piezaConfirmada ? (
                                           <i className="ti ti-check text-[#3F7A52] text-[14px]" />
+                                        ) : esPiezaLista ? (
+                                          <i className="ti ti-package-import text-[#B47A1F] text-[14px]" />
+                                        ) : isPiezaFlashing ? (
+                                          <i className="ti ti-barcode text-[#780e18] text-[14px]" />
                                         ) : (
                                           <i className="ti ti-package text-[#7A7571] text-[14px]" />
                                         )}
@@ -2311,12 +2404,28 @@ export function EscaneoPage() {
                                           <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">
                                             KIT
                                           </span>
+                                          <p className="text-[10px] font-semibold text-[#4A4744] truncate leading-none">
+                                            {item.producto_nombre}
+                                          </p>
                                         </div>
                                         <p className="text-sm font-semibold text-[#2D2B2A] leading-snug truncate flex items-center gap-1.5">
+                                          {pieza.codigo_pieza && (
+                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md font-mono font-bold text-[10px] bg-[#780e18] text-white shrink-0">
+                                              {pieza.codigo_pieza}
+                                            </span>
+                                          )}
                                           <span className="truncate">{pieza.nombre} · ×{cantidadConfirmar}</span>
                                           <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#F5E0A8] text-[#7A5200] tracking-wider shrink-0">
                                             PIEZA
                                           </span>
+                                          <button
+                                            onClick={() => handleImprimirPieza(item, pieza)}
+                                            disabled={!pieza.codigo_pieza}
+                                            title={pieza.codigo_pieza ? `Imprimir etiqueta de la pieza (${pieza.codigo_pieza})` : 'La pieza no tiene código'}
+                                            className="w-6 h-6 flex items-center justify-center rounded-md border border-[#E8E5E2] text-[#4A4744] hover:bg-[#F0EFEC] hover:text-[#2D2B2A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                                          >
+                                            <i className="ti ti-printer text-[10px]" />
+                                          </button>
                                         </p>
                                         {esPiezaParcial && (
                                           <p className="text-xs text-[#B47A1F] leading-none mt-0.5">×{cantidadFaltante} faltantes</p>
@@ -2331,10 +2440,16 @@ export function EscaneoPage() {
                                         </span>
                                       ) : (
                                         <div className="flex items-center gap-1.5 shrink-0">
-                                          {esPiezaLista && (
-                                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-[#B8DCCA] text-[#1E5C38] text-[10px] font-bold shrink-0">
-                                              <i className="ti ti-check text-[9px]" />
+                                          {esPiezaLista && !piezaScanCount && (
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-[#F5E0A8] text-[#7A5200] text-[10px] font-bold shrink-0">
+                                              <i className="ti ti-package-import text-[9px]" />
                                               Lista
+                                            </span>
+                                          )}
+                                          {piezaScanCount > 0 && (
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-[#F4ECDB] text-[#780e18] text-[10px] font-bold shrink-0">
+                                              <i className="ti ti-barcode text-[9px]" />
+                                              {piezaScanCount}/{cantidadConfirmar}
                                             </span>
                                           )}
                                           <input
@@ -2663,57 +2778,6 @@ export function EscaneoPage() {
         />
       )}
 
-      {pendingAgregarConPrecio && (pendingAgregarConPrecio.tipo === 'producto' || pendingAgregarConPrecio.tipo === 'kit_completo') && (
-        <SelectPriceModal
-          producto={pendingAgregarConPrecio.producto}
-          precioBase={pendingAgregarConPrecio.producto.precio_venta}
-          descuentos={descuentos}
-          onSelect={(precio, descuento_id, _descuento_nombre, descuento_porcentaje) => {
-            const req = pendingAgregarConPrecio
-            const idDescuento = descuento_id ? Number(descuento_id) : undefined
-            const montoDescuento = descuento_porcentaje
-              ? (pendingAgregarConPrecio.producto.precio_venta - precio) * req.cantidad
-              : 0
-            const updated: AgregarRequest = { ...req, precioUnitario: precio, idDescuento, montoDescuento }
-            setPendingAgregarConPrecio(null)
-            ejecutarAgregarProducto(updated)
-          }}
-          onClose={() => {
-            setPendingAgregarConPrecio(null)
-            scanInputRef.current?.focus()
-          }}
-        />
-      )}
-
-      {pendingAgregarConPrecioA && (
-        <SelectPriceModal
-          producto={{
-            id: String(pendingAgregarConPrecioA.idProducto),
-            codigo_universal: pendingAgregarConPrecioA.codigo,
-            codigos_alternativos: [],
-            nombre: pendingAgregarConPrecioA.nombre,
-            stock: 0,
-            stock_minimo: 0,
-            es_kit: pendingAgregarConPrecioA.esKit,
-          } as unknown as Producto}
-          precioBase={pendingAgregarConPrecioA.precioBase}
-          descuentos={descuentos}
-          onSelect={(precio, descuento_id, descuento_nombre, descuento_porcentaje) => {
-            const req = pendingAgregarConPrecioA
-            const idDescuento = descuento_id ? Number(descuento_id) : undefined
-            const montoDescuento = descuento_porcentaje
-              ? (req.precioBase - precio) * req.cantidad
-              : 0
-            setPendingAgregarConPrecioA(null)
-            ejecutarAgregarItemAConDescuento(req.cantidad, precio, idDescuento, montoDescuento, descuento_nombre, descuento_porcentaje)
-          }}
-          onClose={() => {
-            setPendingAgregarConPrecioA(null)
-            scanInputRef.current?.focus()
-          }}
-        />
-      )}
-
       {pendingMarcarListoItem && selectedOrden && (
         <MarcarListoPromptModal
           item={pendingMarcarListoItem}
@@ -2728,6 +2792,7 @@ export function EscaneoPage() {
       {pendingPiezaScan && (
         <PiezaScanPriceModal
           pieza={pendingPiezaScan.pieza}
+          item={pendingPiezaScan.item}
           onConfirm={(precio) => {
             setPiezaPrecios(prev => ({ ...prev, [pendingPiezaScan.pieza.id]: String(precio) }))
             handleConfirmarPieza(pendingPiezaScan.item, pendingPiezaScan.pieza)
@@ -2741,6 +2806,12 @@ export function EscaneoPage() {
           loading={!!piezaLoading[pendingPiezaScan.pieza.id]}
         />
       )}
+      <EtiquetaModal
+        open={!!etiquetaPieza}
+        onClose={() => setEtiquetaPieza(null)}
+        etiqueta={etiquetaPieza?.etiqueta ?? null}
+        subtitulo={etiquetaPieza?.subtitulo}
+      />
     </MainLayout>
   )
 }

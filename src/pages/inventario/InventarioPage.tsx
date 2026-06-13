@@ -978,9 +978,17 @@ export function InventarioPage() {
       <EtiquetaModal
         open={!!etiquetaProducto}
         onClose={() => setEtiquetaProducto(null)}
-        producto={etiquetaProducto}
-        marcaNombre={etiquetaProducto ? getMarcaNombre(etiquetaProducto.marcaId, marcas) : ''}
-        marcaPrefijo={etiquetaProducto ? getMarcaPrefijo(etiquetaProducto.marcaId, marcas) : ''}
+        etiqueta={etiquetaProducto ? {
+          codigo_universal: etiquetaProducto.codigo_universal,
+          nombre: etiquetaProducto.nombre,
+          marca: getMarcaNombre(etiquetaProducto.marcaId, marcas),
+          marcaPrefijo: getMarcaPrefijo(etiquetaProducto.marcaId, marcas),
+          vehiculo: etiquetaProducto.vehiculo,
+          precio_venta: etiquetaProducto.precio_venta,
+          unidad: etiquetaProducto.unidad,
+          creado_en: etiquetaProducto.creado_en,
+        } : null}
+        subtitulo={etiquetaProducto?.nombre}
       />
       <ImportarExcelModal
         open={importOpen}

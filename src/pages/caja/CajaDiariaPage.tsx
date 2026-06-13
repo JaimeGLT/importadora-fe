@@ -22,6 +22,7 @@ const CATEGORIA_LABELS: Record<MovimientoCaja['categoria'], string> = {
   GastoOperativo: 'Gasto operativo',
   OtroEgreso: 'Otro egreso',
   Transferencia: 'Transferencia',
+  CobranzaCredito: 'Cobranza de crédito',
 }
 
 const TIPO_PAGO_CONFIG: Record<MovimientoCaja['tipoPago'], { label: string; style: string }> = {
@@ -429,6 +430,20 @@ export function CajaDiariaPage() {
   )
   const efectivoEsperado = (caja?.montoInicial ?? 0) + ingresosEfectivo - egresosEfectivo
 
+  // Desglose de ingresos: ventas al contado vs cobros de crédito.
+  const ventasHoy = useMemo(
+    () => movimientos.filter(m => m.tipo === 'Ingreso' && m.categoria === 'Ventas').reduce((s, m) => s + m.monto, 0),
+    [movimientos],
+  )
+  const cobranzasHoy = useMemo(
+    () => movimientos.filter(m => m.tipo === 'Ingreso' && m.categoria === 'CobranzaCredito').reduce((s, m) => s + m.monto, 0),
+    [movimientos],
+  )
+  const cobranzasEfectivo = useMemo(
+    () => movimientos.filter(m => m.tipo === 'Ingreso' && m.categoria === 'CobranzaCredito' && m.tipoPago === 'Efectivo').reduce((s, m) => s + m.monto, 0),
+    [movimientos],
+  )
+
   useEffect(() => {
     if (!isTokenReady) return
     cargarCaja()
@@ -602,6 +617,42 @@ export function CajaDiariaPage() {
                   </div>
                 </div>
 
+                {/* Desglose Ventas contado vs Cobranzas de crédito */}
+                <div>
+                  <p className="text-[11px] font-semibold text-[#7A7571] uppercase tracking-wide mb-3">
+                    Desglose de ingresos: Ventas contado vs Cobranzas
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-[14px]">
+                    <div className="bg-[#B8DCCA]/20 rounded-xl p-4 border border-[#3F7A52]/30">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-semibold text-[#1E5C38] uppercase tracking-wide">Ventas contado</p>
+                        <span className="text-[10px] font-semibold text-[#1E5C38] bg-[#3F7A52] text-white px-1.5 py-0.5 rounded">
+                          Categoría "Ventas"
+                        </span>
+                      </div>
+                      <p className="text-2xl font-semibold text-[#1E5C38] tabular-nums" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                        {(resumenCierre.ingresoVentasTotal ?? 0).toLocaleString('es-BO', { minimumFractionDigits: 2 })} <span className="text-sm">Bs.</span>
+                      </p>
+                    </div>
+                    <div className="bg-[#F5E0A8]/20 rounded-xl p-4 border border-[#B47A1F]/30">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-semibold text-[#7A5200] uppercase tracking-wide">Cobranzas de crédito</p>
+                        <span className="text-[10px] font-semibold text-[#7A5200] bg-[#B47A1F] text-white px-1.5 py-0.5 rounded">
+                          Categoría "CobranzaCredito"
+                        </span>
+                      </div>
+                      <p className="text-2xl font-semibold text-[#7A5200] tabular-nums" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                        {(resumenCierre.ingresoCobranzasTotal ?? 0).toLocaleString('es-BO', { minimumFractionDigits: 2 })} <span className="text-sm">Bs.</span>
+                      </p>
+                      {(resumenCierre.ingresoCobranzaEfectivo ?? 0) > 0 && (
+                        <p className="text-[10.5px] text-[#7A5200] mt-1.5">
+                          Efectivo: {(resumenCierre.ingresoCobranzaEfectivo ?? 0).toLocaleString('es-BO', { minimumFractionDigits: 2 })} · QR: {(resumenCierre.ingresoCobranzaQR ?? 0).toLocaleString('es-BO', { minimumFractionDigits: 2 })} · Tarjeta: {(resumenCierre.ingresoCobranzaTarjeta ?? 0).toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 {(() => {
                   const diferencia = resumenCierre.montoContado - resumenCierre.efectivoEsperado
                   const esFaltante = diferencia < 0
@@ -738,6 +789,35 @@ export function CajaDiariaPage() {
               badgeColor="#780e18"
               badgeText="solo efectivo"
             />
+          </div>
+
+          {/* Desglose de ingresos: Ventas contado vs Cobranzas del día */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-[14px] mb-[22px]">
+            <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#3F7A52] p-[18px] relative overflow-hidden">
+              <div className="flex items-center gap-2 mb-1">
+                <i className="ti ti-receipt text-[#3F7A52] text-[16px]" />
+                <p className="text-[10.5px] font-semibold text-[#1E5C38] uppercase tracking-[0.1em]">Ventas al contado</p>
+              </div>
+              <p className="font-semibold text-[26px] text-[#1E5C38] leading-none tabular-nums" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                {ventasHoy.toLocaleString('es-BO', { minimumFractionDigits: 2 })} <span className="text-sm font-semibold text-[#7A7571]">Bs.</span>
+              </p>
+              <p className="text-[10.5px] text-[#7A7571] mt-1.5">Ingresos del día por categoría "Ventas".</p>
+            </div>
+            <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#B47A1F] p-[18px] relative overflow-hidden">
+              <div className="flex items-center gap-2 mb-1">
+                <i className="ti ti-hand-coins text-[#B47A1F] text-[16px]" />
+                <p className="text-[10.5px] font-semibold text-[#7A5200] uppercase tracking-[0.1em]">Cobranzas de crédito del día</p>
+              </div>
+              <p className="font-semibold text-[26px] text-[#7A5200] leading-none tabular-nums" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                {cobranzasHoy.toLocaleString('es-BO', { minimumFractionDigits: 2 })} <span className="text-sm font-semibold text-[#7A7571]">Bs.</span>
+              </p>
+              <p className="text-[10.5px] text-[#7A7571] mt-1.5">
+                {cobranzasEfectivo > 0
+                  ? `${cobranzasEfectivo.toLocaleString('es-BO', { minimumFractionDigits: 2 })} en efectivo · `
+                  : ''}
+                Abonos a créditos de días anteriores
+              </p>
+            </div>
           </div>
 
           {/* Movements container */}

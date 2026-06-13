@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import type { Producto, PiezaKit } from '@/types'
 import type { DtoPiezaKit, PieceOp } from '@/lib/queries/inventario.queries'
 import { PRODUCTOS_QUERY, backendToProductoSimple } from '@/lib/queries/inventario.queries'
@@ -13,6 +13,13 @@ interface KitPartsSectionProps {
   onLocalPiecesChange: (p: DtoPiezaKit[]) => void
   pieceOps: PieceOp[]
   onPieceOpsChange: (ops: PieceOp[]) => void
+  /**
+   * Prefijo de la Marca del kit padre (ej. "TY" para Toyota).
+   * Se usa para previsualizar el código autogenerado de la próxima pieza.
+   */
+  kitPrefijo?: string
+  /** Código del producto kit padre (ej. "ABC123"). */
+  kitCodigo?: string
 }
 
 type DisplayPart = {
@@ -23,6 +30,7 @@ type DisplayPart = {
   piezaId?: number
   addOpIdx?: number
   localIdx?: number
+  codigoPieza?: string
 }
 
 export function KitPartsSection({
@@ -33,6 +41,8 @@ export function KitPartsSection({
   onLocalPiecesChange,
   pieceOps,
   onPieceOpsChange,
+  kitPrefijo,
+  kitCodigo,
 }: KitPartsSectionProps) {
   const [mode, setMode] = useState<'idle' | 'search' | 'create'>('idle')
   const [q, setQ] = useState('')
@@ -85,6 +95,7 @@ export function KitPartsSection({
           cantidad: updatedMap.get(p.id)?.cantidadPorKit ?? p.cantidad_por_kit,
           stock: p.stock_actual,
           piezaId: p.id,
+          codigoPieza: p.codigo_pieza,
         }))
 
       const addRows: DisplayPart[] = addOps.map((op, i) => ({
@@ -104,6 +115,22 @@ export function KitPartsSection({
       }))
     }
   })()
+
+  // ── Próximo número de orden + preview del código autogenerado ────────────────
+  // El backend asigna el orden = max(Orden) + 1 (preserva huecos al eliminar).
+  // Acá calculamos el equivalente en cliente para mostrarle al usuario
+  // qué código se generará antes de confirmar.
+  const nextOrden = useMemo(() => {
+    const ordenesBackend = (piezasFromBackend ?? []).map((p) => p.orden ?? 0)
+    const max = ordenesBackend.length ? Math.max(...ordenesBackend) : 0
+    return max + 1
+  }, [piezasFromBackend])
+
+  const previewCodigoPieza = (orden: number): string => {
+    const prefijo = kitPrefijo || 'X'
+    const codigo = kitCodigo || '???'
+    return `P${orden}-${prefijo}-${codigo}`
+  }
 
   // ── Quantity stepper ─────────────────────────────────────────────────────────
 
@@ -186,6 +213,16 @@ export function KitPartsSection({
                         <span className="text-[9px] font-semibold px-1 py-px rounded bg-navy/10 text-navy uppercase tracking-wider">nuevo</span>
                       )}
                     </div>
+                    {part.codigoPieza && (
+                      <div className="font-mono text-[10.5px] text-muted-2 mt-0.5 tracking-[0.04em]">
+                        {part.codigoPieza}
+                      </div>
+                    )}
+                    {part.addOpIdx !== undefined && (
+                      <div className="font-mono text-[10.5px] text-muted-2 mt-0.5 tracking-[0.04em]">
+                        Código a generar: <span className="font-semibold text-ink-2">{previewCodigoPieza(nextOrden + part.addOpIdx)}</span>
+                      </div>
+                    )}
                   </div>
                   {part.stock !== undefined && (
                     <div className={clsx(
@@ -292,6 +329,9 @@ export function KitPartsSection({
               <div className="flex-1 min-w-0">
                 <span className="text-[11px] font-semibold text-ink-2 truncate block">{pending.nombre}</span>
                 <span className="text-[10px] text-muted-2">Cantidad por kit</span>
+                <div className="font-mono text-[10.5px] text-muted-2 mt-1 tracking-[0.04em]">
+                  Código a generar: <span className="font-semibold text-ink-2">{previewCodigoPieza(nextOrden)}</span>
+                </div>
               </div>
               <div className="flex items-center shrink-0">
                 <button type="button" onClick={() => setPendingQty((v) => Math.max(1, v - 1))}
@@ -333,6 +373,9 @@ export function KitPartsSection({
               <span className="text-[10px] text-muted-2 whitespace-nowrap">/ kit</span>
             </div>
           </div>
+          <div className="font-mono text-[10.5px] text-muted-2 tracking-[0.04em]">
+            Código a generar: <span className="font-semibold text-ink-2">{previewCodigoPieza(nextOrden)}</span>
+          </div>
           <div className="flex justify-end">
             <button type="button"
               onClick={() => { if (newNombre.trim()) { addPiece(newNombre, newCantidad); setNewNombre(''); setNewCantidad(1) } }}
@@ -349,7 +392,7 @@ export function KitPartsSection({
           {pieceOps.filter(op => op.type === 'add').length > 0 && `${pieceOps.filter(op => op.type === 'add').length} pieza(s) nueva(s) · `}
           {pieceOps.filter(op => op.type === 'delete').length > 0 && `${pieceOps.filter(op => op.type === 'delete').length} a eliminar · `}
           {pieceOps.filter(op => op.type === 'update').length > 0 && `${pieceOps.filter(op => op.type === 'update').length} cantidad(es) modificada(s) · `}
-          Se aplicarán al guardar.
+          Se aplicarán al guardar · códigos autogenerados por el servidor.
         </p>
       )}
     </div>

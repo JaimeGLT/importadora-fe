@@ -28,6 +28,7 @@ const MarcasPage             = lazy(() => import('@/pages/sistema/marcas/MarcasP
 const ClientesPage           = lazy(() => import('@/pages/ventas/clientes/ClientesPage').then(m => ({ default: m.ClientesPage })))
 const EscaneoPage            = lazy(() => import('@/pages/ventas/escaneo/EscaneoPage').then(m => ({ default: m.EscaneoPage })))
 const VentasHistorialPage    = lazy(() => import('@/pages/ventas/VentasHistorialPage').then(m => ({ default: m.VentasHistorialPage })))
+const CreditosPage           = lazy(() => import('@/pages/creditos/CreditosPage').then(m => ({ default: m.CreditosPage })))
 const FacturaExtractorPage   = lazy(() => import('@/pages/importaciones/FacturaExtractorPage').then(m => ({ default: m.FacturaExtractorPage })))
 
 function RootRedirect() {
@@ -92,6 +93,7 @@ export default function App() {
               <Route path="/caja" element={<CajaDiariaPage />} />
               <Route path="/ventas/punto-de-venta" element={<CajaPage />} />
               <Route path="/ventas/clientes" element={<ClientesPage />} />
+              <Route path="/ventas/creditos" element={<CreditosPage />} />
               <Route path="/ventas/historial" element={<VentasHistorialPage />} />
             </Route>
 

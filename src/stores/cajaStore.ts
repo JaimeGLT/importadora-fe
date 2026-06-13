@@ -15,9 +15,6 @@ export interface CartItem {
   precio_base: number
   marcaId?: number | null
   producto_imagen?: string
-  descuento_id?: string
-  descuento_nombre?: string
-  descuento_porcentaje?: number
   diferencia_kit?: number
   kit_id?: string
   kit_nombre?: string
@@ -52,6 +49,14 @@ export const useCajaStore = create<CajaState>()(
         })),
       clearCart: () => set({ cart: emptyCart() }),
     }),
-    { name: 'caja-cart' }
+    {
+      name: 'caja-cart',
+      version: 2,
+      // Migración: descarta carritos con la shape v1 (tenían descuento por item)
+      migrate: (persisted, fromVersion) => {
+        if (fromVersion < 2) return { cart: { items: [], nota: '' } }
+        return persisted as CajaState
+      },
+    }
   )
 )

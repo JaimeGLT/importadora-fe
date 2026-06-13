@@ -2,29 +2,31 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout } from '@/components/layout/MainLayout'
-import { Button, Input, Modal, ConfirmModal, SelectPriceModal } from '@/components/ui'
+import { Button, Modal, ConfirmModal, SelectPriceModal } from '@/components/ui'
 import { KitSeleccionModal, type KitSeleccionResult } from '@/components/ui/KitVentaParcialModal'
 import { notify } from '@/lib/notify'
 import { useVentasStore } from '@/stores/ventasStore'
 import { useCajaStore, type Cart, type CartItem } from '@/stores/cajaStore'
 import { useSoundAlert } from '@/hooks/useSoundAlert'
-import { calcularPrecioDolarHoy, type DescuentoConfig } from '@/stores/configStore'
+import { type DescuentoConfig } from '@/stores/configStore'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
 import { PRODUCTO_BY_ID_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI, type ProductoAPISimple } from '@/lib/queries/inventario.queries'
 import { MIS_ORDENES_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
 import { CLIENTES_QUERY, backendToCliente, type ClienteAPI } from '@/lib/queries/clientes.queries'
 import {
-  DESCUENTOS_QUERY, MARGEN_GANANCIA_QUERY, CONFIG_VENTA_QUERY, TIPO_CAMBIO_QUERY,
+  DESCUENTOS_QUERY,
   backendToDescuento,
-  type DescuentoAPI, type MargenGananciaAPI, type ConfigVentaAPI, type TipoCambioAPI,
+  type DescuentoAPI,
 } from '@/lib/queries/config.queries'
 import { useVentasHub } from '@/hooks/useVentasHub'
 import { useMarcasStore } from '@/stores/marcasStore'
 import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
 import { fmtCodigo } from '@/lib/formatCodigo'
 import { getStockEfectivo, getStockEfectivoPieza } from '@/utils/stockValidator'
-import type { Producto, OrdenVenta, MetodoPago, Cliente, PagoOrden } from '@/types'
+import { CheckoutModal, type CheckoutConfirm } from '@/components/modals/CheckoutModal'
+import { VentaRapidaCreditoModal, type VentaRapidaCreditoItem } from '@/components/modals/VentaRapidaCreditoModal'
+import type { Producto, OrdenVenta, Cliente } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -275,8 +277,9 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
                       )}
                     </div>
                     <p className="text-sm font-medium text-[#4A4744] truncate">{p.nombre}</p>
-                    <div className="flex items-center gap-3 mt-1">
+                    <div className="flex items-center gap-3 mt-1 flex-wrap">
                       <span className={`text-[11px] font-semibold ${stockCls}`}>{disp} disponibles</span>
+                      <span className="text-[11px] font-mono font-bold text-[#2D2B2A]">Bs {p.precio_venta.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       {p.almacen && (
                         <span className="text-[11px] text-[#7A7571] flex items-center gap-0.5">
                           <i className="ti ti-map-pin text-[10px]" />
@@ -376,23 +379,11 @@ function CartItem({
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 min-w-0">
-              {!item.kit_id && (item.descuento_nombre ? (
-                <div className="flex items-center gap-1.5">
-                  <span className="font-mono text-sm font-bold text-[#780e18] bg-[#F4ECDB] px-2 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#B8DCCA] text-[#1E5C38]">{item.descuento_nombre} -{item.descuento_porcentaje}%</span>
-                </div>
-              ) : (
-                <>
-                  <span className="font-mono text-sm font-bold text-[#780e18] bg-[#F4ECDB] px-2 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
-                  {item.es_kit && (
-                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">
-                      KIT
-                    </span>
-                  )}
-                </>
-              ))}
-              {item.kit_id && item.descuento_nombre && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#B8DCCA] text-[#1E5C38]">{item.descuento_nombre} -{item.descuento_porcentaje}%</span>
+              <span className="font-mono text-sm font-bold text-[#780e18] bg-[#F4ECDB] px-2 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
+              {item.es_kit && (
+                <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">
+                  KIT
+                </span>
               )}
             </div>
             {!item.kit_id && (
@@ -485,7 +476,7 @@ function CartItem({
 
 // ─── CartPanel ────────────────────────────────────────────────────────────────
 
-function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChange, onEmitir, onEditPrice, onCancelarOrden, emitButtonRef }: { cart: Cart; productosCache: Record<string, Producto>; onQtyChange: (itemIdx: number, delta: number) => void; onRemoveItem: (itemIdx: number) => void; onNotaChange: (nota: string) => void; onEmitir: () => void; onEditPrice: (producto_id: string) => void; onCancelarOrden: () => void; emitButtonRef?: (el: HTMLButtonElement | null) => void }) {
+function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChange, onEmitir, onEditPrice, onCancelarOrden, onVentaRapidaCredito, emitButtonRef }: { cart: Cart; productosCache: Record<string, Producto>; onQtyChange: (itemIdx: number, delta: number) => void; onRemoveItem: (itemIdx: number) => void; onNotaChange: (nota: string) => void; onEmitir: () => void; onEditPrice: (producto_id: string) => void; onCancelarOrden: () => void; onVentaRapidaCredito: () => void; emitButtonRef?: (el: HTMLButtonElement | null) => void }) {
   const [confirmCancelar, setConfirmCancelar] = useState(false)
   const stockDisponible = (id: string) => {
     const p = productosCache[id]
@@ -544,19 +535,30 @@ function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChan
       {cart.items.length > 0 && (
         <div className="border-t border-[#D0CBC4] px-4 py-3 space-y-3 shrink-0">
           <input type="text" value={cart.nota} onChange={e => onNotaChange(e.target.value)} placeholder="Nota para almacén (opcional)" className="w-full text-xs px-3 py-2.5 bg-[#FBFBFA] border border-[#D8D4D0] rounded-xl focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 placeholder:text-[#7A7571]" maxLength={100} />
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <div>
               <p className="text-[10px] text-[#7A7571] uppercase tracking-widest">Total</p>
               <p className="text-xl font-black text-[#2D2B2A] tabular-nums">{fmtBs(total)}</p>
             </div>
-            <button
-              ref={emitButtonRef}
-              onClick={onEmitir}
-              className="px-6 h-10 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] text-sm font-bold rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-sm"
-            >
-              <i className="ti ti-arrow-right text-[16px]" />
-              Emitir orden
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={onVentaRapidaCredito}
+                className="px-3 h-10 bg-white border border-[#780e18] text-[#780e18] hover:bg-[#F4ECDB] text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all active:scale-95"
+                title="Venta rápida a crédito (sin pasar por almacén)"
+              >
+                <i className="ti ti-hand-coins text-[14px]" />
+                Crédito
+              </button>
+              <button
+                ref={emitButtonRef}
+                onClick={onEmitir}
+                className="px-4 h-10 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] text-sm font-bold rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-sm"
+              >
+                <i className="ti ti-arrow-right text-[16px]" />
+                Emitir orden
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -793,262 +795,6 @@ function CancelarOrdenModal({
 
 // ─── Cobro Modal ───────────────────────────────────────────────────────────────
 
-function CobroModal({ orden, clientes, onConfirm, onClose }: {
-  orden: OrdenVenta
-  clientes: Cliente[]
-  onConfirm: (pagos: PagoOrden[], monto_recibido: number, billing: { cliente_id?: number }) => void
-  onClose: () => void
-}) {
-  const { marcas } = useMarcasStore()
-  const itemsDespachados = orden.items.filter(i =>
-    i.estado === 'completo' || i.estado === 'parcial' ||
-    (i.estado === 'faltante' && (i.cantidad_recogida ?? 0) > 0)
-  )
-  const itemsFaltantes = orden.items.filter(i =>
-    i.estado === 'faltante' && ((i.cantidad_recogida ?? 0) === 0)
-  )
-  const totalReal = itemsDespachados.reduce((s, i) => {
-    if (i.es_parcial && i.piezas_orden?.length)
-      return s + i.piezas_orden.filter(p => p.confirmado).reduce((ps, p) => ps + (p.precio_unitario ?? 0) * p.cantidad, 0)
-    return s + i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida)
-  }, 0)
-  const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
-  const [montoStr, setMontoStr] = useState(totalReal.toFixed(2))
-  const [pagoMixto, setPagoMixto] = useState(false)
-  const [metodo2, setMetodo2] = useState<MetodoPago>('tarjeta')
-  const [monto2Str, setMonto2Str] = useState('')
-  const monto2 = parseFloat(monto2Str.replace(',', '.')) || 0
-  const monto1Mixto = totalReal - monto2
-
-  const [clienteSearch, setClienteSearch] = useState('')
-  const [clienteSelected, setClienteSelected] = useState<Cliente | null>(
-    orden.cliente_id ? clientes.find(c => c.id === Number(orden.cliente_id)) ?? null : null
-  )
-  const [showClienteDropdown, setShowClienteDropdown] = useState(false)
-
-  const monto = parseFloat(montoStr.replace(',', '.'))
-  const cambio = metodo === 'efectivo' && !isNaN(monto) ? monto - totalReal : null
-
-  const handleSelectCliente = (c: Cliente) => {
-    setClienteSelected(c)
-    setClienteSearch('')
-    setShowClienteDropdown(false)
-  }
-
-  const filteredClientes = useMemo(() => {
-    if (!clienteSearch.trim()) return []
-    const q = clienteSearch.toLowerCase()
-    return clientes.filter(c =>
-      c.apellido.toLowerCase().includes(q) ||
-      (c.nombre?.toLowerCase().includes(q) ?? false) ||
-      (c.telefono?.includes(clienteSearch) ?? false)
-    ).slice(0, 5)
-  }, [clientes, clienteSearch])
-
-  const handleConfirm = () => {
-    const m = parseFloat(montoStr.replace(',', '.'))
-    if (pagoMixto) {
-      if (monto2 <= 0 || monto2 >= totalReal) { notify.error('Monto del segundo método inválido'); return }
-      if (metodo === metodo2) { notify.error('Los dos métodos deben ser distintos'); return }
-    }
-    const pagos: PagoOrden[] = pagoMixto
-      ? [{ tipoPago: metodo, monto: monto1Mixto }, { tipoPago: metodo2, monto: monto2 }]
-      : [{ tipoPago: metodo, monto: totalReal }]
-    onConfirm(pagos, isNaN(m) ? totalReal : m, { cliente_id: clienteSelected?.id })
-  }
-
-  const METODOS: { value: MetodoPago; label: string; icon: React.ReactNode }[] = [
-    { value: 'efectivo', label: 'Efectivo', icon: (
-      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.657 0-3-.895-3-2s1.343-2 3-2 3 .895 3 2-1.343 2-3 2m0-1v-1m0 1v1m0 1v1M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
-      </svg>
-    )},
-    { value: 'tarjeta', label: 'Tarjeta', icon: (
-      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-      </svg>
-    )},
-    { value: 'qr', label: 'QR', icon: (
-      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-      </svg>
-    )},
-  ]
-
-  return (
-    <Modal open onClose={onClose} title={`Cobrar ${orden.numero}`} size="md">
-      <div className="space-y-4 pt-1">
-        <div className="space-y-1">
-          {itemsDespachados.map(i => {
-            if (i.es_parcial && i.piezas_orden?.length) {
-              return i.piezas_orden.filter(p => p.confirmado).map(p => (
-                <div key={`${i.id}-${p.id}`} className="flex justify-between text-sm gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-[11px] font-mono font-bold text-[#780e18]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)}</p>
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">KIT</span>
-                    </div>
-                    <p className="text-[11px] font-semibold text-[#2D2B2A] flex items-center gap-1.5">
-                      <span className="truncate">{p.nombre} · ×{p.cantidad}</span>
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#F5E0A8] text-[#7A5200] tracking-wider shrink-0">PIEZA</span>
-                    </p>
-                  </div>
-                  <span className="font-semibold text-[#2D2B2A] shrink-0">{fmtBs((p.precio_unitario ?? 0) * p.cantidad)}</span>
-                </div>
-              ))
-            }
-            return (
-              <div key={i.id} className="flex justify-between text-sm gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-[11px] font-mono font-bold text-[#780e18]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
-                    {i.es_kit && (
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">KIT</span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-[#7A7571] truncate">{i.producto_nombre}</p>
-                </div>
-                <span className="font-semibold text-[#2D2B2A] shrink-0">{fmtBs(i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida))}</span>
-              </div>
-            )
-          })}
-          {itemsFaltantes.map(i => (
-            <div key={i.id} className="flex justify-between text-sm gap-2 opacity-50">
-              <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-mono font-bold text-[#7A7571] line-through">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_pedida - (i.cantidad_recogida ?? 0)}</p>
-                <p className="text-[11px] text-[#7A7571] truncate">{i.producto_nombre}</p>
-              </div>
-              <span className="text-[#7A7571] shrink-0">N/A</span>
-            </div>
-          ))}
-          <div className="flex justify-between pt-2 border-t border-[#E8E5E2] mt-2">
-            <span className="text-sm font-bold text-[#4A4744]">Total</span>
-            <span className="text-lg font-black text-[#2D2B2A]">{fmtBs(totalReal)}</span>
-          </div>
-        </div>
-
-        {/* Cliente (opcional) */}
-        <div>
-          <p className="text-xs font-bold text-[#7A7571] uppercase tracking-widest mb-2">Cliente (opcional)</p>
-          {clienteSelected ? (
-            <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-[#B8DCCA]/30 border border-[#B8DCCA]">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-[#1E5C38] truncate">
-                  {clienteSelected.nombre ? `${clienteSelected.nombre} ${clienteSelected.apellido}` : clienteSelected.apellido}
-                </p>
-                {clienteSelected.telefono && (
-                  <p className="text-xs text-[#3F7A52]">{clienteSelected.telefono}</p>
-                )}
-              </div>
-              <button onClick={() => setClienteSelected(null)} className="p-1.5 text-[#3F7A52] hover:text-[#1E5C38] hover:bg-[#B8DCCA]/50 rounded-lg transition-colors shrink-0">
-                <i className="ti ti-x text-[14px]" />
-              </button>
-            </div>
-          ) : (
-            <div className="relative">
-              <input
-                type="text"
-                value={clienteSearch}
-                onChange={e => { setClienteSearch(e.target.value); setShowClienteDropdown(true) }}
-                onFocus={() => setShowClienteDropdown(true)}
-                onBlur={() => setTimeout(() => setShowClienteDropdown(false), 150)}
-                placeholder="Buscar cliente por nombre o teléfono…"
-                className="w-full text-xs px-3 py-2.5 bg-white border border-[#E8E5E2] rounded-xl focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 placeholder:text-[#7A7571]"
-              />
-              {showClienteDropdown && clienteSearch.trim() && (
-                <div className="absolute z-20 w-full mt-1 bg-white rounded-xl border border-[#E8E5E2] shadow-lg max-h-40 overflow-y-auto">
-                  {filteredClientes.length === 0 ? (
-                    <div className="px-3 py-2.5 text-xs text-[#7A7571] text-center">Sin resultados</div>
-                  ) : filteredClientes.map(c => (
-                    <button
-                      key={c.id}
-                      onClick={() => handleSelectCliente(c)}
-                      className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#FAF5EE] transition-colors text-left"
-                    >
-                      <div className="h-7 w-7 rounded-full bg-[#F4ECDB] flex items-center justify-center text-[10px] font-bold text-[#780e18] shrink-0">
-                        {c.nombre ? c.nombre.charAt(0) : c.apellido.charAt(0)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-[#2D2B2A] truncate">
-                          {c.nombre ? `${c.nombre} ${c.apellido}` : c.apellido}
-                        </p>
-                        {c.telefono && <p className="text-[10px] text-[#7A7571]">{c.telefono}</p>}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-bold text-[#7A7571] uppercase tracking-widest">Método de pago</p>
-            <button
-              onClick={() => setPagoMixto(v => !v)}
-              className={clsx('text-[11px] font-bold px-2 py-1 rounded-lg border transition-all', pagoMixto ? 'bg-[#F4ECDB] border-[#D4A333]/50 text-[#780e18]' : 'bg-[#F7F7F7] border-[#E8E5E2] text-[#7A7571] hover:border-[#D0CBC4]')}
-            >
-              {pagoMixto ? 'Pago mixto ✓' : 'Pago mixto'}
-            </button>
-          </div>
-          {!pagoMixto ? (
-            <div className="grid grid-cols-3 gap-2">
-              {METODOS.map(m => (
-                <button key={m.value} onClick={() => setMetodo(m.value)} className={clsx('py-3 rounded-xl border-2 text-sm font-bold transition-all flex flex-col items-center gap-1', metodo === m.value ? 'border-[#780e18] bg-[#F4ECDB] text-[#780e18]' : 'border-[#E8E5E2] text-[#7A7571] hover:border-[#D0CBC4]')}>
-                  {m.icon}
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="flex-1 grid grid-cols-3 gap-1">
-                  {METODOS.map(m => (
-                    <button key={m.value} onClick={() => setMetodo(m.value)} className={clsx('py-2 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center gap-0.5', metodo === m.value ? 'border-[#780e18] bg-[#F4ECDB] text-[#780e18]' : 'border-[#E8E5E2] text-[#7A7571] hover:border-[#D0CBC4]')}>
-                      {m.icon}
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="w-28 shrink-0">
-                  <p className="text-xs text-[#7A7571] mb-1">Bs {monto1Mixto > 0 ? monto1Mixto.toFixed(2) : '—'}</p>
-                  <p className="text-[10px] text-[#7A7571]">Resto automático</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 grid grid-cols-3 gap-1">
-                  {METODOS.map(m => (
-                    <button key={m.value} onClick={() => setMetodo2(m.value)} className={clsx('py-2 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center gap-0.5', metodo2 === m.value ? 'border-[#780e18] bg-[#F4ECDB] text-[#780e18]' : 'border-[#E8E5E2] text-[#7A7571] hover:border-[#D0CBC4]')}>
-                      {m.icon}
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="w-28 shrink-0">
-                  <Input type="number" step="0.50" min="0.01" max={totalReal - 0.01} value={monto2Str} onChange={e => setMonto2Str(e.target.value)} placeholder="0.00" />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-        {!pagoMixto && metodo === 'efectivo' && (
-          <div>
-            <label className="block text-xs font-bold text-[#7A7571] uppercase tracking-widest mb-1.5">Monto recibido (Bs)</label>
-            <Input type="number" min={totalReal} step="0.50" value={montoStr} onChange={e => setMontoStr(e.target.value)} autoFocus />
-            {cambio !== null && cambio >= 0 && <p className="text-sm font-bold text-[#3F7A52] mt-2">Cambio: {fmtBs(cambio)}</p>}
-          </div>
-        )}
-        <div className="flex gap-2 pt-1">
-          <Button variant="secondary" className="flex-1" onClick={onClose}>Cancelar</Button>
-          <Button className="flex-1" onClick={handleConfirm}>Confirmar pago</Button>
-        </div>
-      </div>
-    </Modal>
-  )
-}
-
 function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => void }) {
   const { marcas } = useMarcasStore()
   const isFactura = orden.tipoDocumento === 'factura'
@@ -1056,11 +802,13 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
     i.estado === 'completo' || i.estado === 'parcial' ||
     (i.estado === 'faltante' && (i.cantidad_recogida ?? 0) > 0)
   )
-  const totalReal = itemsDespachados.reduce((s, i) => {
+  const subtotal = itemsDespachados.reduce((s, i) => {
     if (i.es_parcial && i.piezas_orden?.length)
       return s + i.piezas_orden.filter(p => p.confirmado).reduce((ps, p) => ps + (p.precio_unitario ?? 0) * p.cantidad, 0)
     return s + i.precio_unitario * (i.cantidad_recogida ?? i.cantidad_pedida)
   }, 0)
+  const montoDesc = orden.monto_descuento ?? 0
+  const totalReal = Math.max(0, subtotal - montoDesc)
   const cambio = orden.monto_recibido != null ? orden.monto_recibido - totalReal : null
 
   const docLabel = isFactura ? 'FACTURA' : 'NOTA DE VENTA'
@@ -1133,7 +881,17 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
           <div className="border-t border-dashed border-black/40 my-1.5" />
 
           {/* Totales */}
-          <div className="flex justify-between font-black text-[12px]">
+          <div className="flex justify-between">
+            <span>Subtotal</span>
+            <span>{fmtBs(subtotal)}</span>
+          </div>
+          {montoDesc > 0 && orden.descuento && (
+            <div className="flex justify-between">
+              <span>Descuento {orden.descuento.nombre} ({orden.descuento.porcentaje}%)</span>
+              <span>−{fmtBs(montoDesc)}</span>
+            </div>
+          )}
+          <div className="flex justify-between font-black text-[12px] pt-0.5">
             <span>TOTAL</span>
             <span>{fmtBs(totalReal)}</span>
           </div>
@@ -1219,29 +977,12 @@ export function CajaPage() {
   const [cancelarOrden, setCancelarOrden] = useState<OrdenVenta | null>(null)
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null)
   const [kitSeleccionado, setKitSeleccionado] = useState<Producto | null>(null)
-  const [kitCompletoQty, setKitCompletoQty] = useState(1)
+  const [ventaRapidaOpen, setVentaRapidaOpen] = useState(false)
 
   const [descuentos, setDescuentos] = useState<DescuentoConfig[]>([])
-  const [modoPrecioCajero, setModoPrecioCajero] = useState('PrecioImportacion')
-  const [tipoCambioHoy, setTipoCambioHoy] = useState(0)
-  const [margenGanancia, setMargenGanancia] = useState(1.20)
-  const [tipoCambioHabilitado, setTipoCambioHabilitado] = useState(false)
 
   const misOrdenes = useMemo(() => ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada'), [ordenes])
   const canceladas = useMemo(() => ordenes.filter(o => o.estado === 'cancelada'), [ordenes])
-  const precioBaseProducto = useMemo(() => {
-    if (!productoSeleccionado) return 0
-    if (modoPrecioCajero === 'PrecioDolarDia' && tipoCambioHabilitado) {
-      const precioDolar = calcularPrecioDolarHoy(
-        productoSeleccionado.precio_costo,
-        productoSeleccionado.conversionABs ?? 0,
-        tipoCambioHoy,
-        margenGanancia
-      )
-      if (precioDolar > 0) return precioDolar
-    }
-    return productoSeleccionado.precio_venta
-  }, [productoSeleccionado, modoPrecioCajero, tipoCambioHabilitado, tipoCambioHoy, margenGanancia])
   const listosCount = misOrdenes.filter(o => o.estado === 'esperando_pago').length
   const alertedFaltantes = useRef<Set<string>>(new Set())
   const alertedListo = useRef<Set<string>>(new Set())
@@ -1257,18 +998,9 @@ export function CajaPage() {
     if (!isTokenReady) return
     Promise.all([
       gql<{ descuento: { nodes: DescuentoAPI[] } }>(DESCUENTOS_QUERY).then(r => r.descuento.nodes),
-      gql<{ margenGanancia: MargenGananciaAPI }>(MARGEN_GANANCIA_QUERY).then(r => r.margenGanancia),
-      gql<{ configVenta: ConfigVentaAPI | null }>(CONFIG_VENTA_QUERY).then(r => r.configVenta),
-      gql<{ tipoCambio: TipoCambioAPI }>(TIPO_CAMBIO_QUERY).then(r => r.tipoCambio),
       gql<{ clientes: { nodes: ClienteAPI[] } }>(CLIENTES_QUERY, { first: 200 }).then(r => r.clientes?.nodes ?? []),
-    ]).then(([desc, margen, config, tipoCambio, clientesNodes]) => {
+    ]).then(([desc, clientesNodes]) => {
       setDescuentos(desc.map(backendToDescuento))
-      if (margen) setMargenGanancia(margen.valor)
-      if (config) setModoPrecioCajero(config.modoVenta)
-      if (tipoCambio) {
-        setTipoCambioHoy(tipoCambio.precioDolar)
-        setTipoCambioHabilitado(tipoCambio.precioDolar > 0)
-      }
       setClientes(clientesNodes.map(backendToCliente))
     }).catch(() => {})
   }, [isTokenReady])
@@ -1371,10 +1103,27 @@ export function CajaPage() {
         notify.success('+1 al carrito')
         return { ...prev, items: prev.items.map((item, idx) => idx === existingIdx ? { ...item, cantidad: item.cantidad + 1 } : item) }
       }
-      setProductoSeleccionado(producto)
-      return prev
+      // Producto nuevo: agregar directamente con precio base (sin modal)
+      return { ...prev, items: [...prev.items, {
+        producto_id: producto.id,
+        producto_codigo: producto.codigo_universal,
+        marcaId: producto.marcaId ?? null,
+        producto_nombre: producto.nombre,
+        producto_descripcion: producto.descripcion || undefined,
+        producto_almacen: producto.almacen,
+        producto_estante: producto.estante,
+        producto_fila: producto.fila,
+        producto_columna: producto.columna,
+        producto_imagen: producto.imagen,
+        cantidad: 1,
+        precio_unitario: producto.precio_venta,
+        precio_base: producto.precio_venta,
+        es_kit: producto.es_kit,
+      }] }
     })
-  }, [addKitSeleccion])
+    playBeep({ frequency: 600, duration: 60 })
+    notify.success('Producto agregado')
+  }, [addKitSeleccion, playBeep])
 
   const handleDecrementProducto = useCallback((productoId: string) => {
     setCart(prev => {
@@ -1390,41 +1139,19 @@ export function CajaPage() {
     })
   }, [])
 
-  const handleSelectPrice = useCallback((precio: number, descuento_id?: string, descuento_nombre?: string, descuento_porcentaje?: number) => {
+  const handleUpdatePrice = useCallback((precio: number) => {
     if (!productoSeleccionado) return
-    const qty = productoSeleccionado.es_kit ? kitCompletoQty : 1
-    setCart(prev => {
-      const existing = prev.items.findIndex(i => i.producto_id === productoSeleccionado.id)
-      if (existing >= 0) {
-        const disp = getStockEfectivo(productoSeleccionado, prev).stockEfectivo
-        if (prev.items[existing].cantidad >= disp) { notify.error('Stock máximo alcanzado'); return prev }
-        return { ...prev, items: prev.items.map((item, idx) => idx === existing ? { ...item, cantidad: item.cantidad + 1 } : item) }
-      }
-      return { ...prev, items: [...prev.items, {
-        producto_id: productoSeleccionado.id,
-        producto_codigo: productoSeleccionado.codigo_universal,
-        marcaId: productoSeleccionado.marcaId ?? null,
-        producto_nombre: productoSeleccionado.nombre,
-        producto_descripcion: productoSeleccionado.descripcion || undefined,
-        producto_almacen: productoSeleccionado.almacen,
-        producto_estante: productoSeleccionado.estante,
-        producto_fila: productoSeleccionado.fila,
-        producto_columna: productoSeleccionado.columna,
-        producto_imagen: productoSeleccionado.imagen,
-        cantidad: qty,
-        precio_unitario: precio,
-        precio_base: productoSeleccionado.precio_venta,
-        descuento_id,
-        descuento_nombre,
-        descuento_porcentaje,
-        es_kit: productoSeleccionado.es_kit,
-      }] }
-    })
+    setCart(prev => ({
+      ...prev,
+      items: prev.items.map(item =>
+        item.producto_id === productoSeleccionado.id
+          ? { ...item, precio_unitario: precio, precio_base: productoSeleccionado.precio_venta }
+          : item
+      ),
+    }))
     setProductoSeleccionado(null)
-    setKitCompletoQty(1)
-    playBeep({ frequency: 600, duration: 60 })
-    notify.success('Producto agregado')
-  }, [productoSeleccionado, kitCompletoQty, playBeep])
+    notify.success('Precio actualizado')
+  }, [productoSeleccionado])
 
   const agregarPiezasAlCarrito = useCallback((
     piezas: { producto_id: string; nombre: string; codigo?: string; cantidad: number; precio: number }[],
@@ -1466,9 +1193,33 @@ export function CajaPage() {
     if (!kitSeleccionado) return
 
     if (result.tipo === 'kit_completo') {
-      setKitCompletoQty(result.cantidad)
-      setProductoSeleccionado(kitSeleccionado)
+      // Agregar el kit completo al carrito directamente con el precio base
+      setCart(prev => {
+        const existingIdx = prev.items.findIndex(i => i.producto_id === kitSeleccionado.id && !i.kit_id)
+        if (existingIdx >= 0) {
+          const disp = getStockEfectivo(kitSeleccionado, prev).stockEfectivo
+          if (prev.items[existingIdx].cantidad >= disp) { notify.error('Stock máximo alcanzado'); return prev }
+          return { ...prev, items: prev.items.map((item, idx) => idx === existingIdx ? { ...item, cantidad: item.cantidad + result.cantidad } : item) }
+        }
+        return { ...prev, items: [...prev.items, {
+          producto_id: kitSeleccionado.id,
+          producto_codigo: kitSeleccionado.codigo_universal,
+          marcaId: kitSeleccionado.marcaId ?? null,
+          producto_nombre: kitSeleccionado.nombre,
+          producto_almacen: kitSeleccionado.almacen,
+          producto_estante: kitSeleccionado.estante,
+          producto_fila: kitSeleccionado.fila,
+          producto_columna: kitSeleccionado.columna,
+          producto_imagen: kitSeleccionado.imagen,
+          cantidad: result.cantidad,
+          precio_unitario: kitSeleccionado.precio_venta,
+          precio_base: kitSeleccionado.precio_venta,
+          es_kit: true,
+        }] }
+      })
       setKitSeleccionado(null)
+      playBeep({ frequency: 600, duration: 60 })
+      notify.success('Kit agregado')
       return
     }
 
@@ -1480,64 +1231,37 @@ export function CajaPage() {
       return
     }
 
-    // tipo === 'ambos': agregar piezas al carrito Y abrir selección de precio para el kit
+    // tipo === 'ambos': agregar piezas al carrito Y el kit con precio base (sin modal)
     agregarPiezasAlCarrito(result.piezas, kitSeleccionado.id, kitSeleccionado.nombre, kitSeleccionado.codigo_universal, kitSeleccionado.marcaId)
-    setKitCompletoQty(result.cantidad_kit)
-    setProductoSeleccionado(kitSeleccionado)
+    setCart(prev => {
+      const existingIdx = prev.items.findIndex(i => i.producto_id === kitSeleccionado.id && !i.kit_id)
+      if (existingIdx >= 0) {
+        return { ...prev, items: prev.items.map((item, idx) => idx === existingIdx ? { ...item, cantidad: item.cantidad + result.cantidad_kit } : item) }
+      }
+      return { ...prev, items: [...prev.items, {
+        producto_id: kitSeleccionado.id,
+        producto_codigo: kitSeleccionado.codigo_universal,
+        marcaId: kitSeleccionado.marcaId ?? null,
+        producto_nombre: kitSeleccionado.nombre,
+        producto_almacen: kitSeleccionado.almacen,
+        producto_estante: kitSeleccionado.estante,
+        producto_fila: kitSeleccionado.fila,
+        producto_columna: kitSeleccionado.columna,
+        producto_imagen: kitSeleccionado.imagen,
+        cantidad: result.cantidad_kit,
+        precio_unitario: kitSeleccionado.precio_venta,
+        precio_base: kitSeleccionado.precio_venta,
+        es_kit: true,
+      }] }
+    })
     setKitSeleccionado(null)
-    notify.success(`${result.piezas.length} pieza(s) agregada(s) · seleccioná precio del kit`)
+    notify.success(`${result.piezas.length} pieza(s) y kit agregados`)
   }, [kitSeleccionado, playBeep, agregarPiezasAlCarrito])
 
   const handleEditPrice = useCallback((producto_id: string) => {
     const producto = productosCache[producto_id]
     if (producto) setProductoSeleccionado(producto)
   }, [productosCache])
-
-  const handleAddWithPrice = useCallback((precio: number, descuento_id?: string, descuento_nombre?: string, descuento_porcentaje?: number) => {
-    if (!productoSeleccionado) return
-    setCart(prev => {
-      const existingIdx = prev.items.findIndex(i => i.producto_id === productoSeleccionado.id)
-      if (existingIdx >= 0) {
-        const disp = getStockEfectivo(productoSeleccionado, prev).stockEfectivo
-        if (prev.items[existingIdx].cantidad >= disp) { notify.error('Stock máximo alcanzado'); return prev }
-        const updatedItems = prev.items.map((item, idx) => {
-          if (idx === existingIdx) {
-            return {
-              ...item,
-              precio_unitario: precio,
-              precio_base: productoSeleccionado.precio_venta,
-              cantidad: item.cantidad + 1,
-              descuento_id,
-              descuento_nombre,
-              descuento_porcentaje,
-            }
-          }
-          return item
-        })
-        return { ...prev, items: updatedItems }
-      }
-      return { ...prev, items: [...prev.items, {
-        producto_id: productoSeleccionado.id,
-        producto_codigo: productoSeleccionado.codigo_universal,
-        marcaId: productoSeleccionado.marcaId ?? null,
-        producto_nombre: productoSeleccionado.nombre,
-        producto_almacen: productoSeleccionado.almacen,
-        producto_estante: productoSeleccionado.estante,
-        producto_fila: productoSeleccionado.fila,
-        producto_columna: productoSeleccionado.columna,
-        producto_imagen: productoSeleccionado.imagen,
-        cantidad: 1,
-        precio_unitario: precio,
-        precio_base: productoSeleccionado.precio_venta,
-        descuento_id,
-        descuento_nombre,
-        descuento_porcentaje,
-      }] }
-    })
-    setProductoSeleccionado(null)
-    playBeep({ frequency: 600, duration: 60 })
-    notify.success('Precio actualizado')
-  }, [productoSeleccionado, playBeep])
 
   const handleQtyChange = (itemIdx: number, delta: number) => {
     setCart(prev => {
@@ -1638,8 +1362,6 @@ export function CajaPage() {
         cantidad: i.cantidad,
         esParcial: false,
         precioUnitario: i.precio_unitario,
-        id_Descuento: null,
-        montoDescuento: 0,
         piezas: [],
       })),
       ...Object.entries(kitGroups).map(([kitId, pieces]) => ({
@@ -1647,8 +1369,6 @@ export function CajaPage() {
         cantidad: 1,
         esParcial: true,
         precioUnitario: pieces.reduce((s, p) => s + p.precio_unitario * p.cantidad, 0),
-        id_Descuento: null,
-        montoDescuento: 0,
         piezas: pieces.map(p => ({ id_Pieza: Number(p.producto_id), cantidad: p.cantidad, PrecioUnitario: p.precio_unitario })),
       })),
     ]
@@ -1695,31 +1415,86 @@ export function CajaPage() {
     setParcialOrden(null)
   }
 
-  const handleConfirmarPago = async (pagos: PagoOrden[], monto_recibido: number, billing: { cliente_id?: number }) => {
+  const handleVentaRapidaCredito = async (data: { id_Cliente: number; items: VentaRapidaCreditoItem[]; nota: string | null }) => {
+    const total = data.items.reduce((s, i) => s + i.precioUnitario * i.cantidad, 0)
+    try {
+      await api.post('/Credito', {
+        Id_Cliente: data.id_Cliente,
+        Id_OrdenVenta: null,
+        EsVentaRapida: true,
+        Total: total,
+        Nota: data.nota,
+        Items: data.items,
+      })
+      clearCart()
+      setVentaRapidaOpen(false)
+      playBeep({ frequency: 800, duration: 80 })
+      notify.success('Crédito creado', { description: `Venta rápida registrada por ${fmtBs(total)}` })
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al crear el crédito')
+      throw err
+    }
+  }
+
+  const handleConfirmarPago = async (data: CheckoutConfirm) => {
     if (!cobroOrden) return
+    const { pagos, monto_recibido, billing, descuento, esCredito } = data
     const PAGO_MAP: Record<string, string> = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', qr: 'QR' }
     const capitalizePago = (m: string) => PAGO_MAP[m] ?? m
+
+    if (esCredito && !billing.cliente_id) {
+      notify.error('Para venta a crédito es obligatorio seleccionar un cliente.')
+      return
+    }
+
     try {
       await api.post(`/OrdenVenta/${cobroOrden.id}/Completar`, {
         Pagos: pagos.map(p => ({ TipoPago: capitalizePago(p.tipoPago), Monto: p.monto })),
+        Id_Descuento: descuento.id ?? null,
+        MontoDescuento: descuento.monto,
+        EsCredito: esCredito,
+        Id_Cliente: billing.cliente_id ?? null,
+        Nota: null,
       })
     } catch (err) {
       notify.error(err instanceof Error ? err.message : 'Error al registrar el pago')
       return
     }
     const now = new Date().toISOString()
-    const metodoPrimario = pagos[0].tipoPago
-    const ordenCompletada = { ...cobroOrden, estado: 'completada' as const, metodo_pago: metodoPrimario, monto_recibido, pagado_en: now }
+    const metodoPrimario = pagos[0]?.tipoPago ?? (esCredito ? 'credito' : 'efectivo')
+    const ordenCompletada = {
+      ...cobroOrden,
+      estado: 'completada' as const,
+      metodo_pago: metodoPrimario,
+      monto_recibido,
+      pagado_en: now,
+      monto_descuento: descuento.monto,
+      descuento: descuento.id
+        ? {
+            id: String(descuento.id),
+            nombre: descuento.nombre ?? '',
+            porcentaje: descuento.porcentaje ?? 0,
+            color: 'emerald',
+            activo: true,
+          }
+        : undefined,
+    }
     updateOrden(cobroOrden.id, {
       estado: 'completada',
       metodo_pago: metodoPrimario,
       monto_recibido,
       pagado_en: now,
       cliente_id: billing.cliente_id != null ? String(billing.cliente_id) : undefined,
+      monto_descuento: descuento.monto,
+      descuento: ordenCompletada.descuento,
     })
     setCobroOrden(null)
     setFacturaOrden(ordenCompletada)
-    notify.success('Venta cobrada', { description: `${cobroOrden.numero} — ${pagos.length > 1 ? 'pago mixto' : metodoPrimario}` })
+    if (esCredito) {
+      notify.success('Crédito registrado', { description: `${cobroOrden.numero} — pendiente de pago` })
+    } else {
+      notify.success('Venta cobrada', { description: `${cobroOrden.numero} — ${pagos.length > 1 ? 'pago mixto' : metodoPrimario}` })
+    }
   }
 
   return (
@@ -1775,6 +1550,7 @@ export function CajaPage() {
                 onEmitir={handleEmitir}
                 onEditPrice={handleEditPrice}
                 onCancelarOrden={clearCart}
+                onVentaRapidaCredito={() => setVentaRapidaOpen(true)}
                 emitButtonRef={(el) => { (emitButtonRef as React.MutableRefObject<HTMLButtonElement | null>).current = el }}
               />
             </div>
@@ -1803,17 +1579,24 @@ export function CajaPage() {
       {parcialOrden && (
         <PickingParcialModal orden={parcialOrden} onPartial={handleEntregarParcial} onCancelar={() => { setCancelarOrden(parcialOrden); setParcialOrden(null) }} onClose={() => setParcialOrden(null)} />
       )}
-      {cobroOrden && <CobroModal orden={cobroOrden} clientes={clientes} onConfirm={handleConfirmarPago} onClose={() => setCobroOrden(null)} />}
+      {cobroOrden && (
+        <CheckoutModal
+          open
+          orden={cobroOrden}
+          clientes={clientes}
+          descuentos={descuentos}
+          onConfirm={handleConfirmarPago}
+          onClose={() => setCobroOrden(null)}
+        />
+      )}
       {facturaOrden && <FacturaModal orden={facturaOrden} onClose={() => setFacturaOrden(null)} />}
       {cancelarOrden && <CancelarOrdenModal orden={cancelarOrden} onConfirm={handleConfirmarCancelar} onClose={() => setCancelarOrden(null)} />}
       {productoSeleccionado && (
         <SelectPriceModal
           producto={productoSeleccionado}
-          precioBase={precioBaseProducto}
-          descuentos={descuentos}
-          onSelect={handleSelectPrice}
-          onAddAnother={handleAddWithPrice}
-          isEdit={cart.items.some(i => i.producto_id === productoSeleccionado.id)}
+          precioBase={productoSeleccionado.precio_venta}
+          onSelect={handleUpdatePrice}
+          isEdit
           onClose={() => setProductoSeleccionado(null)}
         />
       )}
@@ -1833,6 +1616,15 @@ export function CajaPage() {
           />
         )
       })()}
+      {ventaRapidaOpen && (
+        <VentaRapidaCreditoModal
+          open={ventaRapidaOpen}
+          cart={cart}
+          clientes={clientes}
+          onConfirm={handleVentaRapidaCredito}
+          onClose={() => setVentaRapidaOpen(false)}
+        />
+      )}
     </MainLayout>
   )
 }

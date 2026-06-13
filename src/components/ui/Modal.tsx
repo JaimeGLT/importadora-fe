@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect } from 'react'
+import { type ReactNode, useEffect, useRef } from 'react'
 import { clsx } from 'clsx'
 import { Button } from './Button'
 
@@ -22,12 +22,30 @@ const sizeCls = {
 }
 
 export function Modal({ open, onClose, title, children, size = 'md', footer, hideCloseButton, disableBackdropClose }: ModalProps) {
+  const bodyRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
+
+  // Garantiza que el modal abra con scroll al tope. Sin esto, el browser puede
+  // preservar el scrollTop del contenedor entre mount/unmount y el usuario
+  // ve el contenido a mitad de scroll en vez del primer hijo (ej. el toggle
+  // Contado/Crédito en el CheckoutModal).
+  useEffect(() => {
+    if (!open) return
+    // Doble rAF: esperar a que el browser termine de aplicar autoFocus/scroll
+    // restoration, y solo después forzar scrollTop=0.
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (bodyRef.current) bodyRef.current.scrollTop = 0
+      })
+    })
+    return () => cancelAnimationFrame(id)
+  }, [open])
 
   if (!open) return null
 
@@ -57,7 +75,7 @@ export function Modal({ open, onClose, title, children, size = 'md', footer, hid
             </button>
           )}
         </div>
-        <div className="overflow-y-auto p-4 sm:p-6 flex-1">{children}</div>
+        <div ref={bodyRef} className="overflow-y-auto p-4 sm:p-6 flex-1">{children}</div>
         {footer && (
           <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-steel-100 flex flex-wrap justify-end gap-2">
             {footer}
