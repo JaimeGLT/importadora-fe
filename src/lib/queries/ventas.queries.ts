@@ -55,6 +55,7 @@ export interface OrdenVentaAPI {
   id_Descuento: number | null
   montoDescuento: number
   descuento: { id: number; nombre: string; cantDescuento: number; color: string; activo: boolean } | null
+  modalidad?: string
   numero?: string
   cajero: { id: string; nombre: string; apellido: string } | null
   almacenero: { id: string; nombre: string; apellido: string } | null
@@ -575,7 +576,7 @@ export interface DashboardOrdenItemAPI {
   id_Producto: number
   cantidad: number
   precioUnitario: number
-  producto: { id: number; codigo: string; nombre: string } | null
+  producto: { id: number; codigo: string; nombre: string; marca: { id: number } | null } | null
 }
 
 export interface DashboardOrdenAPI {
@@ -597,7 +598,7 @@ export interface DashboardOrden {
   cajeroNombre: string
   total: number
   montoDescuento: number
-  items: { productoId: string; productoNombre: string; productoCodigo: string; cantidad: number; precioUnitario: number }[]
+  items: { productoId: string; productoNombre: string; productoCodigo: string; productoMarcaId?: number | null; cantidad: number; precioUnitario: number }[]
 }
 
 export const DASHBOARD_ORDENES_QUERY = `
@@ -614,7 +615,7 @@ export const DASHBOARD_ORDENES_QUERY = `
           id_Producto
           cantidad
           precioUnitario
-          producto { id codigo nombre }
+          producto { id codigo nombre marca { id } }
         }
       }
     }
@@ -624,11 +625,12 @@ export const DASHBOARD_ORDENES_QUERY = `
 export function backendOrdenToDashboard(api: DashboardOrdenAPI): DashboardOrden {
   const estado = ESTADO_ORDEN_MAP[api.estado?.toLowerCase()] ?? 'pendiente_almacenero'
   const items = (api.items ?? []).map(i => ({
-    productoId:      String(i.id_Producto),
-    productoNombre:  i.producto?.nombre  ?? '',
-    productoCodigo:  i.producto?.codigo  ?? '',
-    cantidad:        i.cantidad,
-    precioUnitario:  i.precioUnitario,
+    productoId:       String(i.id_Producto),
+    productoNombre:   i.producto?.nombre  ?? '',
+    productoCodigo:   i.producto?.codigo  ?? '',
+    productoMarcaId:  i.producto?.marca?.id ?? null,
+    cantidad:         i.cantidad,
+    precioUnitario:   i.precioUnitario,
   }))
   const total = items.reduce((s, i) => s + i.precioUnitario * i.cantidad, 0) - (api.montoDescuento ?? 0)
   return {
@@ -691,5 +693,9 @@ export function backendToOrdenVenta(api: OrdenVentaAPI): OrdenVenta {
     monto_descuento: descuentoMonto,
     creado_en: api.fecha,
     actualizado_en: api.fecha,
+    modalidad:
+      api.modalidad === 'RapidaContado' ? 'rapida_contado'
+      : api.modalidad === 'RapidaCredito' ? 'rapida_credito'
+      : 'normal',
   }
 }

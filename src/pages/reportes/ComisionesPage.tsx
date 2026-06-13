@@ -28,8 +28,8 @@ export function ComisionesPage() {
     if (!isTokenReady) return
     setLoading(true)
     gql<{ resumenComisionesCajeros: ResumenComisionAPI[] }>(COMISIONES_QUERY, {
-      desde: `${desde}T00:00:00`,
-      hasta: `${hasta}T23:59:59`,
+      desde: `${desde}T00:00:00-04:00`,
+      hasta: `${hasta}T23:59:59-04:00`,
     })
       .then(res => setData(res.resumenComisionesCajeros ?? []))
       .catch(() => setData([]))

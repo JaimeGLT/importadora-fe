@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import type { Usuario } from '@/types'
-import { apiInternal, setAuthCallbacks, clearAuthCallbacks } from '@/lib/api'
+import { api, apiInternal, setAuthCallbacks, clearAuthCallbacks } from '@/lib/api'
 import { initGqlCallbacks, clearGqlCallbacks } from '@/lib/graphql'
+import { USUARIOS_ENDPOINTS } from '@/lib/queries/usuarios.queries'
 
 interface AuthContextValue {
   user: Usuario | null
@@ -10,6 +11,7 @@ interface AuthContextValue {
   refreshSession: () => Promise<boolean>
   login: (email: string, password: string) => Promise<Usuario>
   logout: () => Promise<void>
+  updateMiPerfil: (datos: { nombre: string; apellido: string; correo: string }) => Promise<void>
 }
 
 interface ApiUserResponse {
@@ -20,6 +22,14 @@ interface ApiUserResponse {
   correo?: string
   rol?: string
   role?: string
+}
+
+interface MiPerfilResponse {
+  id: string
+  nombre: string
+  apellido: string
+  correo: string
+  rol: string
 }
 
 function mapToUser(data: ApiUserResponse): Usuario | null {
@@ -102,8 +112,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }
 
+  const updateMiPerfil = async (datos: { nombre: string; apellido: string; correo: string }): Promise<void> => {
+    await api.put<MiPerfilResponse>(USUARIOS_ENDPOINTS.updateMiPerfil, {
+      Nombre: datos.nombre,
+      Apellido: datos.apellido,
+      Correo: datos.correo,
+    })
+    // Refrescar sesión para que el user global refleje los cambios
+    await refreshSession()
+  }
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isTokenReady, refreshSession, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isTokenReady, refreshSession, login, logout, updateMiPerfil }}>
       {children}
     </AuthContext.Provider>
   )

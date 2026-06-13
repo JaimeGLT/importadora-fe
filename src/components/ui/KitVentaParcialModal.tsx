@@ -9,6 +9,8 @@ import { getStockEfectivo, getStockEfectivoPieza } from '@/utils/stockValidator'
 interface PiezaSeleccionada {
   producto_id: string
   nombre: string
+  /** Código técnico de la pieza (formato P{N}-{Prefijo}-{CodigoKit}). */
+  codigo: string
   stock: number
   cantidad: number
   cantidad_por_kit: number
@@ -50,6 +52,7 @@ export function KitSeleccionModal({ open, onClose, kit, onConfirm, preciosInicia
         return {
           producto_id: String(p.id),
           nombre: p.nombre,
+          codigo: p.codigo_pieza,
           stock: Math.max(0, p.stock_actual - p.stock_reservado),
           cantidad: cartItem?.cantidad ?? p.cantidad_por_kit,
           cantidad_por_kit: p.cantidad_por_kit,
@@ -75,7 +78,7 @@ export function KitSeleccionModal({ open, onClose, kit, onConfirm, preciosInicia
       return {
         producto_id: String(p.id),
         nombre: p.nombre,
-        codigo_pieza: p.codigo_pieza,
+        codigo: p.codigo_pieza,
         stock: info.stockEfectivo,
         cantidad_por_kit: p.cantidad_por_kit,
         precio: 0,
@@ -341,9 +344,9 @@ export function KitSeleccionModal({ open, onClose, kit, onConfirm, preciosInicia
 
                         <div className="flex-1 min-w-0">
                           <p className="text-[13px] font-semibold text-[#2D2B2A] truncate">{pieza.nombre}</p>
-                          {pieza.codigo_pieza && (
+                          {pieza.codigo && (
                             <p className="font-mono text-[10px] text-[#7A7571] tracking-[0.04em] mt-0.5">
-                              {pieza.codigo_pieza}
+                              {pieza.codigo}
                             </p>
                           )}
                           <p className="text-[10px] font-mono text-[#7A7571] mt-0.5">

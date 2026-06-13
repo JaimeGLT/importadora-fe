@@ -185,18 +185,33 @@ export function CreditoDetailModal({ open, creditoId, onRegistrarAbono, onClose 
               </p>
               <div className="rounded-xl border border-[#E8E5E2] overflow-hidden divide-y divide-[#E8E5E2] max-h-44 overflow-y-auto">
                 {credito.items.map((it) => (
-                  <div key={it.id} className="flex items-center justify-between px-3 py-2.5">
-                    <div className="min-w-0">
-                      {it.producto_codigo && (
-                        <span className="font-mono text-[10px] font-bold text-[#780e18] bg-[#F4ECDB] px-1.5 py-0.5 rounded">
-                          {fmtCodigo(it.producto_codigo, null, marcas)}
+                  <div key={it.id} className="px-3 py-2.5">
+                    {it.id_pieza && it.producto_codigo && (
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <i className="ti ti-stack text-[10px] text-[#D4A333]" />
+                        <span className="font-mono text-[10px] font-bold text-[#7A5200] bg-[#F5E0A8] px-1.5 py-0.5 rounded">
+                          {fmtCodigo(it.producto_codigo, it.producto_marcaId ?? null, marcas)}
                         </span>
-                      )}
-                      <p className="text-xs text-[#4A4744] truncate mt-0.5">{it.producto_nombre ?? '—'}</p>
-                    </div>
-                    <div className="text-right shrink-0 ml-2">
-                      <p className="text-[11px] text-[#7A7571]">×{it.cantidad} · {fmtBs(it.precioUnitario)}</p>
-                      <p className="text-xs font-semibold text-[#2D2B2A]">{fmtBs(it.subtotal)}</p>
+                        {it.producto_nombre && (
+                          <span className="text-[10px] text-[#7A5200] truncate">{it.producto_nombre}</span>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0">
+                        <span className="font-mono text-[10px] font-bold text-[#780e18] bg-[#F4ECDB] px-1.5 py-0.5 rounded">
+                          {it.id_pieza && it.pieza_codigo
+                            ? it.pieza_codigo
+                            : fmtCodigo(it.producto_codigo ?? '', it.producto_marcaId ?? null, marcas)}
+                        </span>
+                        <p className="text-xs text-[#4A4744] truncate mt-0.5">
+                          {it.id_pieza ? (it.pieza_nombre ?? '—') : (it.producto_nombre ?? '—')}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0 ml-2">
+                        <p className="text-[11px] text-[#7A7571]">×{it.cantidad} · {fmtBs(it.precioUnitario)}</p>
+                        <p className="text-xs font-semibold text-[#2D2B2A]">{fmtBs(it.subtotal)}</p>
+                      </div>
                     </div>
                   </div>
                 ))}

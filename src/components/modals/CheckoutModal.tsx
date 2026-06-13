@@ -5,6 +5,7 @@ import { useMarcasStore } from '@/stores/marcasStore'
 import type { DescuentoConfig } from '@/stores/configStore'
 import { fmtCodigo } from '@/lib/formatCodigo'
 import { notify } from '@/lib/notify'
+import { getDescuentoColor } from '@/utils/descuentoColors'
 import type { OrdenVenta, MetodoPago, Cliente, PagoOrden } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -29,14 +30,6 @@ const METODOS: { value: MetodoPago; label: string; icon: React.ReactNode }[] = [
     </svg>
   )},
 ]
-
-const COLOR_BG: Record<string, string> = {
-  emerald: 'bg-emerald-50 border-emerald-200 text-emerald-700',
-  amber:   'bg-amber-50 border-amber-200 text-amber-700',
-  blue:    'bg-blue-50 border-blue-200 text-blue-700',
-  rose:    'bg-rose-50 border-rose-200 text-rose-700',
-  violet:  'bg-violet-50 border-violet-200 text-violet-700',
-}
 
 // ─── CheckoutModal ────────────────────────────────────────────────────────────
 
@@ -167,7 +160,7 @@ export function CheckoutModal({
   const totalFaltantes = itemsFaltantes.length
 
   return (
-    <Modal open={open} onClose={onClose} title={`Cobrar ${orden.numero}`} size="md">
+    <Modal open={open} onClose={onClose} title={`Cobrar ${orden.numero}`} size="lg">
       <div className="space-y-4 pt-1">
         {/* ── Modo de pago: Contado / Crédito ─────────────────────────── */}
         <div className="grid grid-cols-2 gap-2 rounded-xl bg-[#F5F0EB] p-1">
@@ -198,17 +191,12 @@ export function CheckoutModal({
             Crédito
           </button>
         </div>
-        {esCredito && (
-          <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[#F4ECDB] border border-[#D4A333]/30">
-            <i className="ti ti-info-circle text-[#7A5200] text-[14px] mt-0.5 shrink-0" />
-            <p className="text-[11px] text-[#7A5200] leading-snug">
-              A crédito: el stock se descuenta y el efectivo entra a caja recién cuando el cliente abone.
-              El cliente es obligatorio.
-            </p>
-          </div>
-        )}
         {/* ── Resumen de la orden ───────────────────────────────────────── */}
-        <div className="space-y-1">
+        <div className="rounded-xl bg-[#FBFBFA] border border-[#E8E5E2] px-3 py-2.5 space-y-1.5">
+          <p className="text-[10px] font-black text-[#7A7571] uppercase tracking-widest flex items-center gap-1.5">
+            <i className="ti ti-receipt text-[12px]" />
+            Resumen de la orden
+          </p>
           {itemsDespachados.map(i => {
             if (i.es_parcial && i.piezas_orden?.length) {
               return i.piezas_orden.filter(p => p.confirmado).map(p => (
@@ -261,7 +249,7 @@ export function CheckoutModal({
           {/* Descuento aplicado en vivo */}
           {descuentoSel && (
             <div className="flex justify-between items-center text-sm">
-              <span className={clsx('inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full border', COLOR_BG[descuentoSel.color] ?? 'bg-emerald-50 border-emerald-200 text-emerald-700')}>
+              <span className={clsx('inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full border', getDescuentoColor(descuentoSel.color, 'badge'))}>
                 <i className="ti ti-discount-2 text-[12px]" />
                 {descuentoSel.nombre} · {descuentoSel.porcentaje}%
               </span>
@@ -269,32 +257,54 @@ export function CheckoutModal({
             </div>
           )}
 
-          <div className="flex justify-between pt-1">
-            <span className="text-sm font-black text-[#2D2B2A]">Total a cobrar</span>
-            <span className="text-lg font-black text-[#2D2B2A]">{fmtBs(total)}</span>
+          <div className="flex items-center justify-between mt-2 pt-3 border-t-2 border-[#780e18]/15">
+            <span className="text-xs font-black text-[#780e18] uppercase tracking-widest">Total a cobrar</span>
+            <span className="text-2xl font-black text-[#780e18] tabular-nums">{fmtBs(total)}</span>
           </div>
         </div>
 
-        {/* ── Descuento (dropdown) ──────────────────────────────────────── */}
+        {/* ── Descuento (cards grid) ──────────────────────────────────────── */}
         <div>
-          <p className="text-xs font-bold text-[#7A7571] uppercase tracking-widest mb-2">Descuento</p>
-          <div className="relative">
-            <select
-              value={descuentoId}
-              onChange={e => setDescuentoId(e.target.value)}
-              className="w-full text-sm px-3 py-2.5 bg-white border border-[#E8E5E2] rounded-xl focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 appearance-none pr-9"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%237A7571'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z' clip-rule='evenodd' /%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 0.5rem center',
-                backgroundSize: '1.25rem',
-              }}
+          <p className="text-xs font-bold text-[#7A7571] uppercase tracking-widest mb-2 flex items-center gap-1.5">
+            <i className="ti ti-discount-2 text-[13px]" />
+            Descuento
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {/* Sin descuento (primera opción) */}
+            <button
+              type="button"
+              onClick={() => setDescuentoId('')}
+              className={clsx(
+                'py-2.5 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center gap-0.5',
+                !descuentoSel
+                  ? 'border-[#780e18] bg-[#F4ECDB] text-[#780e18]'
+                  : 'border-[#E8E5E2] text-[#7A7571] hover:border-[#D0CBC4] hover:bg-[#FAF5EE]'
+              )}
             >
-              <option value="">Sin descuento</option>
-              {descuentosActivos.map(d => (
-                <option key={d.id} value={d.id}>{d.nombre} · {d.porcentaje}%</option>
-              ))}
-            </select>
+              <i className="ti ti-x text-[18px]" />
+              <span>Sin descuento</span>
+            </button>
+            {descuentosActivos.map(d => (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => setDescuentoId(d.id)}
+                className={clsx(
+                  'py-2.5 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center gap-0.5 min-w-0',
+                  descuentoId === d.id
+                    ? getDescuentoColor(d.color, 'selected')
+                    : clsx(
+                        getDescuentoColor(d.color, 'border'),
+                        'text-[#7A7571] hover:bg-[#FAF5EE]'
+                      )
+                )}
+                title={`${d.nombre} · ${d.porcentaje}%`}
+              >
+                <i className={clsx('ti ti-discount-2 text-[18px]', getDescuentoColor(d.color, 'icon'))} />
+                <span className="truncate max-w-full">{d.nombre}</span>
+                <span className="text-[10px] font-black opacity-80">−{d.porcentaje}%</span>
+              </button>
+            ))}
           </div>
           {descuentosActivos.length === 0 && (
             <p className="text-[10px] text-[#7A7571] mt-1 italic">No hay descuentos activos configurados.</p>

@@ -24,8 +24,10 @@ import { useMarcasStore } from '@/stores/marcasStore'
 import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
 import { fmtCodigo } from '@/lib/formatCodigo'
 import { getStockEfectivo, getStockEfectivoPieza } from '@/utils/stockValidator'
+import { capitalizeTipoPago } from '@/utils/tipoPago'
 import { CheckoutModal, type CheckoutConfirm } from '@/components/modals/CheckoutModal'
 import { VentaRapidaCreditoModal, type VentaRapidaCreditoItem } from '@/components/modals/VentaRapidaCreditoModal'
+import { VentaRapidaContadoModal, type VentaRapidaContadoConfirm } from '@/components/modals/VentaRapidaContadoModal'
 import type { Producto, OrdenVenta, Cliente } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -204,7 +206,7 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value.replace(/'/g, '-'))}
-            placeholder="Buscar por código, nombre o marca..."
+            placeholder="Buscar por código, nombre, marca o código de pieza (P1-...)..."
             className="w-full pl-9 pr-4 py-2.5 text-sm bg-[#FBFBFA] border border-[#D8D4D0] rounded-xl focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 placeholder:text-[#7A7571]"
           />
           {query && (
@@ -379,7 +381,7 @@ function CartItem({
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className="font-mono text-sm font-bold text-[#780e18] bg-[#F4ECDB] px-2 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
+              <span className="font-mono text-[11px] font-bold text-[#780e18] bg-[#F4ECDB] px-1.5 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
               {item.es_kit && (
                 <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">
                   KIT
@@ -476,7 +478,7 @@ function CartItem({
 
 // ─── CartPanel ────────────────────────────────────────────────────────────────
 
-function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChange, onEmitir, onEditPrice, onCancelarOrden, onVentaRapidaCredito, emitButtonRef }: { cart: Cart; productosCache: Record<string, Producto>; onQtyChange: (itemIdx: number, delta: number) => void; onRemoveItem: (itemIdx: number) => void; onNotaChange: (nota: string) => void; onEmitir: () => void; onEditPrice: (producto_id: string) => void; onCancelarOrden: () => void; onVentaRapidaCredito: () => void; emitButtonRef?: (el: HTMLButtonElement | null) => void }) {
+function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChange, onEmitir, onEditPrice, onCancelarOrden, onVentaRapidaCredito, onVentaRapidaContado, emitButtonRef }: { cart: Cart; productosCache: Record<string, Producto>; onQtyChange: (itemIdx: number, delta: number) => void; onRemoveItem: (itemIdx: number) => void; onNotaChange: (nota: string) => void; onEmitir: () => void; onEditPrice: (producto_id: string) => void; onCancelarOrden: () => void; onVentaRapidaCredito: () => void; onVentaRapidaContado: () => void; emitButtonRef?: (el: HTMLButtonElement | null) => void }) {
   const [confirmCancelar, setConfirmCancelar] = useState(false)
   const stockDisponible = (id: string) => {
     const p = productosCache[id]
@@ -540,25 +542,34 @@ function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChan
               <p className="text-[10px] text-[#7A7571] uppercase tracking-widest">Total</p>
               <p className="text-xl font-black text-[#2D2B2A] tabular-nums">{fmtBs(total)}</p>
             </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={onVentaRapidaCredito}
-                className="px-3 h-10 bg-white border border-[#780e18] text-[#780e18] hover:bg-[#F4ECDB] text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all active:scale-95"
-                title="Venta rápida a crédito (sin pasar por almacén)"
-              >
-                <i className="ti ti-hand-coins text-[14px]" />
-                Crédito
-              </button>
-              <button
-                ref={emitButtonRef}
-                onClick={onEmitir}
-                className="px-4 h-10 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] text-sm font-bold rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-sm"
-              >
-                <i className="ti ti-arrow-right text-[16px]" />
-                Emitir orden
-              </button>
-            </div>
+            <button
+              ref={emitButtonRef}
+              onClick={onEmitir}
+              className="px-4 h-10 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] text-sm font-bold rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-sm"
+            >
+              <i className="ti ti-arrow-right text-[16px]" />
+              Emitir orden
+            </button>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onVentaRapidaContado}
+              className="flex-1 h-10 bg-white border border-[#1E5C38] text-[#1E5C38] hover:bg-[#E8F3ED] text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all active:scale-95"
+              title="Venta rápida al contado (sin pasar por almacén)"
+            >
+              <i className="ti ti-cash text-[14px]" />
+              Venta rápida
+            </button>
+            <button
+              type="button"
+              onClick={onVentaRapidaCredito}
+              className="flex-1 h-10 bg-white border border-[#780e18] text-[#780e18] hover:bg-[#F4ECDB] text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all active:scale-95"
+              title="Venta rápida a crédito (sin pasar por almacén)"
+            >
+              <i className="ti ti-hand-coins text-[14px]" />
+              Crédito rápido
+            </button>
           </div>
         </div>
       )}
@@ -978,6 +989,7 @@ export function CajaPage() {
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null)
   const [kitSeleccionado, setKitSeleccionado] = useState<Producto | null>(null)
   const [ventaRapidaOpen, setVentaRapidaOpen] = useState(false)
+  const [ventaRapidaContadoOpen, setVentaRapidaContadoOpen] = useState(false)
 
   const [descuentos, setDescuentos] = useState<DescuentoConfig[]>([])
 
@@ -1415,14 +1427,19 @@ export function CajaPage() {
     setParcialOrden(null)
   }
 
-  const handleVentaRapidaCredito = async (data: { id_Cliente: number; items: VentaRapidaCreditoItem[]; nota: string | null }) => {
-    const total = data.items.reduce((s, i) => s + i.precioUnitario * i.cantidad, 0)
+  const handleVentaRapidaCredito = async (data: { id_Cliente: number; items: VentaRapidaCreditoItem[]; descuento: { id?: string; monto: number } | null; nota: string | null }) => {
+    // El subtotal sin descuento (el backend descuenta el monto que mandemos)
+    const subtotal = data.items.reduce((s, i) => s + i.precioUnitario * i.cantidad, 0)
+    const montoDescuento = data.descuento?.monto ?? 0
+    const total = Math.max(0, subtotal - montoDescuento)
     try {
       await api.post('/Credito', {
         Id_Cliente: data.id_Cliente,
         Id_OrdenVenta: null,
         EsVentaRapida: true,
-        Total: total,
+        Total: subtotal,
+        Id_Descuento: data.descuento?.id ? Number(data.descuento.id) : null,
+        MontoDescuento: montoDescuento,
         Nota: data.nota,
         Items: data.items,
       })
@@ -1436,11 +1453,36 @@ export function CajaPage() {
     }
   }
 
+  const handleVentaRapidaContado = async (data: VentaRapidaContadoConfirm) => {
+    setVentaRapidaContadoOpen(false)
+    try {
+      const res = await api.post<{ message: string; ordenId: number; total: number }>(
+        '/OrdenVenta/Rapida',
+        {
+          id_Cliente: data.id_Cliente,
+          nota: data.nota,
+          id_Descuento: data.descuento?.id,
+          montoDescuento: data.descuento?.monto ?? 0,
+          items: data.items,
+          pagos: data.pagos.map(p => ({ TipoPago: capitalizeTipoPago(p.tipoPago), Monto: p.monto })),
+        },
+      )
+      clearCart()
+      playBeep({ frequency: 800, duration: 80 })
+      notify.success('Venta rápida al contado registrada', {
+        description: `Cobrado: ${fmtBs(res.total)}`,
+      })
+      // Refresca la lista de órdenes del cajero para que el historial la vea
+      await loadOrdenes()
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al registrar la venta rápida')
+      throw err
+    }
+  }
+
   const handleConfirmarPago = async (data: CheckoutConfirm) => {
     if (!cobroOrden) return
     const { pagos, monto_recibido, billing, descuento, esCredito } = data
-    const PAGO_MAP: Record<string, string> = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', qr: 'QR' }
-    const capitalizePago = (m: string) => PAGO_MAP[m] ?? m
 
     if (esCredito && !billing.cliente_id) {
       notify.error('Para venta a crédito es obligatorio seleccionar un cliente.')
@@ -1449,7 +1491,7 @@ export function CajaPage() {
 
     try {
       await api.post(`/OrdenVenta/${cobroOrden.id}/Completar`, {
-        Pagos: pagos.map(p => ({ TipoPago: capitalizePago(p.tipoPago), Monto: p.monto })),
+        Pagos: pagos.map(p => ({ TipoPago: capitalizeTipoPago(p.tipoPago), Monto: p.monto })),
         Id_Descuento: descuento.id ?? null,
         MontoDescuento: descuento.monto,
         EsCredito: esCredito,
@@ -1551,6 +1593,7 @@ export function CajaPage() {
                 onEditPrice={handleEditPrice}
                 onCancelarOrden={clearCart}
                 onVentaRapidaCredito={() => setVentaRapidaOpen(true)}
+                onVentaRapidaContado={() => setVentaRapidaContadoOpen(true)}
                 emitButtonRef={(el) => { (emitButtonRef as React.MutableRefObject<HTMLButtonElement | null>).current = el }}
               />
             </div>
@@ -1621,8 +1664,19 @@ export function CajaPage() {
           open={ventaRapidaOpen}
           cart={cart}
           clientes={clientes}
+          descuentos={descuentos}
           onConfirm={handleVentaRapidaCredito}
           onClose={() => setVentaRapidaOpen(false)}
+        />
+      )}
+      {ventaRapidaContadoOpen && (
+        <VentaRapidaContadoModal
+          open={ventaRapidaContadoOpen}
+          cart={cart}
+          clientes={clientes}
+          descuentos={descuentos}
+          onConfirm={handleVentaRapidaContado}
+          onClose={() => setVentaRapidaContadoOpen(false)}
         />
       )}
     </MainLayout>

@@ -1,79 +1,118 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { clsx } from 'clsx'
-import { Button, Modal } from '@/components/ui'
+import { Button, Input, Modal } from '@/components/ui'
 import { notify } from '@/lib/notify'
 import { useMarcasStore } from '@/stores/marcasStore'
 import { fmtCodigo } from '@/lib/formatCodigo'
 import { getDescuentoColor } from '@/utils/descuentoColors'
 import type { DescuentoConfig } from '@/stores/configStore'
-import type { Cliente } from '@/types'
+import type { Cliente, MetodoPago } from '@/types'
 import type { Cart } from '@/stores/cajaStore'
 
 const fmtBs = (n: number) =>
   `Bs ${n.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-export interface VentaRapidaCreditoItem {
+const METODOS: { value: MetodoPago; label: string; icon: React.ReactNode }[] = [
+  { value: 'efectivo', label: 'Efectivo', icon: (
+    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.657 0-3-.895-3-2s1.343-2 3-2 3 .895 3 2-1.343 2-3 2m0-1v-1m0 1v1m0 1v1M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
+    </svg>
+  )},
+  { value: 'tarjeta', label: 'Tarjeta', icon: (
+    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+    </svg>
+  )},
+  { value: 'qr', label: 'QR', icon: (
+    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+    </svg>
+  )},
+]
+
+export interface VentaRapidaContadoItem {
   id_Producto: number       // kit padre (si es pieza) o producto regular
   id_Pieza?: number         // presente si el item es una pieza suelta del kit
   cantidad: number
   precioUnitario: number
 }
 
-export interface VentaRapidaCreditoConfirm {
-  id_Cliente: number
-  items: VentaRapidaCreditoItem[]
+export interface VentaRapidaContadoConfirm {
+  id_Cliente?: number
+  items: VentaRapidaContadoItem[]
+  pagos: { tipoPago: MetodoPago; monto: number }[]
   descuento: { id?: string; monto: number } | null
   nota: string | null
 }
 
-export interface VentaRapidaCreditoModalProps {
+export interface VentaRapidaContadoModalProps {
   open: boolean
   cart: Cart
   clientes: Cliente[]
   descuentos: DescuentoConfig[]
-  onConfirm: (data: VentaRapidaCreditoConfirm) => Promise<void> | void
+  onConfirm: (data: VentaRapidaContadoConfirm) => Promise<void> | void
   onClose: () => void
 }
 
 /**
- * Venta rápida a crédito: el cajero arma un carrito, esta modal exige
- * seleccionar un cliente, y al confirmar genera un Credito con los
- * items del carrito (sin pasar por almacén). Stock se descuenta de
- * inmediato en el backend.
+ * Venta rápida al contado: el cajero arma un carrito, esta modal le
+ * permite elegir descuento, cliente (opcional) y método de pago (efectivo,
+ * tarjeta, QR o mixto). Al confirmar genera una OrdenVenta en estado
+ * Completada y un MovimientoCaja por cada pago, sin pasar por almacén.
+ * Stock se descuenta de inmediato.
  */
-export function VentaRapidaCreditoModal({
+export function VentaRapidaContadoModal({
   open,
   cart,
   clientes,
   descuentos,
   onConfirm,
   onClose,
-}: VentaRapidaCreditoModalProps) {
+}: VentaRapidaContadoModalProps) {
   const { marcas } = useMarcasStore()
+
+  // ─── Estado del formulario ─────────────────────────────────────────────────
+  const [descuentoId, setDescuentoId] = useState<string>('')
   const [clienteSearch, setClienteSearch] = useState('')
   const [clienteSelected, setClienteSelected] = useState<Cliente | null>(null)
   const [showClienteDropdown, setShowClienteDropdown] = useState(false)
   const [nota, setNota] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  // ─── Descuento ─────────────────────────────────────────────────────────────
-  const [descuentoId, setDescuentoId] = useState<string>('')
+  // ─── Pago ──────────────────────────────────────────────────────────────────
+  const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
+  const [pagoMixto, setPagoMixto] = useState(false)
+  const [metodo2, setMetodo2] = useState<MetodoPago>('tarjeta')
+  const [monto2Str, setMonto2Str] = useState('')
+  const [montoStr, setMontoStr] = useState('')
+
+  // ─── Cálculos ──────────────────────────────────────────────────────────────
+  const subtotal = useMemo(
+    () => cart.items.reduce((s, i) => s + i.precio_unitario * i.cantidad, 0),
+    [cart.items],
+  )
+
   const descuentosActivos = useMemo(
     () => descuentos.filter((d) => d.activo),
     [descuentos],
   )
   const descuentoSel = descuentosActivos.find((d) => d.id === descuentoId) ?? null
-
-  // ─── Totales ───────────────────────────────────────────────────────────────
-  const subtotal = useMemo(
-    () => cart.items.reduce((s, i) => s + i.precio_unitario * i.cantidad, 0),
-    [cart.items],
-  )
   const montoDescuento = descuentoSel
     ? Math.round(subtotal * descuentoSel.porcentaje) / 100
     : 0
   const total = Math.max(0, subtotal - montoDescuento)
 
+  const monto2 = parseFloat(monto2Str.replace(',', '.')) || 0
+  const monto1Mixto = Math.max(0, total - monto2)
+  const monto = parseFloat(montoStr.replace(',', '.'))
+  const cambio = metodo === 'efectivo' && !isNaN(monto) ? monto - total : null
+
+  // Sincroniza el montoStr con el total cuando cambia (para el campo "Monto recibido")
+  useEffect(() => {
+    setMontoStr(total.toFixed(2))
+  }, [total])
+
+  // ─── Cliente (opcional) ───────────────────────────────────────────────────
   const filteredClientes = useMemo(() => {
     if (!clienteSearch.trim()) return []
     const q = clienteSearch.toLowerCase()
@@ -93,55 +132,63 @@ export function VentaRapidaCreditoModal({
     setShowClienteDropdown(false)
   }
 
+  // ─── Confirm ──────────────────────────────────────────────────────────────
   const handleConfirm = async () => {
-    if (!clienteSelected) {
-      notify.error('Para venta a crédito es obligatorio seleccionar un cliente.')
-      return
-    }
     if (cart.items.length === 0) {
       notify.error('El carrito está vacío.')
       return
     }
 
+    if (pagoMixto) {
+      if (monto2 <= 0 || monto2 >= total) {
+        notify.error('En pago mixto, el segundo monto debe ser mayor a 0 y menor al total.')
+        return
+      }
+      if (metodo === metodo2) {
+        notify.error('En pago mixto los dos métodos deben ser distintos.')
+        return
+      }
+    }
+
     // Cada pieza del carrito se envía como item separado con id_Pieza poblado;
     // cada producto regular (no pieza) se envía tal cual. El backend crea un
-    // CreditoItem parcial por cada pieza para preservar la info de qué
+    // OrdenVentaItem parcial por cada pieza para preservar la info de qué
     // piezas se vendieron (no se agrupan bajo el kit padre).
-    const items: VentaRapidaCreditoItem[] = cart.items.map((i) => ({
+    const items: VentaRapidaContadoItem[] = cart.items.map((i) => ({
       id_Producto: Number(i.kit_id ?? i.producto_id),
       id_Pieza: i.kit_id ? Number(i.producto_id) : undefined,
       cantidad: i.cantidad,
       precioUnitario: i.precio_unitario,
     }))
 
+    const pagos: VentaRapidaContadoConfirm['pagos'] = pagoMixto
+      ? [
+          { tipoPago: metodo, monto: monto1Mixto },
+          { tipoPago: metodo2, monto: monto2 },
+        ]
+      : [{ tipoPago: metodo, monto: total }]
+
     setSubmitting(true)
     try {
       await onConfirm({
-        id_Cliente: clienteSelected.id,
+        id_Cliente: clienteSelected?.id,
         items,
+        pagos,
         descuento: descuentoSel
           ? { id: descuentoSel.id, monto: montoDescuento }
           : null,
         nota: nota.trim() || null,
       })
     } catch (err) {
-      notify.error(err instanceof Error ? err.message : 'Error al crear el crédito')
+      notify.error(err instanceof Error ? err.message : 'Error al registrar la venta rápida')
     } finally {
       setSubmitting(false)
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Venta rápida a crédito" size="lg">
+    <Modal open={open} onClose={onClose} title="Venta rápida al contado" size="lg">
       <div className="space-y-4 pt-1">
-        {/* Banner */}
-        <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[#F4ECDB] border border-[#D4A333]/30">
-          <i className="ti ti-info-circle text-[#7A5200] text-[14px] mt-0.5 shrink-0" />
-          <p className="text-[11px] text-[#7A5200] leading-snug">
-            Venta rápida: el stock se descuenta de inmediato, no pasa por almacén. El cliente
-            queda debiendo <strong>{fmtBs(total)}</strong> hasta que abone.
-          </p>
-        </div>
 
         {/* Items del carrito */}
         <div>
@@ -221,6 +268,7 @@ export function VentaRapidaCreditoModal({
             Descuento
           </p>
           <div className="grid grid-cols-3 gap-2">
+            {/* Sin descuento (primera opción) */}
             <button
               type="button"
               onClick={() => setDescuentoId('')}
@@ -261,11 +309,13 @@ export function VentaRapidaCreditoModal({
           )}
         </div>
 
-        {/* Cliente (obligatorio) */}
+        {/* Cliente (opcional) */}
         <div>
           <p className="text-xs font-bold text-[#7A7571] uppercase tracking-widest mb-2 flex items-center gap-1">
             Cliente
-            <span className="text-[#B23A2A]">*</span>
+            <span className="text-[10px] font-normal text-[#7A7571] normal-case tracking-normal">
+              (opcional)
+            </span>
           </p>
           {clienteSelected ? (
             <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-[#B8DCCA]/30 border border-[#B8DCCA]">
@@ -298,15 +348,14 @@ export function VentaRapidaCreditoModal({
                 onFocus={() => setShowClienteDropdown(true)}
                 onBlur={() => setTimeout(() => setShowClienteDropdown(false), 150)}
                 placeholder="Buscar cliente por nombre o teléfono…"
-                className={clsx(
-                  'w-full text-xs px-3 py-2.5 bg-white border rounded-xl focus:outline-none focus:ring-2 placeholder:text-[#7A7571]',
-                  'border-[#B23A2A]/50 focus:border-[#B23A2A] focus:ring-[#B23A2A]/10',
-                )}
+                className="w-full text-xs px-3 py-2.5 bg-white border border-[#E8E5E2] rounded-xl focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 placeholder:text-[#7A7571]"
               />
               {showClienteDropdown && clienteSearch.trim() && (
                 <div className="absolute z-20 w-full mt-1 bg-white rounded-xl border border-[#E8E5E2] shadow-lg max-h-40 overflow-y-auto">
                   {filteredClientes.length === 0 ? (
-                    <div className="px-3 py-2.5 text-xs text-[#7A7571] text-center">Sin resultados</div>
+                    <div className="px-3 py-2.5 text-xs text-[#7A7571] text-center">
+                      Sin resultados
+                    </div>
                   ) : (
                     filteredClientes.map((c) => (
                       <button
@@ -321,7 +370,9 @@ export function VentaRapidaCreditoModal({
                           <p className="text-xs font-semibold text-[#2D2B2A] truncate">
                             {c.nombre ? `${c.nombre} ${c.apellido}` : c.apellido}
                           </p>
-                          {c.telefono && <p className="text-[10px] text-[#7A7571]">{c.telefono}</p>}
+                          {c.telefono && (
+                            <p className="text-[10px] text-[#7A7571]">{c.telefono}</p>
+                          )}
                         </div>
                       </button>
                     ))
@@ -331,6 +382,122 @@ export function VentaRapidaCreditoModal({
             </div>
           )}
         </div>
+
+        {/* Método de pago */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-bold text-[#7A7571] uppercase tracking-widest">
+              Método de pago
+            </p>
+            <button
+              onClick={() => setPagoMixto((v) => !v)}
+              className={clsx(
+                'text-[11px] font-bold px-2 py-1 rounded-lg border transition-all',
+                pagoMixto
+                  ? 'bg-[#F4ECDB] border-[#D4A333]/50 text-[#780e18]'
+                  : 'bg-[#F7F7F7] border-[#E8E5E2] text-[#7A7571] hover:border-[#D0CBC4]',
+              )}
+            >
+              {pagoMixto ? 'Pago mixto ✓' : 'Pago mixto'}
+            </button>
+          </div>
+          {!pagoMixto ? (
+            <div className="grid grid-cols-3 gap-2">
+              {METODOS.map((m) => (
+                <button
+                  key={m.value}
+                  onClick={() => setMetodo(m.value)}
+                  className={clsx(
+                    'py-3 rounded-xl border-2 text-sm font-bold transition-all flex flex-col items-center gap-1',
+                    metodo === m.value
+                      ? 'border-[#780e18] bg-[#F4ECDB] text-[#780e18]'
+                      : 'border-[#E8E5E2] text-[#7A7571] hover:border-[#D0CBC4]',
+                  )}
+                >
+                  {m.icon}
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 grid grid-cols-3 gap-1">
+                  {METODOS.map((m) => (
+                    <button
+                      key={m.value}
+                      onClick={() => setMetodo(m.value)}
+                      className={clsx(
+                        'py-2 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center gap-0.5',
+                        metodo === m.value
+                          ? 'border-[#780e18] bg-[#F4ECDB] text-[#780e18]'
+                          : 'border-[#E8E5E2] text-[#7A7571] hover:border-[#D0CBC4]',
+                      )}
+                    >
+                      {m.icon}
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="w-28 shrink-0">
+                  <p className="text-xs text-[#7A7571] mb-1">
+                    Bs {monto1Mixto > 0 ? monto1Mixto.toFixed(2) : '—'}
+                  </p>
+                  <p className="text-[10px] text-[#7A7571]">Resto automático</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 grid grid-cols-3 gap-1">
+                  {METODOS.map((m) => (
+                    <button
+                      key={m.value}
+                      onClick={() => setMetodo2(m.value)}
+                      className={clsx(
+                        'py-2 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center gap-0.5',
+                        metodo2 === m.value
+                          ? 'border-[#780e18] bg-[#F4ECDB] text-[#780e18]'
+                          : 'border-[#E8E5E2] text-[#7A7571] hover:border-[#D0CBC4]',
+                      )}
+                    >
+                      {m.icon}
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="w-28 shrink-0">
+                  <Input
+                    type="number"
+                    step="0.50"
+                    min="0.01"
+                    max={total - 0.01}
+                    value={monto2Str}
+                    onChange={(e) => setMonto2Str(e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Monto recibido / Cambio (solo efectivo, pago simple) */}
+        {!pagoMixto && metodo === 'efectivo' && (
+          <div>
+            <label className="block text-xs font-bold text-[#7A7571] uppercase tracking-widest mb-1.5">
+              Monto recibido (Bs)
+            </label>
+            <Input
+              type="number"
+              min={total}
+              step="0.50"
+              value={montoStr}
+              onChange={(e) => setMontoStr(e.target.value)}
+            />
+            {cambio !== null && cambio >= 0 && (
+              <p className="text-sm font-bold text-[#3F7A52] mt-2">Cambio: {fmtBs(cambio)}</p>
+            )}
+          </div>
+        )}
 
         {/* Nota opcional */}
         <div>
@@ -342,7 +509,7 @@ export function VentaRapidaCreditoModal({
             onChange={(e) => setNota(e.target.value)}
             rows={2}
             maxLength={200}
-            placeholder="Motivo, referencia, condiciones de pago…"
+            placeholder="Motivo, referencia, condiciones…"
             className="w-full text-xs px-3 py-2 bg-white border border-[#E8E5E2] rounded-xl focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 placeholder:text-[#7A7571] resize-none"
           />
         </div>
@@ -354,11 +521,11 @@ export function VentaRapidaCreditoModal({
           <Button
             className="flex-1"
             onClick={handleConfirm}
-            disabled={submitting || !clienteSelected || cart.items.length === 0}
+            disabled={submitting || cart.items.length === 0}
             loading={submitting}
           >
-            <i className="ti ti-hand-coins text-[14px] mr-1" />
-            Crear crédito
+            <i className="ti ti-cash text-[14px] mr-1" />
+            Confirmar venta
           </Button>
         </div>
       </div>

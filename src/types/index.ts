@@ -9,6 +9,9 @@ export interface Usuario {
   email: string
   rol: RolUsuario
   activo: boolean
+  bloqueadoHasta?: string | null
+  horario?: { horaInicio: string; horaFin: string; activo: boolean } | null
+  porcentajeComision?: number
   creado_en: string
   actualizado_en: string
 }
@@ -481,6 +484,8 @@ export interface OrdenVenta {
   listo_en?: string
   pagado_en?: string
   caduca_en?: string
+  /** Modalidad de la venta: flujo normal o atajo rápido (contado/crédito). */
+  modalidad?: 'normal' | 'rapida_contado' | 'rapida_credito'
 }
 
 // ─── Marcas ───────────────────────────────────────────────────────────────────
@@ -528,6 +533,13 @@ export interface CreditoItem {
   id_producto: number | null
   producto_codigo?: string | null
   producto_nombre?: string | null
+  producto_marcaId?: number | null
+  producto_marcaPrefijo?: string | null
+  producto_marcaNombre?: string | null
+  /** Presente si el item es una pieza suelta de un kit. */
+  id_pieza?: number | null
+  pieza_nombre?: string | null
+  pieza_codigo?: string | null
   cantidad: number
   precioUnitario: number
   subtotal: number

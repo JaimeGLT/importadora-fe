@@ -20,6 +20,8 @@ interface KitPartsSectionProps {
   kitPrefijo?: string
   /** Código del producto kit padre (ej. "ABC123"). */
   kitCodigo?: string
+  /** Callback al pulsar el botón imprimir de una pieza. Si no se provee, no se muestra el botón. */
+  onImprimirPieza?: (part: DisplayPart) => void
 }
 
 type DisplayPart = {
@@ -33,6 +35,8 @@ type DisplayPart = {
   codigoPieza?: string
 }
 
+export type { DisplayPart }
+
 export function KitPartsSection({
   productoId,
   wasKit,
@@ -43,6 +47,7 @@ export function KitPartsSection({
   onPieceOpsChange,
   kitPrefijo,
   kitCodigo,
+  onImprimirPieza,
 }: KitPartsSectionProps) {
   const [mode, setMode] = useState<'idle' | 'search' | 'create'>('idle')
   const [q, setQ] = useState('')
@@ -238,6 +243,17 @@ export function KitPartsSection({
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>
+                  {onImprimirPieza && (
+                    <button
+                      type="button"
+                      onClick={() => onImprimirPieza(part)}
+                      disabled={!part.codigoPieza}
+                      title={part.codigoPieza ? 'Imprimir etiqueta de la pieza' : 'Guarda el kit para generar el código de la pieza'}
+                      className="p-1.5 rounded-[6px] text-muted-2 hover:text-navy hover:bg-navy/5 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-muted-2"
+                    >
+                      <i className="ti ti-printer text-[15px]" />
+                    </button>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 mt-2 pl-2">
                   <button type="button" onClick={() => handleQty(part, part.cantidad - 1)}

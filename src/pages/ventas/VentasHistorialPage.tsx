@@ -9,6 +9,9 @@ import {
   backendToOrdenVenta,
   type OrdenVentaAPI,
 } from '@/lib/queries/ventas.queries'
+import { useMarcasStore } from '@/stores/marcasStore'
+import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
+import { fmtCodigo } from '@/lib/formatCodigo'
 import type { OrdenVenta } from '@/types'
 import { clsx } from 'clsx'
 
@@ -59,8 +62,9 @@ function TableSkeleton({ cols }: { cols: number }) {
 // ─── Detail Drawer ────────────────────────────────────────────────────────────
 
 function OrdenDrawer({ orden, onClose }: { orden: OrdenVenta; onClose: () => void }) {
+  const marcas = useMarcasStore(s => s.marcas)
   const estado = ESTADO_LABEL[orden.estado] ?? { label: orden.estado, cls: 'bg-[#F0EFEC] text-[#4A4644]' }
-  const total = orden.items.reduce((s, i) => s + i.precio_unitario * i.cantidad_pedida, 0)
+  const total = orden.total
 
   return (
     <DrawerWrapper
@@ -124,26 +128,78 @@ function OrdenDrawer({ orden, onClose }: { orden: OrdenVenta; onClose: () => voi
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F0EFEC]">
-              {orden.items.map(item => (
-                <tr key={item.id} className="hover:bg-[#FAF9F7]">
-                  <td className="px-3 py-2.5 font-mono text-xs text-[#780e18] font-semibold whitespace-nowrap">
-                    {item.producto_codigo}
-                  </td>
-                  <td className="px-3 py-2.5 text-[12px] text-[#2D2B2A]">
-                    <span>{item.producto_nombre}</span>
-                    {item.marca_nombre && (
-                      <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#F4ECDB] text-[#780e18]">
-                        {item.marca_nombre}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 text-right text-[12px] text-[#4A4644]">{item.cantidad_pedida}</td>
-                  <td className="px-3 py-2.5 text-right text-[12px] text-[#4A4644] whitespace-nowrap">{fmtBs(item.precio_unitario)}</td>
-                  <td className="px-3 py-2.5 text-right text-[12px] font-semibold text-[#2D2B2A] whitespace-nowrap">
-                    {fmtBs(item.precio_unitario * item.cantidad_pedida)}
-                  </td>
-                </tr>
-              ))}
+              {orden.items.flatMap(item => {
+                // Caso A: item parcial con piezas → header del kit + sub-filas por pieza
+                if (item.es_parcial && item.piezas_orden && item.piezas_orden.length > 0) {
+                  return [
+                    <tr key={`${item.id}-header`} className="bg-[#F4ECDB]/40">
+                      <td colSpan={5} className="px-3 py-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[11px] font-mono font-bold text-[#780e18]">
+                            {fmtCodigo(item.producto_codigo, item.marcaId, marcas)}
+                          </span>
+                          <span className="text-[12px] font-semibold text-[#2D2B2A]">
+                            {item.producto_nombre}
+                          </span>
+                          <span className="inline-flex items-center text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider">
+                            KIT
+                          </span>
+                          <span className="inline-flex items-center text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#DBEAFE] text-[#1D4ED8] tracking-wider">
+                            Venta parcial · {item.piezas_orden.length} {item.piezas_orden.length === 1 ? 'pieza' : 'piezas'}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>,
+                    ...item.piezas_orden.map(p => (
+                      <tr key={`${item.id}-${p.id}`} className="hover:bg-[#FAF9F7]">
+                        <td className="pl-7 pr-3 py-2 font-mono text-[11px] text-[#780e18] font-semibold whitespace-nowrap">
+                          {p.codigo_pieza}
+                        </td>
+                        <td className="px-3 py-2 text-[12px] text-[#2D2B2A]">
+                          <span>{p.nombre}</span>
+                          <span className="ml-1.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#F5E0A8] text-[#7A5200] tracking-wider">
+                            PIEZA
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-right text-[12px] text-[#4A4644]">×{p.cantidad}</td>
+                        <td className="px-3 py-2 text-right text-[12px] text-[#4A4644] whitespace-nowrap">
+                          {fmtBs(p.precio_unitario ?? 0)}
+                        </td>
+                        <td className="px-3 py-2 text-right text-[12px] font-semibold text-[#2D2B2A] whitespace-nowrap">
+                          {fmtBs((p.precio_unitario ?? 0) * p.cantidad)}
+                        </td>
+                      </tr>
+                    )),
+                  ]
+                }
+
+                // Caso B: item normal (producto simple o kit completo) → fila simple
+                return [
+                  <tr key={item.id} className="hover:bg-[#FAF9F7]">
+                    <td className="px-3 py-2.5 font-mono text-xs text-[#780e18] font-semibold whitespace-nowrap">
+                      {fmtCodigo(item.producto_codigo, item.marcaId, marcas)}
+                    </td>
+                    <td className="px-3 py-2.5 text-[12px] text-[#2D2B2A]">
+                      <span>{item.producto_nombre}</span>
+                      {item.marca_nombre && (
+                        <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#F4ECDB] text-[#780e18]">
+                          {item.marca_nombre}
+                        </span>
+                      )}
+                      {item.es_kit && (
+                        <span className="ml-1.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider">
+                          KIT
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-[12px] text-[#4A4644]">{item.cantidad_pedida}</td>
+                    <td className="px-3 py-2.5 text-right text-[12px] text-[#4A4644] whitespace-nowrap">{fmtBs(item.precio_unitario)}</td>
+                    <td className="px-3 py-2.5 text-right text-[12px] font-semibold text-[#2D2B2A] whitespace-nowrap">
+                      {fmtBs(item.precio_unitario * item.cantidad_pedida)}
+                    </td>
+                  </tr>,
+                ]
+              })}
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-[#E8E5E2] bg-[#FBFAF7]">
@@ -172,12 +228,21 @@ export function VentasHistorialPage() {
   const [loading, setLoading]       = useState(true)
   const [search, setSearch]         = useState('')
   const [selected, setSelected]     = useState<OrdenVenta | null>(null)
+  const marcas    = useMarcasStore(s => s.marcas)
+  const setMarcas = useMarcasStore(s => s.setMarcas)
 
   const isAdmin = user?.rol === 'admin'
   const cols    = isAdmin ? 7 : 6
 
   const today      = new Date().toISOString().slice(0, 10)
   const mesActual  = new Date().toISOString().slice(0, 7)
+
+  useEffect(() => {
+    if (!isTokenReady || marcas.length > 0) return
+    gql<{ marca: { nodes: Array<{ id: number; nombre: string; prefijo: string }> } }>(MARCAS_QUERY)
+      .then(res => setMarcas((res.marca?.nodes ?? []).map(backendToMarca)))
+      .catch(() => {})
+  }, [isTokenReady, marcas.length, setMarcas])
 
   useEffect(() => {
     if (!isTokenReady) return

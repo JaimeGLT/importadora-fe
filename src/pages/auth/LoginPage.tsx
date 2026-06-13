@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
-import { Button, Input } from '@/components/ui'
+import { Button, Input, PasswordInput } from '@/components/ui'
 import { notify } from '@/lib/notify'
 import type { Usuario } from '@/types'
 import { ROLE_HOME } from '@/lib/roles'
@@ -249,9 +249,8 @@ function LoginForm({ email, password, loading, onEmail, onPassword, onSubmit }: 
           required
           autoComplete="email"
         />
-        <Input
+        <PasswordInput
           label="Contraseña"
-          type="password"
           value={password}
           onChange={(e) => onPassword(e.target.value)}
           required

@@ -879,7 +879,7 @@ function AgregarProductoModal({
                   type="text"
                   value={query}
                   onChange={e => setQuery(e.target.value.replace(/'/g, '-'))}
-                  placeholder="Buscar por código, nombre o marca…"
+                  placeholder="Buscar por código, nombre, marca o código de pieza (P1-…)"
                   className="flex-1 py-2.5 bg-transparent text-[13px] text-[#2D2B2A] placeholder:text-[#7A7571] outline-none border-none"
                 />
               </div>
@@ -1753,7 +1753,7 @@ export function EscaneoPage() {
         const next = current + 1
 
         playConfirmBeep()
-        setFlashPiezaId(pieza.id)
+        setFlashPiezaId(String(pieza.id))
         setTimeout(() => setFlashPiezaId(null), 600)
 
         if (next >= targetQty) {
@@ -2129,6 +2129,7 @@ export function EscaneoPage() {
   }
 
   const handleMarcarEsperandoPago = async () => {
+    if (!selectedOrden) return
     try {
       await api.post(`/OrdenVenta/${selectedOrden.id}/MarcarEsperandoPago`, undefined)
       updateOrden(selectedOrden.id, { estado: 'esperando_pago' })
@@ -2358,7 +2359,7 @@ export function EscaneoPage() {
                                   const cantidadFaltante = esPiezaParcial ? pieza.cantidad - pieza.cantidad_recogida! : 0
                                   const loadingPieza = !!piezaLoading[pieza.id]
                                   const piezaScanCount = piezaScanCounts[pieza.id] ?? 0
-                                  const isPiezaFlashing = flashPiezaId === pieza.id
+                                  const isPiezaFlashing = flashPiezaId === String(pieza.id)
                                   if (esPiezaFaltante) return null
                                   return (
                                     <div

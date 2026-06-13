@@ -39,16 +39,18 @@ export function PageTopBar({ title, section = 'Operaciones', subsection }: PageT
           <span className="text-xs text-[#4A4744]">{dateStr}</span>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          {user?.rol === 'admin' && <NotificacionesBell />}
-          <button
-            onClick={() => navigate('/configuracion')}
-            className="w-[34px] h-[34px] flex items-center justify-center rounded-full bg-white border border-[#D8D4D0] text-[#4A4744] hover:bg-[#F7F7F7] transition-colors"
-            title="Configuración"
-          >
-            <i className="ti ti-settings text-[15px]" />
-          </button>
-        </div>
+        {user?.rol === 'admin' && (
+          <div className="flex items-center gap-1.5">
+            <NotificacionesBell />
+            <button
+              onClick={() => navigate('/configuracion')}
+              className="w-[34px] h-[34px] flex items-center justify-center rounded-full bg-white border border-[#D8D4D0] text-[#4A4744] hover:bg-[#F7F7F7] transition-colors"
+              title="Configuración"
+            >
+              <i className="ti ti-settings text-[15px]" />
+            </button>
+          </div>
+        )}
       </div>
     </header>
   )

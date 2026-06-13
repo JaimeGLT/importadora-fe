@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { PageTopBar } from '@/components/layout/PageTopBar'
+import { ConfirmModal } from '@/components/ui'
 import { notify } from '@/lib/notify'
 import { api } from '@/lib/api'
+import { USUARIOS_ENDPOINTS } from '@/lib/queries/usuarios.queries'
 import { clsx } from 'clsx'
+import { UsuarioDetalleDrawer } from './UsuarioDetalleDrawer'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -489,6 +492,7 @@ function CrearUsuarioModal({ onClose, onSuccess }: { onClose: () => void; onSucc
   const [form, setForm] = useState({ nombre: '', apellido: '', email: '', password: '', rol: 'Cajero' })
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Partial<typeof form>>({})
+  const [showPwd, setShowPwd] = useState(false)
 
   const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }))
 
@@ -551,9 +555,24 @@ function CrearUsuarioModal({ onClose, onSuccess }: { onClose: () => void; onSucc
 
           <div>
             <label className="block text-xs font-semibold text-[#4A4744] mb-1.5">Contraseña *</label>
-            <input type="password" value={form.password} onChange={e => set('password', e.target.value)}
-              placeholder="Mínimo 6 caracteres"
-              className="w-full h-10 px-3.5 rounded-xl border border-[#E8E5E2] bg-white text-[#2D2B2A] text-sm focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 transition-all" />
+            <div className="relative">
+              <input
+                type={showPwd ? 'text' : 'password'}
+                value={form.password}
+                onChange={e => set('password', e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                className="w-full h-10 pl-3.5 pr-10 rounded-xl border border-[#E8E5E2] bg-white text-[#2D2B2A] text-sm focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPwd((s) => !s)}
+                tabIndex={-1}
+                aria-label={showPwd ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4A4744] hover:text-[#780e18] transition-colors"
+              >
+                <i className={showPwd ? 'ti ti-eye-off' : 'ti ti-eye'} />
+              </button>
+            </div>
             {errors.password && <p className="text-[11px] text-[#B23A2A] mt-1">{errors.password}</p>}
           </div>
 
@@ -719,6 +738,9 @@ export function UsuariosPage() {
   const [horarioUsuario, setHorarioUsuario] = useState<UsuarioAPI | null>(null)
   const [bloquearHastaUsuario, setBloquearHastaUsuario] = useState<UsuarioAPI | null>(null)
   const [comisionUsuario, setComisionUsuario] = useState<UsuarioAPI | null>(null)
+  const [detalleUsuario, setDetalleUsuario] = useState<UsuarioAPI | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<UsuarioAPI | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -782,6 +804,31 @@ export function UsuariosPage() {
 
   const handleComisionSuccess = (updated: UsuarioAPI) => {
     setUsuarios(prev => prev.map(u => u.id === updated.id ? updated : u))
+  }
+
+  const canDelete = (u: UsuarioAPI) => {
+    if (me?.rol !== 'admin') return false
+    if (u.email === me?.email) return false
+    if (u.rol === 'Admin') return false
+    return true
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDelete) return
+    setDeleting(true)
+    try {
+      await api.delete(USUARIOS_ENDPOINTS.delete(confirmDelete.id))
+      notify.success('Usuario eliminado', {
+        description: `${confirmDelete.nombre} ${confirmDelete.apellido} fue eliminado del sistema.`,
+      })
+      setConfirmDelete(null)
+      setDetalleUsuario(null)
+      await load()
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al eliminar el usuario')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const handleDesactivarTodos = async () => {
@@ -1012,10 +1059,13 @@ export function UsuariosPage() {
                           usuario={u}
                           isSelf={u.email === me?.email}
                           toggling={toggling === u.id}
+                          canDelete={canDelete(u)}
                           onToggle={() => handleToggle(u)}
                           onHorario={() => setHorarioUsuario(u)}
                           onBloquearHasta={() => setBloquearHastaUsuario(u)}
                           onComision={() => setComisionUsuario(u)}
+                          onOpenDetalle={() => setDetalleUsuario(u)}
+                          onDelete={() => setConfirmDelete(u)}
                         />
                       ))}
                     </tbody>
@@ -1030,10 +1080,13 @@ export function UsuariosPage() {
                       usuario={u}
                       isSelf={u.email === me?.email}
                       toggling={toggling === u.id}
+                      canDelete={canDelete(u)}
                       onToggle={() => handleToggle(u)}
                       onHorario={() => setHorarioUsuario(u)}
                       onBloquearHasta={() => setBloquearHastaUsuario(u)}
                       onComision={() => setComisionUsuario(u)}
+                      onOpenDetalle={() => setDetalleUsuario(u)}
+                      onDelete={() => setConfirmDelete(u)}
                     />
                   ))}
                 </div>
@@ -1089,6 +1142,24 @@ export function UsuariosPage() {
           onSuccess={handleBloquearHastaSuccess}
         />
       )}
+
+      <UsuarioDetalleDrawer
+        usuario={detalleUsuario}
+        onClose={() => setDetalleUsuario(null)}
+      />
+
+      <ConfirmModal
+        open={!!confirmDelete}
+        onClose={() => !deleting && setConfirmDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Eliminar usuario"
+        message={
+          confirmDelete
+            ? `¿Estás seguro de que querés eliminar a ${confirmDelete.nombre} ${confirmDelete.apellido}? Esta acción no se puede deshacer.`
+            : ''
+        }
+        loading={deleting}
+      />
     </MainLayout>
   )
 }
@@ -1099,10 +1170,13 @@ interface RowProps {
   usuario: UsuarioAPI
   isSelf: boolean
   toggling: boolean
+  canDelete: boolean
   onToggle: () => void
   onHorario: () => void
   onBloquearHasta: () => void
   onComision: () => void
+  onOpenDetalle: () => void
+  onDelete: () => void
 }
 
 function Toggle({ activo, toggling, onToggle, disabled }: { activo: boolean; toggling: boolean; onToggle: () => void; disabled: boolean }) {
@@ -1127,12 +1201,13 @@ function Toggle({ activo, toggling, onToggle, disabled }: { activo: boolean; tog
   )
 }
 
-function UsuarioRow({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloquearHasta, onComision }: RowProps) {
+function UsuarioRow({ usuario: u, isSelf, toggling, canDelete, onToggle, onHorario, onBloquearHasta, onComision, onOpenDetalle, onDelete }: RowProps) {
   const hasta = fmtBloqueo(u.bloqueadoHasta)
   const esCajero = u.rol === 'Cajero'
   return (
     <tr
-      className="border-t border-[#E8E5E2] hover:bg-[#FAF5EE] transition-colors"
+      onClick={onOpenDetalle}
+      className="border-t border-[#E8E5E2] hover:bg-[#FAF5EE] transition-colors cursor-pointer"
       style={{ opacity: u.activo ? 1 : 0.65 }}
     >
       <td className="px-5 py-3.5">
@@ -1160,7 +1235,7 @@ function UsuarioRow({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloqu
           )}
         </div>
       </td>
-      <td className="px-5 py-3.5">
+      <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2">
           <Toggle activo={u.activo} toggling={toggling} onToggle={onToggle} disabled={isSelf} />
           <div>
@@ -1173,13 +1248,19 @@ function UsuarioRow({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloqu
           </div>
         </div>
       </td>
-      <td className="px-5 py-3.5">
+      <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-1 justify-end">
           {esCajero && (
             <button
               onClick={onComision}
-              title="Editar comisión"
-              className="w-8 h-8 flex items-center justify-center rounded-[6px] transition-all border bg-[#F0F9F4] text-[#3F7A52] border-[#C8E6D4] hover:bg-[#C8E6D4]"
+              disabled={isSelf}
+              title={isSelf ? 'No puedes editar tu propia comisión' : 'Editar comisión'}
+              className={clsx(
+                'w-8 h-8 flex items-center justify-center rounded-[6px] transition-all border',
+                isSelf
+                  ? 'opacity-30 cursor-not-allowed bg-[#F0EFEC] text-[#7A7571] border-[#E8E5E2]'
+                  : 'bg-[#F0F9F4] text-[#3F7A52] border-[#C8E6D4] hover:bg-[#C8E6D4]'
+              )}
             >
               <i className="ti ti-percentage text-[14px]" />
             </button>
@@ -1187,7 +1268,7 @@ function UsuarioRow({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloqu
           <button
             onClick={onBloquearHasta}
             disabled={isSelf}
-            title={isSelf ? undefined : u.activo ? 'Bloquear hasta fecha' : 'Cambiar fecha de bloqueo'}
+            title={isSelf ? 'No puedes bloquearte a ti mismo' : u.activo ? 'Bloquear hasta fecha' : 'Cambiar fecha de bloqueo'}
             className={clsx(
               'w-8 h-8 flex items-center justify-center rounded-[6px] transition-all border',
               isSelf
@@ -1199,27 +1280,43 @@ function UsuarioRow({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloqu
           </button>
           <button
             onClick={onHorario}
-            title={u.horario ? `Horario recurrente: ${u.horario.horaInicio}–${u.horario.horaFin}` : 'Sin horario recurrente'}
+            disabled={isSelf}
+            title={isSelf ? 'No puedes asignarte un horario a ti mismo' : u.horario ? `Horario recurrente: ${u.horario.horaInicio}–${u.horario.horaFin}` : 'Sin horario recurrente'}
             className={clsx(
               'w-8 h-8 flex items-center justify-center rounded-[6px] transition-all border',
-              u.horario
-                ? 'bg-[#F4ECDB] text-[#780e18] border-[#E8D4B8] hover:bg-[#E8D4B8]'
-                : 'bg-[#F0EFEC] text-[#7A7571] border-[#E8E5E2] hover:bg-[#E8E5E2]'
+              isSelf
+                ? 'opacity-30 cursor-not-allowed bg-[#F0EFEC] text-[#7A7571] border-[#E8E5E2]'
+                : u.horario
+                  ? 'bg-[#F4ECDB] text-[#780e18] border-[#E8D4B8] hover:bg-[#E8D4B8]'
+                  : 'bg-[#F0EFEC] text-[#7A7571] border-[#E8E5E2] hover:bg-[#E8E5E2]'
             )}
           >
             <i className="ti ti-clock text-[14px]" />
           </button>
+          {canDelete && (
+            <button
+              onClick={onDelete}
+              title="Eliminar usuario"
+              className="w-8 h-8 flex items-center justify-center rounded-[6px] transition-all border bg-[#FDF1EE] text-[#B23A2A] border-[#F5C9C0] hover:bg-[#F5C9C0]"
+            >
+              <i className="ti ti-trash text-[14px]" />
+            </button>
+          )}
         </div>
       </td>
     </tr>
   )
 }
 
-function UsuarioCard({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloquearHasta, onComision }: RowProps) {
+function UsuarioCard({ usuario: u, isSelf, toggling, canDelete, onToggle, onHorario, onBloquearHasta, onComision, onOpenDetalle, onDelete }: RowProps) {
   const hasta = fmtBloqueo(u.bloqueadoHasta)
   const esCajero = u.rol === 'Cajero'
   return (
-    <div className="px-4 py-4" style={{ opacity: u.activo ? 1 : 0.65 }}>
+    <div
+      onClick={onOpenDetalle}
+      className="px-4 py-4 cursor-pointer hover:bg-[#FAF5EE] transition-colors"
+      style={{ opacity: u.activo ? 1 : 0.65 }}
+    >
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-[#F4ECDB] text-[#780e18]">
@@ -1231,7 +1328,7 @@ function UsuarioCard({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloq
             {isSelf && <span className="text-[10px] text-[#780e18] font-semibold">Tú</span>}
           </div>
         </div>
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-col items-end gap-1" onClick={(e) => e.stopPropagation()}>
           <RolBadge rol={u.rol} />
           {esCajero && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#F0F9F4] text-[#3F7A52] border border-[#C8E6D4]">
@@ -1242,7 +1339,7 @@ function UsuarioCard({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloq
         </div>
       </div>
       <div className="flex items-center justify-between pt-3 border-t border-[#E8E5E2]">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <Toggle activo={u.activo} toggling={toggling} onToggle={onToggle} disabled={isSelf} />
           <div>
             <span className="text-[11px] font-semibold" style={{ color: u.activo ? '#3F7A52' : '#B23A2A' }}>
@@ -1253,11 +1350,18 @@ function UsuarioCard({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloq
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
           {esCajero && (
             <button
               onClick={onComision}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors border bg-[#F0F9F4] text-[#3F7A52] border-[#C8E6D4] hover:bg-[#C8E6D4]"
+              disabled={isSelf}
+              title={isSelf ? 'No puedes editar tu propia comisión' : 'Editar comisión'}
+              className={clsx(
+                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors border',
+                isSelf
+                  ? 'opacity-30 cursor-not-allowed bg-[#F0EFEC] text-[#7A7571] border-[#E8E5E2]'
+                  : 'bg-[#F0F9F4] text-[#3F7A52] border-[#C8E6D4] hover:bg-[#C8E6D4]'
+              )}
             >
               <i className="ti ti-percentage text-[12px]" />
               Comisión
@@ -1266,6 +1370,7 @@ function UsuarioCard({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloq
           <button
             onClick={onBloquearHasta}
             disabled={isSelf}
+            title={isSelf ? 'No puedes bloquearte a ti mismo' : undefined}
             className={clsx(
               'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors border',
               isSelf
@@ -1278,16 +1383,30 @@ function UsuarioCard({ usuario: u, isSelf, toggling, onToggle, onHorario, onBloq
           </button>
           <button
             onClick={onHorario}
+            disabled={isSelf}
+            title={isSelf ? 'No puedes asignarte un horario a ti mismo' : undefined}
             className={clsx(
               'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors border',
-              u.horario
-                ? 'bg-[#F4ECDB] text-[#780e18] border-[#E8D4B8] hover:bg-[#E8D4B8]'
-                : 'bg-[#F0EFEC] text-[#7A7571] border-[#E8E5E2] hover:bg-[#E8E5E2]'
+              isSelf
+                ? 'opacity-30 cursor-not-allowed bg-[#F0EFEC] text-[#7A7571] border-[#E8E5E2]'
+                : u.horario
+                  ? 'bg-[#F4ECDB] text-[#780e18] border-[#E8D4B8] hover:bg-[#E8D4B8]'
+                  : 'bg-[#F0EFEC] text-[#7A7571] border-[#E8E5E2] hover:bg-[#E8E5E2]'
             )}
           >
             <i className="ti ti-clock text-[12px]" />
             {u.horario ? `${u.horario.horaInicio}–${u.horario.horaFin}` : 'Horario'}
           </button>
+          {canDelete && (
+            <button
+              onClick={onDelete}
+              title="Eliminar usuario"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors border bg-[#FDF1EE] text-[#B23A2A] border-[#F5C9C0] hover:bg-[#F5C9C0]"
+            >
+              <i className="ti ti-trash text-[12px]" />
+              Eliminar
+            </button>
+          )}
         </div>
       </div>
     </div>

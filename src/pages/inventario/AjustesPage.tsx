@@ -989,7 +989,7 @@ export function AjustesPage() {
                       <i className="ti ti-search text-[#7A7571] text-[13px] shrink-0" />
                       <input
                         className="flex-1 py-2 bg-transparent text-[13px] text-[#2D2B2A] font-normal placeholder:text-[#7A7571] outline-none border-none"
-                        placeholder="Buscar por nombre, código o marca…"
+                        placeholder="Buscar por nombre, código, marca o código de pieza (P1-…)"
                         value={search}
                         onChange={e => handleSearch(e.target.value)}
                       />

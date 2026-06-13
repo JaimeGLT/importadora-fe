@@ -30,6 +30,7 @@ const EscaneoPage            = lazy(() => import('@/pages/ventas/escaneo/Escaneo
 const VentasHistorialPage    = lazy(() => import('@/pages/ventas/VentasHistorialPage').then(m => ({ default: m.VentasHistorialPage })))
 const CreditosPage           = lazy(() => import('@/pages/creditos/CreditosPage').then(m => ({ default: m.CreditosPage })))
 const FacturaExtractorPage   = lazy(() => import('@/pages/importaciones/FacturaExtractorPage').then(m => ({ default: m.FacturaExtractorPage })))
+const MiCuentaPage           = lazy(() => import('@/pages/mi-cuenta/MiCuentaPage').then(m => ({ default: m.MiCuentaPage })))
 
 function RootRedirect() {
   const { user } = useAuth()
@@ -100,6 +101,9 @@ export default function App() {
             <Route element={<RoleGuard allowedRoles={['admin', 'cajero', 'operador']} />}>
               <Route path="/ventas/escaneo" element={<EscaneoPage />} />
             </Route>
+
+            {/* /mi-cuenta: accesible a TODOS los roles autenticados (sin RoleGuard) */}
+            <Route path="/mi-cuenta" element={<MiCuentaPage />} />
 
             <Route path="/" element={<RootRedirect />} />
           </Route>

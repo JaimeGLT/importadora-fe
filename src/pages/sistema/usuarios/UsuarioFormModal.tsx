@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Modal, Button, Input, Select } from '@/components/ui'
+import { Modal, Button, Input, PasswordInput, Select } from '@/components/ui'
 import type { Usuario, RolUsuario } from '@/types'
 
 const ROLES: { value: RolUsuario; label: string }[] = [
@@ -128,11 +128,10 @@ export function UsuarioFormModal({ open, onClose, onSave, initial }: Props) {
           <label className="block text-[11px] font-semibold text-steel-500 uppercase tracking-wide mb-1">
             Contraseña <span className="text-red-500">*</span>
           </label>
-          <Input
+          <PasswordInput
             value={form.password}
             onChange={set('password')}
             placeholder={initial ? 'Dejar en blanco para no cambiar' : 'Mínimo 6 caracteres'}
-            type="password"
           />
           {errors.password && <p className="text-[11px] text-red-500 mt-1">{errors.password}</p>}
         </div>

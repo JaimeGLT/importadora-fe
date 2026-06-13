@@ -387,6 +387,22 @@ export function Sidebar({ open, onClose, collapsed = false }: SidebarProps) {
             )
           })}
 
+          {/* Mi cuenta — visible para todos los roles autenticados */}
+          <NavLabel>Cuenta</NavLabel>
+          <NavLink
+            to="/mi-cuenta"
+            onClick={onClose}
+            className={({ isActive }) => clsx(navItemBase, isActive ? navItemActive : navItemInactive)}
+          >
+            {({ isActive }) => (
+              <>
+                {isActive && <ActiveBar />}
+                <i className={clsx('ti ti-user-circle text-[16px] shrink-0', isActive ? 'text-[#D4A333]' : 'text-[#CFA9A6]')} />
+                <span>Mi cuenta</span>
+              </>
+            )}
+          </NavLink>
+
 
         </nav>
 
@@ -399,17 +415,23 @@ export function Sidebar({ open, onClose, collapsed = false }: SidebarProps) {
           }}
         >
           <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[#F4ECDB] font-semibold text-[12px] shrink-0"
-            style={{ background: 'linear-gradient(135deg, #D4A333 0%, #8C5A12 100%)' }}
+            onClick={() => { onClose(); navigate('/mi-cuenta') }}
+            className="flex items-center gap-[10px] flex-1 min-w-0 cursor-pointer rounded-md -m-1 p-1 hover:bg-[#F4ECDB]/[0.08] transition-colors"
+            title="Mi cuenta"
           >
-            {initials}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[13px] font-medium text-[#F4ECDB] truncate leading-tight">
-              {user?.nombre ?? '—'}
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-[#F4ECDB] font-semibold text-[12px] shrink-0"
+              style={{ background: 'linear-gradient(135deg, #D4A333 0%, #8C5A12 100%)' }}
+            >
+              {initials}
             </div>
-            <div className="text-[11px] text-[#CFA9A6] capitalize truncate mt-px">
-              {user?.rol ?? ''}
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-medium text-[#F4ECDB] truncate leading-tight">
+                {user?.nombre ?? '—'}
+              </div>
+              <div className="text-[11px] text-[#CFA9A6] capitalize truncate mt-px">
+                {user?.rol ?? ''}
+              </div>
             </div>
           </div>
           <div

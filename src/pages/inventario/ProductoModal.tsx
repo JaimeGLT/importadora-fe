@@ -4,6 +4,9 @@ import { BrandSelect } from '@/components/ui/BrandSelect'
 import type { Producto, HistorialPrecio } from '@/types'
 import type { DtoPiezaKit, KitOps, PieceOp } from '@/lib/queries/inventario.queries'
 import { KitPartsSection } from './KitPartsSection'
+import type { DisplayPart } from './KitPartsSection'
+import { EtiquetaModal } from './EtiquetaModal'
+import type { LabelData } from '@/lib/printLabel'
 import { notify } from '@/lib/notify'
 
 export interface PriceUpdate {
@@ -84,6 +87,7 @@ export function ProductoModal({
   const [kitPieces, setKitPieces] = useState<DtoPiezaKit[]>([])
   const [pieceOps, setPieceOps]   = useState<PieceOp[]>([])
   const [stockManual, setStockManual] = useState('')
+  const [etiquetaPieza, setEtiquetaPieza] = useState<{ etiqueta: LabelData; subtitulo?: string } | null>(null)
 
   const isLoading = loading && producto !== null
 
@@ -257,7 +261,27 @@ export function ProductoModal({
   })()
   const kitCodigoActual = producto?.codigo_universal ?? form.codigo_universal
 
+  const handleImprimirPieza = (part: DisplayPart) => {
+    if (!part.codigoPieza) return
+    const marcaId = producto?.marcaId ?? form.marcaId
+    const marca = marcaId != null ? marcas?.find((m) => m.id === marcaId) : null
+    setEtiquetaPieza({
+      etiqueta: {
+        codigo_universal: part.codigoPieza,
+        nombre: part.nombre,
+        marca: marca?.nombre ?? '',
+        marcaPrefijo: '',
+        vehiculo: '',
+        precio_venta: form.precio_venta,
+        unidad: 'pieza',
+        creado_en: new Date().toISOString(),
+      },
+      subtitulo: `${part.nombre} · de ${form.nombre || producto?.nombre || ''}`,
+    })
+  }
+
   return (
+    <>
     <DrawerWrapper
       open={open}
       onClose={onClose}
@@ -503,6 +527,7 @@ export function ProductoModal({
                     onPieceOpsChange={setPieceOps}
                     kitPrefijo={kitPrefijoActual}
                     kitCodigo={kitCodigoActual}
+                    onImprimirPieza={handleImprimirPieza}
                   />
                 </>
               )}
@@ -690,6 +715,14 @@ export function ProductoModal({
         </div>
       )}
     </DrawerWrapper>
+
+    <EtiquetaModal
+      open={!!etiquetaPieza}
+      onClose={() => setEtiquetaPieza(null)}
+      etiqueta={etiquetaPieza?.etiqueta ?? null}
+      subtitulo={etiquetaPieza?.subtitulo}
+    />
+    </>
   )
 }
 
