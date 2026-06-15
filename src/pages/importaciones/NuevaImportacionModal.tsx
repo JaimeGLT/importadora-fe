@@ -357,26 +357,54 @@ export function NuevaImportacionModal({
   const handleClose = () => { reset(); onClose() }
 
   // ── Step 1: upload ────────────────────────────────────────────────────────
-  const handleFile = useCallback(async (file: File) => {
+  // Estrategia: FileReader.readAsArrayBuffer + Uint8Array + XLSX.read type:'array'.
+  // Itera TODAS las hojas y usa la que tenga más filas (algunos Excels ponen
+  // los datos en la hoja 2, no en la hoja 1). `blankrows: true` evita que se
+  // salten filas vacías intermedias que delimitan tablas.
+  const handleFile = useCallback((file: File) => {
     if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
       notify.error('Formato no soportado. Usa .xlsx, .xls o .csv')
       return
     }
-    try {
-      const XLSX: typeof XLSXType = await import('xlsx')
-      const buffer = await file.arrayBuffer()
-      const wb = XLSX.read(buffer, { type: 'array' })
-      const ws = wb.Sheets[wb.SheetNames[0]]
-      const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' })
-      if (!data.length) { notify.error('El archivo está vacío'); return }
-      setColumns(Object.keys(data[0]))
-      setRows(data)
-      setFileName(file.name)
-      setMappings({})
-      setStep('mapear')
-    } catch {
-      notify.error('Error al leer el archivo')
+    setFileName(file.name)
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      try {
+        const XLSX: typeof XLSXType = await import('xlsx')
+        const buffer = e.target?.result as ArrayBuffer
+        const data = new Uint8Array(buffer)
+        const wb = XLSX.read(data, { type: 'array' })
+
+        // Buscar la hoja con más filas (algunos Excels tienen varias hojas y
+        // los datos están en la 2da o 3era, no en la primera)
+        let bestSheetName = wb.SheetNames[0]
+        let bestCount = 0
+        for (const name of wb.SheetNames) {
+          const ws = wb.Sheets[name]
+          const tmp = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '', blankrows: true })
+          if (tmp.length > bestCount) {
+            bestCount = tmp.length
+            bestSheetName = name
+          }
+        }
+
+        const ws = wb.Sheets[bestSheetName]
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '', blankrows: true })
+
+        // eslint-disable-next-line no-console
+        console.log('[ImportExcel] hojas:', wb.SheetNames, '→ usando:', bestSheetName, '| filas:', rows.length, '| columnas:', Object.keys(rows[0] ?? {}))
+
+        if (!rows.length) { notify.error('El archivo está vacío'); return }
+        setColumns(Object.keys(rows[0]))
+        setRows(rows)
+        setMappings({})
+        setStep('mapear')
+      } catch {
+        notify.error('Error al leer el archivo')
+      }
     }
+    reader.onerror = () => notify.error('Error al leer el archivo')
+    reader.readAsArrayBuffer(file)
   }, [])
 
   // ── Step 2: mapear ────────────────────────────────────────────────────────

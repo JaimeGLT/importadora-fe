@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { PageTopBar } from '@/components/layout/PageTopBar'
-import type { Proveedor, Importacion } from '@/types'
+import type { Proveedor, ImportacionSummary } from '@/types'
 import { ProveedorFormModal } from './ProveedorFormModal'
 import { CatalogoProveedorModal } from './CatalogoProveedorModal'
 import { notify } from '@/lib/notify'
@@ -25,7 +25,7 @@ export function ProveedoresPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editingProv, setEditingProv] = useState<Proveedor | null>(null)
   const [historialProv, setHistorialProv] = useState<Proveedor | null>(null)
-  const [historialImportaciones, setHistorialImportaciones] = useState<Importacion[]>([])
+  const [historialImportaciones, setHistorialImportaciones] = useState<ImportacionSummary[]>([])
   const [historialLoading, setHistorialLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [filterEstado, setFilterEstado] = useState<'activo' | 'inactivo' | ''>('')
@@ -51,13 +51,28 @@ export function ProveedoresPage() {
 
   const loadHistorial = (proveedorId: string) => {
     setHistorialLoading(true)
-    gql<{ importacion: { nodes: { id: number; codigo: string; fecha: string; cantProductos: number; total: number; estado: string; id_Proveedor: number; f_Internacional: number; aduana_Arancel: number; trasporte_Interno: number; proveedor: { id: number; nombre: string; pais: string }; detalles: { id: number; codigo: string; codigoAux: string; codigoAux2: string; nombre: string; descripcion: string; marca: string; unidad_Medida: string; ubicacion: string; stock_Actual: number; stock_Minimo: number; costo: number; precio: number; conversionABs: number; tipo: string }[] }[] } }>(
+    gql<{
+      importacion: {
+        nodes: {
+          id: number
+          codigo: string
+          fecha: string
+          cantProductos: number
+          total: number
+          estado: string
+          id_Proveedor: number
+          f_Internacional: number
+          aduana_Arancel: number
+          trasporte_Interno: number
+          proveedor: { id: number; nombre: string; pais: string }
+        }[]
+      }
+    }>(
       PROVEEDOR_IMPORTACIONES_QUERY,
       { id: Number(proveedorId) },
     )
       .then((res) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setHistorialImportaciones(res.importacion.nodes.map((b: any) => backendToImportacionSimple(b)))
+        setHistorialImportaciones(res.importacion.nodes.map(backendToImportacionSimple))
       })
       .catch(() => notify.error('Error cargando historial'))
       .finally(() => setHistorialLoading(false))

@@ -35,7 +35,7 @@ const EMPTY: FormData = {
   nombre: '',
   descripcion: '',
   procedencia: '',
-  categoria: 'Otro',
+  categoria: '',
   marcaId: null,
   vehiculo: '',
   unidad: 'pieza',
@@ -101,7 +101,7 @@ export function ProductoModal({
         nombre:               producto.nombre,
         descripcion:          producto.descripcion,
         procedencia:          producto.procedencia ?? '',
-        categoria:            producto.categoria,
+        categoria:            producto.categoria ?? '',
         marcaId:              producto.marcaId ?? null,
         vehiculo:             producto.vehiculo,
         unidad:               producto.unidad,
@@ -156,9 +156,6 @@ export function ProductoModal({
       e.codigo_universal = 'El código universal es obligatorio'
     } else if (form.codigo_universal.trim().length < 3) {
       e.codigo_universal = 'El código debe tener al menos 3 caracteres'
-    }
-    if (!form.nombre.trim()) {
-      e.nombre = 'El nombre del producto es obligatorio'
     }
     if (!producto && form.precio_costo <= 0) {
       e.precio_costo = 'El precio costo debe ser mayor a 0'
@@ -261,6 +258,16 @@ export function ProductoModal({
   })()
   const kitCodigoActual = producto?.codigo_universal ?? form.codigo_universal
 
+  // Detectar cambio de marca en un kit existente (edición) para mostrar el
+  // warning de sincronización de prefijo en las piezas.
+  const marcaCambioEnEdicion =
+    !!producto &&
+    producto.es_kit === true &&
+    (producto.piezas_kit?.length ?? 0) > 0 &&
+    (producto.marcaId ?? null) !== (form.marcaId ?? null)
+
+  const cantidadPiezasEnKit = producto?.piezas_kit?.length ?? 0
+
   const handleImprimirPieza = (part: DisplayPart) => {
     if (!part.codigoPieza) return
     const marcaId = producto?.marcaId ?? form.marcaId
@@ -276,7 +283,7 @@ export function ProductoModal({
         unidad: 'pieza',
         creado_en: new Date().toISOString(),
       },
-      subtitulo: `${part.nombre} · de ${form.nombre || producto?.nombre || ''}`,
+      subtitulo: `${part.nombre} · de ${form.nombre?.trim() || producto?.nombre?.trim() || '(sin nombre)'}`,
     })
   }
 
@@ -286,7 +293,7 @@ export function ProductoModal({
       open={open}
       onClose={onClose}
       subtitle={producto ? 'Detalle del producto' : 'Nuevo producto'}
-      title={producto ? producto.nombre : 'Registrar autoparte'}
+      title={producto ? (producto.nombre?.trim() || '(sin nombre)') : 'Registrar autoparte'}
       sku={skuDisplay}
       footer={
         <>
@@ -351,11 +358,12 @@ export function ProductoModal({
                 hint="Código principal — usado en búsquedas y etiquetas"
               />
               <WarmInput
-                label="Nombre del producto *"
-                value={form.nombre}
+                label="Nombre del producto (opcional)"
+                value={form.nombre ?? ''}
                 onChange={(e) => set('nombre', e.target.value)}
                 error={errors.nombre}
                 placeholder="Filtro de aceite Toyota"
+                hint="Opcional — el código universal es el identificador principal"
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
@@ -395,13 +403,20 @@ export function ProductoModal({
                 placeholder="Detalle o nota adicional del producto"
               />
             </div>
-            <div className="mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               <WarmInput
                 label="Procedencia"
                 value={form.procedencia ?? ''}
                 onChange={(e) => set('procedencia', e.target.value)}
                 placeholder="Ej: China, USA, Japón..."
                 hint="Opcional — país o región de origen del producto"
+              />
+              <WarmInput
+                label="Categoría"
+                value={form.categoria ?? ''}
+                onChange={(e) => set('categoria', e.target.value)}
+                placeholder="Ej: Ford, Toyota..."
+                hint="Opcional — texto libre, buscable desde la barra superior"
               />
             </div>
           </FormSection>
@@ -477,6 +492,18 @@ export function ProductoModal({
                 <span className="text-[13px] font-semibold text-[#4A4744]">Este producto es un kit</span>
               </label>
 
+              {/* Warning: cambio de marca sincroniza el prefijo de las piezas */}
+              {marcaCambioEnEdicion && (
+                <div className="rounded-[10px] bg-amber-50 border border-amber-300/60 px-3 py-2 text-[11px] text-amber-800 flex items-start gap-2">
+                  <svg className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  </svg>
+                  <span>
+                    <strong>Cambio de marca.</strong> Se actualizará el prefijo de las {cantidadPiezasEnKit} {cantidadPiezasEnKit === 1 ? 'pieza' : 'piezas'} del kit al guardar.
+                  </span>
+                </div>
+              )}
+
               {/* Kit → Regular: warning + stock manual input */}
               {!form.es_kit && producto?.es_kit && (
                 <div className="rounded-[12px] border-2 border-dashed border-amber-300 bg-amber-50/60 overflow-hidden">
@@ -507,15 +534,6 @@ export function ProductoModal({
               {/* Kit parts management */}
               {form.es_kit && (
                 <>
-                  {kitPrefijoActual && kitCodigoActual && (
-                    <div className="rounded-[10px] bg-[#F4ECDB] border border-[#D4A333]/30 px-3 py-2 text-[11px] text-[#7A5A0E]">
-                      Las piezas de este kit usarán el formato{' '}
-                      <span className="font-mono font-semibold text-[#5A3F00]">
-                        P{'{Orden}'}-{kitPrefijoActual}-{kitCodigoActual}
-                      </span>{' '}
-                      (autogenerado por el servidor).
-                    </div>
-                  )}
                   <KitPartsSection
                     productoId={producto?.id}
                     wasKit={producto?.es_kit ?? false}

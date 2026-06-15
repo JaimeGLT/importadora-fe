@@ -147,6 +147,23 @@ function OrdenDrawer({ orden, onClose }: { orden: OrdenVenta; onClose: () => voi
                           <span className="inline-flex items-center text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#DBEAFE] text-[#1D4ED8] tracking-wider">
                             Venta parcial · {item.piezas_orden.length} {item.piezas_orden.length === 1 ? 'pieza' : 'piezas'}
                           </span>
+                          {(item.producto_categoria || item.producto_procedencia) && (
+                            <span className="inline-flex items-center gap-1.5 text-[10px] text-[#7A7571]">
+                              {item.producto_categoria && (
+                                <span className="inline-flex items-center gap-0.5">
+                                  <i className="ti ti-tag text-[9px]" />
+                                  {item.producto_categoria}
+                                </span>
+                              )}
+                              {item.producto_categoria && item.producto_procedencia && <span className="text-[#D0CBC4]">·</span>}
+                              {item.producto_procedencia && (
+                                <span className="inline-flex items-center gap-0.5">
+                                  <i className="ti ti-flag text-[9px]" />
+                                  Origen: {item.producto_procedencia}
+                                </span>
+                              )}
+                            </span>
+                          )}
                         </div>
                       </td>
                     </tr>,
@@ -180,16 +197,35 @@ function OrdenDrawer({ orden, onClose }: { orden: OrdenVenta; onClose: () => voi
                       {fmtCodigo(item.producto_codigo, item.marcaId, marcas)}
                     </td>
                     <td className="px-3 py-2.5 text-[12px] text-[#2D2B2A]">
-                      <span>{item.producto_nombre}</span>
-                      {item.marca_nombre && (
-                        <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#F4ECDB] text-[#780e18]">
-                          {item.marca_nombre}
-                        </span>
-                      )}
-                      {item.es_kit && (
-                        <span className="ml-1.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider">
-                          KIT
-                        </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span>{item.producto_nombre}</span>
+                        {item.marca_nombre && (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#F4ECDB] text-[#780e18]">
+                            {item.marca_nombre}
+                          </span>
+                        )}
+                        {item.es_kit && (
+                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider">
+                            KIT
+                          </span>
+                        )}
+                      </div>
+                      {(item.producto_categoria || item.producto_procedencia) && (
+                        <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#7A7571] leading-tight">
+                          {item.producto_categoria && (
+                            <span className="inline-flex items-center gap-0.5">
+                              <i className="ti ti-tag text-[9px]" />
+                              {item.producto_categoria}
+                            </span>
+                          )}
+                          {item.producto_categoria && item.producto_procedencia && <span className="text-[#D0CBC4]">·</span>}
+                          {item.producto_procedencia && (
+                            <span className="inline-flex items-center gap-0.5">
+                              <i className="ti ti-flag text-[9px]" />
+                              Origen: {item.producto_procedencia}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </td>
                     <td className="px-3 py-2.5 text-right text-[12px] text-[#4A4644]">{item.cantidad_pedida}</td>

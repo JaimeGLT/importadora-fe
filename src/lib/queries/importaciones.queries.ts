@@ -17,6 +17,13 @@ export interface DtoProductoImportacion {
 }
 
 export interface DtoImportacion {
+  /**
+   * Si viene con un id, este payload es un LOTE de continuación: el backend
+   * solo anexa productos y detalles a la Importacion existente. Si es null
+   * (o no viene), es el PRIMER lote: el backend crea la Importacion y
+   * devuelve su id en la respuesta para los siguientes lotes.
+   */
+  importacionId?: number | null
   tipo?: string
   id_Proveedor: number
   fecha: string
@@ -26,6 +33,13 @@ export interface DtoImportacion {
   aduana_Arancel: number
   trasporte_Interno: number
   productos: DtoProductoImportacion[]
+}
+
+/** Respuesta del backend tras cada lote (creación o continuación). */
+export interface DtoImportacionRespuesta {
+  actualizados: number
+  creados: number
+  importacionId?: number | null
 }
 
 interface BackendDetalle {
@@ -279,28 +293,6 @@ export const IMPORTACIONES_INIT_QUERY = `
         tiempoReposicion
         sitioWeb
         estado
-      }
-    }
-    productos(first: 5000) {
-      nodes {
-        id
-        codigo
-        codigoAux
-        codigoAux2
-        nombre
-        marcaId
-        ubicacion
-        stock_Actual
-        stockReservado
-        stock_Minimo
-        calcularStockKit
-        esKit
-        costo
-        precio
-        conversionABs
-        piezas
-        fechaCreacion
-        fechaActualizacion
       }
     }
     marca(order: { nombre: ASC }) {

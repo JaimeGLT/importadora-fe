@@ -5,6 +5,7 @@ import { imprimirLote } from '@/lib/printLabel'
 import type { Producto, Marca } from '@/types'
 import { clsx } from 'clsx'
 import { api } from '@/lib/api'
+import { ImportProgressView } from './ImportProgressView'
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
@@ -29,7 +30,7 @@ interface ColumnMapping {
 
 type FieldMappings = Partial<Record<ImportableKey, ColumnMapping>>
 
-type Step = 'upload' | 'mapear' | 'preview' | 'etiquetas'
+type Step = 'upload' | 'mapear' | 'preview' | 'importing' | 'etiquetas'
 
 type ProductoImportado = Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>
 
@@ -156,7 +157,10 @@ function Stepper({ step }: { step: Step }) {
     { id: 'preview',   label: 'Vista previa' },
     { id: 'etiquetas', label: 'Etiquetas' },
   ]
-  const idx = steps.findIndex((s) => s.id === step)
+  // 'importing' es una fase transitoria entre preview y etiquetas:
+  // visualmente se muestra como si el usuario siguiera en "Vista previa".
+  const displayStep = step === 'importing' ? 'preview' : step
+  const idx = steps.findIndex((s) => s.id === displayStep)
 
   return (
     <div className="flex items-center gap-0 mb-5">
@@ -198,7 +202,10 @@ function Stepper({ step }: { step: Step }) {
 interface ImportarExcelModalProps {
   open: boolean
   onClose: () => void
-  onImport: (results: ImportResult[]) => Promise<void>
+  onImport: (
+    results: ImportResult[],
+    onProgress?: (current: number, total: number) => void,
+  ) => Promise<void>
   productosExistentes: Producto[]
   marcas: Marca[]
 }
@@ -227,6 +234,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
   const [usarTipoCambioGlobal, setUsarTipoCambioGlobal] = useState(true)
 const [dragOver, setDragOver]       = useState(false)
   const [importing, setImporting]     = useState(false)
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 })
   const [importados, setImportados]   = useState<ProductoImportado[]>([])
   const [labelConfig, setLabelConfig] = useState<Record<string, LabelConfig>>({})
   const [printing, setPrinting]       = useState(false)
@@ -281,6 +289,7 @@ const [dragOver, setDragOver]       = useState(false)
     setStep('upload'); setExcelCols([]); setRawRows([])
     setFileName(''); setMappings({})
     setPreviewActions({}); setImportados([]); setLabelConfig({})
+    setImportProgress({ current: 0, total: 0 })
     setTipoCambio('6.96')
     setUsarTipoCambioGlobal(true)
     setProcedenciaOverrides({})
@@ -377,7 +386,9 @@ const [dragOver, setDragOver]       = useState(false)
           : tcFromExcel > 0 ? tcFromExcel : 6.96
 
         if (action === 'update' && existing) {
-          const stockParaEnviar = p.stock
+          // Acumular al stock existente en vez de sobrescribirlo: el Excel
+          // representa un nuevo ingreso, no un reemplazo del inventario.
+          const stockParaEnviar = (existing.stock ?? 0) + p.stock
           return {
             data: {
               ...p,
@@ -415,6 +426,12 @@ const [dragOver, setDragOver]       = useState(false)
         }
       })
 
+    // Activar vista de progreso antes de la resolución de marcas: así el
+    // usuario ve la UI de carga de inmediato y la resolución de marcaId
+    // (que puede ser lenta si hay marcas nuevas) ocurre "en background".
+    setImportProgress({ current: 0, total: results.length })
+    setStep('importing')
+
     const marcaCache = new Map<string, number | null>()
     for (const result of results) {
       const nombreMarca = ((result.data as unknown as { marca?: string }).marca ?? '').trim()
@@ -426,7 +443,10 @@ const [dragOver, setDragOver]       = useState(false)
       result.data.marcaId = marcaCache.get(norm) ?? null
     }
 
-    await onImport(results)
+    await onImport(
+      results,
+      (current, total) => setImportProgress({ current, total }),
+    )
 
     // Preparar config de etiquetas
     const config: Record<string, LabelConfig> = {}
@@ -489,12 +509,12 @@ const [dragOver, setDragOver]       = useState(false)
   // ─── Render ────────────────────────────────────────────────────────────────
   const footer = (
     <>
-      {step !== 'upload' && step !== 'etiquetas' && (
+      {step !== 'upload' && step !== 'etiquetas' && step !== 'importing' && (
         <Button variant="ghost" onClick={() => setStep(step === 'preview' ? 'mapear' : 'upload')} disabled={importing}>
           Atrás
         </Button>
       )}
-      {step !== 'etiquetas' && (
+      {step !== 'etiquetas' && step !== 'importing' && (
         <Button variant="secondary" onClick={handleClose} disabled={importing}>Cancelar</Button>
       )}
       {step === 'mapear' && (
@@ -503,6 +523,11 @@ const [dragOver, setDragOver]       = useState(false)
       {step === 'preview' && (
         <Button onClick={() => void handleImport()} loading={importing} disabled={validCount === 0}>
           Importar {validCount} producto{validCount !== 1 ? 's' : ''}
+        </Button>
+      )}
+      {step === 'importing' && (
+        <Button loading disabled>
+          Importando…
         </Button>
       )}
       {step === 'etiquetas' && (
@@ -863,8 +888,16 @@ const [dragOver, setDragOver]       = useState(false)
             </table>
           </div>
 
-          
+
         </div>
+      )}
+
+      {/* ── STEP 3.5: IMPORTING (progress overlay) ── */}
+      {step === 'importing' && (
+        <ImportProgressView
+          current={importProgress.current}
+          total={importProgress.total}
+        />
       )}
     </Modal>
   )

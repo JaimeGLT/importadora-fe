@@ -345,6 +345,32 @@ function FaltantesModal({
                       <CheckBox checked={checked} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-[#2D2B2A] truncate">{item.producto_nombre}</p>
+                        {item.producto_descripcion && (
+                          <p
+                            className="text-[10px] text-[#7A7571] truncate leading-tight mt-0.5"
+                            title={item.producto_descripcion}
+                          >
+                            <i className="ti ti-align-left text-[9px] mr-0.5" />
+                            {item.producto_descripcion}
+                          </p>
+                        )}
+                        {(item.producto_categoria || item.producto_procedencia) && (
+                          <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#7A7571] leading-tight">
+                            {item.producto_categoria && (
+                              <span className="inline-flex items-center gap-0.5">
+                                <i className="ti ti-tag text-[9px]" />
+                                {item.producto_categoria}
+                              </span>
+                            )}
+                            {item.producto_categoria && item.producto_procedencia && <span className="text-[#D0CBC4]">·</span>}
+                            {item.producto_procedencia && (
+                              <span className="inline-flex items-center gap-0.5">
+                                <i className="ti ti-flag text-[9px]" />
+                                Origen: {item.producto_procedencia}
+                              </span>
+                            )}
+                          </div>
+                        )}
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                           <span className="text-[11px] font-mono text-[#7A7571] bg-[#F0EFEC] px-1.5 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
                           {(item.producto_almacen || item.producto_estante) && (
@@ -395,6 +421,23 @@ function FaltantesModal({
                     <i className="ti ti-x text-[#B23A2A] text-[16px] shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-[#8A1E12] truncate">{item.producto_nombre}</p>
+                      {(item.producto_categoria || item.producto_procedencia) && (
+                        <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#B23A2A]/70 leading-tight">
+                          {item.producto_categoria && (
+                            <span className="inline-flex items-center gap-0.5">
+                              <i className="ti ti-tag text-[9px]" />
+                              {item.producto_categoria}
+                            </span>
+                          )}
+                          {item.producto_categoria && item.producto_procedencia && <span className="text-[#B23A2A]/30">·</span>}
+                          {item.producto_procedencia && (
+                            <span className="inline-flex items-center gap-0.5">
+                              <i className="ti ti-flag text-[9px]" />
+                              Origen: {item.producto_procedencia}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[11px] font-mono text-[#B23A2A]">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
                         {item.nota && <span className="text-[10px] text-[#B23A2A] italic">— {item.nota}</span>}
@@ -491,6 +534,23 @@ function ItemCard({
         <div className="flex-1 min-w-0">
           <p className="font-mono text-xs text-[#7A7571] leading-none mb-0.5">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</p>
           <p className="text-sm font-bold text-[#2D2B2A] leading-snug">{item.producto_nombre}</p>
+          {(item.producto_categoria || item.producto_procedencia) && (
+            <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#7A7571] leading-tight">
+              {item.producto_categoria && (
+                <span className="inline-flex items-center gap-0.5">
+                  <i className="ti ti-tag text-[9px]" />
+                  {item.producto_categoria}
+                </span>
+              )}
+              {item.producto_categoria && item.producto_procedencia && <span className="text-[#D0CBC4]">·</span>}
+              {item.producto_procedencia && (
+                <span className="inline-flex items-center gap-0.5">
+                  <i className="ti ti-flag text-[9px]" />
+                  Origen: {item.producto_procedencia}
+                </span>
+              )}
+            </div>
+          )}
           <p className="text-[11px] text-[#7A7571] mt-0.5">Pedidas: {pedida} unidades</p>
           {item.nota && <p className="text-[11px] text-[#B23A2A] mt-0.5 italic">{item.nota}</p>}
           {(item.producto_almacen || item.producto_estante || item.producto_fila || item.producto_columna) && (
@@ -667,6 +727,23 @@ function KitGroupCard({
           <div className="px-4 py-3 flex items-center gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-[#2D2B2A] truncate">{kitCompleto.producto_nombre}</p>
+              {(kitCompleto.producto_categoria || kitCompleto.producto_procedencia) && (
+                <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#7A7571] leading-tight">
+                  {kitCompleto.producto_categoria && (
+                    <span className="inline-flex items-center gap-0.5">
+                      <i className="ti ti-tag text-[9px]" />
+                      {kitCompleto.producto_categoria}
+                    </span>
+                  )}
+                  {kitCompleto.producto_categoria && kitCompleto.producto_procedencia && <span className="text-[#D0CBC4]">·</span>}
+                  {kitCompleto.producto_procedencia && (
+                    <span className="inline-flex items-center gap-0.5">
+                      <i className="ti ti-flag text-[9px]" />
+                      Origen: {kitCompleto.producto_procedencia}
+                    </span>
+                  )}
+                </div>
+              )}
               <p className="text-[11px] text-[#7A7571] mt-0.5">
                 {kitCompleto.cantidad_pedida} unidades pedidas · kit pre-armado
               </p>

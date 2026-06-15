@@ -23,7 +23,7 @@ const groups: NavGroup[] = [
     items: [
       { label: 'Productos',  to: '/inventario',            roles: ['admin'] },
       { label: 'Ajustes',    to: '/inventario/ajustes',   roles: ['admin', 'almacenero', 'cajero'] },
-      { label: 'Préstamos',  to: '/inventario/prestamos', roles: ['admin'] },
+      { label: 'Marcas',     to: '/inventario/marcas',    roles: ['admin'] },
     ],
   },
   {
@@ -32,7 +32,6 @@ const groups: NavGroup[] = [
     items: [
       { label: 'Importaciones', to: '/importaciones',             roles: ['admin'] },
       { label: 'Proveedores',   to: '/importaciones/proveedores', roles: ['admin'] },
-      { label: 'Marcas',        to: '/importaciones/marcas',      roles: ['admin'] },
       { label: 'Extractor IA',  to: '/importaciones/extractor',   roles: ['admin'] },
     ],
   },

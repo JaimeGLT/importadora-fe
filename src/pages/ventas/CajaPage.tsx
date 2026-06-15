@@ -253,7 +253,7 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
                   key={p.id}
                   onClick={() => { if (disp > 0 || p.es_kit) onSelectProducto(p) }}
                   className={clsx(
-                    'flex items-center gap-3 px-4 py-3 transition-colors',
+                    'flex items-start gap-3 px-4 py-3 transition-colors',
                     p.es_kit && 'border-l-[4px] !border-l-[#B47A1F]',
                     disp === 0 && !p.es_kit ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
                     inCart
@@ -261,13 +261,6 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
                       : 'hover:bg-[#FAF5EE]'
                   )}
                 >
-                  {p.imagen ? (
-                    <img src={p.imagen} alt={p.nombre} className="h-10 w-10 rounded-lg object-cover bg-[#F0EFEC] border border-[#E8E5E2] shrink-0" />
-                  ) : (
-                    <div className="h-10 w-10 rounded-lg bg-[#F0EFEC] border border-[#E8E5E2] shrink-0 flex items-center justify-center">
-                      <i className="ti ti-photo text-[#7A7571] text-[18px]" />
-                    </div>
-                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="font-mono text-sm font-bold text-[#780e18] bg-[#F4ECDB] px-2 py-0.5 rounded">{fmtCodigo(p.codigo_universal, p.marcaId, marcas)}</span>
@@ -278,7 +271,33 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
                         </span>
                       )}
                     </div>
-                    <p className="text-sm font-medium text-[#4A4744] truncate">{p.nombre}</p>
+                    <p className="text-sm font-medium text-[#4A4744] whitespace-normal break-words">{p.nombre}</p>
+                    {p.descripcion && (
+                      <p
+                        className="text-[10px] text-[#7A7571] whitespace-normal break-words leading-tight mt-0.5"
+                        title={p.descripcion}
+                      >
+                        <i className="ti ti-align-left text-[9px] mr-0.5" />
+                        {p.descripcion}
+                      </p>
+                    )}
+                    {(p.categoria || p.procedencia) && (
+                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-0.5 text-[10px] text-[#7A7571] leading-tight">
+                        {p.categoria && (
+                          <span className="inline-flex items-center gap-0.5 whitespace-normal break-words">
+                            <i className="ti ti-tag text-[9px]" />
+                            {p.categoria}
+                          </span>
+                        )}
+                        {p.categoria && p.procedencia && <span className="text-[#D0CBC4]">·</span>}
+                        {p.procedencia && (
+                          <span className="inline-flex items-center gap-0.5 whitespace-normal break-words">
+                            <i className="ti ti-flag text-[9px]" />
+                            Origen: {p.procedencia}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center gap-3 mt-1 flex-wrap">
                       <span className={`text-[11px] font-semibold ${stockCls}`}>{disp} disponibles</span>
                       <span className="text-[11px] font-mono font-bold text-[#2D2B2A]">Bs {p.precio_venta.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -371,13 +390,6 @@ function CartItem({
         </div>
       )}
       <div className={clsx('flex gap-3', item.kit_id ? 'items-center' : 'items-start')}>
-        {item.producto_imagen ? (
-          <img src={item.producto_imagen} alt={item.producto_nombre} className="h-12 w-12 rounded-lg object-cover bg-[#F0EFEC] border border-[#E8E5E2] shrink-0" />
-        ) : (
-          <div className="h-12 w-12 rounded-lg bg-[#F0EFEC] border border-[#E8E5E2] shrink-0 flex items-center justify-center">
-            <i className="ti ti-photo text-[#7A7571] text-[18px]" />
-          </div>
-        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 min-w-0">
@@ -406,7 +418,31 @@ function CartItem({
               </span>
             )}
           </p>
-          {item.producto_descripcion && <p className="text-[10px] text-[#7A7571] truncate mt-0.5">{item.producto_descripcion}</p>}
+          {(item.producto_categoria || item.producto_procedencia) && (
+            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-0.5 text-[10px] text-[#7A7571] leading-tight">
+              {item.producto_categoria && (
+                <span className="inline-flex items-center gap-0.5 whitespace-normal break-words">
+                  <i className="ti ti-tag text-[9px]" />
+                  {item.producto_categoria}
+                </span>
+              )}
+              {item.producto_categoria && item.producto_procedencia && <span className="text-[#D0CBC4]">·</span>}
+              {item.producto_procedencia && (
+                <span className="inline-flex items-center gap-0.5 whitespace-normal break-words">
+                  <i className="ti ti-flag text-[9px]" />
+                  Origen: {item.producto_procedencia}
+                </span>
+              )}
+            </div>
+          )}
+          {item.producto_descripcion && (
+            <p
+              className="text-[10px] text-[#7A7571] whitespace-normal break-words mt-0.5"
+              title={item.producto_descripcion}
+            >
+              {item.producto_descripcion}
+            </p>
+          )}
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-1">
               <button onClick={() => onQtyChange(idx, -1)} className="h-7 w-7 rounded-lg border border-[#E8E5E2] text-[#4A4744] hover:bg-[#F0EFEC] flex items-center justify-center text-base font-bold transition-colors">−</button>
@@ -1122,6 +1158,8 @@ export function CajaPage() {
         marcaId: producto.marcaId ?? null,
         producto_nombre: producto.nombre,
         producto_descripcion: producto.descripcion || undefined,
+        producto_categoria: producto.categoria,
+        producto_procedencia: producto.procedencia,
         producto_almacen: producto.almacen,
         producto_estante: producto.estante,
         producto_fila: producto.fila,
@@ -1218,6 +1256,8 @@ export function CajaPage() {
           producto_codigo: kitSeleccionado.codigo_universal,
           marcaId: kitSeleccionado.marcaId ?? null,
           producto_nombre: kitSeleccionado.nombre,
+          producto_categoria: kitSeleccionado.categoria,
+          producto_procedencia: kitSeleccionado.procedencia,
           producto_almacen: kitSeleccionado.almacen,
           producto_estante: kitSeleccionado.estante,
           producto_fila: kitSeleccionado.fila,
@@ -1255,6 +1295,8 @@ export function CajaPage() {
         producto_codigo: kitSeleccionado.codigo_universal,
         marcaId: kitSeleccionado.marcaId ?? null,
         producto_nombre: kitSeleccionado.nombre,
+        producto_categoria: kitSeleccionado.categoria,
+        producto_procedencia: kitSeleccionado.procedencia,
         producto_almacen: kitSeleccionado.almacen,
         producto_estante: kitSeleccionado.estante,
         producto_fila: kitSeleccionado.fila,

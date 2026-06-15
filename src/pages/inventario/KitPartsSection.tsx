@@ -132,7 +132,7 @@ export function KitPartsSection({
   }, [piezasFromBackend])
 
   const previewCodigoPieza = (orden: number): string => {
-    const prefijo = kitPrefijo || 'X'
+    const prefijo = kitPrefijo || 'NO'
     const codigo = kitCodigo || '???'
     return `P${orden}-${prefijo}-${codigo}`
   }
@@ -322,7 +322,7 @@ export function KitPartsSection({
             ) : (
               filteredResults.map((p) => (
                 <button key={p.id} type="button"
-                  onClick={() => { setPending({ nombre: p.nombre }); setPendingQty(1) }}
+                  onClick={() => { setPending({ nombre: p.nombre ?? p.codigo_universal }); setPendingQty(1) }}
                   className={clsx(
                     'w-full flex items-center gap-3 px-4 py-2.5 text-left border-b border-hair/50 last:border-0 transition-colors',
                     pending?.nombre === p.nombre ? 'bg-navy/[0.06]' : 'hover:bg-cream-2',

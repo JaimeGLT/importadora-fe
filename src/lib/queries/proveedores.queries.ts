@@ -1,4 +1,4 @@
-import type { Proveedor, Importacion, ItemImportacion } from '@/types'
+import type { Proveedor, ImportacionSummary } from '@/types'
 
 export function backendToProveedor(b: {
   id: number
@@ -46,24 +46,7 @@ export function backendToImportacionSimple(b: {
   aduana_Arancel: number
   trasporte_Interno: number
   proveedor: { id: number; nombre: string; pais: string }
-  detalles: {
-    id: number
-    codigo: string
-    codigoAux: string
-    codigoAux2: string
-    nombre: string
-    descripcion: string
-    unidad_Medida: string
-    ubicacion: string
-    stock_Actual: number
-    stock_Minimo: number
-    costo: number
-    precio: number
-    conversionABs: number
-    tipo: string
-  }[]
-}): Importacion {
-  const firstDetalle = b.detalles[0]
+}): ImportacionSummary {
   return {
     id: String(b.id),
     numero: b.codigo,
@@ -71,33 +54,13 @@ export function backendToImportacionSimple(b: {
     origen: b.proveedor.pais,
     fecha_creacion: b.fecha,
     fecha_estimada_llegada: b.fecha,
-    estado: 'en_transito' as Importacion['estado'],
+    estado: 'en_transito' as ImportacionSummary['estado'],
     fob_total_usd: b.total,
     flete_usd: b.f_Internacional,
     aduana_bs: b.aduana_Arancel,
     transporte_interno_bs: b.trasporte_Interno,
-    tipo_cambio: firstDetalle?.conversionABs ?? 6.96,
-    items: b.detalles.map((d) => ({
-      id: String(d.id),
-      codigo_proveedor: d.codigo,
-      codigos_adicionales: [d.codigoAux, d.codigoAux2].filter(Boolean),
-      nombre: d.nombre,
-      descripcion: d.descripcion ?? '',
-      marca: '',
-      unidad: (d.unidad_Medida as ItemImportacion['unidad']) ?? 'pieza',
-      ubicacion: d.ubicacion ?? 'Almacén Central',
-      precio_fob_usd: 0,
-      cantidad: d.stock_Actual,
-      stock_minimo: d.stock_Minimo,
-      costo_unitario_fob_bs: d.costo,
-      costo_unitario_adicional_bs: 0,
-      costo_unitario_total_bs: d.costo,
-      precio_venta_sugerido: d.precio,
-      precio_venta_final: d.precio,
-      producto_id: undefined,
-      es_nuevo: d.tipo === 'Nuevo',
-      usar_precio_nuevo: true,
-    })),
+    tipo_cambio: 6.96,
+    cantProductos: b.cantProductos ?? 0,
     creado_en: b.fecha,
     actualizado_en: b.fecha,
   }
@@ -144,22 +107,6 @@ export const PROVEEDOR_IMPORTACIONES_QUERY = `
           id
           nombre
           pais
-        }
-        detalles {
-          id
-          codigo
-          codigoAux
-          codigoAux2
-          nombre
-          descripcion
-          unidad_Medida
-          ubicacion
-          stock_Actual
-          stock_Minimo
-          costo
-          precio
-          conversionABs
-          tipo
         }
       }
     }

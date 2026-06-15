@@ -1402,7 +1402,7 @@ export function EscaneoPage() {
       if (!item.es_parcial || !item.piezas_orden?.length) continue
       for (const pieza of item.piezas_orden) {
         if (pieza.nota_incompleto && !(pieza.cantidad_recogida ?? 0)) {
-          result.push({ itemNombre: item.producto_nombre, pieza })
+          result.push({ itemNombre: item.producto_nombre ?? '', pieza })
         }
       }
     }
@@ -2546,6 +2546,23 @@ export function EscaneoPage() {
                                 <p className="text-sm font-semibold text-[#2D2B2A] leading-snug truncate">
                                   {item.producto_nombre} · ×{cantidadEscanear}
                                 </p>
+                                {(item.producto_categoria || item.producto_procedencia) && (
+                                  <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#7A7571] leading-tight">
+                                    {item.producto_categoria && (
+                                      <span className="inline-flex items-center gap-0.5">
+                                        <i className="ti ti-tag text-[9px]" />
+                                        {item.producto_categoria}
+                                      </span>
+                                    )}
+                                    {item.producto_categoria && item.producto_procedencia && <span className="text-[#D0CBC4]">·</span>}
+                                    {item.producto_procedencia && (
+                                      <span className="inline-flex items-center gap-0.5">
+                                        <i className="ti ti-flag text-[9px]" />
+                                        Origen: {item.producto_procedencia}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                                 {!confirmed && !isKit && (scanCounts[item.id] ?? 0) > 0 && (
                                   <p className="text-[11px] font-bold text-[#780e18] mt-0.5">
                                     {scanCounts[item.id]}/{cantidadEscanear} escaneados
@@ -2664,6 +2681,23 @@ export function EscaneoPage() {
                                 <div className="flex-1 min-w-0">
                                   <p className="text-xs font-mono text-[#D0CBC4] line-through leading-none">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</p>
                                   <p className="text-sm text-[#7A7571] line-through leading-snug truncate">{item.producto_nombre} · ×{cantidadFaltante}</p>
+                                  {(item.producto_categoria || item.producto_procedencia) && (
+                                    <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#B23A2A]/70 line-through leading-tight">
+                                      {item.producto_categoria && (
+                                        <span className="inline-flex items-center gap-0.5">
+                                          <i className="ti ti-tag text-[9px]" />
+                                          {item.producto_categoria}
+                                        </span>
+                                      )}
+                                      {item.producto_categoria && item.producto_procedencia && <span className="text-[#B23A2A]/30">·</span>}
+                                      {item.producto_procedencia && (
+                                        <span className="inline-flex items-center gap-0.5">
+                                          <i className="ti ti-flag text-[9px]" />
+                                          Origen: {item.producto_procedencia}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                                 <span className="px-2.5 py-1 rounded-lg bg-[#F5C9C0] text-[#8A1E12] text-xs font-bold shrink-0">No disponible</span>
                               </div>

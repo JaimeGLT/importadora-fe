@@ -32,6 +32,7 @@ export const PRODUCTOS_QUERY = `
         codigoAux
         codigoAux2
         nombre
+        categoria
         marcaId
         ubicacion
         stock_Actual
@@ -63,6 +64,7 @@ export const PRODUCTOS_CON_MARCAS_QUERY = `
         codigoAux
         codigoAux2
         nombre
+        categoria
         marcaId
         ubicacion
         stock_Actual
@@ -95,6 +97,7 @@ export const PRODUCTOS_NOTIFICACIONES_QUERY = `
         id
         codigo
         nombre
+        categoria
         stock_Actual
         stock_Minimo
         esKit
@@ -114,6 +117,7 @@ export const PRODUCTOS_ALL_QUERY = `
         codigoAux
         codigoAux2
         nombre
+        categoria
         marcaId
         ubicacion
         stock_Actual
@@ -149,6 +153,7 @@ export const PRODUCTO_BY_ID_QUERY = `
         conversionABs
         codigo
         nombre
+        categoria
         precio
         esKit
         historialPrecios {
@@ -211,10 +216,11 @@ export interface ProductoAPISimple {
   codigo: string
   codigoAux: string
   codigoAux2: string
-  nombre: string
+  nombre?: string | null
   marcaId?: number | null
   descripcion: string
   procedencia?: string | null
+  categoria?: string | null
   unidad_Medida: string
   ubicacion: string
   stock_Actual: number
@@ -263,10 +269,11 @@ export interface ProductoAPIInput {
   codigo: string
   codigoAux: string
   codigoAux2: string
-  nombre: string
+  nombre?: string
   marcaId?: number | null
   descripcion: string
   procedencia?: string
+  categoria?: string
   unidad_Medida: string
   ubicacion: string
   cantidad: number
@@ -285,7 +292,7 @@ function mapProductoBase(p: ProductoAPISimple): Producto {
     nombre: p.nombre ?? '',
     descripcion: p.descripcion ?? '',
     procedencia: p.procedencia ?? '',
-    categoria: 'Otro',
+    categoria: p.categoria ?? '',
     marcaId: p.marcaId ?? null,
     vehiculo: '',
     unidad: (p.unidad_Medida?.toLowerCase() as Producto['unidad']) ?? 'pieza',
@@ -343,6 +350,7 @@ export function productoToBackend(
     marcaId: p.marcaId ?? null,
     descripcion: p.descripcion,
     procedencia: p.procedencia ?? '',
+    categoria: p.categoria ?? '',
     unidad_Medida: p.unidad,
     ubicacion: [p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / '),
     cantidad: p.stock,
@@ -356,7 +364,7 @@ export function productoToBackend(
 
 export interface ProductoAPIUpdate {
   codigo: string
-  nombre: string
+  nombre?: string
   piezas: number
   stock_Actual: number
   stock_Minimo: number
@@ -364,6 +372,7 @@ export interface ProductoAPIUpdate {
   codigoAux2?: string
   descripcion?: string
   procedencia?: string
+  categoria?: string
   marcaId?: number | null
   ubicacion?: string
   unidad_Medida?: string
@@ -382,6 +391,7 @@ export function productoToBackendUpdate(
     codigoAux2: p.codigos_alternativos[1] ?? '',
     descripcion: p.descripcion,
     procedencia: p.procedencia ?? '',
+    categoria: p.categoria ?? '',
     marcaId: p.marcaId ?? null,
     ubicacion: [p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / '),
     unidad_Medida: p.unidad,
@@ -424,6 +434,7 @@ export function productoToBackendBulk(
     marcaId: p.marcaId ?? null,
     descripcion: p.descripcion,
     procedencia: p.procedencia ?? '',
+    categoria: p.categoria ?? '',
     unidad_Medida: p.unidad,
     ubicacion: [p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / '),
     cantidad: p.stock,

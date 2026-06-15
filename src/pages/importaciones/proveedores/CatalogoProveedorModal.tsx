@@ -1,12 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Modal } from '@/components/ui'
-import type { Importacion, ItemImportacion, Proveedor } from '@/types'
+import type { Importacion, ImportacionSummary, ItemImportacion, Proveedor } from '@/types'
+import { gql } from '@/lib/graphql'
+import { IMPORTACION_DETAIL_QUERY, backendToImportacion } from '@/lib/queries/importaciones.queries'
+import { notify } from '@/lib/notify'
 
 interface Props {
   open: boolean
   onClose: () => void
   proveedor: Proveedor
-  importaciones: Importacion[]
+  importaciones: ImportacionSummary[]
   loading: boolean
 }
 
@@ -116,7 +119,48 @@ function ProductosTable({ items, tipoCambio }: { items: ItemImportacion[]; tipoC
 
 // ─── Vista detalle de una importación ────────────────────────────────────────
 
-function DetalleImportacion({ imp, onBack }: { imp: Importacion; onBack: () => void }) {
+function DetalleImportacion({
+  importacionId,
+  summary,
+  onBack,
+}: {
+  importacionId: string
+  summary: ImportacionSummary
+  onBack: () => void
+}) {
+  const [importacion, setImportacion] = useState<Importacion | null>(null)
+  const [loadingDetalle, setLoadingDetalle] = useState(false)
+
+  // Fetch lazy: trae el detalle (con todos los productos) solo cuando el
+  // usuario hace click en una importación específica. Equivalente al patrón
+  // ya usado en `ImportacionDetailModal` global.
+  useEffect(() => {
+    let cancelled = false
+    setImportacion(null)
+    setLoadingDetalle(true)
+    gql<{ importacion: { nodes: Parameters<typeof backendToImportacion>[0][] } }>(
+      IMPORTACION_DETAIL_QUERY,
+      { id: Number(importacionId) },
+    )
+      .then((res) => {
+        if (cancelled) return
+        const node = res.importacion.nodes[0]
+        if (node) setImportacion(backendToImportacion(node))
+      })
+      .catch(() => {
+        if (!cancelled) notify.error('Error cargando detalle de la importación')
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingDetalle(false)
+      })
+    return () => { cancelled = true }
+  }, [importacionId])
+
+  // Mientras carga el detalle, mostramos el header con el `summary` (que ya
+  // tenemos en memoria) y un skeleton en la tabla.
+  const cantProductos = importacion?.items.length ?? summary.cantProductos
+  const tipoCambio = importacion?.tipo_cambio ?? summary.tipo_cambio
+
   return (
     <div>
       <div className="flex items-center gap-3 mb-4">
@@ -131,22 +175,23 @@ function DetalleImportacion({ imp, onBack }: { imp: Importacion; onBack: () => v
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-[14px] font-semibold text-[#2D2B2A]">{imp.numero}</p>
+            <p className="text-[14px] font-semibold text-[#2D2B2A]">{summary.numero}</p>
           </div>
           <p className="text-[11px] text-[#7A7571] mt-0.5">
-            {fmtDate(imp.fecha_creacion)} · {imp.items.length} producto{imp.items.length !== 1 ? 's' : ''}
+            {fmtDate(summary.fecha_creacion)} ·{' '}
+            {loadingDetalle ? '…' : `${cantProductos} producto${cantProductos !== 1 ? 's' : ''}`}
           </p>
         </div>
       </div>
 
-      {/* Resumen costos */}
+      {/* Resumen costos — siempre se puede mostrar desde el `summary` */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-5">
         {[
-          { label: 'FOB total',   value: fmtUSD(imp.fob_total_usd) },
-          { label: 'Flete',       value: fmtUSD(imp.flete_usd) },
-          { label: 'Aduana',      value: `Bs ${fmtBs(imp.aduana_bs)}` },
-          { label: 'Transporte',  value: `Bs ${fmtBs(imp.transporte_interno_bs)}` },
-          { label: 'Tipo cambio', value: `Bs ${imp.tipo_cambio.toFixed(2)}` },
+          { label: 'FOB total',   value: fmtUSD(summary.fob_total_usd) },
+          { label: 'Flete',       value: fmtUSD(summary.flete_usd) },
+          { label: 'Aduana',      value: `Bs ${fmtBs(summary.aduana_bs)}` },
+          { label: 'Transporte',  value: `Bs ${fmtBs(summary.transporte_interno_bs)}` },
+          { label: 'Tipo cambio', value: `Bs ${tipoCambio.toFixed(2)}` },
         ].map((m) => (
           <div key={m.label} className="rounded-lg px-3 py-2.5 bg-[#FAF5EE] border border-[#E8E5E2]">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-[#7A7571] mb-0.5">{m.label}</p>
@@ -155,12 +200,20 @@ function DetalleImportacion({ imp, onBack }: { imp: Importacion; onBack: () => v
         ))}
       </div>
 
-      {imp.items.length === 0 ? (
+      {loadingDetalle ? (
+        <div className="overflow-x-auto rounded-xl border border-[#E8E5E2] p-3">
+          <div className="animate-pulse space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-4 rounded bg-[#F0EFEC]" style={{ width: `${85 - i * 5}%` }} />
+            ))}
+          </div>
+        </div>
+      ) : !importacion || importacion.items.length === 0 ? (
         <div className="py-10 text-center">
           <p className="text-[13px] text-[#7A7571]">Sin productos registrados en esta importación</p>
         </div>
       ) : (
-        <ProductosTable items={imp.items} tipoCambio={imp.tipo_cambio} />
+        <ProductosTable items={importacion.items} tipoCambio={importacion.tipo_cambio} />
       )}
     </div>
   )
@@ -169,14 +222,20 @@ function DetalleImportacion({ imp, onBack }: { imp: Importacion; onBack: () => v
 // ─── Vista lista de importaciones del proveedor ───────────────────────────────
 
 export function CatalogoProveedorModal({ open, onClose, proveedor, importaciones, loading }: Props) {
-  const [selected, setSelected] = useState<Importacion | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  const imps = importaciones.sort((a, b) => b.fecha_creacion.localeCompare(a.fecha_creacion))
+  const imps = importaciones
+    .slice()
+    .sort((a, b) => b.fecha_creacion.localeCompare(a.fecha_creacion))
 
-  const handleClose = () => { setSelected(null); onClose() }
+  const selectedSummary = selectedId
+    ? imps.find((i) => i.id === selectedId) ?? null
+    : null
 
-  const title = selected
-    ? `${selected.numero} — ${proveedor.nombre}`
+  const handleClose = () => { setSelectedId(null); onClose() }
+
+  const title = selectedSummary
+    ? `${selectedSummary.numero} — ${proveedor.nombre}`
     : `Historial — ${proveedor.nombre}`
 
   return (
@@ -189,8 +248,12 @@ export function CatalogoProveedorModal({ open, onClose, proveedor, importaciones
           </div>
           <p className="text-[12px] text-[#7A7571] mt-3">Cargando importaciones...</p>
         </div>
-      ) : selected ? (
-        <DetalleImportacion imp={selected} onBack={() => setSelected(null)} />
+      ) : selectedSummary ? (
+        <DetalleImportacion
+          importacionId={selectedSummary.id}
+          summary={selectedSummary}
+          onBack={() => setSelectedId(null)}
+        />
       ) : imps.length === 0 ? (
         <div className="py-16 text-center">
           <div className="w-12 h-12 rounded-xl bg-white border border-[#D0CBC4] flex items-center justify-center mx-auto mb-4">
@@ -202,7 +265,7 @@ export function CatalogoProveedorModal({ open, onClose, proveedor, importaciones
       ) : (
         <div className="space-y-2">
           {imps.map((imp) => (
-            <button key={imp.id} onClick={() => setSelected(imp)} className="w-full text-left group">
+            <button key={imp.id} onClick={() => setSelectedId(imp.id)} className="w-full text-left group">
               <div
                 className="flex items-center gap-4 px-5 py-4 rounded-xl bg-white border border-[#D0CBC4] transition-all group-hover:border-[#780e18] group-hover:bg-[#FAF5EE]"
                 style={{ boxShadow: '0 1px 3px rgba(45,43,42,0.04)' }}
@@ -212,7 +275,7 @@ export function CatalogoProveedorModal({ open, onClose, proveedor, importaciones
                     {imp.numero}
                   </p>
                   <p className="text-[11px] text-[#7A7571] mt-0.5">
-                    {fmtDate(imp.fecha_creacion)} · {imp.items.length} producto{imp.items.length !== 1 ? 's' : ''}
+                    {fmtDate(imp.fecha_creacion)} · {imp.cantProductos} producto{imp.cantProductos !== 1 ? 's' : ''}
                   </p>
                 </div>
                 <div className="hidden sm:block text-right shrink-0">

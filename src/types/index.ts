@@ -23,17 +23,6 @@ export interface AuthState {
 
 // ─── Inventario ───────────────────────────────────────────────────────────────
 
-export type CategoriaProducto =
-  | 'Motor'
-  | 'Transmisión'
-  | 'Suspensión'
-  | 'Frenos'
-  | 'Eléctrico'
-  | 'Carrocería'
-  | 'Enfriamiento'
-  | 'Escape'
-  | 'Otro'
-
 export type UnidadProducto = 'pieza' | 'juego' | 'par' | 'kit' | 'litro' | 'metro' | 'otro'
 
 export type EstadoProducto = 'activo' | 'descontinuado' | 'sin_stock'
@@ -50,10 +39,10 @@ export interface Producto {
   id: string
   codigo_universal: string        // código principal — búsquedas y código de barras
   codigos_alternativos: string[]  // hasta 2 códigos adicionales (caja / proveedor)
-  nombre: string
+  nombre?: string                 // opcional — puede ser string vacío o null
   descripcion: string
   procedencia?: string
-  categoria: CategoriaProducto
+  categoria?: string
   marcaId?: number | null
   marca?: string
   vehiculo: string                // compatibilidad libre: "Toyota Corolla 2018-2023"
@@ -95,7 +84,11 @@ export interface PiezaKit {
   stock_actual: number
   stock_reservado: number
   codigo_universal?: string
-  /** Código técnico autogenerado por el backend. Formato: P{Orden}-{PrefijoMarcaKit}-{CodigoKit}. */
+  /**
+   * Código técnico autogenerado por el backend.
+   * Formato: P{Orden}-{PrefijoMarcaKit o 'NO' si sin marca}-{CodigoKit}.
+   * Se regenera automáticamente al cambiar la marca del kit padre.
+   */
   codigo_pieza: string
   /** Posición secuencial de la pieza dentro del kit (1, 2, 3...). Autogenerado. */
   orden: number
@@ -156,29 +149,6 @@ export interface EvaluacionProveedor {
   notas?: string
 }
 
-// ─── Préstamos ────────────────────────────────────────────────────────────────
-
-export type EstadoPrestamo = 'activo' | 'cancelado' | 'devuelto'
-
-export interface ItemPrestamo {
-  producto_id: string
-  producto_nombre: string
-  producto_codigo: string
-  cantidad: number
-  precio_unitario: number
-  precio_total: number
-}
-
-export interface Prestamo {
-  id: string
-  items: ItemPrestamo[]
-  prestado_a: string
-  fecha: string
-  notas: string
-  estado: EstadoPrestamo
-  creado_en: string
-}
-
 // ─── Importaciones ────────────────────────────────────────────────────────────
 
 export interface OrigenConfig {
@@ -215,7 +185,7 @@ export interface ItemImportacion {
   usar_precio_nuevo?: boolean
 }
 
-export interface Importacion {
+export interface ImportacionSummary {
   id: string
   numero: string
   origen: string
@@ -229,9 +199,18 @@ export interface Importacion {
   transporte_interno_bs: number
   tipo_cambio: number
   tipo?: 'Local' | 'Internacional'
-  items: ItemImportacion[]
+  /**
+   * Cantidad de productos/detalles registrados en la importación.
+   * Viene del backend en queries que la incluyen (ej. `cantProductos`).
+   * Opcional: las queries que solo traen `items` pueden omitirla.
+   */
+  cantProductos?: number
   creado_en: string
   actualizado_en: string
+}
+
+export interface Importacion extends ImportacionSummary {
+  items: ItemImportacion[]
 }
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
@@ -250,7 +229,7 @@ export interface PaginatedResponse<T> {
 
 export interface Filters {
   search?: string
-  categoria?: CategoriaProducto | ''
+  categoria?: string
   estado?: EstadoProducto | ''
   page?: number
   pageSize?: number
@@ -390,7 +369,10 @@ export interface ItemOrden {
   id: string
   producto_id: string
   producto_codigo: string
-  producto_nombre: string
+  producto_nombre?: string | null
+  producto_categoria?: string
+  producto_procedencia?: string
+  producto_descripcion?: string
   producto_almacen: string
   producto_estante: string
   producto_fila: string

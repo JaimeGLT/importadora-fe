@@ -10,11 +10,10 @@ import { lazy, Suspense } from 'react'
 const LoginPage              = lazy(() => import('@/pages/auth/LoginPage').then(m => ({ default: m.LoginPage })))
 const DashboardPage          = lazy(() => import('@/pages/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })))
 const InventarioPage         = lazy(() => import('@/pages/inventario/InventarioPage').then(m => ({ default: m.InventarioPage })))
-const PrestamosPage          = lazy(() => import('@/pages/inventario/PrestamosPage').then(m => ({ default: m.PrestamosPage })))
 const AjustesPage            = lazy(() => import('@/pages/inventario/AjustesPage').then(m => ({ default: m.AjustesPage })))
+const MarcasPage             = lazy(() => import('@/pages/inventario/marcas/MarcasPage').then(m => ({ default: m.MarcasPage })))
 const ImportacionesPage      = lazy(() => import('@/pages/importaciones/ImportacionesPage').then(m => ({ default: m.ImportacionesPage })))
 const ProveedoresPage        = lazy(() => import('@/pages/importaciones/proveedores/ProveedoresPage').then(m => ({ default: m.ProveedoresPage })))
-const MarcasPageImportaciones = lazy(() => import('@/pages/importaciones/marcas/MarcasPage').then(m => ({ default: m.MarcasPage })))
 const CajaDiariaPage         = lazy(() => import('@/pages/caja/CajaDiariaPage').then(m => ({ default: m.CajaDiariaPage })))
 const CajaPage               = lazy(() => import('@/pages/ventas/CajaPage').then(m => ({ default: m.CajaPage })))
 const AlmacenPage            = lazy(() => import('@/pages/ventas/AlmacenPage').then(m => ({ default: m.AlmacenPage })))
@@ -24,7 +23,6 @@ const OrdenesReportePage     = lazy(() => import('@/pages/reportes/OrdenesReport
 const ComisionesPage         = lazy(() => import('@/pages/reportes/ComisionesPage').then(m => ({ default: m.ComisionesPage })))
 const ConfiguracionPage      = lazy(() => import('@/pages/config/ConfiguracionPage').then(m => ({ default: m.ConfiguracionPage })))
 const UsuariosPage           = lazy(() => import('@/pages/sistema/usuarios/UsuariosPage').then(m => ({ default: m.UsuariosPage })))
-const MarcasPage             = lazy(() => import('@/pages/sistema/marcas/MarcasPage').then(m => ({ default: m.MarcasPage })))
 const ClientesPage           = lazy(() => import('@/pages/ventas/clientes/ClientesPage').then(m => ({ default: m.ClientesPage })))
 const EscaneoPage            = lazy(() => import('@/pages/ventas/escaneo/EscaneoPage').then(m => ({ default: m.EscaneoPage })))
 const VentasHistorialPage    = lazy(() => import('@/pages/ventas/VentasHistorialPage').then(m => ({ default: m.VentasHistorialPage })))
@@ -72,14 +70,12 @@ export default function App() {
               <Route path="/reportes/ordenes" element={<OrdenesReportePage />} />
               <Route path="/reportes/comisiones" element={<ComisionesPage />} />
               <Route path="/inventario" element={<InventarioPage />} />
-              <Route path="/inventario/prestamos" element={<PrestamosPage />} />
+              <Route path="/inventario/marcas" element={<MarcasPage />} />
               <Route path="/importaciones" element={<ImportacionesPage />} />
               <Route path="/importaciones/proveedores" element={<ProveedoresPage />} />
-              <Route path="/importaciones/marcas" element={<MarcasPageImportaciones />} />
               <Route path="/importaciones/extractor" element={<FacturaExtractorPage />} />
               <Route path="/configuracion" element={<ConfiguracionPage />} />
               <Route path="/sistema/usuarios" element={<UsuariosPage />} />
-              <Route path="/sistema/marcas" element={<MarcasPage />} />
             </Route>
 
             <Route element={<RoleGuard allowedRoles={['admin', 'almacenero']} />}>

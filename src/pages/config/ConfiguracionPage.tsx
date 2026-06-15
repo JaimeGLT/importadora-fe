@@ -277,6 +277,8 @@ export function ConfiguracionPage() {
 
   const loadAll = () => {
     setLoading(true)
+    const startTime = Date.now()
+    const MIN_LOADING_MS = 300
     Promise.all([
       gql<{ descuento: { nodes: DescuentoAPI[] } }>(DESCUENTOS_QUERY).then(r => r.descuento.nodes),
       gql<{ margenGanancia: MargenGananciaAPI }>(MARGEN_GANANCIA_QUERY).then(r => r.margenGanancia),
@@ -299,7 +301,11 @@ export function ConfiguracionPage() {
         }
       })
       .catch(() => notify.error('Error cargando configuración'))
-      .finally(() => setLoading(false))
+      .finally(() => {
+        const elapsed = Date.now() - startTime
+        const remaining = Math.max(0, MIN_LOADING_MS - elapsed)
+        setTimeout(() => setLoading(false), remaining)
+      })
 
     fetch('https://bo.dolarapi.com/v1/dolares/binance')
       .then(r => r.json())
@@ -447,7 +453,7 @@ export function ConfiguracionPage() {
             </div>
             {loading ? (
               <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {[1, 2, 3, 4].map(i => <div key={i} className="h-36 rounded-xl bg-cream animate-pulse" />)}
+                {[1, 2, 3, 4].map(i => <div key={i} className="h-36 rounded-xl bg-[#E8E5E2] animate-pulse" />)}
               </div>
             ) : descuentos.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -478,6 +484,12 @@ export function ConfiguracionPage() {
               <div className="w-1 h-4 rounded-full bg-emerald-500" />
               <span className="font-serif text-[22px] leading-[1] tracking-[-0.01em] text-ink">Configuración de precios</span>
             </div>
+            {loading ? (
+              <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="h-32 rounded-xl bg-[#E8E5E2] animate-pulse" />
+                <div className="h-32 rounded-xl bg-[#E8E5E2] animate-pulse" />
+              </div>
+            ) : (
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
 
               {/* Margen de ganancia */}
@@ -599,6 +611,7 @@ export function ConfiguracionPage() {
                 </div>
               </div>
             </div>
+            )}
           </div>
 
           {/* ── Precio dólar Card ──────────────────────────────────────────── */}
@@ -608,6 +621,12 @@ export function ConfiguracionPage() {
               <div className="w-1 h-4 rounded-full bg-blue-500" />
               <span className="font-serif text-[22px] leading-[1] tracking-[-0.01em] text-ink">Precio del dólar</span>
             </div>
+            {loading ? (
+              <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="h-28 rounded-xl bg-[#E8E5E2] animate-pulse" />
+                <div className="h-28 rounded-xl bg-[#E8E5E2] animate-pulse" />
+              </div>
+            ) : (
             <div className="p-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {/* Dólar hoy */}
@@ -685,6 +704,7 @@ export function ConfiguracionPage() {
                 </div>
               </div>
             </div>
+            )}
           </div>
         </div>
 

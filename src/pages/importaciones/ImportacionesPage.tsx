@@ -8,6 +8,7 @@ import { NuevaImportacionModal } from './NuevaImportacionModal'
 import { NuevaImportacionLocalModal } from './NuevaImportacionLocalModal'
 import { TipoImportacionModal } from './TipoImportacionModal'
 import { ImportacionDetailModal } from './ImportacionDetailModal'
+import { ImportProgressOverlay } from './ImportProgressOverlay'
 import { notify } from '@/lib/notify'
 import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/AuthContext'
@@ -18,7 +19,7 @@ import type { ProductoAPISimple } from '@/lib/queries/inventario.queries'
 import { backendToMarca } from '@/lib/queries/marcas.queries'
 import { backendToProveedor } from '@/lib/queries/proveedores.queries'
 import { api } from '@/lib/api'
-import type { DtoImportacion } from '@/lib/queries/importaciones.queries'
+import type { DtoImportacion, DtoImportacionRespuesta } from '@/lib/queries/importaciones.queries'
 import type { MargenGananciaAPI } from '@/lib/queries/config.queries'
 import {
   useReactTable,
@@ -106,8 +107,21 @@ export function ImportacionesPage() {
   const [productos, setProductos] = useState<Producto[]>([])
   const [marcas, setMarcas] = useState<Marca[]>([])
   const [margenGanancia, setMargenGanancia] = useState<number>(1)
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null)
 
   const { importaciones, setImportaciones } = useImportacionesStore()
+
+  // ── Progress driver ──────────────────────────────────────────────────────
+  // El POST de importación AHORA es en lotes de 100 con progreso real: cada
+  // vez que un lote termina, avanzamos el contador y la UI lo refleja. No
+  // necesitamos curvas asintóticas fake: el progreso sube de 100 en 100
+  // (o del último múltiplo) hasta llegar a `total`. El `finishProgress`
+  // simplemente pinta 100% un instante y cierra.
+  const finishProgress = async (total: number, holdMs = 450) => {
+    setImportProgress({ current: total, total })
+    await new Promise((r) => setTimeout(r, holdMs))
+    setImportProgress(null)
+  }
 
 
   const loadImportaciones = () => {
@@ -132,7 +146,6 @@ export function ImportacionesPage() {
     gql<{
       importacion: { nodes: Parameters<typeof backendToImportacion>[0][] }
       proveedor: { nodes: Parameters<typeof backendToProveedor>[0][] }
-      productos: { nodes: ProductoAPISimple[] }
       marca: { nodes: { id: number; nombre: string; prefijo?: string }[] }
       margenGanancia: MargenGananciaAPI | null
     }>(IMPORTACIONES_INIT_QUERY)
@@ -141,7 +154,6 @@ export function ImportacionesPage() {
         mapped.sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime())
         setImportaciones(mapped)
         setProveedores(res.proveedor.nodes.map(backendToProveedor))
-        setProductos(res.productos.nodes.map(backendToProductoSimple))
         setMarcas(res.marca.nodes.map(backendToMarca))
         if (res.margenGanancia?.valor != null) setMargenGanancia(res.margenGanancia.valor)
       })
@@ -149,21 +161,25 @@ export function ImportacionesPage() {
       .finally(() => setLoading(false))
   }, [isTokenReady])
 
+  // Carga lazy del catálogo de productos: solo cuando se abre un modal de
+  // creación por primera vez. Aperturas subsiguientes usan el cache.
+  useEffect(() => {
+    if (!isTokenReady) return
+    if ((nuevaOpen || localOpen) && productos.length === 0) {
+      loadProductos()
+    }
+  }, [isTokenReady, nuevaOpen, localOpen])
+
   const handleSaveLocal = async (
     importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>,
     proveedorId: number,
   ) => {
-    const costoTotal = importacion.items.reduce((s: number, i: ItemImportacion) => s + i.costo_unitario_total_bs * i.cantidad, 0)
-    const payload: DtoImportacion = {
-      tipo: 'Local',
-      id_Proveedor: proveedorId,
-      fecha: new Date().toISOString(),
-      conversionABs: 1,
-      costoTotal,
-      f_Internacional: 0,
-      aduana_Arancel: 0,
-      trasporte_Interno: 0,
-      productos: importacion.items.map(it => ({
+    const total = importacion.items.length
+    setLocalOpen(false)
+    setImportProgress({ current: 0, total })
+    try {
+      const costoTotal = importacion.items.reduce((s: number, i: ItemImportacion) => s + i.costo_unitario_total_bs * i.cantidad, 0)
+      const productos = importacion.items.map(it => ({
         codigo: it.codigo_proveedor,
         codigoAux: it.codigos_adicionales[0] ?? '',
         codigoAux2: it.codigos_adicionales[1] ?? '',
@@ -179,29 +195,57 @@ export function ImportacionesPage() {
         conversionABs: 1,
         costo: it.costo_unitario_total_bs,
         precio: it.precio_venta_final,
-      })),
+      }))
+
+      // Batching 100x100: el PRIMER POST crea la Importacion (sin importacionId),
+      // los siguientes mandan el importacionId que devolvió el backend y solo
+      // anexan productos/detalles. Esto da progreso real (current / total) y
+      // evita un solo POST gigante con 1500 productos.
+      const BATCH = 100
+      let importacionId: number | null = null
+      let enviados = 0
+      for (let i = 0; i < productos.length; i += BATCH) {
+        const lote = productos.slice(i, i + BATCH)
+        const payload: DtoImportacion = {
+          importacionId,
+          tipo: 'Local',
+          id_Proveedor: proveedorId,
+          fecha: new Date().toISOString(),
+          conversionABs: 1,
+          costoTotal,
+          f_Internacional: 0,
+          aduana_Arancel: 0,
+          trasporte_Interno: 0,
+          productos: lote,
+        }
+        const res = await api.post<DtoImportacionRespuesta>('/Producto/importacion', payload)
+        // El primer lote devuelve el id recién creado; los siguientes lo repiten.
+        if (res.importacionId != null) importacionId = res.importacionId
+        enviados = Math.min(i + BATCH, productos.length)
+        setImportProgress({ current: enviados, total })
+      }
+      await finishProgress(total)
+      loadImportaciones()
+      if (productos.length > 0) loadProductos()
+      notify.success('Importación local registrada')
+    } catch (e) {
+      setImportProgress(null)
+      notify.error('Error al registrar importación local')
+      throw e // re-lanzar para que el modal NO muestre el éxito
     }
-    await api.post('/Producto/importacion', payload)
-    loadImportaciones()
-    loadProductos()
-    notify.success('Importación local registrada')
   }
 
   const handleSave = async (
     importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>,
     proveedorId: number,
   ) => {
-    const tc = importacion.tipo_cambio
-    const fobTotal = importacion.items.reduce((s: number, i: ItemImportacion) => s + i.precio_fob_usd * i.cantidad, 0)
-    const payload: DtoImportacion = {
-      id_Proveedor: proveedorId,
-      fecha: new Date(importacion.fecha_estimada_llegada).toISOString(),
-      conversionABs: tc,
-      costoTotal: fobTotal,
-      f_Internacional: importacion.flete_usd,
-      aduana_Arancel: importacion.aduana_bs,
-      trasporte_Interno: importacion.transporte_interno_bs,
-      productos: importacion.items.map(it => ({
+    const total = importacion.items.length
+    setNuevaOpen(false)
+    setImportProgress({ current: 0, total })
+    try {
+      const tc = importacion.tipo_cambio
+      const fobTotal = importacion.items.reduce((s: number, i: ItemImportacion) => s + i.precio_fob_usd * i.cantidad, 0)
+      const productos = importacion.items.map(it => ({
         codigo: it.codigo_proveedor,
         codigoAux: it.codigos_adicionales[0] ?? '',
         codigoAux2: it.codigos_adicionales[1] ?? '',
@@ -217,12 +261,43 @@ export function ImportacionesPage() {
         conversionABs: tc,
         costo: it.costo_unitario_total_bs,
         precio: it.precio_venta_final,
-      })),
+      }))
+
+      // Batching 100x100: el PRIMER POST crea la Importacion (sin importacionId),
+      // los siguientes mandan el importacionId que devolvió el backend y solo
+      // anexan productos/detalles. Esto da progreso real (current / total) y
+      // evita un solo POST gigante con 1500 productos.
+      const BATCH = 100
+      let importacionId: number | null = null
+      let enviados = 0
+      for (let i = 0; i < productos.length; i += BATCH) {
+        const lote = productos.slice(i, i + BATCH)
+        const payload: DtoImportacion = {
+          importacionId,
+          id_Proveedor: proveedorId,
+          fecha: new Date(importacion.fecha_estimada_llegada).toISOString(),
+          conversionABs: tc,
+          costoTotal: fobTotal,
+          f_Internacional: importacion.flete_usd,
+          aduana_Arancel: importacion.aduana_bs,
+          trasporte_Interno: importacion.transporte_interno_bs,
+          productos: lote,
+        }
+        const res = await api.post<DtoImportacionRespuesta>('/Producto/importacion', payload)
+        // El primer lote devuelve el id recién creado; los siguientes lo repiten.
+        if (res.importacionId != null) importacionId = res.importacionId
+        enviados = Math.min(i + BATCH, productos.length)
+        setImportProgress({ current: enviados, total })
+      }
+      await finishProgress(total)
+      loadImportaciones()
+      if (productos.length > 0) loadProductos()
+      notify.success('Importación registrada')
+    } catch (e) {
+      setImportProgress(null)
+      notify.error('Error al registrar importación')
+      throw e // re-lanzar para que el modal NO muestre el éxito
     }
-    await api.post('/Producto/importacion', payload)
-    loadImportaciones()
-    loadProductos()
-    notify.success('Importación registrada')
   }
 
   const kpi = useMemo(() => ({
@@ -615,6 +690,12 @@ export function ImportacionesPage() {
         importacion={detailImport}
         marcas={marcas}
       />
+      {importProgress && (
+        <ImportProgressOverlay
+          current={importProgress.current}
+          total={importProgress.total}
+        />
+      )}
     </MainLayout>
   )
 }

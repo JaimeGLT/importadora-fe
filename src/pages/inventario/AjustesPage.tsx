@@ -1037,7 +1037,7 @@ export function AjustesPage() {
                             <th className="px-6 py-[11px] text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] border-b border-[#D0CBC4]">Producto</th>
                             <th className="px-4 py-[11px] text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] border-b border-[#D0CBC4]">Marca</th>
                             <th className="px-4 py-[11px] text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] border-b border-[#D0CBC4] hidden lg:table-cell">Ubicación</th>
-                            <th className="px-4 py-[11px] text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] border-b border-[#D0CBC4] text-right">Mín.</th>
+                            <th className="px-4 py-[11px] text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] border-b border-[#D0CBC4] min-w-[200px]">Categoría</th>
                             <th className="px-4 py-[11px] text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] border-b border-[#D0CBC4] text-right">Stock</th>
                             <th className="w-28 px-4 border-b border-[#D0CBC4]" />
                           </tr>
@@ -1050,38 +1050,26 @@ export function AjustesPage() {
                             return (
                               <tr
                                 key={p.id}
-                                className="border-t border-[#E8E5E2] hover:bg-[#FAF5EE] transition-colors cursor-pointer"
+                                className="border-t border-[#E8E5E2] even:bg-white odd:bg-[#FAF5EE] hover:bg-[#F5F0EB] transition-colors cursor-pointer"
                                 onClick={() => setSeleccionado(p)}
                               >
-                                <td className={clsx('px-6 py-3.5', p.es_kit && 'border-l-[3px] border-l-[#D4A333]')}>
-                                  <div className="flex items-center gap-2.5">
-                                    <div className={clsx(
-                                      'h-8 w-8 rounded-lg flex items-center justify-center shrink-0',
-                                      p.es_kit
-                                        ? 'bg-gradient-to-br from-[#780e18] to-[#B4881C] text-white'
-                                        : 'bg-[#F0EFEC] text-[#7A7571]'
-                                    )}>
-                                      <i className={clsx('text-[16px]', p.es_kit ? 'ti ti-stack' : 'ti ti-package')} />
+                                <td className={clsx('px-6 py-3.5 border-r border-[#E8E5E2]', p.es_kit && 'border-l-[3px] border-l-[#D4A333]')}>
+                                  <p className="text-sm font-mono font-bold text-[#2D2B2A] truncate max-w-[220px] tracking-[0.05em]">{codigoDisplay}</p>
+                                  {(p.codigos_alternativos?.filter(Boolean) ?? []).length > 0 && (
+                                    <div className="flex flex-col mt-0.5">
+                                      {p.codigos_alternativos!.filter(Boolean).map((c, i) => (
+                                        <span key={i} className="text-[12px] font-mono text-[#7A7571]">{c}</span>
+                                      ))}
                                     </div>
-                                    <div className="min-w-0">
-                                      <p className="text-sm font-mono font-bold text-[#2D2B2A] truncate max-w-[220px] tracking-[0.05em]">{codigoDisplay}</p>
-                                      {(p.codigos_alternativos?.filter(Boolean) ?? []).length > 0 && (
-                                        <div className="flex flex-col mt-0.5">
-                                          {p.codigos_alternativos!.filter(Boolean).map((c, i) => (
-                                            <span key={i} className="text-[12px] font-mono text-[#7A7571]">{c}</span>
-                                          ))}
-                                        </div>
-                                      )}
-                                      <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 mt-0.5">
-                                        <span className="text-[11px] text-[#7A7571] truncate max-w-[200px]">{p.nombre}</span>
-                                        {p.es_kit && (
-                                          <span className="text-[9px] bg-[#F4ECDB] text-[#780e18] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide">Kit</span>
-                                        )}
-                                      </div>
-                                    </div>
+                                  )}
+                                  <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 mt-0.5">
+                                    <span className="text-[11px] text-[#7A7571] truncate max-w-[200px]">{p.nombre}</span>
+                                    {p.es_kit && (
+                                      <span className="text-[9px] bg-[#F4ECDB] text-[#780e18] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide">Kit</span>
+                                    )}
                                   </div>
                                 </td>
-                                <td className="px-4 py-3.5">
+                                <td className="px-4 py-3.5 border-r border-[#E8E5E2]">
                                   {p.marca ? (
                                     <div className="inline-flex items-center gap-1.5 bg-[#E8D4B8] text-[#780e18] text-xs font-semibold px-2.5 py-0.5 rounded-full">
                                       <span className="w-1.5 h-1.5 rounded-full bg-[#780e18] shrink-0" />
@@ -1091,16 +1079,28 @@ export function AjustesPage() {
                                     <span className="text-[12px] text-[#7A7571]">—</span>
                                   )}
                                 </td>
-                                <td className="px-4 py-3.5 hidden lg:table-cell">
+                                <td className="px-4 py-3.5 hidden lg:table-cell border-r border-[#E8E5E2]">
                                   <div className="text-[11px] text-[#7A7571] font-medium flex items-center gap-1">
                                     <i className="ti ti-map-pin text-[11px]" />
                                     <span>{[p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / ') || '—'}</span>
                                   </div>
                                 </td>
-                                <td className="px-4 py-3.5 text-right">
-                                  <span className="text-sm text-[#7A7571] tabular-nums font-semibold">{p.stock_minimo}</span>
+                                <td className="px-4 py-3.5 border-r border-[#E8E5E2] min-w-[200px] align-top">
+                                  {(() => {
+                                    const cat = p.categoria?.trim()
+                                    if (!cat) return <span className="text-[12px] text-[#A09A95] font-normal italic">— sin categoría —</span>
+                                    const truncated = cat.length > 100 ? cat.slice(0, 100) + '...' : cat
+                                    return (
+                                      <span
+                                        className="inline-block text-xs font-semibold px-2.5 py-1 rounded-full bg-[#F0EFEC] text-[#4A4744] max-w-full whitespace-normal break-words align-top"
+                                        title={cat}
+                                      >
+                                        {truncated}
+                                      </span>
+                                    )
+                                  })()}
                                 </td>
-                                <td className="px-4 py-3.5 text-right">
+                                <td className="px-4 py-3.5 text-right border-r border-[#E8E5E2]">
                                   <span className={clsx('font-mono font-black text-[22px] leading-none tabular-nums',
                                     p.stock === 0 ? 'text-[#B23A2A]' : bajo ? 'text-[#B47A1F]' : 'text-[#2D2B2A]')}>
                                     {p.stock}
@@ -1140,14 +1140,6 @@ export function AjustesPage() {
                             )}
                             style={{ WebkitTapHighlightColor: 'transparent' }}
                           >
-                            <div className={clsx(
-                              'h-9 w-9 rounded-lg flex items-center justify-center shrink-0',
-                              p.es_kit
-                                ? 'bg-gradient-to-br from-[#780e18] to-[#B4881C] text-white'
-                                : 'bg-[#F0EFEC] text-[#7A7571]'
-                            )}>
-                              <i className={clsx('text-[18px]', p.es_kit ? 'ti ti-stack' : 'ti ti-package')} />
-                            </div>
                             <div className="flex-1 min-w-0">
                               <p className="font-mono font-bold text-[13px] text-[#2D2B2A] truncate tracking-[0.05em]">{codigoDisplay}</p>
                               {(p.codigos_alternativos?.filter(Boolean) ?? []).length > 0 && (
@@ -1160,6 +1152,14 @@ export function AjustesPage() {
                               <p className="text-[11px] text-[#7A7571] truncate mt-0.5">
                                 {p.nombre}{p.marca ? ` · ${p.marca}` : ''}
                               </p>
+                              {p.categoria && (
+                                <span
+                                  className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#F0EFEC] text-[#4A4744] mt-1 max-w-full truncate"
+                                  title={p.categoria}
+                                >
+                                  {p.categoria}
+                                </span>
+                              )}
                             </div>
                             <div className="flex flex-col items-end gap-1 shrink-0">
                               <span className={clsx('font-mono font-black text-[20px] leading-none tabular-nums',

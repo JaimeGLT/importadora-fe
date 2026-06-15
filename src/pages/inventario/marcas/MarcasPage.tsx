@@ -184,14 +184,14 @@ export function MarcasPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E8E5E2]">
-                  {filtered.map((m) => (
-                    <tr key={m.id} className="hover:bg-[#FAF5EE] transition-colors">
-                      <td className="px-5 py-[14px]">
+                  {filtered.map((m, idx) => (
+                    <tr key={m.id} className={`border-t border-[#E8E5E2] ${idx % 2 === 0 ? 'bg-white' : 'bg-[#FAF5EE]'} hover:bg-[#F5F0EB] transition-colors`}>
+                      <td className="px-5 py-[14px] border-r border-[#E8E5E2]">
                         <span className="font-mono text-xs font-semibold text-[#4A4744] bg-[#F5F0EB] border border-[#D0CBC4] px-2 py-0.5 rounded-md">
                           {m.prefijo}
                         </span>
                       </td>
-                      <td className="px-5 py-[14px]">
+                      <td className="px-5 py-[14px] border-r border-[#E8E5E2]">
                         <div className="flex items-center gap-2.5">
                           <div className="w-7 h-7 rounded-lg bg-[#F5E8D4] flex items-center justify-center shrink-0">
                             <i className="ti ti-tag text-[#780e18] text-[13px]" />

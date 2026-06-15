@@ -872,6 +872,20 @@ export function UsuariosPage() {
           </div>
 
           {/* ── KPI Cards ── */}
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-[14px] mb-[22px]">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#D0CBC4] p-[18px] animate-pulse">
+                  <div className="flex items-start justify-between mb-[14px]">
+                    <div className="w-9 h-9 rounded-lg bg-[#F0EFEC]" />
+                    <div className="h-5 w-16 rounded-full bg-[#F0EFEC]" />
+                  </div>
+                  <div className="h-7 w-20 rounded bg-[#F0EFEC] mb-2" />
+                  <div className="h-3 w-28 rounded bg-[#E8E5E2]" />
+                </div>
+              ))}
+            </div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-[14px] mb-[22px]">
 
             <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#780e18] p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
@@ -930,8 +944,15 @@ export function UsuariosPage() {
             </div>
 
           </div>
+          )}
 
           {/* ── Horario Global + Programar bloqueo ── */}
+          {loading ? (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-5">
+              <div className="flex-1 h-[58px] rounded-xl bg-[#F0EFEC] animate-pulse" />
+              <div className="h-[58px] sm:w-[200px] rounded-xl bg-[#F0EFEC] animate-pulse" />
+            </div>
+          ) : (
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-5">
             <div
               className="flex-1 flex items-center justify-between px-5 py-4 rounded-xl border"
@@ -982,6 +1003,7 @@ export function UsuariosPage() {
               Programar bloqueo
             </button>
           </div>
+          )}
 
           {/* ── Tabla de usuarios ── */}
           <div className="bg-white rounded-xl border border-[#D0CBC4] overflow-hidden">

@@ -7,6 +7,9 @@ export interface OrdenItemProductoAPI {
   codigo: string
   nombre: string
   marca: { id: number; nombre: string } | null
+  categoria: string | null
+  procedencia: string | null
+  descripcion: string | null
   ubicacion: string
   stock_Actual: number
   stock_Minimo: number
@@ -121,6 +124,9 @@ export const MIS_ORDENES_QUERY = `
               id
               nombre
             }
+            categoria
+            procedencia
+            descripcion
             ubicacion
             stock_Actual
             stock_Minimo
@@ -205,6 +211,9 @@ export const ORDENES_PARA_ESCANEO_QUERY = `
               id
               nombre
             }
+            categoria
+            procedencia
+            descripcion
             ubicacion
             stock_Actual
             stock_Minimo
@@ -290,6 +299,9 @@ export const ORDENES_PENDIENTES_QUERY = `
               id
               nombre
             }
+            categoria
+            procedencia
+            descripcion
             ubicacion
             stock_Actual
             stock_Minimo
@@ -374,6 +386,9 @@ export const MIS_ORDENES_ALMACEN_QUERY = `
               id
               nombre
             }
+            categoria
+            procedencia
+            descripcion
             ubicacion
             stock_Actual
             stock_Minimo
@@ -457,6 +472,9 @@ export const TODAS_ORDENES_QUERY = `
               id
               nombre
             }
+            categoria
+            procedencia
+            descripcion
             ubicacion
             stock_Actual
             precio
@@ -537,6 +555,9 @@ function backendToItemOrden(api: OrdenItemAPI): ItemOrden {
     producto_id: String(api.id_Producto),
     producto_codigo: api.producto?.codigo ?? '',
     producto_nombre: api.producto?.nombre ?? '',
+    producto_categoria: api.producto?.categoria ?? '',
+    producto_procedencia: api.producto?.procedencia ?? '',
+    producto_descripcion: api.producto?.descripcion ?? '',
     marcaId: api.producto?.marca?.id ?? null,
     marca_nombre: api.producto?.marca?.nombre ?? '',
     producto_almacen: loc.almacen,

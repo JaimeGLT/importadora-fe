@@ -163,7 +163,7 @@ function MobileProductRow({ p, marcaNombre, marcas, onTap }: { p: Producto; marc
       onClick={onTap}
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
-      <ProductThumb src={p.imagen} nombre={p.nombre} />
+      <ProductThumb src={p.imagen} nombre={p.nombre ?? ''} />
       <div className="flex-1 min-w-0">
         <div className="font-mono font-semibold text-[13px] text-[#2D2B2A] tracking-[0.05em] leading-tight underline decoration-[#D4A333] decoration-2 underline-offset-2">
           {codigoDisplay}
@@ -173,7 +173,9 @@ function MobileProductRow({ p, marcaNombre, marcas, onTap }: { p: Producto; marc
             {cod}
           </div>
         ))}
-        <div className="text-[11.5px] text-[#7A7571] font-medium truncate leading-tight mt-0.5">{p.nombre}</div>
+        {p.nombre?.trim() && (
+          <div className="text-[11.5px] text-[#7A7571] font-medium truncate leading-tight mt-0.5">{p.nombre}</div>
+        )}
         {marcaNombre && (
           <div className="text-[10.5px] text-[#7A7571] mt-0.5">{marcaNombre}</div>
         )}
@@ -389,7 +391,7 @@ export function InventarioPage() {
           }
         }
         loadProducts(page, pageSize, searchTerm, selectedMarcaId)
-        notify.success('Producto actualizado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
+        notify.success('Producto actualizado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre?.trim() || '(sin nombre)'}` })
       } else {
         const createPayload = productoToBackend(data)
         const res = await api.post<{ id: number }>('/Producto', createPayload)
@@ -398,7 +400,7 @@ export function InventarioPage() {
         }
         cursors.current = [null]
         loadProducts(0, pageSize, searchTerm, selectedMarcaId)
-        notify.success('Producto creado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre}` })
+        notify.success('Producto creado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre?.trim() || '(sin nombre)'}` })
       }
       setModalOpen(false)
     } catch (e) {
@@ -439,11 +441,16 @@ export function InventarioPage() {
     }
   }
 
-  const handleImport = async (results: ImportResult[]) => {
+  const handleImport = async (
+    results: ImportResult[],
+    onProgress?: (current: number, total: number) => void,
+  ) => {
     const BATCH = 100
     const productosParaEnviar = results.map((r) => productoToBackendBulk(r.data))
-    for (let i = 0; i < productosParaEnviar.length; i += BATCH) {
+    const total = productosParaEnviar.length
+    for (let i = 0; i < total; i += BATCH) {
       await api.post('/Producto/lista', { productos: productosParaEnviar.slice(i, i + BATCH) })
+      onProgress?.(Math.min(i + BATCH, total), total)
     }
     cursors.current = [null]
     loadProducts(0, pageSize, searchTerm, selectedMarcaId)
@@ -480,16 +487,6 @@ export function InventarioPage() {
 
   // ── Columns ────────────────────────────────────────────────────────────────
   const columns = useMemo(() => [
-    colHelper.display({
-      id: 'imagen',
-      header: '',
-      size: 60,
-      meta: { align: 'center' },
-      enableSorting: false,
-      cell: (info) => (
-        <ProductThumb src={info.row.original.imagen} nombre={info.row.original.nombre} />
-      ),
-    }),
     colHelper.accessor('nombre', {
       header: 'Código / Producto',
       size: 220,
@@ -498,6 +495,7 @@ export function InventarioPage() {
         const p = info.row.original
         const prefijo = getMarcaPrefijo(p.marcaId, marcas)
         const codigoDisplay = prefijo ? `${prefijo}-${p.codigo_universal}` : (p.codigo_universal || '—')
+        const nombreDisplay = p.nombre?.trim()
         return (
           <div>
             <div className="font-mono font-semibold text-[14px] text-[#2D2B2A] tracking-[0.04em] leading-tight underline decoration-[#D4A333] decoration-2 underline-offset-2">
@@ -508,7 +506,9 @@ export function InventarioPage() {
                 {cod}
               </div>
             ))}
-            <div className="text-xs text-[#7A7571] font-normal truncate max-w-[180px] mt-0.5">{p.nombre}</div>
+            {nombreDisplay && (
+              <div className="text-xs text-[#7A7571] font-normal truncate max-w-[180px] mt-0.5">{nombreDisplay}</div>
+            )}
             {p.es_kit && (
               <span className="text-[9px] font-semibold text-[#D4A333] uppercase tracking-wider">Kit</span>
             )}
@@ -568,51 +568,52 @@ export function InventarioPage() {
       },
     }),
     colHelper.display({
-      id: 'estado',
-      header: 'Estado',
-      size: 120,
+      id: 'categoria',
+      header: 'Categoría',
+      size: 220,
       meta: { align: 'left' },
-      enableSorting: false,
       cell: (info) => {
-        const p = info.row.original
-        return <StockBadgeMd3 stock={p.stock} stockMinimo={p.stock_minimo} />
+        const cat = info.row.original.categoria?.trim()
+        if (!cat) {
+          return <span className="text-[12px] text-[#A09A95] font-normal italic">— sin categoría —</span>
+        }
+        const truncated = cat.length > 100 ? cat.slice(0, 100) + '...' : cat
+        return (
+          <span
+            className="inline-block text-xs font-semibold px-2.5 py-1 rounded-full text-[#4A4744] max-w-full whitespace-normal break-words align-top"
+            title={cat}
+          >
+            {truncated}
+          </span>
+        )
       },
     }),
+    
     colHelper.accessor('precio_venta', {
-      header: 'P. Venta',
-      size: 130,
+      header: () => (
+        <span className="inline-flex items-baseline gap-1">
+          <span className="text-[9px] font-normal opacity-60 normal-case">Bs.</span>
+          P. Venta
+        </span>
+      ),
+      size: 110,
       meta: { align: 'left' },
       cell: (info) => (
         <div>
           <div className="font-mono font-medium text-[13px] text-[#2D2B2A]">Bs. {info.getValue().toFixed(2)}</div>
-          <div className="text-[11px] text-[#7A7571] font-normal mt-0.5">PVP Unitario</div>
+         
         </div>
       ),
     }),
     colHelper.accessor('precio_costo', {
-      header: 'P. Costo / Margen',
-      size: 150,
-      meta: { align: 'left' },
-      cell: (info) => {
-        const sale = info.row.original.precio_venta
-        const cost = info.getValue()
-        const margen = sale > 0 && cost > 0 ? Math.round(((sale - cost) / sale) * 100) : null
-        return (
-          <div>
-            <div className="font-mono text-[13px] text-[#4A4744] font-normal">Bs. {cost.toFixed(2)}</div>
-            {margen !== null && (
-              <div className={clsx(
-                'inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full mt-1',
-                margen > 0 ? 'bg-[#B8DCCA] text-[#1E5C38]'
-                : margen < 0 ? 'bg-[#F5C9C0] text-[#8A1E12]'
-                : 'bg-[#F5E0A8] text-[#7A5200]'
-              )}>
-                {margen}% margen
-              </div>
-            )}
-          </div>
-        )
-      },
+      header: () => (
+        <span className="inline-flex items-baseline gap-1">
+          <span className="text-[9px] font-normal opacity-60 normal-case">Bs.</span>
+          P. Costo
+        </span>
+      ),
+      size: 120,
+      meta: { align: 'left' }
     }),
     colHelper.display({
       id: 'acciones',
@@ -915,19 +916,26 @@ export function InventarioPage() {
                       {table.getRowModel().rows.map((row) => (
                         <tr
                           key={row.id}
-                          className="border-t border-[#E8E5E2] hover:bg-[#FAF5EE] transition-colors"
+                          className="border-t border-[#E8E5E2] even:bg-white odd:bg-[#FAF5EE] hover:bg-[#F5F0EB] transition-colors"
                         >
                           {row.getVisibleCells().map((cell, cellIdx) => {
                             const align = (cell.column.columnDef.meta as ColumnMeta<Producto, unknown> | undefined)?.align ?? 'left'
                             const isKit = row.original.es_kit
+                            const isLast = cellIdx === row.getVisibleCells().length - 1
                             return (
                               <td
                                 key={cell.id}
                                 className={clsx(
                                   'px-4 py-[14px] align-middle text-sm',
-                                  align === 'center' && 'text-center',
-                                  align === 'right'  && 'text-right',
+                                  cellIdx === 0 ? 'flex items-center justify-center'
+                                    : (
+                                      clsx(
+                                        align === 'center' && 'text-center',
+                                        align === 'right'  && 'text-right',
+                                      )
+                                    ),
                                   cellIdx === 0 && isKit && 'border-l-[3px] border-l-[#D4A333]',
+                                  !isLast && 'border-r border-[#E8E5E2]',
                                 )}
                               >
                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -980,7 +988,7 @@ export function InventarioPage() {
         onClose={() => setEtiquetaProducto(null)}
         etiqueta={etiquetaProducto ? {
           codigo_universal: etiquetaProducto.codigo_universal,
-          nombre: etiquetaProducto.nombre,
+          nombre: etiquetaProducto.nombre ?? '',
           marca: getMarcaNombre(etiquetaProducto.marcaId, marcas),
           marcaPrefijo: getMarcaPrefijo(etiquetaProducto.marcaId, marcas),
           vehiculo: etiquetaProducto.vehiculo,
