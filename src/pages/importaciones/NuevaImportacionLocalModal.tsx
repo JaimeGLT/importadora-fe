@@ -15,7 +15,7 @@ type ImportStep = 'upload' | 'mapear' | 'datos' | 'preview' | 'confirmar'
 type ImportField =
   | 'codigo_universal' | 'codigo_alt1' | 'codigo_alt2'
   | 'nombre' | 'descripcion' | 'procedencia' | 'marca'
-  | 'stock' | 'stock_minimo' | 'piezas' | 'precio_costo' | 'ubicacion'
+  | 'stock' | 'stock_minimo' | 'piezas' | 'precio_costo' | 'precio_venta' | 'ubicacion'
 
 interface SystemField {
   key: ImportField
@@ -70,6 +70,7 @@ const SYSTEM_FIELDS: SystemField[] = [
   { key: 'marca',            label: 'Marca',                required: false, hint: 'Marca por producto (sobreescribe la marca global)' },
   { key: 'stock',            label: 'Cantidad',              required: true,  hint: 'Unidades que ingresan al lote' },
   { key: 'precio_costo',     label: 'Precio compra (Bs)',    required: true,  hint: 'Precio unitario en bolivianos' },
+  { key: 'precio_venta',     label: 'Precio de venta (opcional)', required: false, hint: 'Si se mapea, se usa tal cual; si no, se calcula con el margen' },
   { key: 'ubicacion',        label: 'Ubicación',             required: false },
 ]
 
@@ -86,12 +87,53 @@ const STEP_LABELS: Record<ImportStep, string> = {
 function parseNumeric(raw: unknown): number {
   if (typeof raw === 'number') return isFinite(raw) ? raw : 0
   if (typeof raw !== 'string' || !raw.trim()) return 0
-  const cleaned = raw.trim().replace(/[^0-9.,-]/g, '')
-  const normalized = cleaned.includes(',') && !cleaned.includes('.')
-    ? cleaned.replace(',', '.')
-    : cleaned.replace(/,/g, '')
+  const trimmed = raw.trim()
+
+  // Detectar signo antes de limpiar (los paréntesis contables se pierden al
+  // aplicar el filtro `[^0-9.,-]`).
+  const isNegative = trimmed.startsWith('-') || /^\(.*\)$/.test(trimmed)
+
+  // Quitar todo menos dígitos y separadores.
+  const cleaned = trimmed.replace(/[^0-9.,]/g, '')
+  if (!cleaned) return 0
+
+  const hasDot = cleaned.includes('.')
+  const hasComma = cleaned.includes(',')
+
+  let normalized: string
+  if (hasDot && hasComma) {
+    // El ÚLTIMO de los dos es el decimal. El otro es separador de miles.
+    const lastDot = cleaned.lastIndexOf('.')
+    const lastComma = cleaned.lastIndexOf(',')
+    if (lastDot > lastComma) {
+      // Formato inglés: "1,200.50" → "1200.50"
+      normalized = cleaned.replace(/,/g, '')
+    } else {
+      // Formato europeo/latino: "1.200,50" → "1200.50"
+      normalized = cleaned.replace(/\./g, '').replace(',', '.')
+    }
+  } else if (hasComma) {
+    // Solo comas: asumir decimal latino (común en Excels exportados desde
+    // sistemas bolivianos). "10,50" → "10.50"
+    normalized = cleaned.replace(',', '.')
+  } else if (hasDot) {
+    // Solo puntos: heurística. Si tiene exactamente 3 dígitos después del
+    // último punto, asumir separador de miles latino ("1.500" → 1500).
+    // Caso contrario, decimal inglés ("10.50", "10.5" → 10.5).
+    const lastDot = cleaned.lastIndexOf('.')
+    const afterDot = cleaned.slice(lastDot + 1)
+    if (afterDot.length === 3 && /^\d{3}$/.test(afterDot) && cleaned.split('.').length === 2) {
+      normalized = cleaned.replace('.', '')
+    } else {
+      normalized = cleaned
+    }
+  } else {
+    normalized = cleaned
+  }
+
   const n = parseFloat(normalized)
-  return isFinite(n) ? n : 0
+  if (!isFinite(n)) return 0
+  return isNegative ? -n : n
 }
 
 function resolveValue(row: Record<string, unknown>, mapping: { columns: string[]; separator: string }): string {
@@ -101,32 +143,64 @@ function resolveValue(row: Record<string, unknown>, mapping: { columns: string[]
     .join(mapping.separator || ' ')
 }
 
-function buildRawItems(rows: Record<string, unknown>[], mappings: FieldMappings): RawItem[] {
-  return rows.map((row) => {
-    const get = (key: ImportField) => {
-      const m = mappings[key]
-      return m ? resolveValue(row, m) : ''
+function buildRawItem(row: Record<string, unknown>, mappings: FieldMappings): RawItem {
+  const get = (key: ImportField) => {
+    const m = mappings[key]
+    return m ? resolveValue(row, m) : ''
+  }
+  const getRaw = (key: ImportField): unknown => {
+    const m = mappings[key]
+    return m?.columns.length ? row[m.columns[0]] ?? '' : ''
+  }
+  return {
+    codigo_universal: get('codigo_universal'),
+    codigos_adicionales: [get('codigo_alt1'), get('codigo_alt2')].filter(Boolean),
+    nombre:        get('nombre'),
+    descripcion:   get('descripcion'),
+    procedencia:   get('procedencia'),
+    marca:         get('marca'),
+    precio_fob_usd: parseNumeric(getRaw('precio_costo')),
+    cantidad:       Math.round(parseNumeric(getRaw('stock'))),
+    piezas:         parseNumeric(getRaw('piezas')) || undefined,
+    stock_minimo:   Math.round(parseNumeric(getRaw('stock_minimo'))) || 15,
+    precio_venta_manual: parseNumeric(getRaw('precio_venta')),
+    ubicacion:     get('ubicacion') || 'Almacén Central',
+  }
+}
+
+interface ImportStats {
+  valid: RawItem[]
+  total: number
+  descartadas: number
+  sinCodigo: number
+}
+
+/**
+ * Construye los RawItems y, en el mismo recorrido, cuenta las razones de descarte.
+ *
+ * Reglas de validación:
+ * - `codigo_universal` es el único campo obligatorio. Si está vacío, la fila se descarta.
+ * - `precio_fob_usd` y `cantidad` se aceptan vacíos como 0 (no se descartan).
+ *   Si el usuario deja la celda vacía en el Excel, el producto se importa con
+ *   precio/stock 0 y se puede editar después.
+ *
+ * Una sola pasada sobre las filas: evita duplicar la lógica de parseo y
+ * mantiene sincronizado el filtro con el diagnóstico.
+ */
+function computeImportStats(rows: Record<string, unknown>[], mappings: FieldMappings): ImportStats {
+  let sinCodigo = 0
+  const valid: RawItem[] = []
+
+  for (const row of rows) {
+    const item = buildRawItem(row, mappings)
+    if (!item.codigo_universal) {
+      sinCodigo++
+    } else {
+      valid.push(item)
     }
-    const getRaw = (key: ImportField): unknown => {
-      const m = mappings[key]
-      return m?.columns.length ? row[m.columns[0]] ?? '' : ''
-    }
-    const codigo = get('codigo_universal')
-    return {
-      codigo_universal: codigo,
-      codigos_adicionales: [get('codigo_alt1'), get('codigo_alt2')].filter(Boolean),
-      nombre:        get('nombre'),
-      descripcion:   get('descripcion'),
-      procedencia:   get('procedencia'),
-      marca:         get('marca'),
-      precio_fob_usd: parseNumeric(getRaw('precio_costo')),
-      cantidad:       Math.round(parseNumeric(getRaw('stock'))),
-      piezas:         parseNumeric(getRaw('piezas')) || undefined,
-      stock_minimo:   Math.round(parseNumeric(getRaw('stock_minimo'))) || 15,
-      precio_venta_manual: 0,
-      ubicacion:     get('ubicacion') || 'Almacén Central',
-    }
-  }).filter((r) => r.codigo_universal && r.precio_fob_usd > 0 && r.cantidad > 0)
+  }
+
+  return { valid, total: rows.length, descartadas: sinCodigo, sinCodigo }
 }
 
 function calcItemsLocal(
@@ -380,8 +454,14 @@ export function NuevaImportacionLocalModal({
     .every((f) => (mappings[f.key]?.columns.length ?? 0) > 0)
 
   const handleGoToDatos = async () => {
-    const raw = buildRawItems(rows, mappings)
-    if (!raw.length) { notify.error('No se encontraron filas válidas'); return }
+    const stats = computeImportStats(rows, mappings)
+    if (!stats.valid.length) {
+      notify.error(
+        `0 de ${stats.total} filas válidas — todas sin código universal. Revisá el mapeo de esa columna.`,
+      )
+      return
+    }
+    const raw = stats.valid
     setRawItems(raw)
 
     if (mappings['marca']) {
@@ -422,8 +502,24 @@ export function NuevaImportacionLocalModal({
   }
 
   // ── Step 4: preview ───────────────────────────────────────────────────────
+  // Al cambiar la marca, recalculamos el match (producto_id + es_nuevo) en el
+  // mismo recorrido. El match depende de código universal + marca, así que al
+  // editar la marca el estado "Nuevo/Existente" se actualiza en vivo.
   const updateMarcaItem = (index: number, marcaId: number | null) => {
-    setItems((prev) => prev.map((it) => it._index === index ? { ...it, marcaId } : it))
+    setItems((prev) => prev.map((it) => {
+      if (it._index !== index) return it
+      const match = productos.find(
+        (p) =>
+          it.codigo_proveedor.toLowerCase() === p.codigo_universal.toLowerCase() &&
+          (p.marcaId ?? null) === (marcaId ?? null),
+      )
+      return {
+        ...it,
+        marcaId: marcaId ?? null,
+        producto_id: match?.id,
+        es_nuevo: !match,
+      }
+    }))
   }
 
   const updateProcedencia = (index: number, val: string) => {
@@ -738,12 +834,8 @@ function StepPreviewLocal({
   const nuevos     = items.filter((i) => i.es_nuevo).length
   const existentes = items.filter((i) => !i.es_nuevo).length
   const costoTotal = items.reduce((s, i) => s + i.costo_unitario_total_bs * i.cantidad, 0)
-  const [marcaOverrides, setMarcaOverrides] = useState<Record<number, number | null>>(
-    () => Object.fromEntries(items.map(i => [i._index, i.marcaId ?? null]))
-  )
 
   const handleMarcaChange = (index: number, marcaId: number | null) => {
-    setMarcaOverrides(prev => ({ ...prev, [index]: marcaId }))
     onMarcaChange(index, marcaId)
   }
 
@@ -819,6 +911,11 @@ function StepPreviewLocal({
               const variacionPct = producto && producto.precio_venta > 0
                 ? ((item.precio_venta_final / producto.precio_venta) - 1) * 100
                 : null
+              // Sub-label: marca del producto existente matcheado (para que el
+              // usuario entienda por qué este código se considera existente).
+              const marcaMatch = producto?.marcaId
+                ? marcas.find((m) => m.id === producto.marcaId)
+                : undefined
 
               return (
                 <tr
@@ -835,7 +932,7 @@ function StepPreviewLocal({
 
                   <td className="px-3 py-2.5">
                     <select
-                      value={String(marcaOverrides[item._index] ?? '')}
+                      value={String(item.marcaId ?? '')}
                       onChange={(e) => handleMarcaChange(item._index, e.target.value ? Number(e.target.value) : null)}
                       className="text-[11px] border border-steel-200 rounded px-1.5 py-0.5 bg-white text-steel-700 focus:outline-none focus:ring-1 focus:ring-brand-400 max-w-[130px] w-full"
                     >
@@ -844,6 +941,15 @@ function StepPreviewLocal({
                         <option key={m.id} value={String(m.id)}>{m.nombre}</option>
                       ))}
                     </select>
+                    {producto && marcaMatch ? (
+                      <p className="text-[10px] mt-0.5 leading-tight" style={{ color: '#15803D' }}>
+                        ↻ existente en: <span className="font-semibold">{marcaMatch.nombre}</span>
+                      </p>
+                    ) : (
+                      <p className="text-[10px] mt-0.5 leading-tight text-steel-400">
+                        sin coincidencias
+                      </p>
+                    )}
                   </td>
 
                   <td className="px-3 py-2.5 text-right tabular-nums">

@@ -178,7 +178,12 @@ export function ImportacionesPage() {
     setLocalOpen(false)
     setImportProgress({ current: 0, total })
     try {
-      const costoTotal = importacion.items.reduce((s: number, i: ItemImportacion) => s + i.costo_unitario_total_bs * i.cantidad, 0)
+      // Se envía TODO tal cual: si el usuario dejó precio o cantidad en 0,
+      // el backend ahora acepta esos valores (Range(0, ...)) y se importan
+      // con costo/cantidad 0. El usuario puede editarlos después.
+      const costoTotal = importacion.items.reduce(
+        (s: number, i: ItemImportacion) => s + i.costo_unitario_total_bs * i.cantidad, 0,
+      )
       const productos = importacion.items.map(it => ({
         codigo: it.codigo_proveedor,
         codigoAux: it.codigos_adicionales[0] ?? '',
@@ -244,7 +249,12 @@ export function ImportacionesPage() {
     setImportProgress({ current: 0, total })
     try {
       const tc = importacion.tipo_cambio
-      const fobTotal = importacion.items.reduce((s: number, i: ItemImportacion) => s + i.precio_fob_usd * i.cantidad, 0)
+      // Se envía TODO tal cual: si el usuario dejó precio o cantidad en 0,
+      // el backend ahora acepta esos valores (Range(0, ...)) y se importan
+      // con costo/cantidad 0. El usuario puede editarlos después.
+      const fobTotal = importacion.items.reduce(
+        (s: number, i: ItemImportacion) => s + i.precio_fob_usd * i.cantidad, 0,
+      )
       const productos = importacion.items.map(it => ({
         codigo: it.codigo_proveedor,
         codigoAux: it.codigos_adicionales[0] ?? '',

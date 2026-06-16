@@ -7,7 +7,7 @@ import { Button, Input, Modal, ConfirmModal } from '@/components/ui'
 import { notify } from '@/lib/notify'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
-import { AutopartsWatermark } from '@/pages/inventario/AutopartsWatermark'
+import { AutopartsWatermark } from '@/components/ui/AutopartsWatermark'
 import type { DescuentoConfig } from '@/types'
 import {
   DESCUENTOS_QUERY,

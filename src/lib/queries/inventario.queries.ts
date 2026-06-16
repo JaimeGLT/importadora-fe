@@ -119,18 +119,14 @@ export const PRODUCTOS_ALL_QUERY = `
         nombre
         categoria
         marcaId
-        ubicacion
         stock_Actual
-        stockReservado
         stock_Minimo
+        piezas
         calcularStockKit
         esKit
         costo
         precio
         conversionABs
-        piezas
-        fechaCreacion
-        fechaActualizacion
       }
     }
   }

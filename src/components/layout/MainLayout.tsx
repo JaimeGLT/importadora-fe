@@ -5,7 +5,6 @@ import { Sidebar } from './Sidebar'
 import { api } from '@/lib/api'
 import { useConfigStore } from '@/stores/configStore'
 import { TipoCambioModal } from '@/components/ui/TipoCambioModal'
-import { useStockPolling } from '@/hooks/useStockPolling'
 
 interface MainLayoutProps {
   children: ReactNode
@@ -21,8 +20,6 @@ export function MainLayout({ children }: MainLayoutProps) {
     setTipoCambio, setTipoCambioHabilitado,
     tipoCambioFechaRecordatorio, setTipoCambioFechaRecordatorio,
   } = useConfigStore()
-
-  useStockPolling()
 
   useEffect(() => {
     if (!isTokenReady || !isAuthenticated) return

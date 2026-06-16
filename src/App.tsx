@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute'
 import { RoleGuard } from '@/components/layout/RoleGuard'
+import { BackgroundTasks } from '@/components/layout/BackgroundTasks'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -55,6 +56,7 @@ export default function App() {
           }}
         />
         <Suspense fallback={<div className="flex h-screen items-center justify-center text-sm text-gray-400">Cargando…</div>}>
+        <BackgroundTasks />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route element={<ProtectedRoute />}>

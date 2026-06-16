@@ -11,7 +11,7 @@ import { ImportProgressView } from './ImportProgressView'
 
 type ImportableKey =
   | 'codigo_universal' | 'codigo_alt1' | 'codigo_alt2'
-  | 'nombre' | 'descripcion' | 'procedencia' | 'marca'
+  | 'nombre' | 'descripcion' | 'procedencia' | 'categoria' | 'marca'
   | 'stock' | 'stock_minimo' | 'piezas' | 'precio_costo' | 'precio_venta'
   | 'almacen' | 'estante' | 'fila' | 'columna'
   | 'tipo_cambio'
@@ -56,6 +56,7 @@ const SYSTEM_FIELDS: SystemField[] = [
   { key: 'nombre',           label: 'Nombre',               required: false },
   { key: 'descripcion',      label: 'Descripción',          required: false },
   { key: 'procedencia',      label: 'Procedencia',          required: false, hint: 'País o región de origen' },
+  { key: 'categoria',        label: 'Categoría',            required: false },
   { key: 'marca',            label: 'Marca',                required: false },
   { key: 'stock',            label: 'Stock actual',         required: true  },
   { key: 'stock_minimo',     label: 'Stock mínimo',         required: false },
@@ -126,7 +127,7 @@ function parseRow(
     nombre,
     descripcion:  get('descripcion'),
     procedencia:  get('procedencia'),
-    categoria:    'Otro',
+    categoria:    get('categoria') || 'Otro',
     marca:        get('marca') || '',
     vehiculo:     '',
     unidad:       'pieza',
@@ -230,6 +231,7 @@ export function ImportarExcelModal({ open, onClose, onImport, productosExistente
   const [mappings, setMappings]       = useState<FieldMappings>({})
   const [, setPreviewActions] = useState<Record<string, ImportAction>>({})
   const [procedenciaOverrides, setProcedenciaOverrides] = useState<Record<number, string>>({})
+  const [categoriaOverrides, setCategoriaOverrides] = useState<Record<number, string>>({})
   const [tipoCambio, setTipoCambio]   = useState('6.96')
   const [usarTipoCambioGlobal, setUsarTipoCambioGlobal] = useState(true)
 const [dragOver, setDragOver]       = useState(false)
@@ -293,6 +295,7 @@ const [dragOver, setDragOver]       = useState(false)
     setTipoCambio('6.96')
     setUsarTipoCambioGlobal(true)
     setProcedenciaOverrides({})
+    setCategoriaOverrides({})
   }
 
   const handleClose = () => { reset(); onClose() }
@@ -378,6 +381,9 @@ const [dragOver, setDragOver]       = useState(false)
         const procedencia = procedenciaOverrides[i] !== undefined
           ? procedenciaOverrides[i]
           : (p.procedencia ?? '')
+        const categoria = categoriaOverrides[i] !== undefined
+          ? categoriaOverrides[i]
+          : (p.categoria ?? 'Otro')
         const existing = codigosMap.get(excelKey(p.codigo_universal, p.marca ?? ''))
         const action: ImportAction = existing ? 'update' : 'create'
         const tcFromExcel = p.conversionABs ?? 0
@@ -393,6 +399,7 @@ const [dragOver, setDragOver]       = useState(false)
             data: {
               ...p,
               procedencia,
+              categoria,
               marcaId: p.marcaId ?? existing.marcaId ?? null,
               stock: stockParaEnviar,
               conversionABs: usarTipoCambioGlobal ? tc : (tcFromExcel > 0 ? tcFromExcel : 6.96),
@@ -417,6 +424,7 @@ const [dragOver, setDragOver]       = useState(false)
           data: {
             ...p,
             procedencia,
+            categoria,
             conversionABs: tc,
             historial_precios: p.precio_costo > 0 || p.precio_venta > 0
               ? [{ fecha: new Date().toISOString(), precio_costo: p.precio_costo, precio_venta: p.precio_venta, tipo_cambio: tc, nota: 'Importado desde Excel' }]
@@ -794,12 +802,13 @@ const [dragOver, setDragOver]       = useState(false)
           
 
           <div className="overflow-x-auto rounded-xl border border-steel-200 max-h-80 overflow-y-auto">
-            <table className="text-xs" style={{ minWidth: 1020 }}>
+            <table className="text-xs" style={{ minWidth: 1180 }}>
               <thead className="sticky top-0 bg-steel-50 border-b border-steel-200 z-10">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-steel-500 w-6">#</th>
                   <th className="px-3 py-2 text-left font-medium text-steel-500 whitespace-nowrap">Código *</th>
                   <th className="px-3 py-2 text-left font-medium text-steel-500">Nombre</th>
+                  <th className="px-3 py-2 text-left font-medium text-steel-500">Categoría</th>
                   <th className="px-3 py-2 text-left font-medium text-steel-500">Marca</th>
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">Stock *</th>
                   <th className="px-3 py-2 text-right font-medium text-steel-500 whitespace-nowrap">Pzas</th>
@@ -816,7 +825,7 @@ const [dragOver, setDragOver]       = useState(false)
                     return (
                       <tr key={i} className="bg-red-50/50">
                         <td className="px-3 py-2 text-steel-400">{i + 1}</td>
-                        <td colSpan={10} className="px-3 py-2 text-red-400 italic">
+                        <td colSpan={11} className="px-3 py-2 text-red-400 italic">
                           Fila omitida — sin código universal
                         </td>
                       </tr>
@@ -840,6 +849,15 @@ const [dragOver, setDragOver]       = useState(false)
                         </div>
                       </td>
                       <td className="px-3 py-2 text-steel-900 max-w-[140px] truncate">{row.nombre || '—'}</td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="text"
+                          value={categoriaOverrides[i] !== undefined ? categoriaOverrides[i] : (row.categoria ?? '')}
+                          onChange={(e) => setCategoriaOverrides((prev) => ({ ...prev, [i]: e.target.value }))}
+                          placeholder="Otro"
+                          className="w-28 px-1.5 py-0.5 text-xs border border-steel-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-400 bg-white"
+                        />
+                      </td>
                       <td className="px-3 py-2 text-steel-600 whitespace-nowrap">{row.marca || '—'}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-steel-900">{row.stock}</td>
                       <td className="px-3 py-2 text-right tabular-nums">
