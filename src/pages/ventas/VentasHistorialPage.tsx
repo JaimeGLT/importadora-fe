@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { DrawerWrapper } from '@/components/ui/DrawerWrapper'
@@ -273,6 +274,24 @@ export function VentasHistorialPage() {
   const today      = new Date().toISOString().slice(0, 10)
   const mesActual  = new Date().toISOString().slice(0, 7)
 
+  const [searchParams, setSearchParams] = useSearchParams()
+  const validDate = (v: string | null) =>
+    !!v && /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(new Date(v).getTime()) ? v : ''
+  const [desde, setDesde] = useState(() => validDate(searchParams.get('desde')))
+  const [hasta, setHasta] = useState(() => validDate(searchParams.get('hasta')))
+  const filterActive = !!desde || !!hasta
+
+  const updateUrl = (d: string, h: string) => {
+    setSearchParams(prev => {
+      if (d) prev.set('desde', d); else prev.delete('desde')
+      if (h) prev.set('hasta', h); else prev.delete('hasta')
+      return prev
+    }, { replace: true })
+  }
+  const onDesde = (v: string) => { setDesde(v); updateUrl(v, hasta) }
+  const onHasta = (v: string) => { setHasta(v); updateUrl(desde, v) }
+  const clear   = () => { setDesde(''); setHasta(''); updateUrl('', '') }
+
   useEffect(() => {
     if (!isTokenReady || marcas.length > 0) return
     gql<{ marca: { nodes: Array<{ id: number; nombre: string; prefijo: string }> } }>(MARCAS_QUERY)
@@ -285,7 +304,10 @@ export function VentasHistorialPage() {
     setLoading(true)
     const query = isAdmin ? TODAS_ORDENES_QUERY : MIS_ORDENES_QUERY
     const key   = isAdmin ? 'todasOrdenes'      : 'misOrdenes'
-    gql<{ [k: string]: { nodes: OrdenVentaAPI[] } }>(query)
+    gql<{ [k: string]: { nodes: OrdenVentaAPI[] } }>(query, {
+      desde: desde ? `${desde}T00:00:00-04:00` : null,
+      hasta: hasta ? `${hasta}T23:59:59-04:00` : null,
+    })
       .then(res => {
         const completadas = res[key].nodes
           .map(backendToOrdenVenta)
@@ -293,9 +315,9 @@ export function VentasHistorialPage() {
           .sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime())
         setOrdenes(completadas)
       })
-      .catch(() => {})
+      .catch(() => setOrdenes([]))
       .finally(() => setLoading(false))
-  }, [isTokenReady, isAdmin])
+  }, [isTokenReady, isAdmin, desde, hasta])
 
   const kpi = useMemo(() => {
     const hoy = ordenes.filter(o => o.creado_en.slice(0, 10) === today)
@@ -358,7 +380,7 @@ export function VentasHistorialPage() {
                   <i className="ti ti-receipt text-white text-[16px]" />
                 </div>
                 <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#F4ECDB] text-[#780e18]">
-                  {kpi.hoy} hoy
+                  {filterActive ? `${kpi.hoy} filtradas` : `${kpi.hoy} hoy`}
                 </span>
               </div>
               {loading
@@ -378,7 +400,7 @@ export function VentasHistorialPage() {
                   <i className="ti ti-cash text-white text-[16px]" />
                 </div>
                 <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#B8DCCA] text-[#1E5C38]">
-                  mes actual
+                  {filterActive ? 'filtrado' : 'mes actual'}
                 </span>
               </div>
               {loading
@@ -410,6 +432,41 @@ export function VentasHistorialPage() {
               <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Ticket promedio</div>
             </div>
 
+          </div>
+
+          {/* ── Date Filter ──────────────────────────────────────────────── */}
+          <div className="bg-white rounded-xl border border-[#D0CBC4] p-4 mb-4 flex flex-wrap items-end gap-4">
+            <div>
+              <label className="block text-[11px] font-semibold text-[#4A4744] mb-1.5 uppercase tracking-wide">Desde</label>
+              <input
+                type="date"
+                value={desde}
+                onChange={e => onDesde(e.target.value)}
+                className="h-9 px-3 rounded-lg border border-[#E8E5E2] bg-white text-[#2D2B2A] text-sm focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-[#4A4744] mb-1.5 uppercase tracking-wide">Hasta</label>
+              <input
+                type="date"
+                value={hasta}
+                onChange={e => onHasta(e.target.value)}
+                className="h-9 px-3 rounded-lg border border-[#E8E5E2] bg-white text-[#2D2B2A] text-sm focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 transition-all"
+              />
+            </div>
+            {filterActive && (
+              <button
+                onClick={clear}
+                className="h-9 px-3 rounded-lg border border-[#E8E5E2] bg-white text-[#4A4744] text-xs font-semibold hover:bg-[#F0EFEC] transition-colors"
+              >
+                Limpiar
+              </button>
+            )}
+            {filterActive && (
+              <span className="text-[11px] text-[#7A7571] font-medium ml-auto">
+                Filtrando por rango — {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
+              </span>
+            )}
           </div>
 
           {/* ── Table Container ──────────────────────────────────────────── */}

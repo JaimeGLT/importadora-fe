@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { PageTopBar } from '@/components/layout/PageTopBar'
 import { ServerPagination } from '@/components/ui'
+import { ProductThumb } from '@/components/ui/ProductThumb'
+import { GalleryViewerModal } from './GalleryViewerModal'
 import { notify } from '@/lib/notify'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
@@ -784,6 +786,7 @@ export function AjustesPage() {
   const cursors = useRef<(string | null)[]>([null])
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [marcas, setMarcas] = useState<Marca[]>([])
+  const [galleryProducto, setGalleryProducto] = useState<Producto | null>(null)
 
   const loadProductos = useCallback((targetPage: number, size: number, q = '', currentFiltro: 'todos' | 'bajo' | 'kits' = 'todos') => {
     setLoading(true)
@@ -1054,7 +1057,14 @@ export function AjustesPage() {
                                 onClick={() => setSeleccionado(p)}
                               >
                                 <td className={clsx('px-6 py-3.5 border-r border-[#E8E5E2]', p.es_kit && 'border-l-[3px] border-l-[#D4A333]')}>
-                                  <p className="text-sm font-mono font-bold text-[#2D2B2A] truncate max-w-[220px] tracking-[0.05em]">{codigoDisplay}</p>
+                                  <div className="flex items-center gap-3">
+                                    <ProductThumb
+                                      src={p.imagen}
+                                      nombre={p.nombre}
+                                      onClick={() => setGalleryProducto(p)}
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-mono font-bold text-[#2D2B2A] truncate max-w-[220px] tracking-[0.05em]">{codigoDisplay}</p>
                                   {(p.codigos_alternativos?.filter(Boolean) ?? []).length > 0 && (
                                     <div className="flex flex-col mt-0.5">
                                       {p.codigos_alternativos!.filter(Boolean).map((c, i) => (
@@ -1067,6 +1077,8 @@ export function AjustesPage() {
                                     {p.es_kit && (
                                       <span className="text-[9px] bg-[#F4ECDB] text-[#780e18] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide">Kit</span>
                                     )}
+                                  </div>
+                                    </div>
                                   </div>
                                 </td>
                                 <td className="px-4 py-3.5 border-r border-[#E8E5E2]">
@@ -1140,6 +1152,11 @@ export function AjustesPage() {
                             )}
                             style={{ WebkitTapHighlightColor: 'transparent' }}
                           >
+                            <ProductThumb
+                              src={p.imagen}
+                              nombre={p.nombre}
+                              onClick={() => setGalleryProducto(p)}
+                            />
                             <div className="flex-1 min-w-0">
                               <p className="font-mono font-bold text-[13px] text-[#2D2B2A] truncate tracking-[0.05em]">{codigoDisplay}</p>
                               {(p.codigos_alternativos?.filter(Boolean) ?? []).length > 0 && (
@@ -1211,6 +1228,11 @@ export function AjustesPage() {
           onSuccess={handleSuccess}
         />
       )}
+
+      <GalleryViewerModal
+        producto={galleryProducto}
+        onClose={() => setGalleryProducto(null)}
+      />
     </MainLayout>
   )
 }

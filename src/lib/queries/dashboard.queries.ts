@@ -31,12 +31,12 @@ export const DASHBOARD_QUERY = `
         estado
         fecha
         fechaCompletada
+        montoDescuento
         cajero { nombre apellido }
         items {
           id_Producto
           cantidad
           precioUnitario
-          montoDescuento
           producto { id codigo nombre }
         }
       }

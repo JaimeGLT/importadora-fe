@@ -35,6 +35,27 @@ export interface HistorialPrecio {
   nota?: string
 }
 
+/**
+ * Una imagen de la galería de un producto. Mapeo del DtoProductoImagenResponse
+ * del backend. La galería completa viene en `Producto.imagenes` (modo edición).
+ * Para la lista de inventario se usa `Producto.imagen` (URL de la principal).
+ */
+export interface ProductoImagen {
+  id: number
+  productoId: number
+  url: string            // URL pública lista para <img src>
+  key: string            // R2 key (interno)
+  nombreArchivo: string
+  contentType: string
+  tamanoBytes: number
+  anchoPx?: number | null
+  altoPx?: number | null
+  orden: number          // posición 1, 2, 3...
+  esPrincipal: boolean
+  estado: 'Pendiente' | 'Activa' | 'Eliminada'
+  fechaSubida: string    // ISO
+}
+
 export interface Producto {
   id: string
   codigo_universal: string        // código principal — búsquedas y código de barras
@@ -59,7 +80,8 @@ export interface Producto {
   estante: string
   fila: string
   columna: string
-  imagen?: string                 // URL de imagen del producto
+  imagen?: string                 // URL de la imagen principal (thumb). Compatibilidad con call-sites existentes.
+  imagenes?: ProductoImagen[]     // Galería completa (solo en modo edición / detalle).
   estado: EstadoProducto
   proveedor_id: string
   es_kit?: boolean

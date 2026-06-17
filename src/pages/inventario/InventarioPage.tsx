@@ -11,11 +11,13 @@ import {
 } from '@tanstack/react-table'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { ConfirmModal, ServerPagination } from '@/components/ui'
+import { ProductThumb } from '@/components/ui/ProductThumb'
 import type { Producto } from '@/types'
 import { notify } from '@/lib/notify'
 import { ProductoModal, type PriceUpdate } from './ProductoModal'
 import { ImportarExcelModal, type ImportResult } from './ImportarExcelModal'
 import { EtiquetaModal } from './EtiquetaModal'
+import { GalleryViewerModal } from './GalleryViewerModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import {
@@ -34,6 +36,8 @@ import {
 import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
 import type { Marca } from '@/types'
 import { api } from '@/lib/api'
+import { subirLoteDiferido, eliminarImagen, reordenarImagenes, marcarImagenPrincipal } from '@/lib/storage'
+import type { ImageUploaderState } from '@/components/ui/ImageUploader'
 import { clsx } from 'clsx'
 
 declare module '@tanstack/react-table' {
@@ -79,23 +83,7 @@ function StockBadgeMd3({ stock, stockMinimo }: { stock: number; stockMinimo: num
 }
 
 // ─── Product thumbnail ────────────────────────────────────────────────────────
-
-function ProductThumb({ src, nombre }: { src?: string; nombre: string }) {
-  const [err, setErr] = useState(false)
-  if (src && !err) {
-    return (
-      <img
-        src={src} alt={nombre} onError={() => setErr(true)}
-        className="w-[42px] h-[42px] rounded-lg border border-[#E8E5E2] object-cover"
-      />
-    )
-  }
-  return (
-    <div className="w-[42px] h-[42px] bg-[#F0EFEC] rounded-lg border border-[#E8E5E2] flex items-center justify-center">
-      <i className="ti ti-photo text-[#7A7571] text-[18px]" />
-    </div>
-  )
-}
+// Reutiliza el componente compartido `@/components/ui/ProductThumb`.
 
 // ─── Table skeleton ───────────────────────────────────────────────────────────
 
@@ -151,7 +139,7 @@ function EmptyState({ onNew, searching }: { onNew: () => void; searching: boolea
 
 // ─── Mobile product row ───────────────────────────────────────────────────────
 
-function MobileProductRow({ p, marcaNombre, marcas, onTap }: { p: Producto; marcaNombre: string; marcas: Marca[]; onTap: () => void }) {
+function MobileProductRow({ p, marcaNombre, marcas, onTap, onViewGallery }: { p: Producto; marcaNombre: string; marcas: Marca[]; onTap: () => void; onViewGallery: () => void }) {
   const prefijo = getMarcaPrefijo(p.marcaId, marcas)
   const codigoDisplay = prefijo ? `${prefijo}-${p.codigo_universal}` : p.codigo_universal
   return (
@@ -163,7 +151,14 @@ function MobileProductRow({ p, marcaNombre, marcas, onTap }: { p: Producto; marc
       onClick={onTap}
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
-      <ProductThumb src={p.imagen} nombre={p.nombre ?? ''} />
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onViewGallery() }}
+        className="shrink-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4A333]/40"
+        title="Ver galería"
+      >
+        <ProductThumb src={p.imagen} nombre={p.nombre ?? ''} />
+      </button>
       <div className="flex-1 min-w-0">
         <div className="font-mono font-semibold text-[13px] text-[#2D2B2A] tracking-[0.05em] leading-tight underline decoration-[#D4A333] decoration-2 underline-offset-2">
           {codigoDisplay}
@@ -277,6 +272,7 @@ export function InventarioPage() {
   const [selectedMarcaId, setSelectedMarcaId] = useState<number | null>(null)
   const [sorting, setSorting] = useState<SortingState>([])
   const [exportando, setExportando] = useState(false)
+  const [galleryProducto, setGalleryProducto] = useState<Producto | null>(null)
 
 
   // ── Load products ──────────────────────────────────────────────────────────
@@ -367,7 +363,12 @@ export function InventarioPage() {
   }
   const handleNew  = () => { setEditingProducto(null); setModalOpen(true) }
 
-  const handleSave = async (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>, kitOps: KitOps, priceUpdate?: PriceUpdate) => {
+  const handleSave = async (
+    data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>,
+    kitOps: KitOps,
+    priceUpdate: PriceUpdate | undefined,
+    imageOps: ImageUploaderState,
+  ) => {
     try {
       if (editingProducto) {
         const updatePayload = productoToBackendUpdate(data)
@@ -390,6 +391,72 @@ export function InventarioPage() {
             }
           }
         }
+
+        // ── Sincronizar galería de imágenes ─────────────────────────────
+        // Flujo:
+        //   1) Subir las imágenes nuevas (subirLoteDiferido las crea en R2 + DB
+        //      con orden = max+1, max+2, ... y devuelve los ids en el mismo
+        //      orden en que estaban en `imageOps.pending`).
+        //   2) Construir el mapa localId → id para poder armar el orden final.
+        //   3) Borrar las imágenes existentes marcadas para eliminar.
+        //   4) Reordenar con PUT /reordenar para que la galería visual (mezcla
+        //      de existentes y nuevas) coincida con el `finalOrder` del uploader.
+        //   5) Ajustar la "Principal" para que sea la primera del `finalOrder`
+        //      (con esto cubrimos el caso de reordenar y de subir nuevos).
+        const productoId = Number(editingProducto.id)
+        const localIdToId: Record<string, number> = {}
+        if (imageOps.pending.length > 0) {
+          const { exitosas, fallidas } = await subirLoteDiferido(
+            productoId,
+            imageOps.pending.map((p) => p.file),
+          )
+          if (fallidas.length > 0) {
+            notify.warning(
+              `Producto actualizado, pero ${fallidas.length} de ${imageOps.pending.length} imágenes no se pudieron subir`,
+              { description: fallidas.map((f) => f.archivo.name).join(', ') },
+            )
+          }
+          exitosas.forEach((img, i) => {
+            const op = imageOps.pending[i]
+            if (op) localIdToId[op.localId] = img.id
+          })
+        }
+
+        if (imageOps.deletedIds.length > 0) {
+          // Best-effort paralelo: si una falla, las otras siguen.
+          await Promise.allSettled(
+            imageOps.deletedIds.map((id) => eliminarImagen(id)),
+          )
+        }
+
+        // Armar el orden final mapeando localId → id. Los ids que no se
+        // encuentren (p.ej. porque un pendiente falló al subir) se omiten.
+        const finalIds = imageOps.finalOrder
+          .map((it) => (it.type === 'existing' ? it.id : localIdToId[it.localId]))
+          .filter((id): id is number => typeof id === 'number')
+
+        const restantesActuales = (editingProducto.imagenes ?? [])
+          .filter((i) => !imageOps.deletedIds.includes(i.id))
+          .map((i) => i.id)
+          .concat(Object.values(localIdToId))
+
+        const ordenCambio =
+          finalIds.length > 0 &&
+          (finalIds.length !== restantesActuales.length ||
+            finalIds.some((id, idx) => restantesActuales[idx] !== id))
+
+        if (ordenCambio) {
+          await reordenarImagenes(productoId, finalIds)
+        }
+
+        // Sincronizar "Principal" con la primera imagen del orden final.
+        // El backend ya promueve automáticamente al borrar la principal, pero
+        // al reordenar/subir no cambia — esto asegura que la principal visual
+        // (primera del `finalOrder`) coincida con la del backend.
+        if (finalIds.length > 0) {
+          await marcarImagenPrincipal(productoId, finalIds[0])
+        }
+
         loadProducts(page, pageSize, searchTerm, selectedMarcaId)
         notify.success('Producto actualizado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre?.trim() || '(sin nombre)'}` })
       } else {
@@ -397,6 +464,23 @@ export function InventarioPage() {
         const res = await api.post<{ id: number }>('/Producto', createPayload)
         if (kitOps.mode === 'convertirKit' && kitOps.piezas?.length) {
           await api.put(`/Producto/ConvertirKit/${res.id}`, { piezas: kitOps.piezas })
+        }
+        // Si el usuario dejó imágenes pendientes en el ImageUploader, las subimos
+        // ahora que ya tenemos id. Cada archivo pasa por presign + PUT a R2 +
+        // confirmar; los huérfanos de R2 los limpia el R2OrphanGcService del backend.
+        if (imageOps.pending.length > 0) {
+          const { exitosas, fallidas } = await subirLoteDiferido(
+            res.id,
+            imageOps.pending.map((p) => p.file),
+          )
+          if (fallidas.length > 0) {
+            notify.warning(
+              `Producto creado, pero ${fallidas.length} de ${imageOps.pending.length} imágenes no se pudieron subir`,
+              { description: fallidas.map((f) => f.archivo.name).join(', ') },
+            )
+          } else if (exitosas.length > 0) {
+            notify.success(`${exitosas.length} imagen${exitosas.length === 1 ? '' : 'es'} subida${exitosas.length === 1 ? '' : 's'}`)
+          }
         }
         cursors.current = [null]
         loadProducts(0, pageSize, searchTerm, selectedMarcaId)
@@ -487,6 +571,26 @@ export function InventarioPage() {
 
   // ── Columns ────────────────────────────────────────────────────────────────
   const columns = useMemo(() => [
+    colHelper.display({
+      id: 'imagen',
+      header: '',
+      size: 60,
+      meta: { align: 'center' },
+      enableSorting: false,
+      cell: (info) => {
+        const p = info.row.original
+        return (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setGalleryProducto(p) }}
+            className="block rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4A333]/40 hover:opacity-80 transition-opacity"
+            title="Ver galería"
+          >
+            <ProductThumb src={p.imagen} nombre={p.nombre ?? ''} />
+          </button>
+        )
+      },
+    }),
     colHelper.accessor('nombre', {
       header: 'Código / Producto',
       size: 220,
@@ -957,6 +1061,7 @@ export function InventarioPage() {
                       marcaNombre={getMarcaNombre(row.original.marcaId, marcas)}
                       marcas={marcas}
                       onTap={() => handleEdit(row.original)}
+                      onViewGallery={() => setGalleryProducto(row.original)}
                     />
                   ))}
                 </div>
@@ -1014,6 +1119,10 @@ export function InventarioPage() {
         loading={loadingModal}
         productosExistentes={products}
         marcas={marcas}
+      />
+      <GalleryViewerModal
+        producto={galleryProducto}
+        onClose={() => setGalleryProducto(null)}
       />
       <ConfirmModal
         open={!!confirmDelete}

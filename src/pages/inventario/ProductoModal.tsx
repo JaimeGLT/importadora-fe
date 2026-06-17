@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Button, WarmInput, DrawerWrapper, FormSection } from '@/components/ui'
+import { Button, WarmInput, DrawerWrapper, FormSection, ImageUploader } from '@/components/ui'
+import type { ImageUploaderState } from '@/components/ui/ImageUploader'
 import { BrandSelect } from '@/components/ui/BrandSelect'
-import type { Producto, HistorialPrecio } from '@/types'
+import type { Producto, ProductoImagen, HistorialPrecio } from '@/types'
 import type { DtoPiezaKit, KitOps, PieceOp } from '@/lib/queries/inventario.queries'
 import { KitPartsSection } from './KitPartsSection'
 import type { DisplayPart } from './KitPartsSection'
@@ -19,7 +20,20 @@ export interface PriceUpdate {
 interface ProductoModalProps {
   open: boolean
   onClose: () => void
-  onSave: (data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>, kitOps: KitOps, priceUpdate?: PriceUpdate) => Promise<void>
+  /**
+   * Al guardar, se llama con los datos del form + operaciones de imagen
+   * diferidas (archivos nuevos a subir, ids existentes a eliminar, orden
+   * final de la galería). El padre (InventarioPage) orquesta: subir vía
+   * `subirLoteDiferido`, borrar vía DELETE, reordenar vía PUT /reordenar.
+   * De este modo, si el usuario cierra el modal sin guardar, no queda
+   * nada en R2 ni en la DB.
+   */
+  onSave: (
+    data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>,
+    kitOps: KitOps,
+    priceUpdate: PriceUpdate | undefined,
+    imageOps: ImageUploaderState,
+  ) => Promise<void>
   onDelete?: () => void
   producto: Producto | null
   loading?: boolean
@@ -88,6 +102,17 @@ export function ProductoModal({
   const [pieceOps, setPieceOps]   = useState<PieceOp[]>([])
   const [stockManual, setStockManual] = useState('')
   const [etiquetaPieza, setEtiquetaPieza] = useState<{ etiqueta: LabelData; subtitulo?: string } | null>(null)
+  // Galería de imágenes (sincronizada desde producto al abrir).
+  // NOTA: el ImageUploader ya NO muta esta lista — gestiona su propio
+  // estado interno (pendientes, borrados, orden) y lo reporta vía
+  // `onChange`. La usamos solo para inicializar la galería visual al abrir.
+  const [imagenes, setImagenes] = useState<ProductoImagen[]>([])
+  // Estado reportado por ImageUploader (pending + deletedIds + finalOrder).
+  const [imageOps, setImageOps] = useState<ImageUploaderState>({
+    pending: [],
+    deletedIds: [],
+    finalOrder: [],
+  })
 
   const isLoading = loading && producto !== null
 
@@ -137,6 +162,8 @@ export function ProductoModal({
     setKitPieces([])
     setPieceOps([])
     setStockManual('')
+    setImagenes(producto?.imagenes ?? [])
+    setImageOps({ pending: [], deletedIds: [], finalOrder: [] })
   }, [open, producto])
 
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) => {
@@ -224,7 +251,7 @@ export function ProductoModal({
           }
         : undefined
 
-      await onSave(dataToSave, kitOps, priceUpdate)
+      await onSave(dataToSave, kitOps, priceUpdate, imageOps)
     } finally {
       setSaving(false)
     }
@@ -382,6 +409,28 @@ export function ProductoModal({
                 hint="Opcional"
               />
             </div>
+          </FormSection>
+
+          {/* Imágenes */}
+          <FormSection
+            icon={<IconPhoto />}
+            title="Imágenes"
+            description="Galería de hasta 20 imágenes. Se suben a Cloudflare R2 al guardar el producto."
+            iconClass="bg-[#780e18] text-white shadow-sm"
+            extra={
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#F4ECDB] px-2.5 py-1 text-[11px] font-bold text-[#780e18] tabular-nums">
+                <i className="ti ti-photo text-[11px]" />
+                {imagenes.filter((i) => !imageOps.deletedIds.includes(i.id)).length + imageOps.pending.length}/20
+              </span>
+            }
+          >
+            <ImageUploader
+              key={producto?.id ?? 'new'}
+              productoId={producto ? Number(producto.id) : undefined}
+              imagenes={imagenes}
+              onChange={setImageOps}
+              isSaving={saving}
+            />
           </FormSection>
 
           {/* Descripción */}
@@ -789,6 +838,13 @@ function IconKit() {
   return (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+    </svg>
+  )
+}
+function IconPhoto() {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
     </svg>
   )
 }

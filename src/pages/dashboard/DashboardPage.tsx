@@ -248,6 +248,10 @@ export function DashboardPage() {
   const [ordenes,    setOrdenes]    = useState<DashboardOrden[]>([])
   const [tipoCambio, setTipoCambio] = useState<number>(6.96)
 
+  const todayDate     = new Date()
+  const today         = todayDate.toISOString().slice(0, 10)
+  const firstOfMonth  = today.slice(0, 8) + '01'
+
   useEffect(() => {
     if (!isTokenReady) return
     setIsLoading(true)
@@ -416,7 +420,7 @@ export function DashboardPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
 
           {/* Hero — ventas hoy */}
-          <Link to="/ventas/historial">
+          <Link to={`/ventas/historial?desde=${today}&hasta=${today}`}>
             <div className="relative overflow-hidden rounded-xl bg-[#780e18] p-5 text-white shadow-md hover:shadow-lg hover:bg-[#5a0a12] transition-all h-full">
               <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-[#5a0a12] opacity-40" />
               <div className="absolute -right-2 -bottom-8 h-24 w-24 rounded-full bg-[#4a0810] opacity-30" />
@@ -438,7 +442,7 @@ export function DashboardPage() {
           </Link>
 
           {/* Ventas mes */}
-          <Link to="/ventas/historial">
+          <Link to={`/ventas/historial?desde=${firstOfMonth}&hasta=${today}`}>
             <Card className="p-5 h-full hover:-translate-y-0.5 hover:shadow-md transition-all">
               <div className="flex items-start justify-between mb-3">
                 <div className="h-9 w-9 rounded-xl bg-[#F5E0A8] flex items-center justify-center">

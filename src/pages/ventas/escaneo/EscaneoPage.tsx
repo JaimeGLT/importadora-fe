@@ -8,13 +8,15 @@ import { playConfirmBeep } from '@/lib/sounds'
 import { notify } from '@/lib/notify'
 import { api } from '@/lib/api'
 import { gql } from '@/lib/graphql'
-import { PRODUCTO_BY_ID_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI, type ProductoAPISimple } from '@/lib/queries/inventario.queries'
+import { PRODUCTO_BY_ID_QUERY, PRODUCTOS_IMAGENES_BATCH_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI, type ProductoAPISimple } from '@/lib/queries/inventario.queries'
 import { ORDENES_PARA_ESCANEO_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
 import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
 import { fmtCodigo } from '@/lib/formatCodigo'
 import { useVentasHub } from '@/hooks/useVentasHub'
 import { clsx } from 'clsx'
 import { EtiquetaModal } from '@/pages/inventario/EtiquetaModal'
+import { GalleryViewerModal } from '@/pages/inventario/GalleryViewerModal'
+import { ProductThumb } from '@/components/ui/ProductThumb'
 import type { LabelData } from '@/lib/printLabel'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1230,6 +1232,8 @@ export function EscaneoPage() {
   const [piezaScanCounts, setPiezaScanCounts] = useState<Record<string, number>>({})
   const [etiquetaPieza, setEtiquetaPieza] = useState<{ etiqueta: LabelData; subtitulo: string } | null>(null)
   const scanInputRef = useRef<HTMLInputElement>(null)
+  const [productoImagenes, setProductoImagenes] = useState<Record<string, string>>({})
+  const [galleryProducto, setGalleryProducto] = useState<Producto | null>(null)
 
   const dateStr = useMemo(() => {
     return new Date().toLocaleDateString('es-BO', {
@@ -1376,6 +1380,33 @@ export function EscaneoPage() {
     () => itemsParaEscanear.filter(i => i.estado !== 'pendiente'),
     [itemsParaEscanear],
   )
+
+  // Cache de imágenes principales: cuando cambia la orden visible,
+  // batch-fetcheamos `imagenPrincipal.url` para todos los productoIds
+  // únicos que aún no tengamos en el cache. Mantiene la galería
+  // funcionando en las páginas de ventas sin hidratar todo el `Producto`.
+  useEffect(() => {
+    const ids = Array.from(new Set(itemsParaEscanear.map(i => i.producto_id)))
+      .map(id => Number(id))
+      .filter(id => Number.isFinite(id) && !productoImagenes[id])
+    if (ids.length === 0) return
+    let cancelled = false
+    gql<{
+      productos: { nodes: Array<{ id: number; imagenPrincipal: { id: number; url: string } | null }> }
+    }>(PRODUCTOS_IMAGENES_BATCH_QUERY, { ids })
+      .then(res => {
+        if (cancelled) return
+        const map: Record<string, string> = {}
+        for (const n of res.productos.nodes) {
+          if (n.imagenPrincipal?.url) map[String(n.id)] = n.imagenPrincipal.url
+        }
+        if (Object.keys(map).length) {
+          setProductoImagenes(prev => ({ ...prev, ...map }))
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [itemsParaEscanear, productoImagenes])
 
   const isItemConfirmed = (item: ItemOrden) => {
     if (item.es_parcial && item.piezas_orden?.length) {
@@ -2374,29 +2405,16 @@ export function EscaneoPage() {
                                         'border-[#D0CBC4] bg-white'
                                       )}
                                     >
-                                      <div className={clsx(
-                                        'h-8 w-8 rounded-full flex items-center justify-center shrink-0',
-                                        esPiezaFaltante ? 'bg-[#F5C9C0]' :
-                                        esPiezaParcial ? 'bg-[#F5E0A8]' :
-                                        piezaConfirmada ? 'bg-[#B8DCCA]' :
-                                        esPiezaLista ? 'bg-[#F5E0A8]' :
-                                        isPiezaFlashing ? 'bg-[#F4ECDB]' :
-                                        'bg-[#F0EFEC]'
-                                      )}>
-                                        {esPiezaFaltante ? (
-                                          <i className="ti ti-x text-[#B23A2A] text-[14px]" />
-                                        ) : esPiezaParcial ? (
-                                          <i className="ti ti-alert-triangle text-[#B47A1F] text-[14px]" />
-                                        ) : piezaConfirmada ? (
-                                          <i className="ti ti-check text-[#3F7A52] text-[14px]" />
-                                        ) : esPiezaLista ? (
-                                          <i className="ti ti-package-import text-[#B47A1F] text-[14px]" />
-                                        ) : isPiezaFlashing ? (
-                                          <i className="ti ti-barcode text-[#780e18] text-[14px]" />
-                                        ) : (
-                                          <i className="ti ti-package text-[#7A7571] text-[14px]" />
-                                        )}
-                                      </div>
+                                      <ProductThumb
+                                        src={productoImagenes[item.producto_id]}
+                                        nombre={item.producto_nombre ?? undefined}
+                                        size="sm"
+                                        onClick={() => setGalleryProducto({
+                                          id: item.producto_id,
+                                          codigo_universal: item.producto_codigo,
+                                          nombre: item.producto_nombre ?? '',
+                                        } as Producto)}
+                                      />
                                       <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-1.5 mb-0.5">
                                           <p className="text-[10px] font-mono font-semibold text-[#7A7571] truncate leading-none">
@@ -2517,21 +2535,17 @@ export function EscaneoPage() {
                                 'border-[#D0CBC4] bg-white'
                               )}
                             >
-                              {/* Icono */}
-                              <div className={clsx(
-                                'h-8 w-8 rounded-full flex items-center justify-center shrink-0',
-                                confirmed ? 'bg-[#B8DCCA]' : isPendiente ? 'bg-[#F5E0A8]' : isParcialFaltante ? 'bg-[#F5E0A8]' : 'bg-[#F0EFEC]'
-                              )}>
-                                {confirmed ? (
-                                  <i className="ti ti-check text-[#3F7A52] text-[14px]" />
-                                ) : isPendiente ? (
-                                  <i className="ti ti-clock text-[#B47A1F] text-[14px]" />
-                                ) : isParcialFaltante ? (
-                                  <i className="ti ti-clock text-[#B47A1F] text-[14px]" />
-                                ) : (
-                                  <i className="ti ti-package text-[#7A7571] text-[14px]" />
-                                )}
-                              </div>
+                              {/* Thumb */}
+                              <ProductThumb
+                                src={productoImagenes[item.producto_id]}
+                                nombre={item.producto_nombre ?? undefined}
+                                size="sm"
+                                onClick={() => setGalleryProducto({
+                                  id: item.producto_id,
+                                  codigo_universal: item.producto_codigo,
+                                  nombre: item.producto_nombre ?? '',
+                                } as Producto)}
+                              />
 
                               {/* Info */}
                               <div className="flex-1 min-w-0">
@@ -2846,6 +2860,10 @@ export function EscaneoPage() {
         onClose={() => setEtiquetaPieza(null)}
         etiqueta={etiquetaPieza?.etiqueta ?? null}
         subtitulo={etiquetaPieza?.subtitulo}
+      />
+      <GalleryViewerModal
+        producto={galleryProducto}
+        onClose={() => setGalleryProducto(null)}
       />
     </MainLayout>
   )

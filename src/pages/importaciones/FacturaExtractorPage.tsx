@@ -7,43 +7,97 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 
 type Estado = 'idle' | 'procesando' | 'listo'
 
+const MAX_ARCHIVOS = 10
+const MAX_BYTES_POR_ARCHIVO = 20 * 1024 * 1024 // 20 MB
+
+const EXTENSIONES_VALIDAS = [
+  'xlsx', 'xls', 'pdf',
+  'jpg', 'jpeg', 'png', 'gif', 'webp',
+  'heic', 'heif',
+] as const
+
+function esExtensionValida(nombre: string): boolean {
+  const ext = nombre.split('.').pop()?.toLowerCase() ?? ''
+  return (EXTENSIONES_VALIDAS as readonly string[]).includes(ext)
+}
+
+function iconoPara(nombre: string): string {
+  const ext = nombre.split('.').pop()?.toLowerCase() ?? ''
+  if (ext === 'pdf') return 'ti-file-type-pdf'
+  if (['xlsx', 'xls'].includes(ext)) return 'ti-file-spreadsheet'
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'].includes(ext)) return 'ti-photo'
+  return 'ti-file'
+}
+
 export function FacturaExtractorPage() {
-  const [archivo, setArchivo] = useState<File | null>(null)
+  const [archivos, setArchivos] = useState<File[]>([])
   const [estado, setEstado] = useState<Estado>('idle')
   const [dragging, setDragging] = useState(false)
   const [nombreDescargado, setNombreDescargado] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
-  function seleccionarArchivo(file: File) {
-    const ext = file.name.split('.').pop()?.toLowerCase()
-    if (ext !== 'xlsx' && ext !== 'xls' && ext !== 'pdf') {
-      toast.error('Solo se aceptan archivos .xlsx, .xls o .pdf')
-      return
+  function agregarArchivos(files: FileList | File[]) {
+    const nuevos = Array.from(files)
+    const rechazados: string[] = []
+    const validos: File[] = []
+
+    for (const f of nuevos) {
+      if (!esExtensionValida(f.name)) {
+        rechazados.push(f.name)
+        continue
+      }
+      if (f.size > MAX_BYTES_POR_ARCHIVO) {
+        rechazados.push(`${f.name} (supera 20 MB)`)
+        continue
+      }
+      validos.push(f)
     }
-    setArchivo(file)
+
+    if (rechazados.length > 0) {
+      toast.error(`Archivos rechazados: ${rechazados.join(', ')}`)
+    }
+
+    if (validos.length === 0) return
+
+    setArchivos((prev) => {
+      const total = prev.length + validos.length
+      if (total > MAX_ARCHIVOS) {
+        toast.error(`Máximo ${MAX_ARCHIVOS} archivos (ya tenés ${prev.length}).`)
+        return prev
+      }
+      return [...prev, ...validos]
+    })
+    setEstado('idle')
+    setNombreDescargado('')
+  }
+
+  function quitarArchivo(index: number) {
+    setArchivos((prev) => prev.filter((_, i) => i !== index))
     setEstado('idle')
   }
 
   function onInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) seleccionarArchivo(file)
+    if (e.target.files && e.target.files.length > 0) {
+      agregarArchivos(e.target.files)
+    }
     e.target.value = ''
   }
 
   function onDrop(e: React.DragEvent) {
     e.preventDefault()
     setDragging(false)
-    const file = e.dataTransfer.files[0]
-    if (file) seleccionarArchivo(file)
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      agregarArchivos(e.dataTransfer.files)
+    }
   }
 
   async function procesar() {
-    if (!archivo || estado === 'procesando') return
+    if (archivos.length === 0 || estado === 'procesando') return
     setEstado('procesando')
 
     try {
       const formData = new FormData()
-      formData.append('file', archivo)
+      archivos.forEach((f) => formData.append('files', f))
 
       const res = await fetch(`${BASE_URL}/factura/extraer`, {
         method: 'POST',
@@ -62,7 +116,9 @@ export function FacturaExtractorPage() {
       }
 
       const blob = await res.blob()
-      const nombre = archivo.name.replace(/\.[^.]+$/, '') + '_limpio.xlsx'
+      const nombre = archivos.length === 1
+        ? archivos[0].name.replace(/\.[^.]+$/, '') + '_limpio.xlsx'
+        : `factura_procesada_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}.xlsx`
 
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -78,12 +134,12 @@ export function FacturaExtractorPage() {
       toast.success(`Descargando ${nombre}`)
     } catch (err) {
       setEstado('idle')
-      toast.error(err instanceof Error ? err.message : 'Error al procesar el archivo')
+      toast.error(err instanceof Error ? err.message : 'Error al procesar los archivos')
     }
   }
 
   function limpiar() {
-    setArchivo(null)
+    setArchivos([])
     setEstado('idle')
     setNombreDescargado('')
   }
@@ -93,6 +149,8 @@ export function FacturaExtractorPage() {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
+
+  const tieneArchivos = archivos.length > 0
 
   return (
     <MainLayout>
@@ -118,7 +176,7 @@ export function FacturaExtractorPage() {
                 Extractor IA de facturas
               </h2>
               <p className="text-[13.5px] text-[#7A7571] mt-1.5">
-                Sube la factura del proveedor y la IA extrae los productos en un archivo limpio
+                Subí una o varias fotos/archivos de la misma factura y la IA arma una sola tabla
               </p>
             </div>
           </div>
@@ -131,24 +189,25 @@ export function FacturaExtractorPage() {
 
               {/* Drop zone */}
               <div
-                onClick={() => estado !== 'procesando' && !archivo && inputRef.current?.click()}
-                onDragOver={(e) => { e.preventDefault(); if (!archivo) setDragging(true) }}
+                onClick={() => estado !== 'procesando' && !tieneArchivos && inputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); if (!tieneArchivos) setDragging(true) }}
                 onDragLeave={() => setDragging(false)}
                 onDrop={onDrop}
                 className={[
                   'relative flex flex-col items-center justify-center gap-4',
-                  'border-2 border-dashed rounded-xl transition-all duration-150 min-h-[260px]',
-                  archivo
-                    ? 'border-[#B8DCCA] bg-[#FAF5EE] cursor-default'
+                  'border-2 border-dashed rounded-xl transition-all duration-150',
+                  tieneArchivos
+                    ? 'border-[#B8DCCA] bg-[#FAF5EE] cursor-default py-6 px-4'
                     : dragging
-                      ? 'border-[#780e18] bg-[#FAF5EE] cursor-copy scale-[1.01]'
-                      : 'border-[#D0CBC4] bg-white cursor-pointer hover:border-[#780e18]/50 hover:bg-[#FAF5EE]/60',
+                      ? 'border-[#780e18] bg-[#FAF5EE] cursor-copy scale-[1.01] min-h-[260px]'
+                      : 'border-[#D0CBC4] bg-white cursor-pointer hover:border-[#780e18]/50 hover:bg-[#FAF5EE]/60 min-h-[260px]',
                 ].join(' ')}
               >
                 <input
                   ref={inputRef}
                   type="file"
-                  accept=".xlsx,.xls,.pdf"
+                  multiple
+                  accept=".xlsx,.xls,.pdf,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif"
                   className="hidden"
                   onChange={onInputChange}
                 />
@@ -157,8 +216,14 @@ export function FacturaExtractorPage() {
                   <ProcessingState />
                 ) : estado === 'listo' ? (
                   <SuccessState nombre={nombreDescargado} onNew={limpiar} />
-                ) : archivo ? (
-                  <FileReadyState archivo={archivo} fmtSize={fmtSize} onQuitar={limpiar} />
+                ) : tieneArchivos ? (
+                  <FilesReadyState
+                    archivos={archivos}
+                    fmtSize={fmtSize}
+                    onQuitar={quitarArchivo}
+                    onAgregar={() => inputRef.current?.click()}
+                    puedeAgregar={archivos.length < MAX_ARCHIVOS}
+                  />
                 ) : (
                   <EmptyDropState dragging={dragging} />
                 )}
@@ -168,10 +233,10 @@ export function FacturaExtractorPage() {
               {estado !== 'listo' && (
                 <button
                   onClick={() => void procesar()}
-                  disabled={!archivo || estado === 'procesando'}
+                  disabled={!tieneArchivos || estado === 'procesando'}
                   className={[
                     'w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[14px] font-semibold transition-all duration-150',
-                    !archivo || estado === 'procesando'
+                    !tieneArchivos || estado === 'procesando'
                       ? 'bg-[#EDE8E3] text-[#7A7571] cursor-not-allowed'
                       : 'bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] shadow-sm active:scale-[0.99]',
                   ].join(' ')}
@@ -184,20 +249,25 @@ export function FacturaExtractorPage() {
                   ) : (
                     <>
                       <i className="ti ti-sparkles text-[17px]" />
-                      {archivo ? 'Procesar con IA' : 'Selecciona un archivo para continuar'}
+                      {tieneArchivos
+                        ? `Procesar ${archivos.length} archivo${archivos.length > 1 ? 's' : ''} con IA`
+                        : 'Selecciona uno o más archivos para continuar'}
                     </>
                   )}
                 </button>
               )}
 
               {/* Formatos soportados */}
-              <div className="flex items-center gap-3 px-1">
-                <span className="text-[11px] text-[#7A7571] font-medium">Formatos aceptados:</span>
-                {['.xlsx', '.xls', '.pdf'].map((f) => (
+              <div className="flex items-center gap-2 flex-wrap px-1">
+                <span className="text-[11px] text-[#7A7571] font-medium">Formatos:</span>
+                {EXTENSIONES_VALIDAS.map((f) => (
                   <span key={f} className="text-[11px] font-semibold text-[#4A4744] bg-[#F5F0EB] border border-[#D0CBC4] px-2 py-0.5 rounded font-mono">
-                    {f}
+                    .{f}
                   </span>
                 ))}
+                <span className="text-[11px] text-[#7A7571] font-medium ml-2">
+                  · Máx {MAX_ARCHIVOS} archivos · 20 MB c/u
+                </span>
               </div>
             </div>
 
@@ -216,8 +286,9 @@ export function FacturaExtractorPage() {
                 </div>
                 <ol className="space-y-3">
                   {[
-                    'Sube el Excel o PDF original del proveedor (cualquier idioma o formato)',
-                    'La IA detecta automáticamente los encabezados y filas de productos',
+                    'Subí los archivos de UNA sola factura (mezclá Excel, PDF y fotos si querés)',
+                    'Si son varias fotos, son páginas de la misma factura — la IA las une en una sola tabla',
+                    'La IA detecta encabezados y filas de productos en cualquier idioma',
                     'Se genera un Excel limpio con columnas uniformes y precios normalizados',
                     'El archivo se descarga automáticamente a tu equipo',
                   ].map((step, i) => (
@@ -254,36 +325,75 @@ function EmptyDropState({ dragging }: { dragging: boolean }) {
       </div>
       <div className="text-center">
         <p className="text-[14px] font-semibold text-[#2D2B2A]">
-          {dragging ? 'Suelta el archivo aquí' : 'Arrastra o haz clic para subir'}
+          {dragging ? 'Soltá los archivos aquí' : 'Arrastrá o hacé clic para subir'}
         </p>
-        <p className="text-[12px] text-[#7A7571] mt-1">Facturas en Excel o PDF de cualquier proveedor</p>
+        <p className="text-[12px] text-[#7A7571] mt-1">
+          Excel, PDF, imágenes (.jpg, .png, .heic…) — uno o varios archivos
+        </p>
       </div>
     </>
   )
 }
 
-function FileReadyState({ archivo, fmtSize, onQuitar }: { archivo: File; fmtSize: (b: number) => string; onQuitar: () => void }) {
-  const isPdf = archivo.name.toLowerCase().endsWith('.pdf')
+function FilesReadyState({
+  archivos,
+  fmtSize,
+  onQuitar,
+  onAgregar,
+  puedeAgregar,
+}: {
+  archivos: File[]
+  fmtSize: (b: number) => string
+  onQuitar: (index: number) => void
+  onAgregar: () => void
+  puedeAgregar: boolean
+}) {
   return (
-    <>
-      <div className="w-16 h-16 rounded-2xl bg-[#B8DCCA] border border-[#6BAF80] flex items-center justify-center shrink-0">
-        <i className={`ti ${isPdf ? 'ti-file-type-pdf' : 'ti-file-spreadsheet'} text-[#1E5C38] text-[32px]`} />
+    <div className="w-full max-w-[640px] space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[13px] font-semibold text-[#2D2B2A]">
+          {archivos.length} archivo{archivos.length > 1 ? 's' : ''} listo{archivos.length > 1 ? 's' : ''} para procesar
+        </p>
+        <div className="flex items-center gap-1.5 text-[11.5px] text-[#3F7A52] font-semibold bg-[#B8DCCA] px-2.5 py-1 rounded-full">
+          <i className="ti ti-circle-check text-[13px]" />
+          Listos
+        </div>
       </div>
-      <div className="text-center">
-        <p className="text-[14px] font-semibold text-[#2D2B2A] max-w-[260px] truncate">{archivo.name}</p>
-        <p className="text-[12px] text-[#7A7571] mt-0.5">{fmtSize(archivo.size)}</p>
-      </div>
-      <div className="flex items-center gap-1.5 text-[12px] text-[#3F7A52] font-semibold bg-[#B8DCCA] px-3 py-1.5 rounded-full">
-        <i className="ti ti-circle-check text-[14px]" />
-        Listo para procesar
-      </div>
-      <button
-        onClick={(e) => { e.stopPropagation(); onQuitar() }}
-        className="text-[11px] text-[#7A7571] hover:text-[#8A1E12] transition-colors font-medium"
-      >
-        Quitar archivo
-      </button>
-    </>
+
+      <ul className="w-full space-y-1.5 max-h-[280px] overflow-y-auto">
+        {archivos.map((f, i) => (
+          <li
+            key={`${f.name}-${i}`}
+            className="flex items-center gap-3 bg-white border border-[#D0CBC4] rounded-lg px-3 py-2"
+          >
+            <div className="w-9 h-9 rounded-lg bg-[#F5F0EB] flex items-center justify-center shrink-0">
+              <i className={`ti ${iconoPara(f.name)} text-[#7A7571] text-[18px]`} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[12.5px] font-medium text-[#2D2B2A] truncate">{f.name}</p>
+              <p className="text-[11px] text-[#7A7571]">{fmtSize(f.size)}</p>
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); onQuitar(i) }}
+              className="w-7 h-7 rounded-md hover:bg-[#FAF5EE] text-[#7A7571] hover:text-[#8A1E12] transition-colors flex items-center justify-center shrink-0"
+              title="Quitar archivo"
+            >
+              <i className="ti ti-x text-[16px]" />
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      {puedeAgregar && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onAgregar() }}
+          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-[#D0CBC4] text-[12px] text-[#7A7571] hover:text-[#780e18] hover:border-[#780e18]/40 transition-colors"
+        >
+          <i className="ti ti-plus text-[14px]" />
+          Agregar más archivos
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -295,7 +405,7 @@ function ProcessingState() {
       </div>
       <div className="text-center">
         <p className="text-[14px] font-semibold text-[#2D2B2A]">Procesando con IA…</p>
-        <p className="text-[12px] text-[#7A7571] mt-1">Extrayendo productos del archivo</p>
+        <p className="text-[12px] text-[#7A7571] mt-1">Extrayendo productos de los archivos</p>
       </div>
       <div className="flex gap-1">
         {[0, 1, 2].map((i) => (
@@ -324,7 +434,7 @@ function SuccessState({ nombre, onNew }: { nombre: string; onNew: () => void }) 
         onClick={(e) => { e.stopPropagation(); onNew() }}
         className="px-4 py-2 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] text-[12px] font-semibold rounded-lg transition-colors"
       >
-        Procesar otro archivo
+        Procesar otra factura
       </button>
     </>
   )

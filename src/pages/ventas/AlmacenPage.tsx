@@ -8,11 +8,14 @@ import { notify } from '@/lib/notify'
 import { useVentasStore } from '@/stores/ventasStore'
 import { useSoundAlert } from '@/hooks/useSoundAlert'
 import { useVentasAlerts } from '@/hooks/useVentasAlerts'
-import type { OrdenVenta, EstadoOrden, ItemOrden, PiezaOrden } from '@/types'
+import type { OrdenVenta, EstadoOrden, ItemOrden, PiezaOrden, Producto } from '@/types'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
 import { useVentasHub } from '@/hooks/useVentasHub'
 import { ORDENES_PENDIENTES_QUERY, MIS_ORDENES_ALMACEN_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
+import { PRODUCTOS_IMAGENES_BATCH_QUERY } from '@/lib/queries/inventario.queries'
+import { GalleryViewerModal } from '@/pages/inventario/GalleryViewerModal'
+import { ProductThumb } from '@/components/ui/ProductThumb'
 import { useMarcasStore } from '@/stores/marcasStore'
 import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
 import { fmtCodigo } from '@/lib/formatCodigo'
@@ -482,6 +485,8 @@ function ItemCard({
   onListo,
   onFaltante,
   onEditCantidad,
+  imagen,
+  onViewGallery,
 }: {
   item: OrdenVenta['items'][number]
   showListoBtn: boolean
@@ -489,6 +494,8 @@ function ItemCard({
   onListo: () => void
   onFaltante?: () => void
   onEditCantidad?: () => void
+  imagen?: string
+  onViewGallery?: (producto_id: string, codigo: string, nombre: string | null | undefined) => void
 }) {
   const { marcas } = useMarcasStore()
   const isPendiente = item.estado === 'pendiente'
@@ -510,6 +517,16 @@ function ItemCard({
       'border-[#E8E5E2] bg-white'
     )}>
       <div className="flex items-start gap-3 px-4 pt-3 pb-2">
+        {/* Thumb producto */}
+        {onViewGallery && (
+          <ProductThumb
+            src={imagen}
+            nombre={item.producto_nombre}
+            size="sm"
+            onClick={() => onViewGallery(item.producto_id, item.producto_codigo, item.producto_nombre)}
+          />
+        )}
+
         {/* Icono estado */}
         <div className={clsx(
           'h-9 w-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5',
@@ -670,6 +687,8 @@ interface KitGroupCardProps {
   onFaltantePieza: (itemId: string, pieza: PiezaOrden) => void
   onListoPieza: (itemId: string, pieza: PiezaOrden) => void
   onEditKit?: (itemId: string, cantidadPedida: number, cantidadRecogida?: number) => void
+  productoImagenes: Record<string, string>
+  onViewGallery: (producto_id: string, codigo: string, nombre: string | null | undefined) => void
 }
 
 function KitGroupCard({
@@ -683,6 +702,8 @@ function KitGroupCard({
   onFaltantePieza,
   onListoPieza,
   onEditKit,
+  productoImagenes,
+  onViewGallery,
 }: KitGroupCardProps) {
   const { marcas } = useMarcasStore()
   const piezas = piezasSueltas?.piezas_orden ?? []
@@ -725,6 +746,12 @@ function KitGroupCard({
           </div>
 
           <div className="px-4 py-3 flex items-center gap-3">
+            <ProductThumb
+              src={productoImagenes[kitCompleto.producto_id]}
+              nombre={kitCompleto.producto_nombre}
+              size="sm"
+              onClick={() => onViewGallery(kitCompleto.producto_id, kitCompleto.producto_codigo, kitCompleto.producto_nombre)}
+            />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-[#2D2B2A] truncate">{kitCompleto.producto_nombre}</p>
               {(kitCompleto.producto_categoria || kitCompleto.producto_procedencia) && (
@@ -848,6 +875,12 @@ function KitGroupCard({
                   estado === 'faltante' && 'bg-[#FDF1EE]'
                 )}>
                   <div className="flex items-start gap-3">
+                    <ProductThumb
+                      src={productoImagenes[piezasSueltas.producto_id]}
+                      nombre={piezasSueltas.producto_nombre}
+                      size="sm"
+                      onClick={() => onViewGallery(piezasSueltas.producto_id, piezasSueltas.producto_codigo, piezasSueltas.producto_nombre)}
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {pieza.codigo_pieza && (
@@ -982,6 +1015,8 @@ function PickingView({
   onConfirmarPieza,
   onFaltantePiezaIndividual,
   onListoPiezaIndividual,
+  productoImagenes,
+  onViewGallery,
 }: {
   orden: OrdenVenta
   onMarcarListo: () => void
@@ -991,6 +1026,8 @@ function PickingView({
   onConfirmarPieza: (itemId: string, pieza: PiezaOrden) => Promise<void>
   onFaltantePiezaIndividual: (itemId: string, pieza: PiezaOrden, cantidadEncontrada: number) => Promise<void>
   onListoPiezaIndividual: (itemId: string, pieza: PiezaOrden) => Promise<void>
+  productoImagenes: Record<string, string>
+  onViewGallery: (producto_id: string, codigo: string, nombre: string | null | undefined) => void
 }) {
   const [listoLoading, setListoLoading] = useState<Record<string, boolean>>({})
   const [faltanteModal, setFaltanteModal] = useState<{ itemId: string; cantidadPedida: number } | null>(null)
@@ -1253,6 +1290,8 @@ function PickingView({
                         onListo={() => handleListoIndividual(item.id)}
                         onFaltante={() => abrirFaltanteModal(item.id, item.cantidad_pedida)}
                         onEditCantidad={() => abrirFaltanteModal(item.id, item.cantidad_pedida, item.cantidad_recogida)}
+                        imagen={productoImagenes[item.producto_id]}
+                        onViewGallery={onViewGallery}
                       />
                     ))}
                   </div>
@@ -1276,6 +1315,8 @@ function PickingView({
                         loading={false}
                         onListo={() => {}}
                         onEditCantidad={() => abrirFaltanteModal(item.id, item.cantidad_pedida, item.cantidad_recogida)}
+                        imagen={productoImagenes[item.producto_id]}
+                        onViewGallery={onViewGallery}
                       />
                     ))}
                   </div>
@@ -1321,6 +1362,8 @@ function PickingView({
                         onEditKit={(itemId, cantidadPedida, cantidadRecogida) =>
                           abrirFaltanteModal(itemId, cantidadPedida, cantidadRecogida)
                         }
+                        productoImagenes={productoImagenes}
+                        onViewGallery={onViewGallery}
                       />
                     ))}
                   </div>
@@ -1341,6 +1384,8 @@ function PickingView({
                   onListo={() => handleListoIndividual(item.id)}
                   onFaltante={() => abrirFaltanteModal(item.id, item.cantidad_pedida)}
                   onEditCantidad={() => abrirFaltanteModal(item.id, item.cantidad_pedida, item.cantidad_recogida)}
+                  imagen={productoImagenes[item.producto_id]}
+                  onViewGallery={onViewGallery}
                 />
               ))}
 
@@ -1374,6 +1419,8 @@ function PickingView({
                   onEditKit={(itemId, cantidadPedida, cantidadRecogida) =>
                     abrirFaltanteModal(itemId, cantidadPedida, cantidadRecogida)
                   }
+                  productoImagenes={productoImagenes}
+                  onViewGallery={onViewGallery}
                 />
               ))}
             </>
@@ -1439,6 +1486,8 @@ export function AlmacenPage() {
   const [pickingOrdenId, setPickingOrdenId] = useState<string | null>(null)
   const [faltantesOrden, setFaltantesOrden] = useState<OrdenVenta | null>(null)
   const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set())
+  const [productoImagenes, setProductoImagenes] = useState<Record<string, string>>({})
+  const [galleryProducto, setGalleryProducto] = useState<Producto | null>(null)
   const previousPendientesRef = useRef<Set<string>>(new Set())
 
   const loadOrdenes = useCallback(async () => {
@@ -1535,6 +1584,34 @@ export function AlmacenPage() {
 
     previousPendientesRef.current = currentPendientes
   }, [ordenes, playBeep])
+
+  // Cache de imágenes principales: cuando cambian las órdenes visibles
+  // (en la lista o en el picking), batch-fetcheamos `imagenPrincipal.url`
+  // para todos los productoIds únicos que aún no tengamos en cache. Esto
+  // evita N+1 en la lista y mantiene la galería funcionando sin hidratar
+  // todo el `Producto`.
+  useEffect(() => {
+    const ids = Array.from(new Set(ordenes.flatMap(o => o.items.map(i => i.producto_id))))
+      .map(id => Number(id))
+      .filter(id => Number.isFinite(id) && !productoImagenes[id])
+    if (ids.length === 0) return
+    let cancelled = false
+    gql<{
+      productos: { nodes: Array<{ id: number; imagenPrincipal: { id: number; url: string } | null }> }
+    }>(PRODUCTOS_IMAGENES_BATCH_QUERY, { ids })
+      .then(res => {
+        if (cancelled) return
+        const map: Record<string, string> = {}
+        for (const n of res.productos.nodes) {
+          if (n.imagenPrincipal?.url) map[String(n.id)] = n.imagenPrincipal.url
+        }
+        if (Object.keys(map).length) {
+          setProductoImagenes(prev => ({ ...prev, ...map }))
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [ordenes, productoImagenes])
 
   const activeOrdenes = useMemo(
     () => ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada'),
@@ -1780,6 +1857,12 @@ export function AlmacenPage() {
               onConfirmarPieza={handleConfirmarPieza}
               onFaltantePiezaIndividual={handleFaltantePiezaIndividual}
               onListoPiezaIndividual={handleListoPiezaIndividual}
+              productoImagenes={productoImagenes}
+              onViewGallery={(producto_id, codigo, nombre) => setGalleryProducto({
+                id: producto_id,
+                codigo_universal: codigo,
+                nombre: nombre ?? '',
+              } as Producto)}
             />
           </div>
         ) : (
@@ -1874,6 +1957,10 @@ export function AlmacenPage() {
         />
       )}
 
+      <GalleryViewerModal
+        producto={galleryProducto}
+        onClose={() => setGalleryProducto(null)}
+      />
     </MainLayout>
   )
 }

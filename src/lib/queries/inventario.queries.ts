@@ -45,6 +45,7 @@ export const PRODUCTOS_QUERY = `
         conversionABs
         fechaCreacion
         fechaActualizacion
+        imagenPrincipal { id url }
       }
     }
   }
@@ -77,6 +78,7 @@ export const PRODUCTOS_CON_MARCAS_QUERY = `
         conversionABs
         fechaCreacion
         fechaActualizacion
+        imagenPrincipal { id url }
       }
     }
     marca(order: { nombre: ASC }) {
@@ -132,6 +134,52 @@ export const PRODUCTOS_ALL_QUERY = `
   }
 `
 
+/**
+ * Query liviana para el visor de galería: solo trae los datos necesarios
+ * para mostrar las imágenes y la info mínima del producto (código + nombre
+ * para el subtítulo del modal). Mucho más barata que `PRODUCTO_BY_ID_QUERY`
+ * porque no hidrata historial de precios, piezas de kit, etc.
+ */
+export const PRODUCTO_IMAGENES_QUERY = `
+  query ProductoImagenes($id: Int!) {
+    productos(where: { id: { eq: $id } }) {
+      nodes {
+        id
+        codigo
+        nombre
+        imagenPrincipal { id url }
+        imagenes {
+          id
+          productoId
+          url
+          key
+          nombreArchivo
+          orden
+          esPrincipal
+        }
+      }
+    }
+  }
+`
+
+/**
+ * Batch lightweight: trae únicamente el `id` y la URL de la imagen
+ * principal de varios productos en una sola query. Usado por las páginas
+ * de ventas (Caja/Escaneo/Almacén) que listan `ItemOrden` con
+ * `producto_id` y necesitan mostrar el thumb sin hidratar todo el
+ * `Producto`. Más barato que N veces `PRODUCTO_IMAGENES_QUERY`.
+ */
+export const PRODUCTOS_IMAGENES_BATCH_QUERY = `
+  query ProductosImagenesBatch($ids: [Int!]!) {
+    productos(where: { id: { in: $ids } }) {
+      nodes {
+        id
+        imagenPrincipal { id url }
+      }
+    }
+  }
+`
+
 export const PRODUCTO_BY_ID_QUERY = `
   query ProductoById($id: Int!) {
     productos(where: { id: { eq: $id } }) {
@@ -178,6 +226,22 @@ export const PRODUCTO_BY_ID_QUERY = `
         procedencia
         fechaCreacion
         fechaActualizacion
+        imagenPrincipal { id url }
+        imagenes {
+          id
+          productoId
+          url
+          key
+          nombreArchivo
+          contentType
+          tamanoBytes
+          anchoPx
+          altoPx
+          orden
+          esPrincipal
+          estado
+          fechaSubida
+        }
       }
     }
   }
@@ -205,6 +269,23 @@ interface HistorialPrecioAPI {
   precio: number
   conversionABs: number
   nota: string | null
+}
+
+/** Imagen expuesta por el backend (DtoProductoImagenResponse). */
+export interface ProductoImagenAPI {
+  id: number
+  productoId: number
+  url: string
+  key: string
+  nombreArchivo: string
+  contentType: string
+  tamanoBytes: number
+  anchoPx?: number | null
+  altoPx?: number | null
+  orden: number
+  esPrincipal: boolean
+  estado: 'Pendiente' | 'Activa' | 'Eliminada'
+  fechaSubida: string
 }
 
 export interface ProductoAPISimple {
@@ -236,6 +317,12 @@ export interface ProductoAPISimple {
   conversionABs: number
   esKit?: boolean
   imagen?: string | null
+  /**
+   * Solo presente en queries que lo pidan explícitamente (lista con thumb).
+   * Lo proyectamos desde `imagenPrincipal.url` para mantener compatibilidad
+   * con el call-site `<ProductThumb src={p.imagen} />` que ya existía.
+   */
+  imagenPrincipal?: { id: number; url: string } | null
   historialPrecios?: HistorialPrecioAPI[]
   fechaCreacion?: string | null
   fechaActualizacion?: string | null
@@ -244,6 +331,8 @@ export interface ProductoAPISimple {
 export interface ProductoAPI extends ProductoAPISimple {
   historialPrecios: HistorialPrecioAPI[]
   piezasKit?: PiezaKitAPI[]
+  /** Galería completa del producto (solo en detalle). */
+  imagenes?: ProductoImagenAPI[]
 }
 
 function mapPiezasKit(raw: PiezaKitAPI[] | undefined): PiezaKit[] {
@@ -258,6 +347,25 @@ function mapPiezasKit(raw: PiezaKitAPI[] | undefined): PiezaKit[] {
     codigo_universal: p.codigo,
     codigo_pieza: p.codigoPieza ?? '',
     orden: p.orden ?? 0,
+  }))
+}
+
+function mapImagenes(raw: ProductoImagenAPI[] | undefined): Producto['imagenes'] {
+  if (!raw) return []
+  return raw.map((i) => ({
+    id: i.id,
+    productoId: i.productoId,
+    url: i.url,
+    key: i.key,
+    nombreArchivo: i.nombreArchivo,
+    contentType: i.contentType,
+    tamanoBytes: i.tamanoBytes,
+    anchoPx: i.anchoPx ?? null,
+    altoPx: i.altoPx ?? null,
+    orden: i.orden,
+    esPrincipal: i.esPrincipal,
+    estado: i.estado,
+    fechaSubida: i.fechaSubida,
   }))
 }
 
@@ -305,7 +413,8 @@ function mapProductoBase(p: ProductoAPISimple): Producto {
     precio_venta: p.precio ?? 0,
     conversionABs: p.conversionABs ?? 6.96,
     es_kit: p.esKit ?? false,
-    imagen: p.imagen ?? undefined,
+    // Imagen: prioriza la principal computada, fallback al campo legacy `imagen`.
+    imagen: p.imagenPrincipal?.url ?? p.imagen ?? undefined,
     historial_precios: (p.historialPrecios ?? []).map((h) => ({
       fecha: h.fecha,
       precio_costo: h.costo,
@@ -326,7 +435,7 @@ export function backendToProductoSimple(p: ProductoAPISimple): Producto {
 }
 
 export function backendToProducto(p: ProductoAPI): Producto {
-  return { ...mapProductoBase(p), piezas_kit: mapPiezasKit(p.piezasKit) }
+  return { ...mapProductoBase(p), piezas_kit: mapPiezasKit(p.piezasKit), imagenes: mapImagenes(p.imagenes) }
 }
 
 function dec(n: number): number {

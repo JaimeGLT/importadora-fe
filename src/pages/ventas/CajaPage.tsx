@@ -3,6 +3,8 @@ import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { Button, Modal, ConfirmModal, SelectPriceModal } from '@/components/ui'
+import { ProductThumb } from '@/components/ui/ProductThumb'
+import { GalleryViewerModal } from '../inventario/GalleryViewerModal'
 import { KitSeleccionModal, type KitSeleccionResult } from '@/components/ui/KitVentaParcialModal'
 import { notify } from '@/lib/notify'
 import { useVentasStore } from '@/stores/ventasStore'
@@ -128,10 +130,11 @@ function FlyingBall({ fromRect, toRect, itemCount, onComplete }: FlyingBallProps
 
 // ─── ProductSearch ─────────────────────────────────────────────────────────────
 
-function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
+function ProductSearch({ onSelectProducto, cart, onDecrementProducto, onViewGallery }: {
   onSelectProducto: (producto: Producto) => void
   cart: Cart
   onDecrementProducto: (productoId: string) => void
+  onViewGallery: (producto: Producto) => void
 }) {
   const { isTokenReady } = useAuth()
   const { marcas } = useMarcasStore()
@@ -261,6 +264,12 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto }: {
                       : 'hover:bg-[#FAF5EE]'
                   )}
                 >
+                  <ProductThumb
+                    src={p.imagen}
+                    nombre={p.nombre}
+                    size="sm"
+                    onClick={() => onViewGallery(p)}
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="font-mono text-sm font-bold text-[#780e18] bg-[#F4ECDB] px-2 py-0.5 rounded">{fmtCodigo(p.codigo_universal, p.marcaId, marcas)}</span>
@@ -356,16 +365,20 @@ function CartItem({
   item,
   idx,
   disp,
+  imagen,
   onQtyChange,
   onRemoveItem,
   onEditPrice,
+  onViewGallery,
 }: {
   item: CartItem
   idx: number
   disp: number
+  imagen?: string
   onQtyChange: (itemIdx: number, delta: number) => void
   onRemoveItem: (itemIdx: number) => void
   onEditPrice: (producto_id: string) => void
+  onViewGallery: (producto_id: string) => void
 }) {
   const { marcas } = useMarcasStore()
   const [editingQty, setEditingQty] = useState(false)
@@ -390,6 +403,12 @@ function CartItem({
         </div>
       )}
       <div className={clsx('flex gap-3', item.kit_id ? 'items-center' : 'items-start')}>
+        <ProductThumb
+          src={imagen}
+          nombre={item.producto_nombre}
+          size="sm"
+          onClick={() => onViewGallery(item.producto_id)}
+        />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 min-w-0">
@@ -514,7 +533,7 @@ function CartItem({
 
 // ─── CartPanel ────────────────────────────────────────────────────────────────
 
-function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChange, onEmitir, onEditPrice, onCancelarOrden, onVentaRapidaCredito, onVentaRapidaContado, emitButtonRef }: { cart: Cart; productosCache: Record<string, Producto>; onQtyChange: (itemIdx: number, delta: number) => void; onRemoveItem: (itemIdx: number) => void; onNotaChange: (nota: string) => void; onEmitir: () => void; onEditPrice: (producto_id: string) => void; onCancelarOrden: () => void; onVentaRapidaCredito: () => void; onVentaRapidaContado: () => void; emitButtonRef?: (el: HTMLButtonElement | null) => void }) {
+function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChange, onEmitir, onEditPrice, onCancelarOrden, onVentaRapidaCredito, onVentaRapidaContado, onViewGallery, emitButtonRef }: { cart: Cart; productosCache: Record<string, Producto>; onQtyChange: (itemIdx: number, delta: number) => void; onRemoveItem: (itemIdx: number) => void; onNotaChange: (nota: string) => void; onEmitir: () => void; onEditPrice: (producto_id: string) => void; onCancelarOrden: () => void; onVentaRapidaCredito: () => void; onVentaRapidaContado: () => void; onViewGallery: (producto_id: string) => void; emitButtonRef?: (el: HTMLButtonElement | null) => void }) {
   const [confirmCancelar, setConfirmCancelar] = useState(false)
   const stockDisponible = (id: string) => {
     const p = productosCache[id]
@@ -561,9 +580,11 @@ function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChan
                   item={item}
                   idx={idx}
                   disp={disp}
+                  imagen={productosCache[item.producto_id]?.imagen}
                   onQtyChange={onQtyChange}
                   onRemoveItem={onRemoveItem}
                   onEditPrice={onEditPrice}
+                  onViewGallery={onViewGallery}
                 />
               )
             })}
@@ -1026,6 +1047,7 @@ export function CajaPage() {
   const [kitSeleccionado, setKitSeleccionado] = useState<Producto | null>(null)
   const [ventaRapidaOpen, setVentaRapidaOpen] = useState(false)
   const [ventaRapidaContadoOpen, setVentaRapidaContadoOpen] = useState(false)
+  const [galleryProducto, setGalleryProducto] = useState<Producto | null>(null)
 
   const [descuentos, setDescuentos] = useState<DescuentoConfig[]>([])
 
@@ -1622,7 +1644,7 @@ export function CajaPage() {
         <div className="flex-1 overflow-hidden flex flex-col p-4 gap-4">
           <div className="flex-1 grid grid-cols-[1fr_380px] gap-4 overflow-hidden min-h-0">
             <div className="bg-white rounded-2xl border border-[#D0CBC4] overflow-hidden flex flex-col">
-              <ProductSearch onSelectProducto={addToCart} cart={cart} onDecrementProducto={handleDecrementProducto} />
+              <ProductSearch onSelectProducto={addToCart} cart={cart} onDecrementProducto={handleDecrementProducto} onViewGallery={setGalleryProducto} />
             </div>
             <div className="bg-white rounded-2xl border border-[#D0CBC4] overflow-hidden flex flex-col">
               <CartPanel
@@ -1636,6 +1658,10 @@ export function CajaPage() {
                 onCancelarOrden={clearCart}
                 onVentaRapidaCredito={() => setVentaRapidaOpen(true)}
                 onVentaRapidaContado={() => setVentaRapidaContadoOpen(true)}
+                onViewGallery={(producto_id) => {
+                  const p = productosCache[producto_id]
+                  if (p) setGalleryProducto(p)
+                }}
                 emitButtonRef={(el) => { (emitButtonRef as React.MutableRefObject<HTMLButtonElement | null>).current = el }}
               />
             </div>
@@ -1721,6 +1747,10 @@ export function CajaPage() {
           onClose={() => setVentaRapidaContadoOpen(false)}
         />
       )}
+      <GalleryViewerModal
+        producto={galleryProducto}
+        onClose={() => setGalleryProducto(null)}
+      />
     </MainLayout>
   )
 }

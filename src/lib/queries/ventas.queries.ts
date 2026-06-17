@@ -69,8 +69,8 @@ export interface OrdenVentaAPI {
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 export const MIS_ORDENES_QUERY = `
-  query MisOrdenes {
-    misOrdenes {
+  query MisOrdenes($desde: DateTime, $hasta: DateTime) {
+    misOrdenes(desde: $desde, hasta: $hasta) {
       nodes {
         id
         id_Cajero
@@ -418,8 +418,8 @@ export const MIS_ORDENES_ALMACEN_QUERY = `
 `
 
 export const TODAS_ORDENES_QUERY = `
-  query TodasOrdenes {
-    todasOrdenes {
+  query TodasOrdenes($desde: DateTime, $hasta: DateTime) {
+    todasOrdenes(desde: $desde, hasta: $hasta) {
       nodes {
         id
         id_Cajero
