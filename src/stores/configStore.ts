@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 export interface DescuentoConfig {
   id: string
@@ -22,21 +23,37 @@ interface ConfigState {
   tiempoCompletarAlmacenero: number
 }
 
-export const useConfigStore = create<ConfigState>()((set) => ({
-  tipoCambioHoy: 0,
-  tipoCambioFecha: '',
-  tipoCambioHabilitado: false,
-  tipoCambioFechaRecordatorio: '',
+export const useConfigStore = create<ConfigState>()(
+  persist(
+    (set) => ({
+      tipoCambioHoy: 0,
+      tipoCambioFecha: '',
+      tipoCambioHabilitado: false,
+      tipoCambioFechaRecordatorio: '',
 
-  setTipoCambio: (tipoCambio) =>
-    set({
-      tipoCambioHoy: tipoCambio,
-      tipoCambioFecha: new Date().toISOString().split('T')[0],
+      setTipoCambio: (tipoCambio) =>
+        set({
+          tipoCambioHoy: tipoCambio,
+          tipoCambioFecha: new Date().toISOString().split('T')[0],
+        }),
+
+      setTipoCambioHabilitado: (habilitado) => set({ tipoCambioHabilitado: habilitado }),
+
+      setTipoCambioFechaRecordatorio: (fecha) => set({ tipoCambioFechaRecordatorio: fecha }),
+
+      tiempoCompletarAlmacenero: 10,
     }),
-
-  setTipoCambioHabilitado: (habilitado) => set({ tipoCambioHabilitado: habilitado }),
-
-  setTipoCambioFechaRecordatorio: (fecha) => set({ tipoCambioFechaRecordatorio: fecha }),
-
-  tiempoCompletarAlmacenero: 10,
-}))
+    {
+      name: 'config-store',
+      // Solo persistir lo que debe sobrevivir al reload.
+      // tipoCambioHoy y tipoCambioFecha se reescriben cada vez que el admin
+      // acepta el modal, así que no hace falta guardarlos: la próxima vez que
+      // se muestre el modal se actualizarán.
+      partialize: (state) => ({
+        tipoCambioHabilitado: state.tipoCambioHabilitado,
+        tipoCambioFechaRecordatorio: state.tipoCambioFechaRecordatorio,
+        tiempoCompletarAlmacenero: state.tiempoCompletarAlmacenero,
+      }),
+    }
+  )
+)

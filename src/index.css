@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Gradiente animado — usado en el chevron del tab del sidebar */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 2.5s ease-in-out infinite;
+}
+
 @layer base {
   html {
     @apply antialiased;

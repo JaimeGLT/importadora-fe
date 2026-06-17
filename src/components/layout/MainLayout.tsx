@@ -95,11 +95,14 @@ export function MainLayout({ children }: MainLayoutProps) {
       {/* Sidebar collapse tab — desktop only, always visible, slides with sidebar */}
       <button
         onClick={() => setSidebarCollapsed(c => !c)}
-        className="hidden md:flex fixed top-[22px] z-50 items-center justify-center w-5 h-10 bg-[#780e18] border border-[#D4A333] border-l-0 rounded-r-lg text-[#CFA9A6] hover:text-[#F4ECDB] transition-all duration-300 shadow-md"
+        className="hidden md:flex fixed top-[22px] z-50 items-center justify-center w-5 h-10 bg-[#780e18] border border-[#D4A333] border-l-0 rounded-r-lg hover:bg-[#8a1019] transition-all duration-300 shadow-md"
         style={{ left: sidebarCollapsed ? 0 : 237 }}
         title={sidebarCollapsed ? 'Abrir menú' : 'Ocultar menú'}
       >
-        <i className={`ti text-[11px] transition-transform duration-300 ${sidebarCollapsed ? 'ti-chevron-right' : 'ti-chevron-left'}`} />
+        <i
+          className={`ti text-[14px] bg-gradient-to-r from-[#D4A333] via-[#F4ECDB] to-[#D4A333] bg-clip-text text-transparent animate-gradient-shift transition-transform duration-300 ${sidebarCollapsed ? 'ti-chevron-right' : 'ti-chevron-left'}`}
+          style={{ WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
+        />
       </button>
 
       <div className="flex-1 flex flex-col min-w-0">
