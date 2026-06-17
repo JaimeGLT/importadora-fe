@@ -13,12 +13,7 @@ interface KitPartsSectionProps {
   onLocalPiecesChange: (p: DtoPiezaKit[]) => void
   pieceOps: PieceOp[]
   onPieceOpsChange: (ops: PieceOp[]) => void
-  /**
-   * Prefijo de la Marca del kit padre (ej. "TY" para Toyota).
-   * Se usa para previsualizar el código autogenerado de la próxima pieza.
-   */
-  kitPrefijo?: string
-  /** Código del producto kit padre (ej. "ABC123"). */
+  /** Código del producto kit padre (ej. "ABC123"). Se usa para previsualizar el código autogenerado de la próxima pieza con formato "P{N}-{codigo}". */
   kitCodigo?: string
   /** Callback al pulsar el botón imprimir de una pieza. Si no se provee, no se muestra el botón. */
   onImprimirPieza?: (part: DisplayPart) => void
@@ -45,7 +40,6 @@ export function KitPartsSection({
   onLocalPiecesChange,
   pieceOps,
   onPieceOpsChange,
-  kitPrefijo,
   kitCodigo,
   onImprimirPieza,
 }: KitPartsSectionProps) {
@@ -132,9 +126,8 @@ export function KitPartsSection({
   }, [piezasFromBackend])
 
   const previewCodigoPieza = (orden: number): string => {
-    const prefijo = kitPrefijo || 'NO'
     const codigo = kitCodigo || '???'
-    return `P${orden}-${prefijo}-${codigo}`
+    return `P${orden}-${codigo}`
   }
 
   // ── Quantity stepper ─────────────────────────────────────────────────────────

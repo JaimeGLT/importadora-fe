@@ -7,7 +7,6 @@ export interface LabelData {
   codigo_universal: string
   nombre: string
   marca: string
-  marcaPrefijo?: string
   vehiculo: string
   precio_venta: number
   unidad: string
@@ -100,9 +99,7 @@ async function generarPDF(
   let firstPage = true
 
   for (const item of items) {
-    const codigoBarras = item.producto.marcaPrefijo
-      ? `${item.producto.marcaPrefijo}-${item.producto.codigo_universal}`
-      : item.producto.codigo_universal
+    const codigoBarras = item.producto.codigo_universal
     const pngBase64 = await generarBarcodePNG(codigoBarras)
 
     const fechaFormateada = item.producto.fecha_importacion

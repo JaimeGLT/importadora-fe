@@ -43,7 +43,7 @@ export interface CreditoAPI {
     cantidad: number
     precioUnitario: number
     subtotal: number
-    producto?: { id: number; codigo?: string | null; nombre?: string | null; marca?: { id: number; nombre?: string | null; prefijo?: string | null } | null } | null
+    producto?: { id: number; codigo?: string | null; nombre?: string | null; marca?: { id: number; nombre?: string | null } | null } | null
     pieza?: { id: number; nombre?: string | null; codigoPieza?: string | null } | null
   }> | null
   pagos?: Array<{
@@ -144,7 +144,6 @@ export const CREDITO_DETALLE_QUERY = `
           marca {
             id
             nombre
-            prefijo
           }
         }
         pieza {
@@ -203,7 +202,6 @@ export function backendToCredito(c: CreditoAPI): Credito {
       producto_codigo: i.producto?.codigo ?? null,
       producto_nombre: i.producto?.nombre ?? null,
       producto_marcaId: i.producto?.marca?.id ?? null,
-      producto_marcaPrefijo: i.producto?.marca?.prefijo ?? null,
       producto_marcaNombre: i.producto?.marca?.nombre ?? null,
       id_pieza: i.id_Pieza ?? null,
       pieza_nombre: i.pieza?.nombre ?? null,

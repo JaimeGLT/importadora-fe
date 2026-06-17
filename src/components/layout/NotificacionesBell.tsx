@@ -84,7 +84,7 @@ export function NotificacionesBell() {
                   <div className="w-2 h-2 rounded-full shrink-0 bg-[#B23A2A]" />
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] text-[#7A7571] truncate">
-                      {p.prefijo ? `${p.prefijo}-${p.codigo}` : p.codigo}
+                      {p.codigo}
                     </p>
                     <p className="text-xs font-medium text-[#2D2B2A] truncate">{p.nombre}</p>
                   </div>

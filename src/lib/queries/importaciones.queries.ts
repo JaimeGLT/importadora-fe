@@ -295,11 +295,10 @@ export const IMPORTACIONES_INIT_QUERY = `
         estado
       }
     }
-    marca(order: { nombre: ASC }) {
+    marca(order: { nombre: ASC }, first: 5000) {
       nodes {
         id
         nombre
-        prefijo
       }
     }
     margenGanancia {

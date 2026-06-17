@@ -2,8 +2,6 @@ import { useState, useMemo } from 'react'
 import { clsx } from 'clsx'
 import { Button, Modal } from '@/components/ui'
 import { notify } from '@/lib/notify'
-import { useMarcasStore } from '@/stores/marcasStore'
-import { fmtCodigo } from '@/lib/formatCodigo'
 import { getDescuentoColor } from '@/utils/descuentoColors'
 import type { DescuentoConfig } from '@/stores/configStore'
 import type { Cliente } from '@/types'
@@ -49,7 +47,6 @@ export function VentaRapidaCreditoModal({
   onConfirm,
   onClose,
 }: VentaRapidaCreditoModalProps) {
-  const { marcas } = useMarcasStore()
   const [clienteSearch, setClienteSearch] = useState('')
   const [clienteSelected, setClienteSelected] = useState<Cliente | null>(null)
   const [showClienteDropdown, setShowClienteDropdown] = useState(false)
@@ -164,7 +161,7 @@ export function VentaRapidaCreditoModal({
                       <i className="ti ti-stack text-[10px] text-[#D4A333]" />
                       {item.kit_codigo && (
                         <span className="font-mono text-[10px] font-bold text-[#7A5200] bg-[#F5E0A8] px-1.5 py-0.5 rounded">
-                          {fmtCodigo(item.kit_codigo, item.kit_marcaId, marcas)}
+                          {item.kit_codigo}
                         </span>
                       )}
                       {item.kit_nombre && (
@@ -175,7 +172,7 @@ export function VentaRapidaCreditoModal({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="font-mono text-[11px] font-bold text-[#780e18] bg-[#F4ECDB] px-1.5 py-0.5 rounded shrink-0">
-                        {fmtCodigo(item.producto_codigo, item.marcaId, marcas)}
+                        {item.producto_codigo}
                       </span>
                       <span className="text-xs text-[#4A4744] truncate">{item.producto_nombre}</span>
                     </div>

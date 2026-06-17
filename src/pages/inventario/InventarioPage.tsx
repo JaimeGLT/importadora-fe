@@ -139,9 +139,7 @@ function EmptyState({ onNew, searching }: { onNew: () => void; searching: boolea
 
 // ─── Mobile product row ───────────────────────────────────────────────────────
 
-function MobileProductRow({ p, marcaNombre, marcas, onTap, onViewGallery }: { p: Producto; marcaNombre: string; marcas: Marca[]; onTap: () => void; onViewGallery: () => void }) {
-  const prefijo = getMarcaPrefijo(p.marcaId, marcas)
-  const codigoDisplay = prefijo ? `${prefijo}-${p.codigo_universal}` : p.codigo_universal
+function MobileProductRow({ p, marcaNombre, onTap, onViewGallery }: { p: Producto; marcaNombre: string; onTap: () => void; onViewGallery: () => void }) {
   return (
     <div
       className={clsx(
@@ -161,7 +159,7 @@ function MobileProductRow({ p, marcaNombre, marcas, onTap, onViewGallery }: { p:
       </button>
       <div className="flex-1 min-w-0">
         <div className="font-mono font-semibold text-[13px] text-[#2D2B2A] tracking-[0.05em] leading-tight underline decoration-[#D4A333] decoration-2 underline-offset-2">
-          {codigoDisplay}
+          {p.codigo_universal}
         </div>
         {p.codigos_alternativos.filter(Boolean).map((cod, i) => (
           <div key={i} className="font-mono text-[12px] text-[#7A7571] tracking-[0.04em] leading-tight mt-0.5">
@@ -236,12 +234,10 @@ const fmtBs = (n: number) =>
 
 function getMarcaNombre(marcaId: number | null | undefined, marcas: Marca[]): string {
   if (!marcaId) return ''
-  return marcas.find((m) => m.id === marcaId)?.nombre ?? ''
-}
-
-function getMarcaPrefijo(marcaId: number | null | undefined, marcas: Marca[]): string {
-  if (!marcaId) return ''
-  return marcas.find((m) => m.id === marcaId)?.prefijo ?? ''
+  // Coerción defensiva: GraphQL puede traer `m.id` como string o number según
+  // el canal. `Number(m.id) === marcaId` tolera ambos sin importar quién carga
+  // la lista de marcas (MARCAS_QUERY, REST, etc.).
+  return marcas.find((m) => Number(m.id) === marcaId)?.nombre ?? ''
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -298,7 +294,7 @@ export function InventarioPage() {
       productos: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: ProductoAPI[] }
     }>(
       PRODUCTOS_QUERY,
-      { first: size, after: cursors.current[targetPage] ?? null, where: marcaWhere }
+      { first: size, after: cursors.current[targetPage] ?? null, where: marcaWhere, order: { fechaActualizacion: 'DESC' } }
     )
       .then(res => {
         const { totalCount, pageInfo, nodes } = res.productos
@@ -338,7 +334,7 @@ export function InventarioPage() {
 
   useEffect(() => {
     if (!isTokenReady) return
-    gql<{ marca: { nodes: { id: number; nombre: string; prefijo?: string }[] } }>(MARCAS_QUERY)
+    gql<{ marca: { nodes: { id: number; nombre: string }[] } }>(MARCAS_QUERY)
       .then(r => setMarcas(r.marca.nodes.map(backendToMarca)))
       .catch(() => {})
   }, [isTokenReady])
@@ -597,13 +593,11 @@ export function InventarioPage() {
       meta: { align: 'left' },
       cell: (info) => {
         const p = info.row.original
-        const prefijo = getMarcaPrefijo(p.marcaId, marcas)
-        const codigoDisplay = prefijo ? `${prefijo}-${p.codigo_universal}` : (p.codigo_universal || '—')
         const nombreDisplay = p.nombre?.trim()
         return (
           <div>
             <div className="font-mono font-semibold text-[14px] text-[#2D2B2A] tracking-[0.04em] leading-tight underline decoration-[#D4A333] decoration-2 underline-offset-2">
-              {codigoDisplay}
+              {p.codigo_universal || '—'}
             </div>
             {p.codigos_alternativos.filter(Boolean).map((cod, i) => (
               <div key={i} className="font-mono text-[13px] text-[#7A7571] tracking-[0.04em] leading-tight mt-0.5">
@@ -1059,7 +1053,6 @@ export function InventarioPage() {
                       key={row.id}
                       p={row.original}
                       marcaNombre={getMarcaNombre(row.original.marcaId, marcas)}
-                      marcas={marcas}
                       onTap={() => handleEdit(row.original)}
                       onViewGallery={() => setGalleryProducto(row.original)}
                     />
@@ -1095,7 +1088,6 @@ export function InventarioPage() {
           codigo_universal: etiquetaProducto.codigo_universal,
           nombre: etiquetaProducto.nombre ?? '',
           marca: getMarcaNombre(etiquetaProducto.marcaId, marcas),
-          marcaPrefijo: getMarcaPrefijo(etiquetaProducto.marcaId, marcas),
           vehiculo: etiquetaProducto.vehiculo,
           precio_venta: etiquetaProducto.precio_venta,
           unidad: etiquetaProducto.unidad,

@@ -60,8 +60,8 @@ export function MarcasPage() {
         setMarcas(prev => prev.map(m => m.id === editingMarca.id ? { ...m, nombre } : m))
         notify.success('Marca actualizada')
       } else {
-        const res = await api.post<{ id: number; nombre: string; prefijo: string }>('/marca', { nombre })
-        setMarcas(prev => [...prev, backendToMarca({ id: res.id, nombre: res.nombre, prefijo: res.prefijo })].sort((a, b) => a.nombre.localeCompare(b.nombre)))
+        const res = await api.post<{ id: number; nombre: string }>('/marca', { nombre })
+        setMarcas(prev => [...prev, backendToMarca({ id: res.id, nombre: res.nombre })].sort((a, b) => a.nombre.localeCompare(b.nombre)))
         notify.success('Marca creada')
       }
       setFormOpen(false)
@@ -178,7 +178,6 @@ export function MarcasPage() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-[#F5F0EB] border-b border-[#D0CBC4]">
-                    <th className="px-5 py-[11px] text-left text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.12em] w-28">Prefijo</th>
                     <th className="px-5 py-[11px] text-left text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.12em]">Nombre</th>
                     <th className="px-5 py-[11px] text-right text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.12em]">Acciones</th>
                   </tr>
@@ -186,11 +185,6 @@ export function MarcasPage() {
                 <tbody className="divide-y divide-[#E8E5E2]">
                   {filtered.map((m, idx) => (
                     <tr key={m.id} className={`border-t border-[#E8E5E2] ${idx % 2 === 0 ? 'bg-white' : 'bg-[#FAF5EE]'} hover:bg-[#F5F0EB] transition-colors`}>
-                      <td className="px-5 py-[14px] border-r border-[#E8E5E2]">
-                        <span className="font-mono text-xs font-semibold text-[#4A4744] bg-[#F5F0EB] border border-[#D0CBC4] px-2 py-0.5 rounded-md">
-                          {m.prefijo}
-                        </span>
-                      </td>
                       <td className="px-5 py-[14px] border-r border-[#E8E5E2]">
                         <div className="flex items-center gap-2.5">
                           <div className="w-7 h-7 rounded-lg bg-[#F5E8D4] flex items-center justify-center shrink-0">

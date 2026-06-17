@@ -21,8 +21,7 @@ import {
   type AjusteStockAPI,
   type AjusteStockRow,
 } from '@/lib/queries/ajustes.queries'
-import { backendToMarca } from '@/lib/queries/marcas.queries'
-import type { Producto, PiezaKit, Marca } from '@/types'
+import type { Producto, PiezaKit } from '@/types'
 import { clsx } from 'clsx'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -472,13 +471,6 @@ function AjusteModal({
   )
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function getMarcaPrefijo(marcaId: number | null | undefined, marcas: Marca[]): string {
-  if (!marcaId) return ''
-  return marcas.find(m => m.id === marcaId)?.prefijo ?? ''
-}
-
 // ─── Helpers de motivo ───────────────────────────────────────────────────────
 
 const PIEZA_REGEX = /^\[Pieza:\s*(.+?)\]\s*/
@@ -607,7 +599,6 @@ function HistorialTab({ refreshKey }: { refreshKey: number }) {
   const [search, setSearch] = useState('')
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [detalleRow, setDetalleRow] = useState<AjusteStockRow | null>(null)
-  const [marcas, setMarcas] = useState<Marca[]>([])
 
   const loadHistorial = useCallback((targetPage: number, size: number, q = '') => {
     setLoading(true)
@@ -620,7 +611,7 @@ function HistorialTab({ refreshKey }: { refreshKey: number }) {
     } : undefined
     gql<{
       ajustesStock: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: AjusteStockAPI[] }
-      marca: { nodes: { id: number; nombre: string; prefijo?: string }[] }
+      marca: { nodes: { id: number; nombre: string }[] }
     }>(
       AJUSTES_HISTORIAL_QUERY,
       { first: size, after: cursors.current[targetPage] ?? null, where, order: [{ fecha: 'DESC' }] },
@@ -632,7 +623,6 @@ function HistorialTab({ refreshKey }: { refreshKey: number }) {
         setHasNext(pageInfo.hasNextPage)
         cursors.current[targetPage + 1] = pageInfo.endCursor
         setPage(targetPage)
-        setMarcas(res.marca.nodes.map(backendToMarca))
       })
       .catch(() => notify.error('Error cargando historial'))
       .finally(() => setLoading(false))
@@ -702,8 +692,7 @@ function HistorialTab({ refreshKey }: { refreshKey: number }) {
             <tbody>
               {historial.map((r) => {
                 const [codigoPrincipal, ...codAlt] = r.productoCodigos
-                const prefijo = getMarcaPrefijo(r.marcaId, marcas)
-                const codigoDisplay = prefijo ? `${prefijo}-${codigoPrincipal}` : codigoPrincipal
+                const codigoDisplay = codigoPrincipal
                 return (
                   <tr
                     key={r.id}
@@ -720,6 +709,12 @@ function HistorialTab({ refreshKey }: { refreshKey: number }) {
                         <p key={i} className="font-mono text-[11px] text-[#7A7571] truncate max-w-[200px]">{c}</p>
                       ))}
                       <p className="text-[11px] text-[#7A7571] truncate max-w-[200px] mt-0.5">{r.productoNombre}</p>
+                      {r.marca && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] mt-1">
+                          <span className="w-1 h-1 rounded-full bg-[#780e18] shrink-0" />
+                          {r.marca}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       <span className={clsx(
@@ -785,7 +780,6 @@ export function AjustesPage() {
   const [hasNextPage, setHasNextPage] = useState(false)
   const cursors = useRef<(string | null)[]>([null])
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [marcas, setMarcas] = useState<Marca[]>([])
   const [galleryProducto, setGalleryProducto] = useState<Producto | null>(null)
 
   const loadProductos = useCallback((targetPage: number, size: number, q = '', currentFiltro: 'todos' | 'bajo' | 'kits' = 'todos') => {
@@ -810,10 +804,10 @@ export function AjustesPage() {
     const where = conditions.length === 1 ? conditions[0] : { and: conditions }
     gql<{
       productos: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: ProductoAPI[] }
-      marca: { nodes: { id: number; nombre: string; prefijo?: string }[] }
+      marca: { nodes: { id: number; nombre: string }[] }
     }>(
       PRODUCTOS_CON_MARCAS_QUERY,
-      { first: size, after: cursors.current[targetPage] ?? null, where },
+      { first: size, after: cursors.current[targetPage] ?? null, where, order: { fechaActualizacion: 'DESC' } },
     )
       .then(res => {
         const { totalCount, pageInfo, nodes } = res.productos
@@ -822,7 +816,6 @@ export function AjustesPage() {
         setHasNextPage(pageInfo.hasNextPage)
         cursors.current[targetPage + 1] = pageInfo.endCursor
         setPage(targetPage)
-        setMarcas(res.marca.nodes.map(backendToMarca))
       })
       .catch(() => notify.error('Error cargando productos'))
       .finally(() => setLoading(false))
@@ -1048,8 +1041,7 @@ export function AjustesPage() {
                         <tbody>
                           {displayed.map((p) => {
                             const bajo = p.stock <= p.stock_minimo
-                            const prefijo = getMarcaPrefijo(p.marcaId, marcas)
-                            const codigoDisplay = prefijo ? `${prefijo}-${p.codigo_universal}` : p.codigo_universal
+                            const codigoDisplay = p.codigo_universal
                             return (
                               <tr
                                 key={p.id}
@@ -1140,8 +1132,7 @@ export function AjustesPage() {
                     <div className="md:hidden">
                       {displayed.map(p => {
                         const bajo = p.stock <= p.stock_minimo
-                        const prefijo = getMarcaPrefijo(p.marcaId, marcas)
-                        const codigoDisplay = prefijo ? `${prefijo}-${p.codigo_universal}` : p.codigo_universal
+                        const codigoDisplay = p.codigo_universal
                         return (
                           <div
                             key={p.id}

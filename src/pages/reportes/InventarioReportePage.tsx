@@ -48,7 +48,7 @@ export function InventarioReportePage() {
 
   useEffect(() => {
     if (!isTokenReady) return
-    gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTOS_QUERY, { first: 9999, after: null })
+    gql<{ productos: { nodes: ProductoAPI[] } }>(PRODUCTOS_QUERY, { first: 9999, after: null, order: { fechaActualizacion: 'DESC' } })
       .then(res => setProductos(res.productos.nodes.map(backendToProductoSimple)))
       .catch(() => {})
     gql<{ todasOrdenes: { nodes: DashboardOrdenAPI[] } }>(DASHBOARD_ORDENES_QUERY)

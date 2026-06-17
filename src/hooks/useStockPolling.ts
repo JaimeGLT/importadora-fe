@@ -3,7 +3,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import { useNotificacionesStore } from '@/stores/notificacionesStore'
 import { PRODUCTOS_NOTIFICACIONES_QUERY } from '@/lib/queries/inventario.queries'
-import { MARCAS_QUERY } from '@/lib/queries/marcas.queries'
 
 const POLL_INTERVAL = 15 * 60 * 1000
 
@@ -18,17 +17,8 @@ interface GqlProductoNode {
   calcularStockKit: number | null
 }
 
-interface GqlMarcaNode {
-  id: number
-  prefijo: string
-}
-
 interface GqlProductosResponse {
   productos: { nodes: GqlProductoNode[] }
-}
-
-interface GqlMarcasResponse {
-  marca: { nodes: GqlMarcaNode[] }
 }
 
 export function useStockPolling() {
@@ -41,12 +31,9 @@ export function useStockPolling() {
     async function fetchStock() {
       setCargando(true)
       try {
-        const [dataProductos, dataMarcas] = await Promise.all([
+        const [dataProductos] = await Promise.all([
           gql<GqlProductosResponse>(PRODUCTOS_NOTIFICACIONES_QUERY),
-          gql<GqlMarcasResponse>(MARCAS_QUERY),
         ])
-
-        const marcaMap = new Map(dataMarcas.marca.nodes.map((m) => [m.id, m.prefijo]))
 
         const bajoStock = dataProductos.productos.nodes
           .filter((p) => {
@@ -57,7 +44,6 @@ export function useStockPolling() {
             id: p.id,
             nombre: p.nombre,
             codigo: p.codigo,
-            prefijo: p.marcaId ? (marcaMap.get(p.marcaId) ?? '') : '',
             stock: p.esKit ? (p.calcularStockKit ?? 0) : p.stock_Actual,
             stockMinimo: p.stock_Minimo,
           }))

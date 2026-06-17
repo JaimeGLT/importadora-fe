@@ -5,8 +5,6 @@ import { notify } from '@/lib/notify'
 import { gql } from '@/lib/graphql'
 import { CREDITO_DETALLE_QUERY, backendToCredito } from '@/lib/queries/creditos.queries'
 import type { Credito } from '@/types'
-import { fmtCodigo } from '@/lib/formatCodigo'
-import { useMarcasStore } from '@/stores/marcasStore'
 
 const fmtBs = (n: number) =>
   `Bs ${n.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -45,7 +43,6 @@ export interface CreditoDetailModalProps {
  * cancelar crédito). Carga su propio detalle vía GraphQL al abrir.
  */
 export function CreditoDetailModal({ open, creditoId, onRegistrarAbono, onClose }: CreditoDetailModalProps) {
-  const { marcas } = useMarcasStore()
   const [credito, setCredito] = useState<Credito | null>(null)
   const [loading, setLoading] = useState(false)
   const [confirmCancelar, setConfirmCancelar] = useState(false)
@@ -190,7 +187,7 @@ export function CreditoDetailModal({ open, creditoId, onRegistrarAbono, onClose 
                       <div className="flex items-center gap-1.5 mb-1">
                         <i className="ti ti-stack text-[10px] text-[#D4A333]" />
                         <span className="font-mono text-[10px] font-bold text-[#7A5200] bg-[#F5E0A8] px-1.5 py-0.5 rounded">
-                          {fmtCodigo(it.producto_codigo, it.producto_marcaId ?? null, marcas)}
+                          {it.producto_codigo}
                         </span>
                         {it.producto_nombre && (
                           <span className="text-[10px] text-[#7A5200] truncate">{it.producto_nombre}</span>
@@ -202,7 +199,7 @@ export function CreditoDetailModal({ open, creditoId, onRegistrarAbono, onClose 
                         <span className="font-mono text-[10px] font-bold text-[#780e18] bg-[#F4ECDB] px-1.5 py-0.5 rounded">
                           {it.id_pieza && it.pieza_codigo
                             ? it.pieza_codigo
-                            : fmtCodigo(it.producto_codigo ?? '', it.producto_marcaId ?? null, marcas)}
+                            : (it.producto_codigo ?? '')}
                         </span>
                         <p className="text-xs text-[#4A4744] truncate mt-0.5">
                           {it.id_pieza ? (it.pieza_nombre ?? '—') : (it.producto_nombre ?? '—')}

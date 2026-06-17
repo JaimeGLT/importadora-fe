@@ -113,9 +113,7 @@ export function EtiquetaModal({ open, onClose, etiqueta, subtitulo }: EtiquetaMo
     : etiqueta.fecha_importacion
       ? formatearFecha(etiqueta.fecha_importacion)
       : ''
-  const codigoBarras = etiqueta.marcaPrefijo
-    ? `${etiqueta.marcaPrefijo}-${etiqueta.codigo_universal}`
-    : etiqueta.codigo_universal
+  const codigoBarras = etiqueta.codigo_universal
 
   return (
     <Modal

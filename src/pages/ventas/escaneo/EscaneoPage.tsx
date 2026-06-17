@@ -10,8 +10,6 @@ import { api } from '@/lib/api'
 import { gql } from '@/lib/graphql'
 import { PRODUCTO_BY_ID_QUERY, PRODUCTOS_IMAGENES_BATCH_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI, type ProductoAPISimple } from '@/lib/queries/inventario.queries'
 import { ORDENES_PARA_ESCANEO_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
-import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
-import { fmtCodigo } from '@/lib/formatCodigo'
 import { useVentasHub } from '@/hooks/useVentasHub'
 import { clsx } from 'clsx'
 import { EtiquetaModal } from '@/pages/inventario/EtiquetaModal'
@@ -35,8 +33,6 @@ function LineSelectionModal({
   onSelect: (item: ItemOrden) => void
   onClose: () => void
 }) {
-  const { marcas } = useMarcasStore()
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
@@ -89,7 +85,7 @@ function LineSelectionModal({
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] font-mono text-[#7A7571] mt-0.5">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</p>
+                    <p className="text-[11px] font-mono text-[#7A7571] mt-0.5">{item.producto_codigo}</p>
                     {isKit && (
                       <div className="mt-1.5 px-2 py-1.5 rounded-lg bg-[#F5F0EB] border border-[#E8E5E2]">
                         <p className="text-[10px] text-[#7A7571]">
@@ -135,7 +131,6 @@ function ScanConfirmModal({
   onCancel: () => void
   loading: boolean
 }) {
-  const { marcas } = useMarcasStore()
   const [precio, setPrecio] = useState(
     item.precio_unitario > 0 ? item.precio_unitario.toFixed(2) : ''
   )
@@ -181,7 +176,7 @@ function ScanConfirmModal({
               </span>
             )}
           </div>
-          <p className="text-xs font-mono text-[#7A7571]">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</p>
+          <p className="text-xs font-mono text-[#7A7571]">{item.producto_codigo}</p>
         </div>
 
         <div className="px-6 py-5 space-y-3">
@@ -604,7 +599,6 @@ function PiezaScanPriceModal({
   onCancel: () => void
   loading: boolean
 }) {
-  const { marcas } = useMarcasStore()
   const [precio, setPrecio] = useState(pieza.precio_unitario ? pieza.precio_unitario.toFixed(2) : '')
   const precioNum = parseFloat(precio)
   const valido = !isNaN(precioNum) && precioNum > 0
@@ -650,7 +644,7 @@ function PiezaScanPriceModal({
           <div>
             <p className="text-base font-bold text-[#2D2B2A] leading-snug">{pieza.nombre}</p>
             <div className="flex items-center gap-1.5 mt-1 text-[11px] text-[#7A7571]">
-              <span className="font-mono">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
+              <span className="font-mono">{item.producto_codigo}</span>
               <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">
                 KIT
               </span>
@@ -718,7 +712,6 @@ function AgregarProductoModal({
   existingItems: ItemOrden[]
 }) {
   const { isTokenReady } = useAuth()
-  const { marcas } = useMarcasStore()
   const [query, setQuery] = useState('')
   const [resultados, setResultados] = useState<Producto[]>([])
   const [buscando, setBuscando] = useState(false)
@@ -916,7 +909,7 @@ function AgregarProductoModal({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-mono text-xs font-black text-[#780e18] bg-[#F4ECDB] px-1.5 py-0.5 rounded">
-                              {fmtCodigo(p.codigo_universal, p.marcaId, marcas)}
+                              {p.codigo_universal}
                             </span>
                             {p.es_kit && (
                               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18]">KIT</span>
@@ -951,7 +944,7 @@ function AgregarProductoModal({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-xs font-black text-[#780e18] bg-[#F4ECDB] px-1.5 py-0.5 rounded">
-                    {fmtCodigo(seleccionado.codigo_universal, seleccionado.marcaId, marcas)}
+                    {seleccionado.codigo_universal}
                   </span>
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18]">KIT</span>
                 </div>
@@ -1071,7 +1064,7 @@ function AgregarProductoModal({
             <div className="flex items-start gap-3 p-3 rounded-xl bg-[#F5F0EB] border border-[#E8E5E2]">
               <div className="flex-1 min-w-0">
                 <span className="font-mono text-xs font-black text-[#780e18] bg-[#F4ECDB] px-1.5 py-0.5 rounded">
-                  {fmtCodigo(seleccionado.codigo_universal, seleccionado.marcaId, marcas)}
+                  {seleccionado.codigo_universal}
                 </span>
                 <p className="text-sm font-semibold text-[#2D2B2A] mt-1">{seleccionado.nombre}</p>
                 <p className="text-xs text-[#3F7A52] font-semibold mt-0.5">{disp} disponibles</p>
@@ -1202,7 +1195,7 @@ function MarcarListoPromptModal({
 export function EscaneoPage() {
   const { isTokenReady } = useAuth()
   const { ordenes, setOrdenes, updateOrden, addItemToOrden, removeItemFromOrden, updateItemQtyInOrden, markItemListoEnOrden, updateItemEstadoEnOrden, updatePiezaQtyInOrden, removePiezaFromOrden } = useVentasStore()
-  const { marcas, setMarcas } = useMarcasStore()
+  const { marcas } = useMarcasStore()
   const [selectedOrdenId, setSelectedOrdenId] = useState<string | null>(null)
   const [loadingOrdenes, setLoadingOrdenes] = useState(false)
   const [confirmedItemIds, setConfirmedItemIds] = useState<Set<string>>(new Set())
@@ -1240,14 +1233,6 @@ export function EscaneoPage() {
       weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
     })
   }, [])
-
-  // Cargar marcas al montar si el store está vacío (necesario para detección de prefijos)
-  useEffect(() => {
-    if (!isTokenReady || marcas.length > 0) return
-    gql<{ marca: { nodes: Array<{ id: number; nombre: string; prefijo: string }> } }>(MARCAS_QUERY)
-      .then(res => setMarcas((res.marca?.nodes ?? []).map(backendToMarca)))
-      .catch(() => {})
-  }, [isTokenReady, marcas.length, setMarcas])
 
   // El modal de precios ya no muestra descuentos (se eligen al cobrar).
   // El estado `descuentos` se mantiene en CajaPage para alimentar el CheckoutModal.
@@ -1604,12 +1589,10 @@ export function EscaneoPage() {
     }
     const marca = item.marcaId != null ? marcas.find(m => m.id === item.marcaId) : null
     const etiqueta: LabelData = {
-      // Imprimimos el codigo_pieza tal cual viene (ej. "P1-TY-ABC123"),
-      // sin concatenarle el prefijo de la marca del kit padre.
+      // Imprimimos el codigo_pieza tal cual viene del backend (ej. "P1-ABC123").
       codigo_universal: pieza.codigo_pieza,
       nombre: pieza.nombre,
       marca: marca?.nombre ?? item.marca_nombre ?? '',
-      marcaPrefijo: '',
       vehiculo: '',
       precio_venta: pieza.precio_unitario ?? item.precio_unitario,
       unidad: 'pieza',
@@ -1798,56 +1781,18 @@ export function EscaneoPage() {
       }
     }
 
-    // Detectar formato PREFIJO-CODIGOUNIVERSAL
-    const dashIdx = code.indexOf('-')
-    let resolvedCode = code
-    let resolvedMarcaId: number | null = null
-    if (dashIdx > 0) {
-      const prefix = code.slice(0, dashIdx).toUpperCase()
-      const rawCode = code.slice(dashIdx + 1)
-      const marcaByPrefijo = marcas.find(m => m.prefijo.toUpperCase() === prefix)
-      if (marcaByPrefijo) {
-        resolvedCode = rawCode
-        resolvedMarcaId = marcaByPrefijo.id
-      }
-    }
+    // El código se usa tal cual llega. Compatibilidad con etiquetas viejas
+    // (formato PREFIJO-CODIGO con un guion) se resuelve en el backend
+    // mediante fallback por último segmento después del guion.
+    const resolvedCode = code
 
     const resolvedCodeLower = resolvedCode.toLowerCase().trim()
     const matched = itemsEscaneables.filter((i) => {
       const codeMatch = i.producto_codigo.toLowerCase() === resolvedCodeLower || i.producto_id.toLowerCase() === resolvedCodeLower
-      if (!codeMatch) return false
-      // Si se detectó prefijo de marca, filtrar también por marcaId
-      if (resolvedMarcaId !== null) return i.marcaId === resolvedMarcaId
-      return true
+      return codeMatch
     })
 
     if (matched.length > 1) {
-      if (resolvedMarcaId !== null) {
-        const firstPending = matched.find(i => !confirmedItemIds.has(i.id) && !i.es_parcial)
-        if (firstPending) {
-          if (firstPending.kit_id && !firstPending.es_parcial) {
-            autoConfirmarItem(firstPending)
-          } else {
-            const targetQty = firstPending.estado === 'faltante'
-              ? (firstPending.cantidad_recogida ?? 0)
-              : firstPending.cantidad_pedida
-            const current = scanCounts[firstPending.id] ?? 0
-            const next = current + 1
-            playConfirmBeep()
-            setFlashItemId(firstPending.id)
-            setTimeout(() => setFlashItemId(null), 600)
-            if (next >= targetQty) {
-              setScanCounts(prev => { const n = { ...prev }; delete n[firstPending.id]; return n })
-              autoConfirmarItem(firstPending)
-            } else {
-              setScanCounts(prev => ({ ...prev, [firstPending.id]: next }))
-            }
-          }
-          return
-        }
-        notify.warning('Todos los ítems para este producto ya fueron confirmados')
-        return
-      }
       setSelectMultipleMatches(matched)
       return
     }
@@ -1894,8 +1839,8 @@ export function EscaneoPage() {
       return
     }
 
-    // Not found in order — pasar código original con prefijo; backend lo resuelve
-    setPendingNotInOrderMarcaId(resolvedMarcaId)
+    // Not found in order — el backend lo resuelve con fallback por último segmento
+    setPendingNotInOrderMarcaId(null)
     setPendingNotInOrderCode(code)
   }
 
@@ -2418,7 +2363,7 @@ export function EscaneoPage() {
                                       <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-1.5 mb-0.5">
                                           <p className="text-[10px] font-mono font-semibold text-[#7A7571] truncate leading-none">
-                                            {fmtCodigo(item.producto_codigo, item.marcaId, marcas)}
+                                            {item.producto_codigo}
                                           </p>
                                           <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">
                                             KIT
@@ -2550,7 +2495,7 @@ export function EscaneoPage() {
                               {/* Info */}
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5 leading-none">
-                                  <p className="text-xs font-mono text-[#7A7571] truncate">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</p>
+                                  <p className="text-xs font-mono text-[#7A7571] truncate">{item.producto_codigo}</p>
                                   {isKit && !isPendiente && (
                                     <span className={clsx('text-[9px] font-black px-1.5 py-0.5 rounded-full tracking-wider shrink-0', isParcialKit ? 'bg-[#F5E0A8] text-[#7A5200]' : 'bg-[#E8D4B8] text-[#780e18]')}>
                                       {isParcialKit ? 'PARCIAL' : 'KIT'}
@@ -2693,7 +2638,7 @@ export function EscaneoPage() {
                                   <i className="ti ti-x text-[#B23A2A] text-[14px]" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-mono text-[#D0CBC4] line-through leading-none">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</p>
+                                  <p className="text-xs font-mono text-[#D0CBC4] line-through leading-none">{item.producto_codigo}</p>
                                   <p className="text-sm text-[#7A7571] line-through leading-snug truncate">{item.producto_nombre} · ×{cantidadFaltante}</p>
                                   {(item.producto_categoria || item.producto_procedencia) && (
                                     <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#B23A2A]/70 line-through leading-tight">

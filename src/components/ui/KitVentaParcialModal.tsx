@@ -1,9 +1,7 @@
 import { useState, useMemo } from 'react'
 import { clsx } from 'clsx'
 import type { Producto } from '@/types'
-import { useMarcasStore } from '@/stores/marcasStore'
 import { useCajaStore } from '@/stores/cajaStore'
-import { fmtCodigo } from '@/lib/formatCodigo'
 import { getStockEfectivo, getStockEfectivoPieza } from '@/utils/stockValidator'
 
 interface PiezaSeleccionada {
@@ -31,7 +29,6 @@ interface KitSeleccionModalProps {
 }
 
 export function KitSeleccionModal({ open, onClose, kit, onConfirm, preciosIniciales }: KitSeleccionModalProps) {
-  const { marcas } = useMarcasStore()
   const cart = useCajaStore(s => s.cart)
   const [cantidadKit, setCantidadKit] = useState(0)
   const [seleccionadas, setSeleccionadas] = useState<PiezaSeleccionada[]>(() => {
@@ -168,7 +165,7 @@ export function KitSeleccionModal({ open, onClose, kit, onConfirm, preciosInicia
                     'inline-flex items-center px-2 py-0.5 rounded-md font-mono font-bold text-[11px]',
                     i === 0 ? 'bg-[#780e18] text-white' : 'bg-[#2D2B2A] text-[#F7F7F7]'
                   )}>
-                    {i === 0 ? fmtCodigo(kit.codigo_universal, kit.marcaId, marcas) : code}
+                    {i === 0 ? kit.codigo_universal : code}
                   </span>
                 ))}
               </div>

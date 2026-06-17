@@ -4,9 +4,6 @@ import { PageTopBar } from '@/components/layout/PageTopBar'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import { DASHBOARD_ORDENES_QUERY, backendOrdenToDashboard, type DashboardOrdenAPI, type DashboardOrden } from '@/lib/queries/ventas.queries'
-import { useMarcasStore } from '@/stores/marcasStore'
-import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
-import { fmtCodigo } from '@/lib/formatCodigo'
 import { SalesChart } from '@/components/ui/SalesChart'
 
 const fmtBs = (n: number) =>
@@ -34,15 +31,6 @@ export function VentasReportePage() {
   const { isTokenReady } = useAuth()
   const [ordenes, setOrdenes] = useState<DashboardOrden[]>([])
   const [chartHover, setChartHover] = useState<number | null>(null)
-  const marcas    = useMarcasStore(s => s.marcas)
-  const setMarcas = useMarcasStore(s => s.setMarcas)
-
-  useEffect(() => {
-    if (!isTokenReady || marcas.length > 0) return
-    gql<{ marca: { nodes: Array<{ id: number; nombre: string; prefijo: string }> } }>(MARCAS_QUERY)
-      .then(res => setMarcas((res.marca?.nodes ?? []).map(backendToMarca)))
-      .catch(() => {})
-  }, [isTokenReady, marcas.length, setMarcas])
 
   useEffect(() => {
     if (!isTokenReady) return
@@ -175,7 +163,7 @@ export function VentasReportePage() {
                     </td>
                     <td className="py-3 pr-4">
                       <p className="font-semibold text-steel-800">{p.nombre || '—'}</p>
-                      <p className="text-[10px] text-steel-400 mt-0.5 tabular-nums">{fmtCodigo(p.codigo, p.marcaId, marcas)}</p>
+                      <p className="text-[10px] text-steel-400 mt-0.5 tabular-nums">{p.codigo}</p>
                       <div className="mt-1.5 flex items-center gap-2">
                         <div className="flex-1 bg-steel-100 rounded-full h-1.5 overflow-hidden">
                           <div

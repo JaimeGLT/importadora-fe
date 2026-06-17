@@ -1,5 +1,3 @@
-import { useMarcasStore } from '@/stores/marcasStore'
-import { fmtCodigo } from '@/lib/formatCodigo'
 import type { Producto } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -30,7 +28,6 @@ export function SelectPriceModal({
   onAddAnother,
   onClose,
 }: SelectPriceModalProps) {
-  const { marcas } = useMarcasStore()
 
   const allCodes = [producto.codigo_universal, ...producto.codigos_alternativos.filter(Boolean)]
   const stockDisp = Math.max(0, producto.stock - (producto.stock_reservado ?? 0))
@@ -76,7 +73,7 @@ export function SelectPriceModal({
                     'inline-flex items-center px-2 py-0.5 rounded-md font-mono font-bold text-[11px] ' +
                     (i === 0 ? 'bg-[#780e18] text-white' : 'bg-[#2D2B2A] text-[#F7F7F7]')
                   }>
-                    {i === 0 ? fmtCodigo(producto.codigo_universal, producto.marcaId, marcas) : code}
+                    {i === 0 ? producto.codigo_universal : code}
                   </span>
                 ))}
               </div>

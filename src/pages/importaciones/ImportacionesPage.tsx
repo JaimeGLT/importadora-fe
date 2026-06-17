@@ -135,7 +135,7 @@ export function ImportacionesPage() {
   }
 
   const loadProductos = () => {
-    gql<{ productos: { nodes: ProductoAPISimple[] } }>(PRODUCTOS_QUERY, { first: 5000 })
+    gql<{ productos: { nodes: ProductoAPISimple[] } }>(PRODUCTOS_QUERY, { first: 5000, order: { fechaActualizacion: 'DESC' } })
       .then(res => setProductos(res.productos.nodes.map(backendToProductoSimple)))
       .catch(() => notify.error('Error cargando productos'))
   }
@@ -146,7 +146,7 @@ export function ImportacionesPage() {
     gql<{
       importacion: { nodes: Parameters<typeof backendToImportacion>[0][] }
       proveedor: { nodes: Parameters<typeof backendToProveedor>[0][] }
-      marca: { nodes: { id: number; nombre: string; prefijo?: string }[] }
+      marca: { nodes: { id: number; nombre: string }[] }
       margenGanancia: MargenGananciaAPI | null
     }>(IMPORTACIONES_INIT_QUERY)
       .then(res => {

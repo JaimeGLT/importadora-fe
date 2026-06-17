@@ -10,9 +10,6 @@ import {
   backendToOrdenVenta,
   type OrdenVentaAPI,
 } from '@/lib/queries/ventas.queries'
-import { useMarcasStore } from '@/stores/marcasStore'
-import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
-import { fmtCodigo } from '@/lib/formatCodigo'
 import type { OrdenVenta } from '@/types'
 import { clsx } from 'clsx'
 
@@ -63,7 +60,6 @@ function TableSkeleton({ cols }: { cols: number }) {
 // ─── Detail Drawer ────────────────────────────────────────────────────────────
 
 function OrdenDrawer({ orden, onClose }: { orden: OrdenVenta; onClose: () => void }) {
-  const marcas = useMarcasStore(s => s.marcas)
   const estado = ESTADO_LABEL[orden.estado] ?? { label: orden.estado, cls: 'bg-[#F0EFEC] text-[#4A4644]' }
   const total = orden.total
 
@@ -137,7 +133,7 @@ function OrdenDrawer({ orden, onClose }: { orden: OrdenVenta; onClose: () => voi
                       <td colSpan={5} className="px-3 py-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[11px] font-mono font-bold text-[#780e18]">
-                            {fmtCodigo(item.producto_codigo, item.marcaId, marcas)}
+                            {item.producto_codigo}
                           </span>
                           <span className="text-[12px] font-semibold text-[#2D2B2A]">
                             {item.producto_nombre}
@@ -195,7 +191,7 @@ function OrdenDrawer({ orden, onClose }: { orden: OrdenVenta; onClose: () => voi
                 return [
                   <tr key={item.id} className="hover:bg-[#FAF9F7]">
                     <td className="px-3 py-2.5 font-mono text-xs text-[#780e18] font-semibold whitespace-nowrap">
-                      {fmtCodigo(item.producto_codigo, item.marcaId, marcas)}
+                      {item.producto_codigo}
                     </td>
                     <td className="px-3 py-2.5 text-[12px] text-[#2D2B2A]">
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -265,8 +261,6 @@ export function VentasHistorialPage() {
   const [loading, setLoading]       = useState(true)
   const [search, setSearch]         = useState('')
   const [selected, setSelected]     = useState<OrdenVenta | null>(null)
-  const marcas    = useMarcasStore(s => s.marcas)
-  const setMarcas = useMarcasStore(s => s.setMarcas)
 
   const isAdmin = user?.rol === 'admin'
   const cols    = isAdmin ? 7 : 6
@@ -291,13 +285,6 @@ export function VentasHistorialPage() {
   const onDesde = (v: string) => { setDesde(v); updateUrl(v, hasta) }
   const onHasta = (v: string) => { setHasta(v); updateUrl(desde, v) }
   const clear   = () => { setDesde(''); setHasta(''); updateUrl('', '') }
-
-  useEffect(() => {
-    if (!isTokenReady || marcas.length > 0) return
-    gql<{ marca: { nodes: Array<{ id: number; nombre: string; prefijo: string }> } }>(MARCAS_QUERY)
-      .then(res => setMarcas((res.marca?.nodes ?? []).map(backendToMarca)))
-      .catch(() => {})
-  }, [isTokenReady, marcas.length, setMarcas])
 
   useEffect(() => {
     if (!isTokenReady) return

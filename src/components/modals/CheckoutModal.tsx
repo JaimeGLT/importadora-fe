@@ -1,9 +1,7 @@
 import { useState, useMemo } from 'react'
 import { clsx } from 'clsx'
 import { Button, Input, Modal } from '@/components/ui'
-import { useMarcasStore } from '@/stores/marcasStore'
 import type { DescuentoConfig } from '@/stores/configStore'
-import { fmtCodigo } from '@/lib/formatCodigo'
 import { notify } from '@/lib/notify'
 import { getDescuentoColor } from '@/utils/descuentoColors'
 import type { OrdenVenta, MetodoPago, Cliente, PagoOrden } from '@/types'
@@ -59,7 +57,6 @@ export function CheckoutModal({
   onConfirm,
   onClose,
 }: CheckoutModalProps) {
-  const { marcas } = useMarcasStore()
 
   // ─── Totales (sobre los items despachados) ─────────────────────────────────
   const itemsDespachados = orden.items.filter(i =>
@@ -203,7 +200,7 @@ export function CheckoutModal({
                 <div key={`${i.id}-${p.id}`} className="flex justify-between text-sm gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-[11px] font-mono font-bold text-[#780e18]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)}</p>
+                      <p className="text-[11px] font-mono font-bold text-[#780e18]">{i.producto_codigo}</p>
                       <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">KIT</span>
                     </div>
                     <p className="text-[11px] font-semibold text-[#2D2B2A] flex items-center gap-1.5">
@@ -219,7 +216,7 @@ export function CheckoutModal({
               <div key={i.id} className="flex justify-between text-sm gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <p className="text-[11px] font-mono font-bold text-[#780e18]">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
+                    <p className="text-[11px] font-mono font-bold text-[#780e18]">{i.producto_codigo} · ×{i.cantidad_recogida ?? i.cantidad_pedida}</p>
                     {i.es_kit && (
                       <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">KIT</span>
                     )}
@@ -233,7 +230,7 @@ export function CheckoutModal({
           {totalFaltantes > 0 && itemsFaltantes.map(i => (
             <div key={i.id} className="flex justify-between text-sm gap-2 opacity-50">
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-mono font-bold text-[#7A7571] line-through">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)} · ×{i.cantidad_pedida - (i.cantidad_recogida ?? 0)}</p>
+                <p className="text-[11px] font-mono font-bold text-[#7A7571] line-through">{i.producto_codigo} · ×{i.cantidad_pedida - (i.cantidad_recogida ?? 0)}</p>
                 <p className="text-[11px] text-[#7A7571] truncate">{i.producto_nombre}</p>
               </div>
               <span className="text-[#7A7571] shrink-0">N/A</span>

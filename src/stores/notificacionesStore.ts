@@ -4,7 +4,6 @@ export interface ProductoBajoStock {
   id: string
   nombre: string
   codigo: string
-  prefijo: string
   stock: number
   stockMinimo: number
 }

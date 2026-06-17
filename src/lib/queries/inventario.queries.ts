@@ -19,8 +19,8 @@ function parseUbicacion(ubicacion: string): { almacen: string; estante: string; 
 }
 
 export const PRODUCTOS_QUERY = `
-  query Productos($first: Int, $after: String, $where: ProductoFilterInput) {
-    productos(first: $first, after: $after, where: $where) {
+  query Productos($first: Int, $after: String, $where: ProductoFilterInput, $order: [ProductoSortInput!]) {
+    productos(first: $first, after: $after, where: $where, order: $order) {
       totalCount
       pageInfo {
         hasNextPage
@@ -52,8 +52,8 @@ export const PRODUCTOS_QUERY = `
 `
 
 export const PRODUCTOS_CON_MARCAS_QUERY = `
-  query ProductosConMarcas($first: Int, $after: String, $where: ProductoFilterInput) {
-    productos(first: $first, after: $after, where: $where) {
+  query ProductosConMarcas($first: Int, $after: String, $where: ProductoFilterInput, $order: [ProductoSortInput!]) {
+    productos(first: $first, after: $after, where: $where, order: $order) {
       totalCount
       pageInfo {
         hasNextPage
@@ -67,6 +67,7 @@ export const PRODUCTOS_CON_MARCAS_QUERY = `
         nombre
         categoria
         marcaId
+        marca { nombre }
         ubicacion
         stock_Actual
         stockReservado
@@ -81,11 +82,10 @@ export const PRODUCTOS_CON_MARCAS_QUERY = `
         imagenPrincipal { id url }
       }
     }
-    marca(order: { nombre: ASC }) {
+    marca(order: { nombre: ASC }, first: 5000) {
       nodes {
         id
         nombre
-        prefijo
       }
     }
   }
@@ -295,6 +295,14 @@ export interface ProductoAPISimple {
   codigoAux2: string
   nombre?: string | null
   marcaId?: number | null
+  /**
+   * Shape divergente entre canales:
+   * - GraphQL (`PRODUCTOS_CON_MARCAS_QUERY`) → `{ nombre: string }` (objeto, resuelto
+   *   por el field `Marca` del schema `ProductoType`).
+   * - REST (`GET /Producto/buscar-lista`) → string plano (`p.Marca?.Nombre`).
+   * El mapper `mapProductoBase` abajo tolera ambos con `typeof p.marca === 'string'`.
+   */
+  marca?: { nombre: string } | string | null
   descripcion: string
   procedencia?: string | null
   categoria?: string | null
@@ -398,6 +406,7 @@ function mapProductoBase(p: ProductoAPISimple): Producto {
     procedencia: p.procedencia ?? '',
     categoria: p.categoria ?? '',
     marcaId: p.marcaId ?? null,
+    marca: typeof p.marca === 'string' ? p.marca : (p.marca?.nombre ?? ''),
     vehiculo: '',
     unidad: (p.unidad_Medida?.toLowerCase() as Producto['unidad']) ?? 'pieza',
     // Para kits, preferimos `calcularStockKitDisponible` (descuenta reservas

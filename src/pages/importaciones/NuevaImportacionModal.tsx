@@ -831,7 +831,6 @@ function SuccessModal({
           codigo_universal: it.codigo_proveedor,
           nombre: it.nombre,
           marca: marca?.nombre ?? '',
-          marcaPrefijo: marca?.prefijo ?? '',
           vehiculo: '',
           precio_venta: it.precio_venta_final,
           unidad: it.unidad ?? 'unidad',

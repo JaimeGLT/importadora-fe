@@ -22,9 +22,6 @@ import {
   type DescuentoAPI,
 } from '@/lib/queries/config.queries'
 import { useVentasHub } from '@/hooks/useVentasHub'
-import { useMarcasStore } from '@/stores/marcasStore'
-import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
-import { fmtCodigo } from '@/lib/formatCodigo'
 import { getStockEfectivo, getStockEfectivoPieza } from '@/utils/stockValidator'
 import { capitalizeTipoPago } from '@/utils/tipoPago'
 import { CheckoutModal, type CheckoutConfirm } from '@/components/modals/CheckoutModal'
@@ -137,7 +134,6 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto, onViewGall
   onViewGallery: (producto: Producto) => void
 }) {
   const { isTokenReady } = useAuth()
-  const { marcas } = useMarcasStore()
   const [query, setQuery] = useState('')
   const [resultados, setResultados] = useState<Producto[]>([])
   const [loading, setLoading] = useState(false)
@@ -272,7 +268,7 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto, onViewGall
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="font-mono text-sm font-bold text-[#780e18] bg-[#F4ECDB] px-2 py-0.5 rounded">{fmtCodigo(p.codigo_universal, p.marcaId, marcas)}</span>
+                      <span className="font-mono text-sm font-bold text-[#780e18] bg-[#F4ECDB] px-2 py-0.5 rounded">{p.codigo_universal}</span>
                       {p.es_kit && (
                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#F4ECDB] text-[#780e18] border border-[#D4A333]/30">
                           <i className="ti ti-stack text-[10px]" />
@@ -380,7 +376,6 @@ function CartItem({
   onEditPrice: (producto_id: string) => void
   onViewGallery: (producto_id: string) => void
 }) {
-  const { marcas } = useMarcasStore()
   const [editingQty, setEditingQty] = useState(false)
   const [qtyValue, setQtyValue] = useState(String(item.cantidad))
 
@@ -391,7 +386,7 @@ function CartItem({
           <i className="ti ti-stack text-[10px] text-[#D4A333]" />
           {item.kit_codigo && (
             <span className="font-mono text-[10px] font-bold text-[#7A5200] bg-[#F5E0A8] px-1.5 py-0.5 rounded">
-              {fmtCodigo(item.kit_codigo, item.kit_marcaId, marcas)}
+              {item.kit_codigo}
             </span>
           )}
           {item.kit_nombre && (
@@ -412,7 +407,7 @@ function CartItem({
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className="font-mono text-[11px] font-bold text-[#780e18] bg-[#F4ECDB] px-1.5 py-0.5 rounded">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
+              <span className="font-mono text-[11px] font-bold text-[#780e18] bg-[#F4ECDB] px-1.5 py-0.5 rounded">{item.producto_codigo}</span>
               {item.es_kit && (
                 <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">
                   KIT
@@ -809,7 +804,6 @@ function CancelarOrdenModal({
   onConfirm: () => void
   onClose: () => void
 }) {
-  const { marcas } = useMarcasStore()
   return (
     <Modal open onClose={onClose} title={`Cancelar ${orden.numero}`} size="md">
       <div className="space-y-4">
@@ -832,7 +826,7 @@ function CancelarOrdenModal({
             {orden.items.map(item => (
               <div key={item.id} className="flex items-center justify-between px-4 py-2.5">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xs font-mono text-[#780e18] bg-[#F4ECDB] px-1.5 py-0.5 rounded shrink-0">{fmtCodigo(item.producto_codigo, item.marcaId, marcas)}</span>
+                  <span className="text-xs font-mono text-[#780e18] bg-[#F4ECDB] px-1.5 py-0.5 rounded shrink-0">{item.producto_codigo}</span>
                   {item.es_kit && !item.es_parcial && (
                     <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">
                       KIT
@@ -864,7 +858,6 @@ function CancelarOrdenModal({
 // ─── Cobro Modal ───────────────────────────────────────────────────────────────
 
 function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => void }) {
-  const { marcas } = useMarcasStore()
   const isFactura = orden.tipoDocumento === 'factura'
   const itemsDespachados = orden.items.filter(i =>
     i.estado === 'completo' || i.estado === 'parcial' ||
@@ -924,7 +917,7 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
             if (i.es_parcial && i.piezas_orden?.length) {
               return i.piezas_orden.filter(p => p.confirmado).map(p => (
                 <div key={`${i.id}-${p.id}`} className="mb-1.5">
-                  <p className="font-bold">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)}</p>
+                  <p className="font-bold">{i.producto_codigo}</p>
                   <p className="truncate">{p.nombre}</p>
                   <div className="flex justify-between pl-1">
                     <span>{p.cantidad} x {fmtBs(p.precio_unitario ?? 0)}</span>
@@ -936,7 +929,7 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
             const qty = i.cantidad_recogida ?? i.cantidad_pedida
             return (
               <div key={i.id} className="mb-1.5">
-                <p className="font-bold">{fmtCodigo(i.producto_codigo, i.marcaId, marcas)}</p>
+                <p className="font-bold">{i.producto_codigo}</p>
                 <p className="truncate">{i.producto_nombre}</p>
                 <div className="flex justify-between pl-1">
                   <span>{qty} x {fmtBs(i.precio_unitario)}</span>
@@ -1028,7 +1021,6 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
 export function CajaPage() {
   const { user, isTokenReady } = useAuth()
   const { ordenes, setOrdenes, updateOrden } = useVentasStore()
-  const { marcas, setMarcas } = useMarcasStore()
   const { playAlertSequence, playBeep } = useSoundAlert()
 
   const { cart, setCart, clearCart } = useCajaStore()
@@ -1056,13 +1048,6 @@ export function CajaPage() {
   const listosCount = misOrdenes.filter(o => o.estado === 'esperando_pago').length
   const alertedFaltantes = useRef<Set<string>>(new Set())
   const alertedListo = useRef<Set<string>>(new Set())
-
-  useEffect(() => {
-    if (!isTokenReady || marcas.length > 0) return
-    gql<{ marca: { nodes: Array<{ id: number; nombre: string; prefijo: string }> } }>(MARCAS_QUERY)
-      .then(res => setMarcas((res.marca?.nodes ?? []).map(backendToMarca)))
-      .catch(() => {})
-  }, [isTokenReady, marcas.length, setMarcas])
 
   useEffect(() => {
     if (!isTokenReady) return

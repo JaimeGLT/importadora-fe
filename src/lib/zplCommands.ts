@@ -2,7 +2,6 @@ export interface ZPLLabelData {
   codigo_universal: string
   nombre: string
   marca: string
-  marcaPrefijo?: string
   vehiculo: string
   precio_venta: number
   unidad: string
@@ -24,9 +23,7 @@ function formatearFecha(iso: string): string {
 }
 
 function buildLabel(data: ZPLLabelData): string {
-  const codigo = data.marcaPrefijo
-    ? `${data.marcaPrefijo}-${data.codigo_universal}`
-    : data.codigo_universal
+  const codigo = data.codigo_universal
 
   const fecha = data.fecha_importacion
     ? formatearFecha(data.fecha_importacion)

@@ -439,7 +439,6 @@ export interface ProductoBusquedaEscaneo {
   esKit: boolean
   ubicacion: string
   marcaId: number | null
-  prefijoMarca: string | null
   piezaEscaneadaId: number | null
   piezas: PiezaBusquedaEscaneo[] | null
 }
@@ -497,7 +496,6 @@ export interface OrdenVenta {
 export interface Marca {
   id: number
   nombre: string
-  prefijo: string
   creado_en: string
 }
 
@@ -538,7 +536,6 @@ export interface CreditoItem {
   producto_codigo?: string | null
   producto_nombre?: string | null
   producto_marcaId?: number | null
-  producto_marcaPrefijo?: string | null
   producto_marcaNombre?: string | null
   /** Presente si el item es una pieza suelta de un kit. */
   id_pieza?: number | null

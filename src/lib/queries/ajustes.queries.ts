@@ -11,11 +11,11 @@ export const AJUSTES_HISTORIAL_QUERY = `
         nota
         fecha
         usuario { nombre }
-        producto { nombre codigo codigoAux codigoAux2 marcaId }
+        producto { nombre codigo codigoAux codigoAux2 marcaId marca { nombre } }
       }
     }
-    marca(order: { nombre: ASC }) {
-      nodes { id nombre prefijo }
+    marca(order: { nombre: ASC }, first: 5000) {
+      nodes { id nombre }
     }
   }
 `
@@ -28,7 +28,7 @@ export interface AjusteStockAPI {
   nota: string
   fecha: string
   usuario?: { nombre: string }
-  producto?: { nombre: string; codigo: string; codigoAux?: string; codigoAux2?: string; marcaId?: number }
+  producto?: { nombre: string; codigo: string; codigoAux?: string; codigoAux2?: string; marcaId?: number; marca?: { nombre: string } | null }
 }
 
 export interface AjusteStockRow {
@@ -37,6 +37,7 @@ export interface AjusteStockRow {
   productoCodigo: string
   productoCodigos: string[]
   marcaId: number | null
+  marca: string
   delta: number
   cantidadAnterior: number
   cantidadNueva: number
@@ -54,6 +55,7 @@ export function backendToAjusteRow(a: AjusteStockAPI): AjusteStockRow {
     productoCodigo: a.producto?.codigo ?? '—',
     productoCodigos: codigos.length > 0 ? codigos : ['—'],
     marcaId: a.producto?.marcaId ?? null,
+    marca: a.producto?.marca?.nombre ?? '',
     delta: a.cantidadNueva - a.cantidadAnterior,
     cantidadAnterior: a.cantidadAnterior,
     cantidadNueva: a.cantidadNueva,

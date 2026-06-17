@@ -267,33 +267,10 @@ export function ProductoModal({
       ? (form.precio_venta - form.precio_costo).toFixed(2)
       : null
 
-  const skuDisplay = (() => {
-    if (!producto) return undefined
-    const prefijo = producto.marcaId != null
-      ? marcas?.find((m) => m.id === producto.marcaId)?.prefijo ?? ''
-      : ''
-    return prefijo ? `${prefijo}-${producto.codigo_universal}` : producto.codigo_universal
-  })()
-
-  // Prefijo y código del kit (en edición vienen del producto cargado; al crear
-  // un kit nuevo se toman del form). Se pasan a KitPartsSection para previsualizar
-  // el código autogenerado de la próxima pieza.
-  const kitPrefijoActual = (() => {
-    const marcaId = producto?.marcaId ?? form.marcaId
-    if (marcaId == null) return ''
-    return marcas?.find((m) => m.id === marcaId)?.prefijo ?? ''
-  })()
+  // Código del kit (en edición viene del producto cargado; al crear un kit
+  // nuevo se toma del form). Se pasa a KitPartsSection para previsualizar el
+  // código autogenerado de la próxima pieza. Ya no incluye el prefijo de marca.
   const kitCodigoActual = producto?.codigo_universal ?? form.codigo_universal
-
-  // Detectar cambio de marca en un kit existente (edición) para mostrar el
-  // warning de sincronización de prefijo en las piezas.
-  const marcaCambioEnEdicion =
-    !!producto &&
-    producto.es_kit === true &&
-    (producto.piezas_kit?.length ?? 0) > 0 &&
-    (producto.marcaId ?? null) !== (form.marcaId ?? null)
-
-  const cantidadPiezasEnKit = producto?.piezas_kit?.length ?? 0
 
   const handleImprimirPieza = (part: DisplayPart) => {
     if (!part.codigoPieza) return
@@ -304,7 +281,6 @@ export function ProductoModal({
         codigo_universal: part.codigoPieza,
         nombre: part.nombre,
         marca: marca?.nombre ?? '',
-        marcaPrefijo: '',
         vehiculo: '',
         precio_venta: form.precio_venta,
         unidad: 'pieza',
@@ -321,7 +297,7 @@ export function ProductoModal({
       onClose={onClose}
       subtitle={producto ? 'Detalle del producto' : 'Nuevo producto'}
       title={producto ? (producto.nombre?.trim() || '(sin nombre)') : 'Registrar autoparte'}
-      sku={skuDisplay}
+      sku={producto?.codigo_universal}
       footer={
         <>
           {producto && onDelete && (
@@ -415,7 +391,7 @@ export function ProductoModal({
           <FormSection
             icon={<IconPhoto />}
             title="Imágenes"
-            description="Galería de hasta 20 imágenes. Se suben a Cloudflare R2 al guardar el producto."
+            description="Galería de hasta 20 imágenes."
             iconClass="bg-[#780e18] text-white shadow-sm"
             extra={
               <span className="inline-flex items-center gap-1 rounded-full bg-[#F4ECDB] px-2.5 py-1 text-[11px] font-bold text-[#780e18] tabular-nums">
@@ -541,17 +517,9 @@ export function ProductoModal({
                 <span className="text-[13px] font-semibold text-[#4A4744]">Este producto es un kit</span>
               </label>
 
-              {/* Warning: cambio de marca sincroniza el prefijo de las piezas */}
-              {marcaCambioEnEdicion && (
-                <div className="rounded-[10px] bg-amber-50 border border-amber-300/60 px-3 py-2 text-[11px] text-amber-800 flex items-start gap-2">
-                  <svg className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                  </svg>
-                  <span>
-                    <strong>Cambio de marca.</strong> Se actualizará el prefijo de las {cantidadPiezasEnKit} {cantidadPiezasEnKit === 1 ? 'pieza' : 'piezas'} del kit al guardar.
-                  </span>
-                </div>
-              )}
+              {/* Warning eliminado: el código de pieza ya no incluye el prefijo
+                  de marca, por lo que cambiar la marca de un kit no regenera
+                  los CodigoPieza de sus piezas. */}
 
               {/* Kit → Regular: warning + stock manual input */}
               {!form.es_kit && producto?.es_kit && (
@@ -592,7 +560,6 @@ export function ProductoModal({
                     onLocalPiecesChange={setKitPieces}
                     pieceOps={pieceOps}
                     onPieceOpsChange={setPieceOps}
-                    kitPrefijo={kitPrefijoActual}
                     kitCodigo={kitCodigoActual}
                     onImprimirPieza={handleImprimirPieza}
                   />
