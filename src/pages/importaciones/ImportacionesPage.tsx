@@ -173,6 +173,7 @@ export function ImportacionesPage() {
   const handleSaveLocal = async (
     importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>,
     proveedorId: number,
+    { categoriaMapeada }: { categoriaMapeada: boolean },
   ) => {
     const total = importacion.items.length
     setLocalOpen(false)
@@ -192,6 +193,10 @@ export function ImportacionesPage() {
         marcaId: it.marcaId ?? null,
         descripcion: it.descripcion ?? '',
         procedencia: it.procedencia ?? '',
+        // categoria: se incluye solo si el usuario mapeó la columna en el Excel.
+        // Si no la mapeó, omitimos la key (undefined) para no pisar la categoría
+        // existente en productos que ya estaban en el inventario.
+        categoria: categoriaMapeada ? (it.categoria ?? '') : undefined,
         unidad_Medida: it.unidad ?? 'unidad',
         ubicacion: it.ubicacion ?? 'Almacén Central',
         cantidad: it.cantidad,
@@ -243,6 +248,7 @@ export function ImportacionesPage() {
   const handleSave = async (
     importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>,
     proveedorId: number,
+    { categoriaMapeada }: { categoriaMapeada: boolean },
   ) => {
     const total = importacion.items.length
     setNuevaOpen(false)
@@ -263,6 +269,10 @@ export function ImportacionesPage() {
         marcaId: it.marcaId ?? null,
         descripcion: it.descripcion ?? '',
         procedencia: it.procedencia ?? '',
+        // categoria: se incluye solo si el usuario mapeó la columna en el Excel.
+        // Si no la mapeó, omitimos la key (undefined) para no pisar la categoría
+        // existente en productos que ya estaban en el inventario.
+        categoria: categoriaMapeada ? (it.categoria ?? '') : undefined,
         unidad_Medida: it.unidad ?? 'unidad',
         ubicacion: it.ubicacion ?? 'Almacén Central',
         cantidad: it.cantidad,

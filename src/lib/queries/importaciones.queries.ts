@@ -6,6 +6,7 @@ export interface DtoProductoImportacion {
   marcaId?: number | null
   descripcion: string
   procedencia?: string
+  categoria?: string
   unidad_Medida: string
   ubicacion: string
   cantidad: number

@@ -7,6 +7,7 @@ import { clsx } from 'clsx'
 import { notify } from '@/lib/notify'
 import { api } from '@/lib/api'
 import { backendToMarca } from '@/lib/queries/marcas.queries'
+import { buildProductoIndex, buildProductoIdIndex, buildMarcaIndex, productoKey } from '@/lib/importIndex'
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
@@ -14,7 +15,7 @@ type ImportStep = 'upload' | 'mapear' | 'datos' | 'preview' | 'confirmar'
 
 type ImportField =
   | 'codigo_universal' | 'codigo_alt1' | 'codigo_alt2'
-  | 'nombre' | 'descripcion' | 'procedencia' | 'marca'
+  | 'nombre' | 'descripcion' | 'categoria' | 'procedencia' | 'marca'
   | 'stock' | 'stock_minimo' | 'piezas' | 'precio_costo' | 'precio_venta' | 'ubicacion'
 
 interface SystemField {
@@ -43,6 +44,7 @@ interface RawItem {
   nombre: string
   descripcion: string
   procedencia: string
+  categoria: string
   marca: string
   precio_fob_usd: number   // = precio_costo del Excel (en USD)
   cantidad: number          // = stock del Excel
@@ -73,6 +75,7 @@ const SYSTEM_FIELDS: SystemField[] = [
   { key: 'codigo_alt2',      label: 'Código alternativo 2', required: false },
   { key: 'nombre',           label: 'Nombre',               required: false },
   { key: 'descripcion',      label: 'Descripción',          required: false },
+  { key: 'categoria',        label: 'Categoría',            required: false, hint: 'Categoría del producto (texto libre)' },
   { key: 'procedencia',      label: 'Procedencia',          required: false, hint: 'País o región de origen' },
   { key: 'marca',            label: 'Marca',                required: false, hint: 'Marca por producto (sobreescribe la marca global)' },
   { key: 'stock',            label: 'Cantidad',              required: true,  hint: 'Unidades que ingresan al lote' },
@@ -164,6 +167,7 @@ function buildRawItem(row: Record<string, unknown>, mappings: FieldMappings): Ra
     nombre:        get('nombre'),
     descripcion:   get('descripcion'),
     procedencia:   get('procedencia'),
+    categoria:     get('categoria'),
     marca:         get('marca'),
     precio_fob_usd: parseNumeric(getRaw('precio_costo')),   // precio_costo del Excel = FOB en USD
     cantidad:       Math.round(parseNumeric(getRaw('stock'))),  // stock del Excel = cantidad del lote
@@ -212,11 +216,11 @@ function computeImportStats(rows: Record<string, unknown>[], mappings: FieldMapp
 function calcItems(
   rawItems: RawItem[],
   datos: { tipo_cambio: number; flete_usd: number; aduana_bs: number; transporte_interno_bs: number },
-  productos: Producto[],
+  productoIndex: Map<string, Producto>,
+  marcaIndex: Map<string, number>,
   piezasMapeado: boolean,
   marcaDefault: number | null,
   margenBd: number,
-  marcas: import('@/types').Marca[],
 ): DraftItem[] {
   const total_fob_bs = rawItems.reduce(
     (s, i) => s + i.precio_fob_usd * datos.tipo_cambio * i.cantidad, 0,
@@ -241,16 +245,11 @@ function calcItems(
     const precio_venta_final =
       raw.precio_venta_manual > 0 ? raw.precio_venta_manual : precio_venta_sugerido
 
-    const marcaExcel = raw.marca
-      ? marcas.find((m) => m.nombre.toLowerCase() === raw.marca.toLowerCase())?.id ?? null
-      : null
+    const marcaExcel = raw.marca ? marcaIndex.get(raw.marca.trim().toLowerCase()) ?? null : null
     const resolvedMarcaId = marcaExcel ?? marcaDefault ?? null
 
-    const match = productos.find(
-      (p) =>
-        raw.codigo_universal.toLowerCase() === p.codigo_universal.toLowerCase() &&
-        (p.marcaId ?? null) === (resolvedMarcaId ?? null),
-    )
+    // Lookup O(1) en el index de productos (era Array.find O(n) por cada row).
+    const match = productoIndex.get(productoKey(raw.codigo_universal, resolvedMarcaId)) ?? null
 
     return {
       _index:               idx,
@@ -260,6 +259,7 @@ function calcItems(
       marcaId:              resolvedMarcaId,
       descripcion:          raw.descripcion,
       procedencia:          raw.procedencia,
+      categoria:            raw.categoria,
       ubicacion:            raw.ubicacion,
       precio_fob_usd:       raw.precio_fob_usd,
       cantidad:             raw.cantidad,
@@ -352,7 +352,11 @@ function Stepper({ step }: { step: ImportStep }) {
 interface Props {
   open: boolean
   onClose: () => void
-  onSave: (importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>, proveedorId: number) => void
+  onSave: (
+    importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>,
+    proveedorId: number,
+    options: { categoriaMapeada: boolean },
+  ) => void
   proveedores: Proveedor[]
   productos: Producto[]
   marcas: Marca[]
@@ -407,6 +411,19 @@ export function NuevaImportacionModal({
   // Marcas creadas inline durante este flujo
   const [extraMarcas, setExtraMarcas] = useState<Marca[]>([])
   const allMarcas = useMemo(() => [...marcas, ...extraMarcas], [marcas, extraMarcas])
+
+  // Indexes pre-calculados. Sin esto, con 1500 rows × N productos en el
+  // catálogo, `Array.find` dentro del loop hacía O(1500×N) comparaciones de
+  // strings y congelaba la página. Con Map.get, cada lookup es O(1).
+  const productoIndex = useMemo(() => buildProductoIndex(productos), [productos])
+  const productoById  = useMemo(() => buildProductoIdIndex(productos), [productos])
+  const marcaIndex    = useMemo(() => buildMarcaIndex(allMarcas), [allMarcas])
+  const marcaById     = useMemo(
+    // `Marca.id` está tipeado como string pero `backendToMarca` lo coerce a
+    // number con `Number(b.id)`; respetamos la realidad del runtime.
+    () => new Map<number, Marca>(allMarcas.map(m => [m.id as number, m])),
+    [allMarcas],
+  )
 
   // Guardando
   const [saving, setSaving] = useState(false)
@@ -530,18 +547,90 @@ export function NuevaImportacionModal({
     if (mappings['marca']) {
       setCreatingMarcas(true)
       try {
-        const uniqueNames = [...new Set(raw.map(r => r.marca).filter(Boolean))] as string[]
-        const newMarcas: Marca[] = []
-        for (const nombre of uniqueNames) {
-          const exists = allMarcas.some(m => m.nombre.toLowerCase() === nombre.toLowerCase())
-          if (!exists) {
-            try {
-              const res = await api.post<{ id: number; nombre: string }>('/marca', { nombre })
-              newMarcas.push(backendToMarca({ id: res.id, nombre: res.nombre }))
-            } catch { /* continuar aunque falle una marca individual */ }
+        // 1) Refrescar la lista de marcas desde la BD. Sin esto, si la marca
+        //    ya existía (sesión anterior, otro usuario, etc.) el check local
+        //    da false y mandamos un POST inútil que vuelve 409.
+        let latestMarcas: Marca[] = []
+        try {
+          const res = await api.get<{ id: number; nombre: string }[]>('/marca')
+          latestMarcas = res.map(backendToMarca)
+        } catch {
+          // Si falla el refresh, seguimos con la lista local — no es bloqueante.
+        }
+
+        // 2) Construir la lista efectiva: prop del padre + extras locales + las
+        //    recién refrescadas. La usamos para detectar "ya existe" sin chocar
+        //    con el índice único IX_Marca_Nombre.
+        const byName = new Map<string, Marca>()
+        for (const m of [...marcas, ...extraMarcas, ...latestMarcas]) {
+          byName.set(m.nombre.trim().toLowerCase(), m)
+        }
+        const findByName = (name: string) =>
+          byName.get(name.trim().toLowerCase()) ?? null
+
+        // 3) Dedup case-insensitive + trim + colapso de whitespace. Usamos la
+        //    key lowercase para que "AXP", "axp" y "AXP " colapsen en uno.
+        //    Conservamos el casing original del primer row visto para mandar
+        //    al backend el nombre "bonito".
+        const seen = new Set<string>()
+        const uniqueNames: string[] = []
+        for (const r of raw) {
+          const trimmed = (r.marca ?? '').trim().replace(/\s+/g, ' ')
+          const key = trimmed.toLowerCase()
+          if (key && !seen.has(key)) {
+            seen.add(key)
+            uniqueNames.push(trimmed)
           }
         }
-        if (newMarcas.length) setExtraMarcas(prev => [...prev, ...newMarcas])
+
+        // 4) Para cada nombre único: si no existe, crear. Si el POST devuelve
+        //    409 (race con otro usuario / caché desactualizado), refrescar y
+        //    recuperar la marca existente del servidor.
+        const newMarcas: Marca[] = []
+        for (const nombre of uniqueNames) {
+          const existing = findByName(nombre)
+          if (existing) continue
+
+          try {
+            const res = await api.post<{ id: number; nombre: string }>('/marca', { nombre })
+            const marca = backendToMarca({ id: res.id, nombre: res.nombre })
+            newMarcas.push(marca)
+            byName.set(marca.nombre.trim().toLowerCase(), marca)
+          } catch {
+            // 409 (o cualquier fallo): re-fetch de la lista y buscar la marca
+            // que el backend rechazó — ya está creada, solo necesitamos su id.
+            try {
+              const res = await api.get<{ id: number; nombre: string }[]>('/marca')
+              const found = res.find(
+                m => m.nombre.trim().toLowerCase() === nombre.trim().toLowerCase(),
+              )
+              if (found) {
+                const marca = backendToMarca({ id: found.id, nombre: found.nombre })
+                newMarcas.push(marca)
+                byName.set(marca.nombre.trim().toLowerCase(), marca)
+              }
+            } catch {
+              // Si el re-fetch también falla, seguimos sin esa marca — el
+              // producto la creará sin marcaId y se puede asignar después.
+            }
+          }
+        }
+
+        // 5) Mergear todo al state local para que calcItems encuentre las
+        //    marcas por id al renderizar el preview.
+        if (latestMarcas.length || newMarcas.length) {
+          setExtraMarcas(prev => {
+            const ids = new Set(prev.map(m => m.id))
+            const merged = [...prev]
+            for (const m of [...latestMarcas, ...newMarcas]) {
+              if (!ids.has(m.id)) {
+                merged.push(m)
+                ids.add(m.id)
+              }
+            }
+            return merged
+          })
+        }
       } finally {
         setCreatingMarcas(false)
       }
@@ -573,7 +662,7 @@ export function NuevaImportacionModal({
     if (!validarDatos()) return
     const resolved = getResolvedAmounts(datos, rawItems)
     const piezasMapeado = (mappings['piezas']?.columns.length ?? 0) > 0
-    setItems(calcItems(rawItems, resolved, productos, piezasMapeado, datos.marca_id, margenBd, allMarcas))
+    setItems(calcItems(rawItems, resolved, productoIndex, marcaIndex, piezasMapeado, datos.marca_id, margenBd))
     setStep('preview')
   }
 
@@ -584,11 +673,7 @@ export function NuevaImportacionModal({
   const updateMarcaItem = (index: number, marcaId: number | null) => {
     setItems((prev) => prev.map((it) => {
       if (it._index !== index) return it
-      const match = productos.find(
-        (p) =>
-          it.codigo_proveedor.toLowerCase() === p.codigo_universal.toLowerCase() &&
-          (p.marcaId ?? null) === (marcaId ?? null),
-      )
+      const match = productoIndex.get(productoKey(it.codigo_proveedor, marcaId)) ?? null
       return {
         ...it,
         marcaId: marcaId ?? null,
@@ -600,6 +685,10 @@ export function NuevaImportacionModal({
 
   const updateProcedencia = (index: number, val: string) => {
     setItems((prev) => prev.map((it) => it._index === index ? { ...it, procedencia: val } : it))
+  }
+
+  const updateCategoria = (index: number, val: string) => {
+    setItems((prev) => prev.map((it) => it._index === index ? { ...it, categoria: val } : it))
   }
 
   const updatePrecioFinal = (index: number, val: string) => {
@@ -617,7 +706,7 @@ export function NuevaImportacionModal({
         if (usarNuevo) {
           return { ...it, usar_precio_nuevo: true, precio_venta_final: it.precio_venta_sugerido }
         }
-        const prod = productos.find((p) => p.id === it.producto_id)
+        const prod = it.producto_id ? productoById.get(it.producto_id) : undefined
         return {
           ...it,
           usar_precio_nuevo: false,
@@ -649,7 +738,8 @@ export function NuevaImportacionModal({
     }
 
     try {
-      await onSave(importacion, Number(datos.proveedor_id))
+      const categoriaMapeada = (mappings['categoria']?.columns.length ?? 0) > 0
+      await onSave(importacion, Number(datos.proveedor_id), { categoriaMapeada })
       setSuccessData({
         numero: nextNumero(totalImportaciones),
         totalProductos: items.length,
@@ -761,9 +851,11 @@ export function NuevaImportacionModal({
           onPrecioChange={updatePrecioFinal}
           onPrecioEleccion={updatePrecioEleccion}
           onProcedenciaChange={updateProcedencia}
+          onCategoriaChange={updateCategoria}
           onMarcaChange={updateMarcaItem}
-          productos={productos}
           marcas={allMarcas}
+          productoById={productoById}
+          marcaById={marcaById}
         />
       )}
 
@@ -1198,16 +1290,19 @@ function StepDatos({
 }
 
 function StepPreview({
-  items, tc, onPrecioChange, onPrecioEleccion, onProcedenciaChange, onMarcaChange, productos, marcas,
+  items, tc, onPrecioChange, onPrecioEleccion, onProcedenciaChange, onCategoriaChange, onMarcaChange, marcas, productoById, marcaById,
 }: {
   items: DraftItem[]
   tc: number
   onPrecioChange: (index: number, val: string) => void
   onPrecioEleccion: (index: number, usarNuevo: boolean) => void
   onProcedenciaChange: (index: number, val: string) => void
+  onCategoriaChange: (index: number, val: string) => void
   onMarcaChange: (index: number, marcaId: number | null) => void
-  productos: Producto[]
   marcas: Marca[]
+  // Indexes pre-calculados para que el render no haga Array.find por row.
+  productoById: Map<string, Producto>
+  marcaById: Map<number, Marca>
 }) {
   const fobTotal   = items.reduce((s, i) => s + i.precio_fob_usd * i.cantidad, 0)
   const nuevos     = items.filter((i) => i.es_nuevo).length
@@ -1274,6 +1369,7 @@ function StepPreview({
           <thead>
             <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E8EDF3' }}>
               <th className="px-3 py-2.5 text-left font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Producto</th>
+              <th className="px-3 py-2.5 text-left font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Categoría</th>
               <th className="px-3 py-2.5 text-left font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Marca</th>
               <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Unidades</th>
               <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Stock mín.</th>
@@ -1296,7 +1392,7 @@ function StepPreview({
           <tbody>
             {items.map((item, rowIdx) => {
               const producto = !item.es_nuevo && item.producto_id
-                ? productos.find((p) => p.id === item.producto_id)
+                ? productoById.get(item.producto_id)
                 : undefined
               const historialAbierto = openHistorial === item._index
               const variacionPct = producto && producto.precio_venta > 0
@@ -1304,8 +1400,8 @@ function StepPreview({
                 : null
               // Sub-label: marca del producto existente matcheado (para que el
               // usuario entienda por qué este código se considera existente).
-              const marcaMatch = producto?.marcaId
-                ? marcas.find((m) => m.id === producto.marcaId)
+              const marcaMatch = producto?.marcaId != null
+                ? marcaById.get(producto.marcaId)
                 : undefined
 
               return (
@@ -1318,6 +1414,16 @@ function StepPreview({
                         {item.codigo_proveedor}
                       </p>
                       <p className="text-[12px] text-steel-700 mt-0.5 leading-tight">{item.nombre}</p>
+                    </td>
+
+                    <td className="px-3 py-2.5">
+                      <input
+                        type="text"
+                        defaultValue={item.categoria ?? ''}
+                        onBlur={(e) => onCategoriaChange(item._index, e.target.value)}
+                        placeholder="—"
+                        className="w-24 px-1.5 py-0.5 text-xs border border-steel-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-400 bg-white"
+                      />
                     </td>
 
                     <td className="px-3 py-2.5">
@@ -1480,7 +1586,7 @@ function StepPreview({
 
                   {historialAbierto && producto && (
                     <tr>
-                      <td colSpan={existentes > 0 ? 10 : 9} className="px-3 pb-3 pt-0">
+                      <td colSpan={existentes > 0 ? 11 : 10} className="px-3 pb-3 pt-0">
                         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #E0E7FF', background: '#F8F9FF' }}>
                           <div className="flex items-stretch">
                             <div className="flex-1 px-5 py-4" style={{ background: '#EEF2FF', borderRight: '1px solid #C7D2FE' }}>

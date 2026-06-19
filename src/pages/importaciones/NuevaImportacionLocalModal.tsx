@@ -7,6 +7,7 @@ import { clsx } from 'clsx'
 import { notify } from '@/lib/notify'
 import { api } from '@/lib/api'
 import { backendToMarca } from '@/lib/queries/marcas.queries'
+import { buildProductoIndex, buildProductoIdIndex, buildMarcaIndex, productoKey } from '@/lib/importIndex'
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
@@ -14,7 +15,7 @@ type ImportStep = 'upload' | 'mapear' | 'datos' | 'preview' | 'confirmar'
 
 type ImportField =
   | 'codigo_universal' | 'codigo_alt1' | 'codigo_alt2'
-  | 'nombre' | 'descripcion' | 'procedencia' | 'marca'
+  | 'nombre' | 'descripcion' | 'categoria' | 'procedencia' | 'marca'
   | 'stock' | 'stock_minimo' | 'piezas' | 'precio_costo' | 'precio_venta' | 'ubicacion'
 
 interface SystemField {
@@ -43,6 +44,7 @@ interface RawItem {
   nombre: string
   descripcion: string
   procedencia: string
+  categoria: string
   marca: string
   precio_fob_usd: number   // = precio_compra en Bs
   cantidad: number
@@ -66,6 +68,7 @@ const SYSTEM_FIELDS: SystemField[] = [
   { key: 'codigo_alt2',      label: 'Código alternativo 2', required: false },
   { key: 'nombre',           label: 'Nombre',               required: false },
   { key: 'descripcion',      label: 'Descripción',          required: false },
+  { key: 'categoria',        label: 'Categoría',            required: false, hint: 'Categoría del producto (texto libre)' },
   { key: 'procedencia',      label: 'Procedencia',          required: false, hint: 'País o región de origen' },
   { key: 'marca',            label: 'Marca',                required: false, hint: 'Marca por producto (sobreescribe la marca global)' },
   { key: 'stock',            label: 'Cantidad',              required: true,  hint: 'Unidades que ingresan al lote' },
@@ -158,6 +161,7 @@ function buildRawItem(row: Record<string, unknown>, mappings: FieldMappings): Ra
     nombre:        get('nombre'),
     descripcion:   get('descripcion'),
     procedencia:   get('procedencia'),
+    categoria:     get('categoria'),
     marca:         get('marca'),
     precio_fob_usd: parseNumeric(getRaw('precio_costo')),
     cantidad:       Math.round(parseNumeric(getRaw('stock'))),
@@ -205,27 +209,22 @@ function computeImportStats(rows: Record<string, unknown>[], mappings: FieldMapp
 
 function calcItemsLocal(
   rawItems: RawItem[],
-  productos: Producto[],
+  productoIndex: Map<string, Producto>,
+  marcaIndex: Map<string, number>,
   piezasMapeado: boolean,
   marcaDefault: number | null,
   margen: number,
-  marcas: import('@/types').Marca[],
 ): DraftItem[] {
   return rawItems.map((raw, idx) => {
     const costo_unitario_total_bs = raw.precio_fob_usd
     const precio_venta_sugerido   = Math.ceil(costo_unitario_total_bs * margen * 100) / 100
     const precio_venta_final      = precio_venta_sugerido
 
-    const marcaExcel = raw.marca
-      ? marcas.find((m) => m.nombre.toLowerCase() === raw.marca.toLowerCase())?.id ?? null
-      : null
+    const marcaExcel = raw.marca ? marcaIndex.get(raw.marca.trim().toLowerCase()) ?? null : null
     const resolvedMarcaId = marcaExcel ?? marcaDefault ?? null
 
-    const match = productos.find(
-      (p) =>
-        raw.codigo_universal.toLowerCase() === p.codigo_universal.toLowerCase() &&
-        (p.marcaId ?? null) === (resolvedMarcaId ?? null),
-    )
+    // Lookup O(1) en el index de productos (era Array.find O(n) por cada row).
+    const match = productoIndex.get(productoKey(raw.codigo_universal, resolvedMarcaId)) ?? null
 
     return {
       _index:               idx,
@@ -235,6 +234,7 @@ function calcItemsLocal(
       marcaId:              resolvedMarcaId,
       descripcion:          raw.descripcion,
       procedencia:          raw.procedencia,
+      categoria:            raw.categoria,
       ubicacion:            raw.ubicacion,
       precio_fob_usd:       raw.precio_fob_usd,
       cantidad:             raw.cantidad,
@@ -306,7 +306,11 @@ function Stepper({ step }: { step: ImportStep }) {
 interface Props {
   open: boolean
   onClose: () => void
-  onSave: (importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>, proveedorId: number) => void
+  onSave: (
+    importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>,
+    proveedorId: number,
+    options: { categoriaMapeada: boolean },
+  ) => void
   proveedores: Proveedor[]
   productos: Producto[]
   marcas: Marca[]
@@ -347,6 +351,19 @@ export function NuevaImportacionLocalModal({
   // Marcas creadas inline durante este flujo
   const [extraMarcas, setExtraMarcas] = useState<Marca[]>([])
   const allMarcas = useMemo(() => [...marcas, ...extraMarcas], [marcas, extraMarcas])
+
+  // Indexes pre-calculados. Sin esto, con 1500 rows × N productos en el
+  // catálogo, `Array.find` dentro del loop hacía O(1500×N) comparaciones de
+  // strings y congelaba la página. Con Map.get, cada lookup es O(1).
+  const productoIndex = useMemo(() => buildProductoIndex(productos), [productos])
+  const productoById  = useMemo(() => buildProductoIdIndex(productos), [productos])
+  const marcaIndex    = useMemo(() => buildMarcaIndex(allMarcas), [allMarcas])
+  const marcaById     = useMemo(
+    // `Marca.id` está tipeado como string pero `backendToMarca` lo coerce a
+    // number con `Number(b.id)`; respetamos la realidad del runtime.
+    () => new Map<number, Marca>(allMarcas.map(m => [m.id as number, m])),
+    [allMarcas],
+  )
 
   const [saving, setSaving] = useState(false)
   const [creatingMarcas, setCreatingMarcas] = useState(false)
@@ -467,18 +484,90 @@ export function NuevaImportacionLocalModal({
     if (mappings['marca']) {
       setCreatingMarcas(true)
       try {
-        const uniqueNames = [...new Set(raw.map(r => r.marca).filter(Boolean))] as string[]
-        const newMarcas: Marca[] = []
-        for (const nombre of uniqueNames) {
-          const exists = allMarcas.some(m => m.nombre.toLowerCase() === nombre.toLowerCase())
-          if (!exists) {
-            try {
-              const res = await api.post<{ id: number; nombre: string }>('/marca', { nombre })
-              newMarcas.push(backendToMarca({ id: res.id, nombre: res.nombre }))
-            } catch { /* continuar aunque falle una marca individual */ }
+        // 1) Refrescar la lista de marcas desde la BD. Sin esto, si la marca
+        //    ya existía (sesión anterior, otro usuario, etc.) el check local
+        //    da false y mandamos un POST inútil que vuelve 409.
+        let latestMarcas: Marca[] = []
+        try {
+          const res = await api.get<{ id: number; nombre: string }[]>('/marca')
+          latestMarcas = res.map(backendToMarca)
+        } catch {
+          // Si falla el refresh, seguimos con la lista local — no es bloqueante.
+        }
+
+        // 2) Construir la lista efectiva: prop del padre + extras locales + las
+        //    recién refrescadas. La usamos para detectar "ya existe" sin chocar
+        //    con el índice único IX_Marca_Nombre.
+        const byName = new Map<string, Marca>()
+        for (const m of [...marcas, ...extraMarcas, ...latestMarcas]) {
+          byName.set(m.nombre.trim().toLowerCase(), m)
+        }
+        const findByName = (name: string) =>
+          byName.get(name.trim().toLowerCase()) ?? null
+
+        // 3) Dedup case-insensitive + trim + colapso de whitespace. Usamos la
+        //    key lowercase para que "AXP", "axp" y "AXP " colapsen en uno.
+        //    Conservamos el casing original del primer row visto para mandar
+        //    al backend el nombre "bonito".
+        const seen = new Set<string>()
+        const uniqueNames: string[] = []
+        for (const r of raw) {
+          const trimmed = (r.marca ?? '').trim().replace(/\s+/g, ' ')
+          const key = trimmed.toLowerCase()
+          if (key && !seen.has(key)) {
+            seen.add(key)
+            uniqueNames.push(trimmed)
           }
         }
-        if (newMarcas.length) setExtraMarcas(prev => [...prev, ...newMarcas])
+
+        // 4) Para cada nombre único: si no existe, crear. Si el POST devuelve
+        //    409 (race con otro usuario / caché desactualizado), refrescar y
+        //    recuperar la marca existente del servidor.
+        const newMarcas: Marca[] = []
+        for (const nombre of uniqueNames) {
+          const existing = findByName(nombre)
+          if (existing) continue
+
+          try {
+            const res = await api.post<{ id: number; nombre: string }>('/marca', { nombre })
+            const marca = backendToMarca({ id: res.id, nombre: res.nombre })
+            newMarcas.push(marca)
+            byName.set(marca.nombre.trim().toLowerCase(), marca)
+          } catch {
+            // 409 (o cualquier fallo): re-fetch de la lista y buscar la marca
+            // que el backend rechazó — ya está creada, solo necesitamos su id.
+            try {
+              const res = await api.get<{ id: number; nombre: string }[]>('/marca')
+              const found = res.find(
+                m => m.nombre.trim().toLowerCase() === nombre.trim().toLowerCase(),
+              )
+              if (found) {
+                const marca = backendToMarca({ id: found.id, nombre: found.nombre })
+                newMarcas.push(marca)
+                byName.set(marca.nombre.trim().toLowerCase(), marca)
+              }
+            } catch {
+              // Si el re-fetch también falla, seguimos sin esa marca — el
+              // producto la creará sin marcaId y se puede asignar después.
+            }
+          }
+        }
+
+        // 5) Mergear todo al state local para que calcItems encuentre las
+        //    marcas por id al renderizar el preview.
+        if (latestMarcas.length || newMarcas.length) {
+          setExtraMarcas(prev => {
+            const ids = new Set(prev.map(m => m.id))
+            const merged = [...prev]
+            for (const m of [...latestMarcas, ...newMarcas]) {
+              if (!ids.has(m.id)) {
+                merged.push(m)
+                ids.add(m.id)
+              }
+            }
+            return merged
+          })
+        }
       } finally {
         setCreatingMarcas(false)
       }
@@ -497,7 +586,7 @@ export function NuevaImportacionLocalModal({
   const handleGoToPreview = () => {
     if (!validarDatos()) return
     const piezasMapeado = (mappings['piezas']?.columns.length ?? 0) > 0
-    setItems(calcItemsLocal(rawItems, productos, piezasMapeado, datos.marca_id, datos.margen, allMarcas))
+    setItems(calcItemsLocal(rawItems, productoIndex, marcaIndex, piezasMapeado, datos.marca_id, datos.margen))
     setStep('preview')
   }
 
@@ -508,11 +597,7 @@ export function NuevaImportacionLocalModal({
   const updateMarcaItem = (index: number, marcaId: number | null) => {
     setItems((prev) => prev.map((it) => {
       if (it._index !== index) return it
-      const match = productos.find(
-        (p) =>
-          it.codigo_proveedor.toLowerCase() === p.codigo_universal.toLowerCase() &&
-          (p.marcaId ?? null) === (marcaId ?? null),
-      )
+      const match = productoIndex.get(productoKey(it.codigo_proveedor, marcaId)) ?? null
       return {
         ...it,
         marcaId: marcaId ?? null,
@@ -524,6 +609,10 @@ export function NuevaImportacionLocalModal({
 
   const updateProcedencia = (index: number, val: string) => {
     setItems((prev) => prev.map((it) => it._index === index ? { ...it, procedencia: val } : it))
+  }
+
+  const updateCategoria = (index: number, val: string) => {
+    setItems((prev) => prev.map((it) => it._index === index ? { ...it, categoria: val } : it))
   }
 
   const updatePrecioFinal = (index: number, val: string) => {
@@ -541,7 +630,7 @@ export function NuevaImportacionLocalModal({
         if (usarNuevo) {
           return { ...it, usar_precio_nuevo: true, precio_venta_final: it.precio_venta_sugerido }
         }
-        const prod = productos.find((p) => p.id === it.producto_id)
+        const prod = it.producto_id ? productoById.get(it.producto_id) : undefined
         return {
           ...it,
           usar_precio_nuevo: false,
@@ -573,7 +662,8 @@ export function NuevaImportacionLocalModal({
     }
 
     try {
-      await onSave(importacion, Number(datos.proveedor_id))
+      const categoriaMapeada = (mappings['categoria']?.columns.length ?? 0) > 0
+      await onSave(importacion, Number(datos.proveedor_id), { categoriaMapeada })
       setSuccessData({
         numero: nextNumero(totalImportaciones),
         totalProductos: items.length,
@@ -669,9 +759,11 @@ export function NuevaImportacionLocalModal({
             onPrecioChange={updatePrecioFinal}
             onPrecioEleccion={updatePrecioEleccion}
             onProcedenciaChange={updateProcedencia}
+            onCategoriaChange={updateCategoria}
             onMarcaChange={updateMarcaItem}
-            productos={productos}
             marcas={allMarcas}
+            productoById={productoById}
+            marcaById={marcaById}
           />
         )}
 
@@ -821,15 +913,18 @@ function StepDatosLocal({
 }
 
 function StepPreviewLocal({
-  items, onPrecioChange, onPrecioEleccion, onProcedenciaChange, onMarcaChange, productos, marcas,
+  items, onPrecioChange, onPrecioEleccion, onProcedenciaChange, onCategoriaChange, onMarcaChange, marcas, productoById, marcaById,
 }: {
   items: DraftItem[]
   onPrecioChange: (index: number, val: string) => void
   onPrecioEleccion: (index: number, usarNuevo: boolean) => void
   onProcedenciaChange: (index: number, val: string) => void
+  onCategoriaChange: (index: number, val: string) => void
   onMarcaChange: (index: number, marcaId: number | null) => void
-  productos: Producto[]
   marcas: Marca[]
+  // Indexes pre-calculados para que el render no haga Array.find por row.
+  productoById: Map<string, Producto>
+  marcaById: Map<number, Marca>
 }) {
   const nuevos     = items.filter((i) => i.es_nuevo).length
   const existentes = items.filter((i) => !i.es_nuevo).length
@@ -884,6 +979,7 @@ function StepPreviewLocal({
           <thead>
             <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E8EDF3' }}>
               <th className="px-3 py-2.5 text-left font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Producto</th>
+              <th className="px-3 py-2.5 text-left font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Categoría</th>
               <th className="px-3 py-2.5 text-left font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Marca</th>
               <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Cantidad</th>
               <th className="px-3 py-2.5 text-right font-semibold text-steel-400 uppercase tracking-wider text-[10px]">Stock mín.</th>
@@ -906,15 +1002,15 @@ function StepPreviewLocal({
           <tbody>
             {items.map((item, rowIdx) => {
               const producto = !item.es_nuevo && item.producto_id
-                ? productos.find((p) => p.id === item.producto_id)
+                ? productoById.get(item.producto_id)
                 : undefined
               const variacionPct = producto && producto.precio_venta > 0
                 ? ((item.precio_venta_final / producto.precio_venta) - 1) * 100
                 : null
               // Sub-label: marca del producto existente matcheado (para que el
               // usuario entienda por qué este código se considera existente).
-              const marcaMatch = producto?.marcaId
-                ? marcas.find((m) => m.id === producto.marcaId)
+              const marcaMatch = producto?.marcaId != null
+                ? marcaById.get(producto.marcaId)
                 : undefined
 
               return (
@@ -928,6 +1024,16 @@ function StepPreviewLocal({
                       {item.codigo_proveedor}
                     </p>
                     <p className="text-[12px] text-steel-700 mt-0.5 leading-tight">{item.nombre}</p>
+                  </td>
+
+                  <td className="px-3 py-2.5">
+                    <input
+                      type="text"
+                      defaultValue={item.categoria ?? ''}
+                      onBlur={(e) => onCategoriaChange(item._index, e.target.value)}
+                      placeholder="—"
+                      className="w-24 px-1.5 py-0.5 text-xs border border-steel-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-400 bg-white"
+                    />
                   </td>
 
                   <td className="px-3 py-2.5">

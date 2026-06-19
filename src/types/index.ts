@@ -190,6 +190,7 @@ export interface ItemImportacion {
   marca?: string
   descripcion?: string
   procedencia?: string
+  categoria?: string                // texto libre; viene del Excel o se edita en el preview
   unidad?: UnidadProducto           // pieza, juego, par…
   ubicacion?: string                // Almacén Central
   precio_fob_usd: number
