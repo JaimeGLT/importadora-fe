@@ -107,6 +107,23 @@ export default {
           '0%, 100%': { boxShadow: '0 4px 12px -3px rgba(178,34,52,0.45), 0 0 0 0 rgba(178,34,52,0.4), inset 0 0 0 1px rgba(255,255,255,0.18)' },
           '50%':       { boxShadow: '0 4px 12px -3px rgba(178,34,52,0.45), 0 0 0 8px rgba(178,34,52,0), inset 0 0 0 1px rgba(255,255,255,0.18)' },
         },
+        // ─── Charts ────────────────────────────────────────────────────
+        'chart-grow': {
+          '0%':   { transform: 'scaleY(0)' },
+          '100%': { transform: 'scaleY(1)' },
+        },
+        'chart-fade-in': {
+          '0%':   { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        'chart-draw': {
+          '0%':   { strokeDashoffset: 'var(--chart-len, 1000)' },
+          '100%': { strokeDashoffset: '0' },
+        },
+        'chart-gauge-fill': {
+          '0%':   { strokeDashoffset: 'var(--chart-len, 1000)' },
+          '100%': { strokeDashoffset: 'var(--chart-end, 0)' },
+        },
       },
       spacing: {
         'card-padding':       '16px',
@@ -118,6 +135,10 @@ export default {
         'pulse-once': 'pulse-once 0.6s ease-in-out 1',
         'slide-in':   'slide-in 0.3s ease-out 1',
         'pulse-crit': 'pulse-crit 2.4s ease-in-out infinite',
+        'chart-grow':         'chart-grow 600ms ease-out 1',
+        'chart-fade-in':      'chart-fade-in 500ms ease-out 1',
+        'chart-draw':         'chart-draw 900ms ease-out 1',
+        'chart-gauge-fill':   'chart-gauge-fill 1100ms ease-out 1',
       },
     },
   },

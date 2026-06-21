@@ -62,7 +62,7 @@ export function SalesChart({ data, dates, onHover }: SalesChartProps) {
             <div className="border-t border-dashed" style={{ borderColor: '#E2E2E2' }} />
           </div>
 
-          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-full">
+          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" data-chart="true" className="w-full h-full">
             <defs>
               <linearGradient id="brandGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%"   stopColor="#C8102E" stopOpacity="0.14" />

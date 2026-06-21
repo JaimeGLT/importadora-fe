@@ -1,9 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
 import { PageTopBar } from '@/components/layout/PageTopBar'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import { DASHBOARD_ORDENES_QUERY, backendOrdenToDashboard, type DashboardOrdenAPI, type DashboardOrden } from '@/lib/queries/ventas.queries'
+import {
+  ChartContainer,
+  DonutChart,
+  BarChart,
+  useChartExport,
+} from '@/components/charts'
 import type { EstadoOrden } from '@/types'
 
 const fmtBs = (n: number) =>
@@ -73,6 +79,9 @@ export function OrdenesReportePage() {
   const [ordenes, setOrdenes] = useState<DashboardOrden[]>([])
   const [filtro,  setFiltro]  = useState<EstadoOrden | 'todas'>('todas')
 
+  const reportRef = useRef<HTMLDivElement | null>(null)
+  const { exportPDF } = useChartExport()
+
   useEffect(() => {
     if (!isTokenReady) return
     gql<{ todasOrdenes: { nodes: DashboardOrdenAPI[] } }>(DASHBOARD_ORDENES_QUERY)
@@ -80,7 +89,7 @@ export function OrdenesReportePage() {
       .catch(() => {})
   }, [isTokenReady])
 
-  const { total, activas, completadasHoy, canceladas, ordenesVis } = useMemo(() => {
+  const { total, activas, completadasHoy, canceladas, ordenesVis, donutEstados, barPorDia } = useMemo(() => {
     const hoy = new Date().toISOString().slice(0, 10)
     const total          = ordenes.length
     const activas        = ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada').length
@@ -91,20 +100,134 @@ export function OrdenesReportePage() {
       .reverse()
       .filter(o => filtro === 'todas' || o.estado === filtro)
 
-    return { total, activas, completadasHoy, canceladas, ordenesVis }
+    // Donut: distribución de órdenes por estado
+    const porEstado = new Map<string, number>()
+    for (const o of ordenes) {
+      porEstado.set(o.estado, (porEstado.get(o.estado) ?? 0) + 1)
+    }
+    const ESTADO_COLOR: Record<string, string> = {
+      completada:           '#3F7A52',
+      cancelada:            '#C8102E',
+      pendiente_almacenero: '#D4A333',
+      en_preparacion:       '#7A7571',
+      listo_para_escaneo:   '#3B82F6',
+      con_faltantes:        '#F97316',
+      esperando_pago:       '#8B5CF6',
+    }
+    const donutEstados = [...porEstado.entries()]
+      .map(([estado, value]) => ({
+        label: (ESTADO_META[estado as EstadoOrden]?.label) ?? estado,
+        value,
+        color: ESTADO_COLOR[estado],
+      }))
+      .sort((a, b) => b.value - a.value)
+
+    // Bar chart: órdenes por día de la semana, agrupadas por estado
+    const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+    const hace30 = new Date(Date.now() - 30 * 86400000)
+    const completada = new Array(7).fill(0)
+    const cancelada  = new Array(7).fill(0)
+    const activa     = new Array(7).fill(0)
+    for (const o of ordenes) {
+      if (new Date(o.fecha) < hace30) continue
+      const d = new Date(o.fecha).getDay()
+      if (o.estado === 'completada') completada[d] = (completada[d] ?? 0) + 1
+      else if (o.estado === 'cancelada') cancelada[d] = (cancelada[d] ?? 0) + 1
+      else activa[d] = (activa[d] ?? 0) + 1
+    }
+    const barPorDia = { labels: DIAS, completada, cancelada, activa }
+
+    return { total, activas, completadasHoy, canceladas, ordenesVis, donutEstados, barPorDia }
   }, [ordenes, filtro])
 
   return (
     <MainLayout>
       <PageTopBar section="Reportes" title="Órdenes" />
       <PageContainer>
-        <PageHeader title="Órdenes" description="Historial y estado de todas las órdenes de venta" />
+        <div ref={reportRef}>
+        <PageHeader
+          title="Órdenes"
+          description="Historial y estado de todas las órdenes de venta"
+          actions={
+            <button
+              onClick={() => exportPDF(reportRef, 'reporte-ordenes', `Reporte de Órdenes — ${new Date().toLocaleDateString('es-BO')}`)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white border border-steel-200 hover:border-brand-600 hover:text-brand-600 text-steel-600 text-xs font-bold rounded-xl transition-colors shadow-sm"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+              </svg>
+              Exportar PDF
+            </button>
+          }
+        />
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <KpiCard label="Total órdenes"      value={String(total)} />
           <KpiCard label="Activas"            value={String(activas)}        sub="En proceso" accent={activas > 0} />
           <KpiCard label="Completadas hoy"    value={String(completadasHoy)} sub="Hoy" />
           <KpiCard label="Canceladas"         value={String(canceladas)} />
+        </div>
+
+        {/* ─── Charts: Donut + Bar ─── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
+          <div className="lg:col-span-1">
+            <ChartContainer
+              title="Órdenes por estado"
+              subtitle="Click para filtrar la tabla"
+              minHeight={260}
+              enableExport
+              exportFilename="ordenes-estado"
+            >
+              <div className="flex flex-col items-center">
+                <DonutChart
+                  segments={donutEstados}
+                  size={170}
+                  thickness={26}
+                  formatValue={(v) => `${v} ${v === 1 ? 'orden' : 'órdenes'}`}
+                  centerLabel="Total"
+                  centerValue={String(total)}
+                  centerSub={filtro !== 'todas'
+                    ? `Filtrado: ${ESTADO_META[filtro as EstadoOrden]?.label ?? filtro}`
+                    : 'órdenes'}
+                  selectedLabel={
+                    filtro !== 'todas'
+                      ? ESTADO_META[filtro as EstadoOrden]?.label
+                      : undefined
+                  }
+                  onSegmentClick={(seg) => {
+                    // buscar el estado original a partir del label del segmento
+                    const estadoEntry = Object.entries(ESTADO_META).find(([, m]) => m.label === seg.label)
+                    if (!estadoEntry) return
+                    const [estado] = estadoEntry
+                    setFiltro(prev => prev === estado ? 'todas' : (estado as EstadoOrden))
+                  }}
+                />
+              </div>
+            </ChartContainer>
+          </div>
+
+          <div className="lg:col-span-2">
+            <ChartContainer
+              title="Órdenes por día de semana"
+              subtitle="Últimos 30 días — agrupadas por estado"
+              minHeight={260}
+              enableExport
+              exportFilename="ordenes-dia-semana"
+            >
+              <div style={{ height: 240 }}>
+                <BarChart
+                  labels={barPorDia.labels}
+                  series={[
+                    { name: 'Completada', color: '#3F7A52', data: barPorDia.completada },
+                    { name: 'Activa',     color: '#D4A333', data: barPorDia.activa     },
+                    { name: 'Cancelada',  color: '#C8102E', data: barPorDia.cancelada  },
+                  ]}
+                  mode="stacked"
+                  showLegend
+                />
+              </div>
+            </ChartContainer>
+          </div>
         </div>
 
         <Card className="p-5">
@@ -162,6 +285,7 @@ export function OrdenesReportePage() {
             </table>
           )}
         </Card>
+        </div>
       </PageContainer>
     </MainLayout>
   )

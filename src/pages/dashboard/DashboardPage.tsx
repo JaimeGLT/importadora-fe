@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
 import { PageTopBar } from '@/components/layout/PageTopBar'
@@ -8,6 +8,15 @@ import { backendToProductoSimple } from '@/lib/queries/inventario.queries'
 import { backendOrdenToDashboard, type DashboardOrden } from '@/lib/queries/ventas.queries'
 import { DASHBOARD_QUERY, type DashboardQueryResult } from '@/lib/queries/dashboard.queries'
 import { SalesChart } from '@/components/ui/SalesChart'
+import {
+  ChartContainer,
+  DonutChart,
+  GaugeChart,
+  HorizontalBarChart,
+  formatBsShort,
+  paletteAt,
+  useChartExport,
+} from '@/components/charts'
 import type { Producto } from '@/types'
 
 // ────── Helpers ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -17,6 +26,17 @@ const fmtBs = (n: number) =>
 
 const fmtUSD = (n: number) =>
   `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+
+// Colores fijos por estado para que el donut y la tabla coincidan siempre
+const ESTADO_DONUT_COLOR: Record<string, string> = {
+  completada:           '#3F7A52', // verde
+  cancelada:            '#C8102E', // brand rojo
+  pendiente_almacenero: '#D4A333', // oro
+  en_preparacion:       '#7A7571', // gris steel
+  listo_para_escaneo:   '#3B82F6', // azul
+  con_faltantes:        '#F97316', // naranja
+  esperando_pago:       '#8B5CF6', // púrpura
+}
 
 function relativeTime(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
@@ -168,16 +188,6 @@ function DashboardSkeleton() {
   )
 }
 
-// ────── Mini bar ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-function MiniBar({ pct, color = 'bg-[#D4A333]' }: { pct: number; color?: string }) {
-  return (
-    <div className="flex-1 bg-[#E8E5E2] rounded-full h-1.5 overflow-hidden">
-      <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${Math.min(pct, 100)}%` }} />
-    </div>
-  )
-}
-
 // ────── Card ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
@@ -248,6 +258,13 @@ export function DashboardPage() {
   const [ordenes,    setOrdenes]    = useState<DashboardOrden[]>([])
   const [tipoCambio, setTipoCambio] = useState<number>(6.96)
 
+  // Filtro cruzado: cuando se clickea un segmento del donut de estados
+  const [filtroEstado, setFiltroEstado] = useState<string | null>(null)
+
+  // Ref al contenedor principal para exportar todo el dashboard como PDF
+  const dashboardRef = useRef<HTMLDivElement | null>(null)
+  const { exportPDF } = useChartExport()
+
   const todayDate     = new Date()
   const today         = todayDate.toISOString().slice(0, 10)
   const firstOfMonth  = today.slice(0, 8) + '01'
@@ -271,6 +288,9 @@ export function DashboardPage() {
     stockCritico, valorInventario, valorInventarioUSD,
     top5productos, sparkline14d, chartDates,
     sinMovimiento,
+    donutEstados,
+    pctStockCritico,
+    pctSinMovimiento,
   } = useMemo(() => {
     const todayDate  = new Date()
     const toDateStr  = (d: Date) => d.toISOString().slice(0, 10)
@@ -297,7 +317,8 @@ export function DashboardPage() {
 
     const ordenesActivas = ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada').length
 
-    const stockCritico       = productos.filter(p => p.stock <= p.stock_minimo && p.estado === 'activo')
+    const productosActivos = productos.filter(p => p.estado === 'activo')
+    const stockCritico       = productosActivos.filter(p => p.stock <= p.stock_minimo)
     const valorInventario    = productos.reduce((s, p) => s + p.stock * p.precio_costo, 0)
     const valorInventarioUSD = productos.reduce((s, p) => s + p.stock * (p.precio_costo / tipoCambio), 0)
 
@@ -335,7 +356,26 @@ export function DashboardPage() {
         .filter(o => new Date(o.fechaCompletada!) >= hace30)
         .flatMap(o => o.items.map(i => i.productoId))
     )
-    const sinMovimiento = productos.filter(p => p.estado === 'activo' && !vendidos30d.has(p.id))
+    const sinMovimiento = productosActivos.filter(p => !vendidos30d.has(p.id))
+
+    // Donut: distribución de ventas (Bs) por estado de orden — acumulado histórico
+    const porEstado = new Map<string, number>()
+    for (const o of ordenes) {
+      porEstado.set(o.estado, (porEstado.get(o.estado) ?? 0) + o.total)
+    }
+    const donutEstados = [...porEstado.entries()]
+      .map(([label, value]) => ({
+        label: label.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        value,
+        color: ESTADO_DONUT_COLOR[label],
+      }))
+      .sort((a, b) => b.value - a.value)
+
+    // Gauges
+    const pctStockCritico  = productosActivos.length > 0
+      ? (stockCritico.length / productosActivos.length) * 100 : 0
+    const pctSinMovimiento = productosActivos.length > 0
+      ? (sinMovimiento.length / productosActivos.length) * 100 : 0
 
     return {
       ventasHoy, ventasMes, ventasHoyPrev, ventasMesPrev,
@@ -343,6 +383,9 @@ export function DashboardPage() {
       stockCritico, valorInventario, valorInventarioUSD,
       top5productos, sparkline14d, chartDates,
       sinMovimiento,
+      donutEstados,
+      pctStockCritico,
+      pctSinMovimiento,
     }
   }, [productos, ordenes, tipoCambio])
 
@@ -356,7 +399,17 @@ export function DashboardPage() {
   const [chartHover, setChartHover] = useState<number | null>(null)
 
   const saludo = "Reportes de Acceso Rápido"
-  const maxTop = top5productos[0]?.unidades ?? 1
+
+  // Pedidos recientes filtrados por el estado seleccionado en el donut (filtro cruzado)
+  const pedidosVis = useMemo(() => {
+    const ord = [...ordenes].reverse()
+    if (!filtroEstado) return ord
+    return ord.filter(o => o.estado === filtroEstado)
+  }, [ordenes, filtroEstado])
+
+  // Para el gauge: el "valor central" muestra el conteo real, no sólo el %
+  const stockCriticoCount = stockCritico.length
+  const productosActivosCount = productos.filter(p => p.estado === 'activo').length
 
   const estadoBadge: Record<string, { label: string; variant: BadgeVariant }> = {
     pendiente_almacenero: { label: 'Pendiente',  variant: 'amber'  },
@@ -393,6 +446,7 @@ export function DashboardPage() {
     <MainLayout>
       <PageTopBar title="Dashboard" section="Principal" />
       <PageContainer>
+        <div ref={dashboardRef}>
 
         {/* ──── Header ────────────────────────────────────────────────────────────────────────────────────────────────────────── */}
         <div className="mb-8 flex items-end justify-between gap-4">
@@ -404,16 +458,28 @@ export function DashboardPage() {
               {saludo}
             </h1>
           </div>
-          {stockCritico.length > 0 && (
-            <Link to="/reportes/inventario"
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#780e18] hover:bg-[#5a0a12] text-white text-xs font-bold rounded-xl transition-colors shadow-sm shrink-0">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => exportPDF(dashboardRef, 'dashboard', `Dashboard ${new Date().toLocaleDateString('es-BO')}`)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white border border-steel-200 hover:border-[#780e18] hover:text-[#780e18] text-steel-600 text-xs font-bold rounded-xl transition-colors shadow-sm"
+              title="Exportar dashboard como PDF"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
               </svg>
-              {stockCritico.length} alertas de stock
-            </Link>
-          )}
+              Exportar PDF
+            </button>
+            {stockCritico.length > 0 && (
+              <Link to="/reportes/inventario"
+                className="flex items-center gap-2 px-4 py-2 bg-[#780e18] hover:bg-[#5a0a12] text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                {stockCritico.length} alertas de stock
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* ──── KPIs ────────────────────────────────────────────────────────────────────────────────────────────────────────────── */}
@@ -527,27 +593,116 @@ export function DashboardPage() {
 
           <Card className="p-5 flex flex-col">
             <SectionTitle to="/reportes/ventas">Top productos (7d)</SectionTitle>
-            <div className="space-y-4 flex-1">
-              {top5productos.map((p, i) => (
-                <div key={p.codigo} className="flex items-start gap-3">
-                  <span className={`text-sm font-black w-6 shrink-0 mt-0.5 tabular-nums ${i === 0 ? 'text-[#780e18]' : 'text-[#D0CBC4]'}`}>
-                    {i + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-[#2D2B2A] leading-tight truncate">{p.nombre}</p>
-                    <p className="text-[10px] text-[#7A7571] mt-0.5 tabular-nums">{p.codigo}</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <MiniBar pct={(p.unidades / maxTop) * 100} color={i === 0 ? 'bg-[#D4A333]' : 'bg-[#E8E5E2]'} />
-                      <span className="text-[10px] font-bold text-[#7A7571] shrink-0 tabular-nums">{p.unidades}</span>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-[10px] text-[#7A7571] tabular-nums">{fmtBs(p.ingreso)}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="flex-1">
+              {top5productos.length === 0 ? (
+                <p className="text-sm text-[#7A7571] text-center py-10">Sin ventas en los últimos 7 días</p>
+              ) : (
+                <HorizontalBarChart
+                  items={top5productos.map((p, i) => ({
+                    id: p.codigo,
+                    label: p.nombre,
+                    sublabel: p.codigo,
+                    value: p.unidades,
+                    displayValue: `${p.unidades} uds`,
+                    color: paletteAt(i),
+                  }))}
+                  formatValue={() => ''}
+                />
+              )}
             </div>
           </Card>
+        </div>
+
+        {/* ──── Distribución + Gauges ──────────────────────────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
+
+          {/* Donut: distribución de ventas por estado de orden */}
+          <div className="lg:col-span-1">
+            <ChartContainer
+              title="Ventas por estado"
+              subtitle={
+                filtroEstado ? (
+                  <span className="inline-flex items-center gap-1.5 text-[#780e18]">
+                    Filtrado: <span className="font-bold capitalize">{filtroEstado.replace(/_/g, ' ')}</span>
+                    <button onClick={() => setFiltroEstado(null)}
+                      className="ml-1 underline text-steel-400 hover:text-[#780e18]">quitar</button>
+                  </span>
+                ) : 'Click en un estado para filtrar pedidos'
+              }
+              minHeight={220}
+              enableExport
+              exportFilename="dashboard-ventas-estado"
+              headerAction={
+                <Link to="/reportes/ordenes"
+                  className="text-[10px] text-[#780e18] hover:text-[#5a0a12] font-bold">
+                  Ver reporte →
+                </Link>
+              }
+            >
+              <div className="flex flex-col items-center">
+                <DonutChart
+                  segments={donutEstados}
+                  size={170}
+                  thickness={26}
+                  formatValue={(v) => `Bs ${formatBsShort(v)}`}
+                  centerLabel="Total ventas"
+                  centerValue={donutEstados.length > 0 ? `Bs ${formatBsShort(donutEstados.reduce((s, d) => s + d.value, 0))}` : '—'}
+                  centerSub={`${ordenes.length} órdenes`}
+                  selectedLabel={filtroEstado ? filtroEstado.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : undefined}
+                  onSegmentClick={(seg) => {
+                    // buscar el estado original (con underscores)
+                    const original = Object.keys(ESTADO_DONUT_COLOR).find(
+                      k => k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) === seg.label
+                    )
+                    setFiltroEstado(prev => prev === original ? null : original ?? null)
+                  }}
+                />
+              </div>
+            </ChartContainer>
+          </div>
+
+          {/* Gauge: % stock crítico */}
+          <div className="lg:col-span-1">
+            <ChartContainer
+              title="Stock crítico"
+              subtitle="Productos bajo el mínimo"
+              minHeight={220}
+              headerAction={
+                <Link to="/reportes/inventario"
+                  className="text-[10px] text-[#780e18] hover:text-[#5a0a12] font-bold">
+                  Ver →
+                </Link>
+              }
+            >
+              <GaugeChart
+                value={pctStockCritico}
+                label="Stock crítico"
+                sublabel={`${stockCriticoCount} de ${productosActivosCount}`}
+              />
+            </ChartContainer>
+          </div>
+
+          {/* Gauge: % sin movimiento */}
+          <div className="lg:col-span-1">
+            <ChartContainer
+              title="Sin movimiento"
+              subtitle="Sin ventas en 30 días"
+              minHeight={220}
+              headerAction={
+                <Link to="/reportes/inventario"
+                  className="text-[10px] text-[#780e18] hover:text-[#5a0a12] font-bold">
+                  Ver →
+                </Link>
+              }
+            >
+              <GaugeChart
+                value={pctSinMovimiento}
+                label="Sin movimiento"
+                sublabel={`${sinMovimiento.length} de ${productosActivosCount}`}
+                thresholds={{ ok: 25, warn: 50 }}
+              />
+            </ChartContainer>
+          </div>
         </div>
 
         {/* ──── Stock crítico + Valor inventario ──────────────────────────────────────────────────────── */}
@@ -632,12 +787,23 @@ export function DashboardPage() {
         <div className="grid grid-cols-1 gap-5 mb-5">
 
           <Card className="p-5">
-            <SectionTitle to="/ventas/caja">Pedidos recientes</SectionTitle>
+            <SectionTitle to="/ventas/caja">
+              <span className="flex items-center gap-2">
+                Pedidos recientes
+                {filtroEstado && (
+                  <span className="text-[#780e18] font-bold normal-case tracking-normal">
+                    · {pedidosVis.length}
+                  </span>
+                )}
+              </span>
+            </SectionTitle>
             <div className="space-y-1">
-              {ordenes.length === 0 ? (
-                <p className="text-sm text-[#7A7571] text-center py-10">Sin órdenes</p>
+              {pedidosVis.length === 0 ? (
+                <p className="text-sm text-[#7A7571] text-center py-10">
+                  {filtroEstado ? 'Sin pedidos para este estado' : 'Sin órdenes'}
+                </p>
               ) : (
-                [...ordenes].reverse().slice(0, 10).map(o => {
+                pedidosVis.slice(0, 10).map(o => {
                   const bs = estadoBadge[o.estado] ?? { label: o.estado, variant: 'gray' as BadgeVariant }
                   const borderColor = statusBorderColor[o.estado] ?? 'border-l-[#D0CBC4]'
                   return (
@@ -693,6 +859,7 @@ export function DashboardPage() {
           </Card>
         )}
 
+        </div>
       </PageContainer>
     </MainLayout>
   )
