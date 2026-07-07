@@ -7,7 +7,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ROLE_HOME } from '@/lib/roles'
 import { lazy, Suspense } from 'react'
-
+ 
 const LoginPage              = lazy(() => import('@/pages/auth/LoginPage').then(m => ({ default: m.LoginPage })))
 const DashboardPage          = lazy(() => import('@/pages/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })))
 const InventarioPage         = lazy(() => import('@/pages/inventario/InventarioPage').then(m => ({ default: m.InventarioPage })))
