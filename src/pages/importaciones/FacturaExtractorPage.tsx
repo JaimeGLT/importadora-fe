@@ -91,6 +91,26 @@ export function FacturaExtractorPage() {
     }
   }
 
+  async function leerError(res: Response): Promise<string> {
+    const text = await res.text().catch(() => '')
+    try {
+      const json = JSON.parse(text) as { error?: string }
+      if (json.error) return json.error
+    } catch { /* usar msg por defecto */ }
+    return `Error ${res.status}`
+  }
+
+  function esperar(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
+  // El backend procesa la factura en background (puede tardar minutos con PDFs
+  // largos) y devuelve un jobId al toque. Acá se hace polling del estado en vez
+  // de esperar una sola respuesta larga — así el proxy de Railway nunca corta
+  // la conexión por timeout (eso generaba 502 antes).
+  const MAX_ESPERA_MS = 10 * 60 * 1000 // 10 minutos
+  const INTERVALO_POLL_MS = 3000
+
   async function procesar() {
     if (archivos.length === 0 || estado === 'procesando') return
     setEstado('procesando')
@@ -105,17 +125,40 @@ export function FacturaExtractorPage() {
         body: formData,
       })
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => '')
-        let msg = `Error ${res.status}`
-        try {
-          const json = JSON.parse(text) as { error?: string }
-          if (json.error) msg = json.error
-        } catch { /* usar msg por defecto */ }
-        throw new Error(msg)
+      if (!res.ok) throw new Error(await leerError(res))
+
+      const { jobId } = await res.json() as { jobId: string }
+
+      const desde = Date.now()
+      let terminado = false
+
+      while (!terminado) {
+        if (Date.now() - desde > MAX_ESPERA_MS) {
+          throw new Error('El procesamiento está tardando demasiado. Intentá de nuevo.')
+        }
+
+        await esperar(INTERVALO_POLL_MS)
+
+        const estadoRes = await fetch(`${BASE_URL}/factura/extraer/${jobId}/estado`, {
+          credentials: 'include',
+        })
+        if (!estadoRes.ok) throw new Error(await leerError(estadoRes))
+
+        const { estado: estadoJob, error } = await estadoRes.json() as {
+          estado: 'Pendiente' | 'Procesando' | 'Completado' | 'Error'
+          error?: string
+        }
+
+        if (estadoJob === 'Error') throw new Error(error ?? 'Error al procesar los archivos')
+        if (estadoJob === 'Completado') terminado = true
       }
 
-      const blob = await res.blob()
+      const resultadoRes = await fetch(`${BASE_URL}/factura/extraer/${jobId}/resultado`, {
+        credentials: 'include',
+      })
+      if (!resultadoRes.ok) throw new Error(await leerError(resultadoRes))
+
+      const blob = await resultadoRes.blob()
       const nombre = archivos.length === 1
         ? archivos[0].name.replace(/\.[^.]+$/, '') + '_limpio.xlsx'
         : `factura_procesada_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}.xlsx`
