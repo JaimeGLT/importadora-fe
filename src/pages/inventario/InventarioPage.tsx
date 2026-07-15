@@ -112,7 +112,7 @@ function TableSkeleton() {
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
-function EmptyState({ onNew, searching }: { onNew: () => void; searching: boolean }) {
+function EmptyState({ onNew, searching, showNew = true }: { onNew: () => void; searching: boolean; showNew?: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-5 text-center">
       <div className="w-12 h-12 rounded-lg bg-white border border-[#E8E5E2] flex items-center justify-center mb-4">
@@ -126,7 +126,7 @@ function EmptyState({ onNew, searching }: { onNew: () => void; searching: boolea
           ? 'No hay productos que coincidan con esta búsqueda.'
           : 'Agrega tu primer producto o importa desde Excel.'}
       </p>
-      {!searching && (
+      {!searching && showNew && (
         <button onClick={onNew}
           className="px-5 py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-lg flex items-center gap-2 text-sm font-semibold transition-all shadow-sm">
           <i className="ti ti-plus text-base" />
@@ -243,7 +243,8 @@ function getMarcaNombre(marcaId: number | null | undefined, marcas: Marca[]): st
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function InventarioPage() {
-  const { isTokenReady } = useAuth()
+  const { isTokenReady, user } = useAuth()
+  const isCajero = user?.rol === 'cajero'
   const [modalOpen, setModalOpen]               = useState(false)
   const [importOpen, setImportOpen]             = useState(false)
   const [allProductos, setAllProductos]         = useState<Producto[]>([])
@@ -566,7 +567,8 @@ export function InventarioPage() {
   }), [products, totalCount])
 
   // ── Columns ────────────────────────────────────────────────────────────────
-  const columns = useMemo(() => [
+  const columns = useMemo(() => {
+    const cols = [
     colHelper.display({
       id: 'imagen',
       header: '',
@@ -703,7 +705,7 @@ export function InventarioPage() {
         </div>
       ),
     }),
-    colHelper.accessor('precio_costo', {
+    ...(isCajero ? [] : [colHelper.accessor('precio_costo', {
       header: () => (
         <span className="inline-flex items-baseline gap-1">
           <span className="text-[9px] font-normal opacity-60 normal-case">Bs.</span>
@@ -711,25 +713,35 @@ export function InventarioPage() {
         </span>
       ),
       size: 120,
-      meta: { align: 'left' }
-    }),
+      meta: { align: 'left' },
+    })]),
     colHelper.display({
       id: 'acciones',
       header: '',
-      size: 120,
+      size: isCajero ? 90 : 120,
       meta: { align: 'right' },
       enableSorting: false,
       cell: (info) => {
         const p = info.row.original
         return (
           <div className="flex justify-end gap-1.5">
-            <button
-              onClick={() => handleEdit(p)}
-              title="Editar"
-              className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#E8D4B8] hover:text-[#780e18] hover:border-[#780e18] transition-all"
-            >
-              <i className="ti ti-edit text-[14px]" />
-            </button>
+            {isCajero ? (
+              <button
+                onClick={() => handleEdit(p)}
+                title="Ver detalle"
+                className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#E8D4B8] hover:text-[#780e18] hover:border-[#780e18] transition-all"
+              >
+                <i className="ti ti-eye text-[14px]" />
+              </button>
+            ) : (
+              <button
+                onClick={() => handleEdit(p)}
+                title="Editar"
+                className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#E8D4B8] hover:text-[#780e18] hover:border-[#780e18] transition-all"
+              >
+                <i className="ti ti-edit text-[14px]" />
+              </button>
+            )}
             <button
               onClick={() => setEtiquetaProducto(p)}
               title="Etiqueta"
@@ -737,19 +749,23 @@ export function InventarioPage() {
             >
               <i className="ti ti-printer text-[14px]" />
             </button>
-            <button
-              onClick={() => setConfirmDelete(p)}
-              title="Eliminar"
-              className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#F5C9C0] hover:text-[#8A1E12] hover:border-[#B23A2A] transition-all"
-            >
-              <i className="ti ti-trash text-[14px]" />
-            </button>
+            {!isCajero && (
+              <button
+                onClick={() => setConfirmDelete(p)}
+                title="Eliminar"
+                className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-[#EDE8E3] border border-[#D0CBC4] text-[#5C5654] hover:bg-[#F5C9C0] hover:text-[#8A1E12] hover:border-[#B23A2A] transition-all"
+              >
+                <i className="ti ti-trash text-[14px]" />
+              </button>
+            )}
           </div>
         )
       },
     }),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [marcas])
+  ]
+    return cols
+  }, [marcas, isCajero])
 
   // ── TanStack Table ─────────────────────────────────────────────────────────
   const table = useReactTable({
@@ -781,33 +797,35 @@ export function InventarioPage() {
                 Gestión de repuestos y autopartes
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0">
-              <button
-                onClick={() => void handleExportar()}
-                disabled={exportando}
-                className="px-[18px] py-2.5 bg-white border border-[#D8D4D0] rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium text-[#4A4744] hover:bg-[#F7F7F7] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {exportando
-                  ? <i className="ti ti-loader-2 text-base animate-spin" />
-                  : <i className="ti ti-table-export text-base" />
-                }
-                {exportando ? 'Exportando...' : 'Exportar'}
-              </button>
-              <button
-                onClick={() => void handleOpenImport()}
-                className="px-[18px] py-2.5 bg-white border border-[#D8D4D0] rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium text-[#4A4744] hover:bg-[#F7F7F7] transition-all"
-              >
-                <i className="ti ti-upload text-base" />
-                Importar
-              </button>
-              <button
-                onClick={handleNew}
-                className="px-[18px] py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold active:scale-95 transition-all shadow-sm"
-              >
-                <i className="ti ti-plus text-base" />
-                Nuevo producto
-              </button>
-            </div>
+            {!isCajero && (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0">
+                <button
+                  onClick={() => void handleExportar()}
+                  disabled={exportando}
+                  className="px-[18px] py-2.5 bg-white border border-[#D8D4D0] rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium text-[#4A4744] hover:bg-[#F7F7F7] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {exportando
+                    ? <i className="ti ti-loader-2 text-base animate-spin" />
+                    : <i className="ti ti-table-export text-base" />
+                  }
+                  {exportando ? 'Exportando...' : 'Exportar'}
+                </button>
+                <button
+                  onClick={() => void handleOpenImport()}
+                  className="px-[18px] py-2.5 bg-white border border-[#D8D4D0] rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium text-[#4A4744] hover:bg-[#F7F7F7] transition-all"
+                >
+                  <i className="ti ti-upload text-base" />
+                  Importar
+                </button>
+                <button
+                  onClick={handleNew}
+                  className="px-[18px] py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold active:scale-95 transition-all shadow-sm"
+                >
+                  <i className="ti ti-plus text-base" />
+                  Nuevo producto
+                </button>
+              </div>
+            )}
           </div>
 
           {/* ── Metrics Grid ─────────────────────────────────────────────── */}
@@ -865,25 +883,27 @@ export function InventarioPage() {
             </div>
 
             {/* Valor Almacén */}
-            <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#3F7A52] p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
-              <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-[#3F7A52] opacity-[0.08]" />
-              <div className="flex items-start justify-between mb-[14px]">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#3F7A52] to-[#6BAF80] flex items-center justify-center shrink-0">
-                  <i className="ti ti-currency-dollar text-white text-[16px]" />
+            {!isCajero && (
+              <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#3F7A52] p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+                <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-[#3F7A52] opacity-[0.08]" />
+                <div className="flex items-start justify-between mb-[14px]">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#3F7A52] to-[#6BAF80] flex items-center justify-center shrink-0">
+                    <i className="ti ti-currency-dollar text-white text-[16px]" />
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#B8DCCA] text-[#1E5C38]">
+                    al costo
+                  </span>
                 </div>
-                <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#B8DCCA] text-[#1E5C38]">
-                  al costo
-                </span>
+                <div
+                  className="font-semibold text-[26px] text-[#2D2B2A] leading-none tracking-[-0.025em] flex items-baseline gap-1"
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  <span className="text-[13px] font-semibold text-[#3F7A52]">Bs.</span>
+                  {fmtBs(kpi.totalValor)}
+                </div>
+                <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Valor almacén</div>
               </div>
-              <div
-                className="font-semibold text-[26px] text-[#2D2B2A] leading-none tracking-[-0.025em] flex items-baseline gap-1"
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
-              >
-                <span className="text-[13px] font-semibold text-[#3F7A52]">Bs.</span>
-                {fmtBs(kpi.totalValor)}
-              </div>
-              <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Valor almacén</div>
-            </div>
+            )}
 
             {/* Unidades Totales */}
             <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#D4A333] p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
@@ -960,7 +980,7 @@ export function InventarioPage() {
                 <div className="md:hidden"><MobileSkeletonRows /></div>
               </>
             ) : displayProducts.length === 0 ? (
-              <EmptyState onNew={handleNew} searching={!!searchTerm} />
+              <EmptyState onNew={handleNew} searching={!!searchTerm} showNew={!isCajero} />
             ) : (
               <>
                 {/* ── Desktop table ── */}
@@ -1106,7 +1126,8 @@ export function InventarioPage() {
         open={modalOpen}
         onClose={() => { setModalOpen(false); setEditingProducto(null) }}
         onSave={handleSave}
-        onDelete={editingProducto ? () => { setModalOpen(false); setConfirmDelete(editingProducto) } : undefined}
+        onDelete={!isCajero && editingProducto ? () => { setModalOpen(false); setConfirmDelete(editingProducto) } : undefined}
+        readOnly={isCajero}
         producto={editingProducto}
         loading={loadingModal}
         productosExistentes={products}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { clsx } from 'clsx'
 import { Button, WarmInput, DrawerWrapper, FormSection, ImageUploader } from '@/components/ui'
 import type { ImageUploaderState } from '@/components/ui/ImageUploader'
 import { BrandSelect } from '@/components/ui/BrandSelect'
@@ -39,6 +40,7 @@ interface ProductoModalProps {
   loading?: boolean
   productosExistentes?: Producto[]
   marcas?: import('@/types').Marca[]
+  readOnly?: boolean
 }
 
 type FormData = Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>
@@ -85,7 +87,7 @@ function SkeletonField({ labelWidth = 24 }: { labelWidth?: number }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function ProductoModal({
-  open, onClose, onSave, onDelete, producto, loading, productosExistentes = [], marcas,
+  open, onClose, onSave, onDelete, producto, loading, productosExistentes = [], marcas, readOnly = false,
 }: ProductoModalProps) {
   const [form, setForm]       = useState<FormData>(EMPTY)
   const [tipoCambio, setTipoCambio] = useState('6.96')
@@ -299,27 +301,35 @@ export function ProductoModal({
       title={producto ? (producto.nombre?.trim() || '(sin nombre)') : 'Registrar autoparte'}
       sku={producto?.codigo_universal}
       footer={
-        <>
-          {producto && onDelete && (
-            <button
-              onClick={onDelete} disabled={saving}
-              className="h-[42px] w-[42px] flex items-center justify-center rounded-xl border border-[#E8E5E2] text-[#7A7571] bg-white hover:bg-[#F5C9C0] hover:text-[#B23A2A] hover:border-[#B23A2A] transition-all mr-auto disabled:opacity-40"
-              title="Eliminar producto"
-            >
-              <i className="ti ti-trash text-[20px]" />
-            </button>
-          )}
+        readOnly ? (
           <Button variant="secondary"
-            className="h-[42px] px-5 rounded-xl !border-[#E8E5E2] !text-[#4A4744] !bg-white hover:!bg-[#F0EFEC] !text-[13.5px] !font-semibold"
-            onClick={onClose} disabled={saving}>
-            Cancelar
+            className="h-[42px] px-5 rounded-xl !border-[#E8E5E2] !text-[#4A4744] !bg-white hover:!bg-[#F0EFEC] !text-[13.5px] !font-semibold ml-auto"
+            onClick={onClose}>
+            Cerrar
           </Button>
-          <Button
-            className="h-[42px] px-5 rounded-xl !bg-[#D4A333] hover:!bg-[#B4881C] !text-[#2D2010] !text-[13.5px] !font-bold shadow-sm"
-            onClick={() => void handleSave()} loading={saving}>
-            {producto ? 'Guardar cambios' : 'Crear producto'}
-          </Button>
-        </>
+        ) : (
+          <>
+            {producto && onDelete && (
+              <button
+                onClick={onDelete} disabled={saving}
+                className="h-[42px] w-[42px] flex items-center justify-center rounded-xl border border-[#E8E5E2] text-[#7A7571] bg-white hover:bg-[#F5C9C0] hover:text-[#B23A2A] hover:border-[#B23A2A] transition-all mr-auto disabled:opacity-40"
+                title="Eliminar producto"
+              >
+                <i className="ti ti-trash text-[20px]" />
+              </button>
+            )}
+            <Button variant="secondary"
+              className="h-[42px] px-5 rounded-xl !border-[#E8E5E2] !text-[#4A4744] !bg-white hover:!bg-[#F0EFEC] !text-[13.5px] !font-semibold"
+              onClick={onClose} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button
+              className="h-[42px] px-5 rounded-xl !bg-[#D4A333] hover:!bg-[#B4881C] !text-[#2D2010] !text-[13.5px] !font-bold shadow-sm"
+              onClick={() => void handleSave()} loading={saving}>
+              {producto ? 'Guardar cambios' : 'Crear producto'}
+            </Button>
+          </>
+        )
       }
     >
       {isLoading ? (
@@ -347,7 +357,7 @@ export function ProductoModal({
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
+        <fieldset disabled={readOnly} className="space-y-4 border-0 p-0 m-0 min-w-0">
 
           {/* Identificación */}
           <FormSection icon={<IconBarcode />} title="Identificación" description="Códigos únicos que identifican el producto" iconClass="bg-[#780e18] text-white shadow-sm">
@@ -400,25 +410,51 @@ export function ProductoModal({
               </span>
             }
           >
-            <ImageUploader
-              key={producto?.id ?? 'new'}
-              productoId={producto ? Number(producto.id) : undefined}
-              imagenes={imagenes}
-              onChange={setImageOps}
-              isSaving={saving}
-            />
+            {readOnly ? (
+              imagenes.length === 0 ? (
+                <p className="text-[12.5px] text-[#7A7571] italic py-2">No hay imágenes para este producto</p>
+              ) : (
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
+                  {imagenes.map((img) => (
+                    <img
+                      key={img.id}
+                      src={img.url}
+                      alt=""
+                      className="w-full aspect-square object-cover rounded-lg border border-[#E8E5E2]"
+                    />
+                  ))}
+                </div>
+              )
+            ) : (
+              <ImageUploader
+                key={producto?.id ?? 'new'}
+                productoId={producto ? Number(producto.id) : undefined}
+                imagenes={imagenes}
+                onChange={setImageOps}
+                isSaving={saving}
+              />
+            )}
           </FormSection>
 
           {/* Descripción */}
           <FormSection icon={<IconClipboard />} title="Descripción" description="Marca y detalle del producto" iconClass="bg-[#780e18] text-white shadow-sm">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <BrandSelect
-                label="Marca"
-                value={form.marcaId ?? null}
-                onChange={(id) => set('marcaId', id)}
-                marcas={marcas}
-                placeholder="Seleccionar marca…"
-              />
+              {readOnly ? (
+                <div>
+                  <label className="block text-[12.5px] font-semibold text-[#4A4744] mb-1.5">Marca</label>
+                  <div className="h-[42px] flex items-center px-3.5 rounded-xl border border-[#E8E5E2] bg-[#FBFAF7] text-[13.5px] text-[#2D2B2A]">
+                    {getMarcaNombreModal(form.marcaId, marcas) || <span className="text-[#A09A95] italic">Sin marca</span>}
+                  </div>
+                </div>
+              ) : (
+                <BrandSelect
+                  label="Marca"
+                  value={form.marcaId ?? null}
+                  onChange={(id) => set('marcaId', id)}
+                  marcas={marcas}
+                  placeholder="Seleccionar marca…"
+                />
+              )}
               <WarmInput
                 multiline
                 rows={3}
@@ -506,6 +542,34 @@ export function ProductoModal({
             ) : undefined}
           >
             <div className="space-y-4">
+              {readOnly ? (
+                <>
+                  {producto?.es_kit ? (
+                    (producto.piezas_kit?.length ?? 0) === 0 ? (
+                      <p className="text-[12.5px] text-[#7A7571] italic py-2">Sin piezas</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {producto.piezas_kit!.map((pz) => (
+                          <div key={pz.id} className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-[#E8E5E2] bg-[#FBFAF7]">
+                            <span className="text-[13px] text-[#2D2B2A]">{pz.nombre}</span>
+                            <span className="text-[12px] text-[#7A7571]">x{pz.cantidad_por_kit} · stock {pz.stock_actual}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  ) : producto?.kit_id ? (
+                    <div className="p-3.5 rounded-xl bg-[#FBFAF7] border border-[#E8E5E2]">
+                      <p className="text-[12px] text-[#7A7571]">
+                        Parte del kit:{' '}
+                        <span className="font-bold text-[#2D2B2A]">{getKitNombre(producto.kit_id, productosExistentes)}</span>
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-[12.5px] text-[#7A7571] italic py-2">Sin piezas</p>
+                  )}
+                </>
+              ) : (
+                <>
               <label className="flex items-center gap-2.5 cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -574,21 +638,25 @@ export function ProductoModal({
                   </p>
                 </div>
               )}
+                </>
+              )}
             </div>
           </FormSection>
 
           {/* Precios */}
-          <FormSection icon={<IconCurrency />} title="Precios" description="Costos, precio de venta y tipo de cambio" iconClass="bg-[#D4A333] text-[#2D2010] shadow-sm">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <WarmInput
-                label="Precio costo (Bs) *"
-                type="number"
-                step="0.01"
-                value={form.precio_costo}
-                onChange={(e) => set('precio_costo', Number(e.target.value))}
-                error={errors.precio_costo}
-                readOnly={!!producto}
-              />
+          <FormSection icon={<IconCurrency />} title="Precios" description={readOnly ? 'Precio de venta' : 'Costos, precio de venta y tipo de cambio'} iconClass="bg-[#D4A333] text-[#2D2010] shadow-sm">
+            <div className={clsx('grid grid-cols-1 gap-3', readOnly ? 'sm:grid-cols-1' : 'sm:grid-cols-3')}>
+              {!readOnly && (
+                <WarmInput
+                  label="Precio costo (Bs) *"
+                  type="number"
+                  step="0.01"
+                  value={form.precio_costo}
+                  onChange={(e) => set('precio_costo', Number(e.target.value))}
+                  error={errors.precio_costo}
+                  readOnly={!!producto}
+                />
+              )}
               <div>
                 <WarmInput
                   label="Precio venta (Bs)"
@@ -605,22 +673,24 @@ export function ProductoModal({
                   </p>
                 )}
               </div>
-              <WarmInput
-                label="Tipo de cambio (Bs/$)"
-                type="number"
-                step="0.01"
-                value={tipoCambio}
-                onChange={(e) => {
-                  setTipoCambio(e.target.value)
-                  set('conversionABs', parseFloat(e.target.value) || 6.96)
-                  setErrors((er) => ({ ...er, tipo_cambio: undefined }))
-                }}
-                error={errors.tipo_cambio}
-                hint="Se guarda en el historial de precios"
-                readOnly={!!producto}
-              />
+              {!readOnly && (
+                <WarmInput
+                  label="Tipo de cambio (Bs/$)"
+                  type="number"
+                  step="0.01"
+                  value={tipoCambio}
+                  onChange={(e) => {
+                    setTipoCambio(e.target.value)
+                    set('conversionABs', parseFloat(e.target.value) || 6.96)
+                    setErrors((er) => ({ ...er, tipo_cambio: undefined }))
+                  }}
+                  error={errors.tipo_cambio}
+                  hint="Se guarda en el historial de precios"
+                  readOnly={!!producto}
+                />
+              )}
             </div>
-            {margen !== null && (
+            {!readOnly && margen !== null && (
               <div className="mt-3.5 flex items-center gap-2 flex-wrap">
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-[#3F7A52] px-3 py-1">
                   <i className="ti ti-trending-up text-white text-xs" />
@@ -635,7 +705,7 @@ export function ProductoModal({
           </FormSection>
 
           {/* Actualizar precios (solo edición) */}
-          {producto && (
+          {producto && !readOnly && (
             <div className="rounded-[14px] border-2 border-dashed border-amber-300 bg-amber-50/50 overflow-hidden">
               <div className="px-5 py-3.5 flex items-center gap-3">
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">
@@ -708,7 +778,7 @@ export function ProductoModal({
           )}
 
           {/* Historial de precios */}
-          {form.historial_precios.length > 0 && (
+          {!readOnly && form.historial_precios.length > 0 && (
             <FormSection
               icon={<IconHistory />}
               title="Historial de precios"
@@ -746,7 +816,7 @@ export function ProductoModal({
               </div>
             </FormSection>
           )}
-        </div>
+        </fieldset>
       )}
     </DrawerWrapper>
 
@@ -763,6 +833,11 @@ export function ProductoModal({
 function getKitNombre(kitId: string | null | undefined, productos: Producto[]): string {
   if (!kitId) return '—'
   return productos.find((p) => p.id === kitId)?.nombre ?? '—'
+}
+
+function getMarcaNombreModal(marcaId: number | null | undefined, marcas?: import('@/types').Marca[]): string {
+  if (!marcaId || !marcas) return ''
+  return marcas.find((m) => Number(m.id) === marcaId)?.nombre ?? ''
 }
 
 /* ── Icons ── */

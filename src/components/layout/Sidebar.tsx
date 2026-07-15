@@ -21,7 +21,7 @@ const groups: NavGroup[] = [
     label: 'Inventario',
     icon: <i className="ti ti-package text-[16px] shrink-0" />,
     items: [
-      { label: 'Productos',  to: '/inventario',            roles: ['admin'] },
+      { label: 'Productos',  to: '/inventario',            roles: ['admin', 'cajero'] },
       { label: 'Ajustes',    to: '/inventario/ajustes',   roles: ['admin', 'almacenero', 'cajero'] },
       { label: 'Marcas',     to: '/inventario/marcas',    roles: ['admin'] },
     ],

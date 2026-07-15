@@ -71,7 +71,6 @@ export default function App() {
               <Route path="/reportes/inventario" element={<InventarioReportePage />} />
               <Route path="/reportes/ordenes" element={<OrdenesReportePage />} />
               <Route path="/reportes/comisiones" element={<ComisionesPage />} />
-              <Route path="/inventario" element={<InventarioPage />} />
               <Route path="/inventario/marcas" element={<MarcasPage />} />
               <Route path="/importaciones" element={<ImportacionesPage />} />
               <Route path="/importaciones/proveedores" element={<ProveedoresPage />} />
@@ -82,6 +81,10 @@ export default function App() {
 
             <Route element={<RoleGuard allowedRoles={['admin', 'almacenero']} />}>
               <Route path="/ventas/almacen" element={<AlmacenPage />} />
+            </Route>
+
+            <Route element={<RoleGuard allowedRoles={['admin', 'cajero']} />}>
+              <Route path="/inventario" element={<InventarioPage />} />
             </Route>
 
             <Route element={<RoleGuard allowedRoles={['admin', 'almacenero', 'cajero']} />}>
