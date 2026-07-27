@@ -63,8 +63,19 @@ async function requestWithInterceptor<T>(path: string, options: RequestOptions =
   if (!response.ok) {
     const text = await response.text().catch(() => response.statusText)
     try {
-      const json = JSON.parse(text) as { error?: string; title?: string; message?: string }
-      const msg = json.error ?? json.title ?? json.message
+      const json = JSON.parse(text) as {
+        error?: string
+        title?: string
+        message?: string
+        errors?: Record<string, string[]>
+      }
+      // ValidationProblemDetails de ASP.NET: { title: "One or more validation
+      // errors occurred.", errors: { Campo: ["mensaje"] } }. El título genérico
+      // no sirve para mostrar al usuario — extraemos los mensajes reales.
+      const camposInvalidos = json.errors
+        ? Object.values(json.errors).flat().filter(Boolean)
+        : []
+      const msg = json.error ?? (camposInvalidos.length ? camposInvalidos.join(' ') : json.title) ?? json.message
       if (msg) throw new Error(msg)
     } catch (err) {
       if (err instanceof Error && err.message && err.message !== text) throw err
@@ -95,8 +106,19 @@ async function requestNoIntercept<T>(path: string, options: RequestOptions = {})
   if (!response.ok) {
     const text = await response.text().catch(() => response.statusText)
     try {
-      const json = JSON.parse(text) as { error?: string; title?: string; message?: string }
-      const msg = json.error ?? json.title ?? json.message
+      const json = JSON.parse(text) as {
+        error?: string
+        title?: string
+        message?: string
+        errors?: Record<string, string[]>
+      }
+      // ValidationProblemDetails de ASP.NET: { title: "One or more validation
+      // errors occurred.", errors: { Campo: ["mensaje"] } }. El título genérico
+      // no sirve para mostrar al usuario — extraemos los mensajes reales.
+      const camposInvalidos = json.errors
+        ? Object.values(json.errors).flat().filter(Boolean)
+        : []
+      const msg = json.error ?? (camposInvalidos.length ? camposInvalidos.join(' ') : json.title) ?? json.message
       if (msg) throw new Error(msg)
     } catch (err) {
       if (err instanceof Error && err.message && err.message !== text) throw err
