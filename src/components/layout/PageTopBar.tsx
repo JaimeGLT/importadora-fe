@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { NotificacionesBell } from './NotificacionesBell'
 import { useAuth } from '@/contexts/AuthContext'
+import { isAdminRole } from '@/lib/roles'
 
 interface PageTopBarProps {
   title: string
@@ -39,7 +40,7 @@ export function PageTopBar({ title, section = 'Operaciones', subsection }: PageT
           <span className="text-xs text-[#4A4744]">{dateStr}</span>
         </div>
 
-        {user?.rol === 'admin' && (
+        {isAdminRole(user?.rol) && (
           <div className="flex items-center gap-1.5">
             <NotificacionesBell />
             <button

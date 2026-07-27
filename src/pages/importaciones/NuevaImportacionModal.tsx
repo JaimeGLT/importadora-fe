@@ -240,7 +240,7 @@ function calcItems(
 
     const costo_unitario_total_bs = costo_unitario_fob_bs + costo_unitario_adicional_bs
 
-    const precio_venta_sugerido = Math.ceil(costo_unitario_total_bs * margenBd * 100) / 100
+    const precio_venta_sugerido = Math.ceil(costo_unitario_total_bs * margenBd)
 
     const precio_venta_final =
       raw.precio_venta_manual > 0 ? raw.precio_venta_manual : precio_venta_sugerido

@@ -1,6 +1,6 @@
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
-export type RolUsuario = 'admin' | 'cajero' | 'almacenero' | 'operador'
+export type RolUsuario = 'superadmin' | 'admin' | 'cajero' | 'almacenero' | 'operador'
 
 export interface Usuario {
   id: string

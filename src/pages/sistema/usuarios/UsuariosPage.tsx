@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { PageTopBar } from '@/components/layout/PageTopBar'
@@ -32,6 +32,7 @@ interface UsuarioAPI {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const ROL_LABELS: Record<string, string> = {
+  SuperAdmin: 'Superadministrador',
   Admin: 'Administrador',
   Cajero: 'Cajero',
   Almacenero: 'Almacenero',
@@ -488,7 +489,10 @@ const ROLES_DISPONIBLES: { value: string; label: string }[] = [
   { value: 'Operador',    label: 'Operador' },
 ]
 
-function CrearUsuarioModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+const ROL_SUPERADMIN = { value: 'SuperAdmin', label: 'Superadministrador' }
+
+function CrearUsuarioModal({ onClose, onSuccess, puedeCrearSuperAdmin }: { onClose: () => void; onSuccess: () => void; puedeCrearSuperAdmin: boolean }) {
+  const rolesDisponibles = puedeCrearSuperAdmin ? [ROL_SUPERADMIN, ...ROLES_DISPONIBLES] : ROLES_DISPONIBLES
   const [form, setForm] = useState({ nombre: '', apellido: '', email: '', password: '', rol: 'Cajero' })
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Partial<typeof form>>({})
@@ -579,7 +583,7 @@ function CrearUsuarioModal({ onClose, onSuccess }: { onClose: () => void; onSucc
           <div>
             <label className="block text-xs font-semibold text-[#4A4744] mb-2">Rol *</label>
             <div className="grid grid-cols-2 gap-2">
-              {ROLES_DISPONIBLES.map(r => (
+              {rolesDisponibles.map(r => (
                 <button
                   key={r.value}
                   type="button"
@@ -807,9 +811,10 @@ export function UsuariosPage() {
   }
 
   const canDelete = (u: UsuarioAPI) => {
-    if (me?.rol !== 'admin') return false
+    if (me?.rol !== 'admin' && me?.rol !== 'superadmin') return false
     if (u.email === me?.email) return false
-    if (u.rol === 'Admin') return false
+    if (u.rol === 'SuperAdmin') return false
+    if (u.rol === 'Admin' && me?.rol !== 'superadmin') return false
     return true
   }
 
@@ -1123,6 +1128,7 @@ export function UsuariosPage() {
         <CrearUsuarioModal
           onClose={() => setShowCrear(false)}
           onSuccess={load}
+          puedeCrearSuperAdmin={me?.rol === 'superadmin'}
         />
       )}
 
@@ -1223,9 +1229,157 @@ function Toggle({ activo, toggling, onToggle, disabled }: { activo: boolean; tog
   )
 }
 
+// ─── Menú de acciones (⋮) ─────────────────────────────────────────────────────
+
+interface AccionItem {
+  key: string
+  label: string
+  icon: string
+  onClick: () => void
+  disabled?: boolean
+  disabledTitle?: string
+  destructive?: boolean
+}
+
+function AccionesMenu({ groups }: { groups: { title: string; items: AccionItem[] }[] }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onClickOutside)
+    document.addEventListener('keydown', onEscape)
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside)
+      document.removeEventListener('keydown', onEscape)
+    }
+  }, [open])
+
+  const visibleGroups = groups.filter(g => g.items.length > 0)
+  if (visibleGroups.length === 0) return null
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen(o => !o) }}
+        title="Más acciones"
+        className={clsx(
+          'w-8 h-8 flex items-center justify-center rounded-[6px] transition-colors border',
+          open
+            ? 'bg-[#F0EFEC] text-[#2D2B2A] border-[#D0CBC4]'
+            : 'bg-white text-[#7A7571] border-[#E8E5E2] hover:bg-[#F0EFEC]'
+        )}
+      >
+        <i className="ti ti-dots-vertical text-[16px]" />
+      </button>
+      {open && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute right-0 top-full mt-1 z-20 w-56 rounded-xl bg-white border border-[#E8E5E2] shadow-lg overflow-hidden py-1"
+        >
+          {visibleGroups.map((group, gi) => (
+            <div key={group.title} className={clsx(gi > 0 && 'border-t border-[#E8E5E2]', 'py-1')}>
+              <p className="px-3 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wide text-[#B4AFA8]">
+                {group.title}
+              </p>
+              {group.items.map(item => (
+                <button
+                  key={item.key}
+                  disabled={item.disabled}
+                  title={item.disabled ? item.disabledTitle : undefined}
+                  onClick={() => { setOpen(false); item.onClick() }}
+                  className={clsx(
+                    'w-full flex items-center gap-2.5 px-3 py-2 text-[12.5px] font-medium transition-colors text-left',
+                    item.disabled
+                      ? 'opacity-40 cursor-not-allowed text-[#7A7571]'
+                      : item.destructive
+                        ? 'text-[#B23A2A] hover:bg-[#FDF1EE]'
+                        : 'text-[#2D2B2A] hover:bg-[#FAF5EE]'
+                  )}
+                >
+                  <i className={clsx(item.icon, 'text-[14px] w-4 text-center shrink-0')} />
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function buildAccionesGroups(opts: {
+  u: UsuarioAPI
+  isSelf: boolean
+  canDelete: boolean
+  esCajero: boolean
+  onHorario: () => void
+  onBloquearHasta: () => void
+  onComision: () => void
+  onDelete: () => void
+}): { title: string; items: AccionItem[] }[] {
+  const { u, isSelf, canDelete, esCajero, onHorario, onBloquearHasta, onComision, onDelete } = opts
+  const disabledTitleSelf = 'No puedes hacer esto sobre tu propio usuario'
+
+  return [
+    {
+      title: 'Acceso',
+      items: [
+        {
+          key: 'bloquear',
+          label: u.activo ? 'Bloquear hasta fecha' : 'Cambiar fecha de bloqueo',
+          icon: 'ti ti-calendar',
+          onClick: onBloquearHasta,
+          disabled: isSelf,
+          disabledTitle: disabledTitleSelf,
+        },
+        {
+          key: 'horario',
+          label: u.horario ? `Horario: ${u.horario.horaInicio}–${u.horario.horaFin}` : 'Horario recurrente',
+          icon: 'ti ti-clock',
+          onClick: onHorario,
+          disabled: isSelf,
+          disabledTitle: disabledTitleSelf,
+        },
+      ],
+    },
+    {
+      title: 'Comisión',
+      items: esCajero ? [
+        {
+          key: 'comision',
+          label: `Editar comisión (${u.porcentajeComision}%)`,
+          icon: 'ti ti-percentage',
+          onClick: onComision,
+          disabled: isSelf,
+          disabledTitle: disabledTitleSelf,
+        },
+      ] : [],
+    },
+    {
+      title: 'Zona de riesgo',
+      items: canDelete ? [
+        {
+          key: 'eliminar',
+          label: 'Eliminar usuario',
+          icon: 'ti ti-trash',
+          onClick: onDelete,
+          destructive: true,
+        },
+      ] : [],
+    },
+  ]
+}
+
 function UsuarioRow({ usuario: u, isSelf, toggling, canDelete, onToggle, onHorario, onBloquearHasta, onComision, onOpenDetalle, onDelete }: RowProps) {
   const hasta = fmtBloqueo(u.bloqueadoHasta)
-  const esCajero = u.rol === 'Cajero'
+  const esCajero = u.rol === 'Cajero' || u.rol === 'Admin' || u.rol === 'SuperAdmin'
+  const accionesGroups = buildAccionesGroups({ u, isSelf, canDelete, esCajero, onHorario, onBloquearHasta, onComision, onDelete })
   return (
     <tr
       onClick={onOpenDetalle}
@@ -1271,59 +1425,8 @@ function UsuarioRow({ usuario: u, isSelf, toggling, canDelete, onToggle, onHorar
         </div>
       </td>
       <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-1 justify-end">
-          {esCajero && (
-            <button
-              onClick={onComision}
-              disabled={isSelf}
-              title={isSelf ? 'No puedes editar tu propia comisión' : 'Editar comisión'}
-              className={clsx(
-                'w-8 h-8 flex items-center justify-center rounded-[6px] transition-all border',
-                isSelf
-                  ? 'opacity-30 cursor-not-allowed bg-[#F0EFEC] text-[#7A7571] border-[#E8E5E2]'
-                  : 'bg-[#F0F9F4] text-[#3F7A52] border-[#C8E6D4] hover:bg-[#C8E6D4]'
-              )}
-            >
-              <i className="ti ti-percentage text-[14px]" />
-            </button>
-          )}
-          <button
-            onClick={onBloquearHasta}
-            disabled={isSelf}
-            title={isSelf ? 'No puedes bloquearte a ti mismo' : u.activo ? 'Bloquear hasta fecha' : 'Cambiar fecha de bloqueo'}
-            className={clsx(
-              'w-8 h-8 flex items-center justify-center rounded-[6px] transition-all border',
-              isSelf
-                ? 'opacity-30 cursor-not-allowed bg-[#F0EFEC] text-[#7A7571] border-[#E8E5E2]'
-                : 'bg-[#F5C9C0]/50 text-[#B23A2A] border-[#F5C9C0] hover:bg-[#F5C9C0]'
-            )}
-          >
-            <i className="ti ti-calendar text-[14px]" />
-          </button>
-          <button
-            onClick={onHorario}
-            disabled={isSelf}
-            title={isSelf ? 'No puedes asignarte un horario a ti mismo' : u.horario ? `Horario recurrente: ${u.horario.horaInicio}–${u.horario.horaFin}` : 'Sin horario recurrente'}
-            className={clsx(
-              'w-8 h-8 flex items-center justify-center rounded-[6px] transition-all border',
-              isSelf
-                ? 'opacity-30 cursor-not-allowed bg-[#F0EFEC] text-[#7A7571] border-[#E8E5E2]'
-                : u.horario
-                  ? 'bg-[#F4ECDB] text-[#780e18] border-[#E8D4B8] hover:bg-[#E8D4B8]'
-                  : 'bg-[#F0EFEC] text-[#7A7571] border-[#E8E5E2] hover:bg-[#E8E5E2]'
-            )}
-          >
-            <i className="ti ti-clock text-[14px]" />
-          </button>
-          {canDelete && (
-            <button
-              onClick={onDelete}
-              title="Eliminar usuario"
-              className="w-8 h-8 flex items-center justify-center rounded-[6px] transition-all border bg-[#FDF1EE] text-[#B23A2A] border-[#F5C9C0] hover:bg-[#F5C9C0]"
-            >
-              <i className="ti ti-trash text-[14px]" />
-            </button>
-          )}
+        <div className="flex items-center justify-end">
+          <AccionesMenu groups={accionesGroups} />
         </div>
       </td>
     </tr>
@@ -1332,7 +1435,8 @@ function UsuarioRow({ usuario: u, isSelf, toggling, canDelete, onToggle, onHorar
 
 function UsuarioCard({ usuario: u, isSelf, toggling, canDelete, onToggle, onHorario, onBloquearHasta, onComision, onOpenDetalle, onDelete }: RowProps) {
   const hasta = fmtBloqueo(u.bloqueadoHasta)
-  const esCajero = u.rol === 'Cajero'
+  const esCajero = u.rol === 'Cajero' || u.rol === 'Admin' || u.rol === 'SuperAdmin'
+  const accionesGroups = buildAccionesGroups({ u, isSelf, canDelete, esCajero, onHorario, onBloquearHasta, onComision, onDelete })
   return (
     <div
       onClick={onOpenDetalle}
@@ -1372,63 +1476,8 @@ function UsuarioCard({ usuario: u, isSelf, toggling, canDelete, onToggle, onHora
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-          {esCajero && (
-            <button
-              onClick={onComision}
-              disabled={isSelf}
-              title={isSelf ? 'No puedes editar tu propia comisión' : 'Editar comisión'}
-              className={clsx(
-                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors border',
-                isSelf
-                  ? 'opacity-30 cursor-not-allowed bg-[#F0EFEC] text-[#7A7571] border-[#E8E5E2]'
-                  : 'bg-[#F0F9F4] text-[#3F7A52] border-[#C8E6D4] hover:bg-[#C8E6D4]'
-              )}
-            >
-              <i className="ti ti-percentage text-[12px]" />
-              Comisión
-            </button>
-          )}
-          <button
-            onClick={onBloquearHasta}
-            disabled={isSelf}
-            title={isSelf ? 'No puedes bloquearte a ti mismo' : undefined}
-            className={clsx(
-              'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors border',
-              isSelf
-                ? 'opacity-30 cursor-not-allowed bg-[#F0EFEC] text-[#7A7571] border-[#E8E5E2]'
-                : 'bg-[#F5C9C0]/40 text-[#B23A2A] border-[#F5C9C0] hover:bg-[#F5C9C0]/70'
-            )}
-          >
-            <i className="ti ti-calendar text-[12px]" />
-            Bloquear
-          </button>
-          <button
-            onClick={onHorario}
-            disabled={isSelf}
-            title={isSelf ? 'No puedes asignarte un horario a ti mismo' : undefined}
-            className={clsx(
-              'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors border',
-              isSelf
-                ? 'opacity-30 cursor-not-allowed bg-[#F0EFEC] text-[#7A7571] border-[#E8E5E2]'
-                : u.horario
-                  ? 'bg-[#F4ECDB] text-[#780e18] border-[#E8D4B8] hover:bg-[#E8D4B8]'
-                  : 'bg-[#F0EFEC] text-[#7A7571] border-[#E8E5E2] hover:bg-[#E8E5E2]'
-            )}
-          >
-            <i className="ti ti-clock text-[12px]" />
-            {u.horario ? `${u.horario.horaInicio}–${u.horario.horaFin}` : 'Horario'}
-          </button>
-          {canDelete && (
-            <button
-              onClick={onDelete}
-              title="Eliminar usuario"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors border bg-[#FDF1EE] text-[#B23A2A] border-[#F5C9C0] hover:bg-[#F5C9C0]"
-            >
-              <i className="ti ti-trash text-[12px]" />
-              Eliminar
-            </button>
-          )}
+        <div onClick={(e) => e.stopPropagation()}>
+          <AccionesMenu groups={accionesGroups} />
         </div>
       </div>
     </div>
@@ -1436,7 +1485,7 @@ function UsuarioCard({ usuario: u, isSelf, toggling, canDelete, onToggle, onHora
 }
 
 function RolBadge({ rol }: { rol: string }) {
-  const isAdmin = rol.toLowerCase() === 'admin'
+  const isAdmin = rol.toLowerCase() === 'admin' || rol.toLowerCase() === 'superadmin'
   return (
     <span
       className="inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold w-fit"

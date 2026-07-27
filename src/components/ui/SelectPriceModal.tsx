@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { Producto } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -14,6 +15,8 @@ const fmtBs = (n: number) =>
 export interface SelectPriceModalProps {
   producto: Producto
   precioBase: number
+  /** Precio actualmente aplicado al item del carrito (si difiere del precio base). Usado pa prellenar el input. */
+  precioActual?: number
   isEdit?: boolean
   onSelect: (precio: number) => void
   onAddAnother?: (precio: number) => void
@@ -23,6 +26,7 @@ export interface SelectPriceModalProps {
 export function SelectPriceModal({
   producto,
   precioBase,
+  precioActual,
   isEdit,
   onSelect,
   onAddAnother,
@@ -37,11 +41,19 @@ export function SelectPriceModal({
       ? 'text-[#7A5200] bg-[#F5E0A8]'
       : 'text-[#1E5C38] bg-[#B8DCCA]'
 
+  const precioInicial = precioActual ?? precioBase
+  const precioModificado = precioActual !== undefined && precioActual !== precioBase
+
+  const [precioValue, setPrecioValue] = useState(precioInicial.toFixed(2))
+  const precioNumerico = parseFloat(precioValue)
+  const precioValido = !isNaN(precioNumerico) && precioNumerico >= 0
+
   const handleSelect = () => {
+    if (!precioValido) return
     if (isEdit && onAddAnother) {
-      onAddAnother(precioBase)
+      onAddAnother(precioNumerico)
     } else {
-      onSelect(precioBase)
+      onSelect(precioNumerico)
     }
   }
 
@@ -105,39 +117,55 @@ export function SelectPriceModal({
             {isEdit ? 'Confirma el nuevo precio' : 'Confirma el precio'}
           </p>
 
-          <button
-            onClick={handleSelect}
-            className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-l-4 border-[#D0CBC4] bg-white border-l-[#780e18] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md group"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#780e18]/10">
-                <i className="ti ti-currency-dollar text-[14px] text-[#780e18]" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-[#2D2B2A] leading-tight">
-                  {isEdit ? 'Actualizar a este precio' : 'Precio base'}
-                </p>
-                <p className="text-[10px] text-[#7A7571] font-medium mt-0.5">
-                  {isEdit ? 'Reemplaza el precio actual del item' : 'El descuento se elige al cobrar'}
-                </p>
-              </div>
+          <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-l-4 border-[#D0CBC4] bg-white border-l-[#780e18]">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#780e18]/10 shrink-0">
+              <i className="ti ti-currency-dollar text-[14px] text-[#780e18]" />
             </div>
-            <div className="flex items-center gap-2">
-              <p className="font-mono font-black text-[17px] leading-none text-[#2D2B2A]">
-                {fmtBs(precioBase)}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-[#2D2B2A] leading-tight">
+                {isEdit ? 'Nuevo precio' : 'Precio de venta'}
               </p>
-              <i className="ti ti-chevron-right text-[16px] text-[#7A7571] group-hover:translate-x-0.5 transition-transform" />
+              <p className="text-[11px] text-[#7A7571] font-medium mt-0.5">
+                Precio base: {fmtBs(precioBase)}
+              </p>
+              {precioModificado && (
+                <p className="text-[11px] font-bold text-[#780e18] mt-0.5">
+                  Precio actual: {fmtBs(precioActual!)}
+                </p>
+              )}
             </div>
-          </button>
+            <div className="flex items-center gap-1 shrink-0">
+              <span className="text-[13px] font-bold text-[#7A7571]">Bs</span>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                autoFocus
+                value={precioValue}
+                onChange={(e) => setPrecioValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSelect()
+                }}
+                className="w-24 h-9 px-2 text-right font-mono font-black text-[17px] border border-[#780e18] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#780e18]/20"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="px-5 pb-5">
+        <div className="px-5 pb-5 flex gap-2">
           <button
             onClick={onClose}
-            className="w-full h-10 rounded-xl border border-[#E8E5E2] text-sm font-semibold text-[#4A4744] hover:bg-[#F0EFEC] transition-colors"
+            className="flex-1 h-10 rounded-xl border border-[#E8E5E2] text-sm font-semibold text-[#4A4744] hover:bg-[#F0EFEC] transition-colors"
           >
             Cancelar
+          </button>
+          <button
+            onClick={handleSelect}
+            disabled={!precioValido}
+            className="flex-1 h-10 rounded-xl bg-[#780e18] text-sm font-semibold text-white hover:bg-[#5c0a12] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isEdit ? 'Actualizar precio' : 'Confirmar'}
           </button>
         </div>
 

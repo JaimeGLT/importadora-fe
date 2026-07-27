@@ -1,15 +1,30 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react'
-import type { Importacion, ItemImportacion, Marca } from '@/types'
+import type { Importacion, Marca } from '@/types'
 import { gql } from '@/lib/graphql'
-import { IMPORTACION_DETAIL_QUERY, backendToImportacion } from '@/lib/queries/importaciones.queries'
+import { IMPORTACION_DETAIL_QUERY, type BackendDetalleFull } from '@/lib/queries/importaciones.queries'
 import { notify } from '@/lib/notify'
+import { editarDetalleImportacion, eliminarDetalleImportacion } from '@/lib/importaciones.api'
+import { ConfirmModal } from '@/components/ui'
+import { BrandSelect } from '@/components/ui/BrandSelect'
 
 interface Props {
   open: boolean
   onClose: () => void
   importacion: Importacion | null
   marcas: Marca[]
+  readOnly?: boolean
+  onCantidadCambiada?: (cantProductos: number) => void
+}
+
+interface EditForm {
+  codigo: string
+  nombre: string
+  marcaId: number | null
+  procedencia: string
+  cantidad: number
+  costo: number
+  precio: number
 }
 
 function fmtDate(iso: string) {
@@ -24,24 +39,51 @@ function fmtBs(n: number) {
   return `Bs ${n.toLocaleString('es-BO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 }
 
-export function ImportacionDetailModal({ open, onClose, importacion, marcas }: Props) {
-  const [items, setItems] = useState<ItemImportacion[]>([])
+function toEditForm(d: BackendDetalleFull): EditForm {
+  const piezas = d.piezas && d.piezas > 0 ? d.piezas : 1
+  return {
+    codigo: d.codigo,
+    nombre: d.nombre,
+    marcaId: d.marcaId ?? null,
+    procedencia: d.procedencia ?? '',
+    cantidad: Math.round(d.stock_Actual / piezas),
+    costo: d.costo,
+    precio: d.precio,
+  }
+}
+
+export function ImportacionDetailModal({ open, onClose, importacion, marcas, readOnly, onCantidadCambiada }: Props) {
+  const [items, setItems] = useState<BackendDetalleFull[]>([])
   const [loadingItems, setLoadingItems] = useState(false)
 
-  useEffect(() => {
-    if (!open || !importacion) return
-    setItems([])
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editForm, setEditForm] = useState<EditForm | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState<BackendDetalleFull | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const reloadItems = useCallback(() => {
+    if (!importacion) return
     setLoadingItems(true)
-    gql<{ importacion: { nodes: Parameters<typeof backendToImportacion>[0][] } }>(
+    return gql<{ importacion: { nodes: { detalles?: BackendDetalleFull[] }[] } }>(
       IMPORTACION_DETAIL_QUERY,
       { id: Number(importacion.id) },
     )
       .then(res => {
         const node = res.importacion.nodes[0]
-        if (node) setItems(backendToImportacion(node).items)
+        setItems(node?.detalles ?? [])
       })
       .catch(() => notify.error('Error cargando detalle'))
       .finally(() => setLoadingItems(false))
+  }, [importacion])
+
+  useEffect(() => {
+    if (!open || !importacion) return
+    setItems([])
+    setEditingId(null)
+    void reloadItems()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, importacion?.id])
 
   if (!importacion) return null
@@ -54,6 +96,83 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas }: P
     importacion.flete_usd * importacion.tipo_cambio +
     importacion.aduana_bs +
     importacion.transporte_interno_bs
+
+  function startEdit(item: BackendDetalleFull) {
+    setEditingId(item.id)
+    setEditForm(toEditForm(item))
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditForm(null)
+  }
+
+  async function saveEdit(item: BackendDetalleFull) {
+    if (!editForm) return
+    setSaving(true)
+    try {
+      const respuesta = await editarDetalleImportacion(importacion!.id, String(item.id), {
+        codigo: editForm.codigo,
+        codigoAux: item.codigoAux,
+        codigoAux2: item.codigoAux2,
+        nombre: editForm.nombre,
+        marcaId: editForm.marcaId,
+        descripcion: item.descripcion,
+        procedencia: editForm.procedencia,
+        unidad_Medida: item.unidad_Medida,
+        ubicacion: item.ubicacion,
+        cantidad: editForm.cantidad,
+        piezas: item.piezas && item.piezas > 0 ? item.piezas : 1,
+        stock_Minimo: item.stock_Minimo,
+        costo: editForm.costo,
+        precio: editForm.precio,
+        conversionABs: item.conversionABs,
+      })
+
+      if (respuesta.fusionado) {
+        notify.success('Producto fusionado', {
+          description: 'Se combinó con el producto ya existente para ese código y marca.',
+        })
+        if (respuesta.productoOriginalDesactivadoId) {
+          notify.info('El producto duplicado quedó sin stock y fue desactivado.')
+        }
+      } else {
+        notify.success('Ítem actualizado')
+      }
+      if (respuesta.advertencia) {
+        notify.warning(respuesta.advertencia)
+      }
+
+      setEditingId(null)
+      setEditForm(null)
+      await reloadItems()
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al editar el ítem')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function confirmDelete() {
+    if (!confirmDeleteItem) return
+    setDeleting(true)
+    try {
+      const respuesta = await eliminarDetalleImportacion(importacion!.id, String(confirmDeleteItem.id))
+      notify.success('Ítem eliminado')
+      if (respuesta.advertencia) notify.warning(respuesta.advertencia)
+      if (respuesta.productoOriginalDesactivadoId) {
+        notify.info('El producto quedó sin stock y fue desactivado.')
+      }
+      setConfirmDeleteItem(null)
+      await reloadItems()
+      const nuevoCant = Math.max(0, (importacion!.cantProductos ?? items.length) - 1)
+      onCantidadCambiada?.(nuevoCant)
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al eliminar el ítem')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   return (
     <Transition show={open} as={Fragment}>
@@ -80,7 +199,7 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas }: P
             leaveFrom="opacity-100 scale-100"
             leaveTo="opacity-0 scale-95"
           >
-            <DialogPanel className="w-full max-w-5xl max-h-[90vh] bg-white rounded-xl shadow-xl flex flex-col overflow-hidden border border-[#D0CBC4]">
+            <DialogPanel className="w-full max-w-6xl max-h-[90vh] bg-white rounded-xl shadow-xl flex flex-col overflow-hidden border border-[#D0CBC4]">
 
               {/* Header */}
               <div className="px-6 py-5 border-b border-[#D0CBC4] bg-[#F5F0EB] flex items-start justify-between">
@@ -156,13 +275,14 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas }: P
               <div className="flex-1 overflow-y-auto">
                 <table className="w-full table-fixed">
                   <colgroup>
-                    <col style={{ width: '220px' }} />
-                    <col style={{ width: '110px' }} />
-                    <col style={{ width: '110px' }} />
+                    <col style={{ width: '200px' }} />
+                    <col style={{ width: '130px' }} />
+                    <col style={{ width: '100px' }} />
                     <col style={{ width: '60px' }} />
                     <col style={{ width: '100px' }} />
-                    <col style={{ width: '110px' }} />
+                    <col style={{ width: '100px' }} />
                     <col style={{ width: '80px' }} />
+                    {!readOnly && <col style={{ width: '90px' }} />}
                   </colgroup>
                   <thead className="sticky top-0 bg-[#F5F0EB] z-10 border-b border-[#D0CBC4]">
                     <tr>
@@ -173,6 +293,9 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas }: P
                       <th className="text-right px-2 py-[11px] text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#5C5654]">Costo Unit.</th>
                       <th className="text-right px-2 py-[11px] text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#5C5654]">Precio Venta</th>
                       <th className="text-center px-3 py-[11px] text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#5C5654]">Tipo</th>
+                      {!readOnly && (
+                        <th className="text-center px-2 py-[11px] text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#5C5654]">Acciones</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#D0CBC4]">
@@ -186,65 +309,181 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas }: P
                             <td className="px-2 py-3 text-right"><div className="h-2.5 w-16 rounded bg-[#F0EFEC] ml-auto" /></td>
                             <td className="px-2 py-3 text-right"><div className="h-2.5 w-16 rounded bg-[#F0EFEC] ml-auto" /></td>
                             <td className="px-3 py-3 text-center"><div className="h-5 w-12 rounded-full bg-[#F0EFEC] mx-auto" /></td>
+                            {!readOnly && <td className="px-2 py-3" />}
                           </tr>
                         ))
-                      : items.map((item) => (
-                          <tr key={item.id} className="hover:bg-[#FAF5EE] transition-colors">
-                            <td className="px-4 py-3 overflow-hidden">
-                              <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-[6px] text-[11px] font-mono font-bold bg-[#780e18] text-white shrink-0">
-                                  {item.codigo_proveedor}
-                                </span>
-                                {item.codigos_adicionales?.[0] && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-[6px] text-[10px] font-mono font-medium bg-[#F5F0EB] text-[#5C5654] border border-[#D0CBC4] shrink-0">
-                                    {item.codigos_adicionales[0]}
+                      : items.map((item) => {
+                          const isEditing = editingId === item.id && editForm
+                          return (
+                            <tr key={item.id} className="hover:bg-[#FAF5EE] transition-colors align-top">
+                              <td className="px-4 py-3 overflow-hidden">
+                                {isEditing ? (
+                                  <div className="flex flex-col gap-1.5">
+                                    <input
+                                      className="w-full rounded-md border border-[#D0CBC4] px-2 py-1 text-[12px] font-mono"
+                                      value={editForm!.codigo}
+                                      onChange={e => setEditForm(f => f && { ...f, codigo: e.target.value })}
+                                      placeholder="Código"
+                                    />
+                                    <input
+                                      className="w-full rounded-md border border-[#D0CBC4] px-2 py-1 text-[12.5px]"
+                                      value={editForm!.nombre}
+                                      onChange={e => setEditForm(f => f && { ...f, nombre: e.target.value })}
+                                      placeholder="Nombre"
+                                    />
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-[6px] text-[11px] font-mono font-bold bg-[#780e18] text-white shrink-0">
+                                        {item.codigo}
+                                      </span>
+                                      {item.codigoAux && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-[6px] text-[10px] font-mono font-medium bg-[#F5F0EB] text-[#5C5654] border border-[#D0CBC4] shrink-0">
+                                          {item.codigoAux}
+                                        </span>
+                                      )}
+                                      {item.codigoAux2 && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-[6px] text-[10px] font-mono font-medium bg-[#F5F0EB] text-[#5C5654] border border-[#D0CBC4] shrink-0">
+                                          {item.codigoAux2}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-sm font-semibold text-[#2D2B2A] leading-tight truncate">{item.nombre}</p>
+                                  </>
+                                )}
+                              </td>
+                              <td className="px-2 py-3">
+                                {isEditing ? (
+                                  <BrandSelect
+                                    value={editForm!.marcaId}
+                                    onChange={id => setEditForm(f => f && { ...f, marcaId: id })}
+                                    marcas={marcas}
+                                    placeholder="Marca…"
+                                  />
+                                ) : getMarcaNombre(item.marcaId) ? (
+                                  <div className="inline-flex items-center gap-1.5 bg-[#E8D4B8] text-[#780e18] text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#780e18] shrink-0" />
+                                    {getMarcaNombre(item.marcaId)}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-[#7A7571]">—</span>
+                                )}
+                              </td>
+                              <td className="px-2 py-3">
+                                {isEditing ? (
+                                  <input
+                                    className="w-full rounded-md border border-[#D0CBC4] px-2 py-1 text-[12px]"
+                                    value={editForm!.procedencia}
+                                    onChange={e => setEditForm(f => f && { ...f, procedencia: e.target.value })}
+                                    placeholder="Procedencia"
+                                  />
+                                ) : (
+                                  <span className="text-[12px] text-[#5C5654]">{item.procedencia || '—'}</span>
+                                )}
+                              </td>
+                              <td className="px-2 py-3 text-center">
+                                {isEditing ? (
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    className="w-full rounded-md border border-[#D0CBC4] px-2 py-1 text-[12px] text-center"
+                                    value={editForm!.cantidad}
+                                    onChange={e => setEditForm(f => f && { ...f, cantidad: Number(e.target.value) })}
+                                  />
+                                ) : (
+                                  <span className="font-mono font-semibold text-[13px] text-[#2D2B2A] tabular-nums">{item.stock_Actual}</span>
+                                )}
+                              </td>
+                              <td className="px-2 py-3 text-right">
+                                {isEditing ? (
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    className="w-full rounded-md border border-[#D0CBC4] px-2 py-1 text-[12px] text-right"
+                                    value={editForm!.costo}
+                                    onChange={e => setEditForm(f => f && { ...f, costo: Number(e.target.value) })}
+                                  />
+                                ) : (
+                                  <>
+                                    <span className="text-[11px] font-medium text-[#7A7571]">Bs</span>
+                                    <span className="text-sm font-semibold text-[#5C5654] tabular-nums ml-1">{item.costo.toFixed(2)}</span>
+                                  </>
+                                )}
+                              </td>
+                              <td className="px-2 py-3 text-right">
+                                {isEditing ? (
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    className="w-full rounded-md border border-[#D0CBC4] px-2 py-1 text-[12px] text-right"
+                                    value={editForm!.precio}
+                                    onChange={e => setEditForm(f => f && { ...f, precio: Number(e.target.value) })}
+                                  />
+                                ) : (
+                                  <>
+                                    <span className="text-[11px] font-medium text-[#7A7571]">Bs</span>
+                                    <span className="text-sm font-semibold text-[#3F7A52] tabular-nums ml-1">{item.precio.toFixed(2)}</span>
+                                  </>
+                                )}
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                {item.tipo === 'Nuevo' ? (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#F4ECDB] text-[#780e18]">
+                                    Nuevo
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#B8DCCA] text-[#1E5C38]">
+                                    Stock+
                                   </span>
                                 )}
-                                {item.codigos_adicionales?.[1] && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-[6px] text-[10px] font-mono font-medium bg-[#F5F0EB] text-[#5C5654] border border-[#D0CBC4] shrink-0">
-                                    {item.codigos_adicionales[1]}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-sm font-semibold text-[#2D2B2A] leading-tight truncate">{item.nombre}</p>
-                            </td>
-                            <td className="px-2 py-3">
-                              {getMarcaNombre(item.marcaId) ? (
-                                <div className="inline-flex items-center gap-1.5 bg-[#E8D4B8] text-[#780e18] text-xs font-semibold px-2.5 py-0.5 rounded-full">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-[#780e18] shrink-0" />
-                                  {getMarcaNombre(item.marcaId)}
-                                </div>
-                              ) : (
-                                <span className="text-xs text-[#7A7571]">—</span>
+                              </td>
+                              {!readOnly && (
+                                <td className="px-2 py-3">
+                                  {isEditing ? (
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <button
+                                        onClick={() => void saveEdit(item)}
+                                        disabled={saving}
+                                        className="p-1.5 rounded-lg text-white bg-[#3F7A52] hover:bg-[#336343] transition-colors disabled:opacity-50"
+                                        title="Guardar"
+                                      >
+                                        <i className="ti ti-check text-base" />
+                                      </button>
+                                      <button
+                                        onClick={cancelEdit}
+                                        disabled={saving}
+                                        className="p-1.5 rounded-lg text-[#7A7571] hover:bg-[#E8E5E2] transition-colors disabled:opacity-50"
+                                        title="Cancelar"
+                                      >
+                                        <i className="ti ti-x text-base" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <button
+                                        onClick={() => startEdit(item)}
+                                        className="p-1.5 rounded-lg text-[#7A7571] hover:text-[#780e18] hover:bg-[#F4ECDB] transition-colors"
+                                        title="Editar"
+                                      >
+                                        <i className="ti ti-pencil text-base" />
+                                      </button>
+                                      <button
+                                        onClick={() => setConfirmDeleteItem(item)}
+                                        className="p-1.5 rounded-lg text-[#7A7571] hover:text-[#B3261E] hover:bg-red-50 transition-colors"
+                                        title="Eliminar"
+                                      >
+                                        <i className="ti ti-trash text-base" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
                               )}
-                            </td>
-                            <td className="px-2 py-3">
-                              <span className="text-[12px] text-[#5C5654]">{item.procedencia || '—'}</span>
-                            </td>
-                            <td className="px-2 py-3 text-center">
-                              <span className="font-mono font-semibold text-[13px] text-[#2D2B2A] tabular-nums">{item.cantidad}</span>
-                            </td>
-                            <td className="px-2 py-3 text-right">
-                              <span className="text-[11px] font-medium text-[#7A7571]">Bs</span>
-                              <span className="text-sm font-semibold text-[#5C5654] tabular-nums ml-1">{item.costo_unitario_total_bs.toFixed(2)}</span>
-                            </td>
-                            <td className="px-2 py-3 text-right">
-                              <span className="text-[11px] font-medium text-[#7A7571]">Bs</span>
-                              <span className="text-sm font-semibold text-[#3F7A52] tabular-nums ml-1">{item.precio_venta_final.toFixed(2)}</span>
-                            </td>
-                            <td className="px-3 py-3 text-center">
-                              {item.es_nuevo ? (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#F4ECDB] text-[#780e18]">
-                                  Nuevo
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#B8DCCA] text-[#1E5C38]">
-                                  Stock+
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))
+                            </tr>
+                          )
+                        })
                     }
                   </tbody>
                 </table>
@@ -288,6 +527,15 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas }: P
           </TransitionChild>
         </div>
       </Dialog>
+
+      <ConfirmModal
+        open={!!confirmDeleteItem}
+        onClose={() => setConfirmDeleteItem(null)}
+        onConfirm={() => void confirmDelete()}
+        loading={deleting}
+        title="Eliminar producto de la importación"
+        message={`¿Eliminar "${confirmDeleteItem?.nombre}"? Esto revertirá el stock que esta importación aportó al producto real.`}
+      />
     </Transition>
   )
 }

@@ -1691,6 +1691,7 @@ export function CajaPage() {
         <SelectPriceModal
           producto={productoSeleccionado}
           precioBase={productoSeleccionado.precio_venta}
+          precioActual={cart.items.find(i => i.producto_id === productoSeleccionado.id)?.precio_unitario}
           onSelect={handleUpdatePrice}
           isEdit
           onClose={() => setProductoSeleccionado(null)}

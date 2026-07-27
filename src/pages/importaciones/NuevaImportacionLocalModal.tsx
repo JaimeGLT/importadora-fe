@@ -217,7 +217,7 @@ function calcItemsLocal(
 ): DraftItem[] {
   return rawItems.map((raw, idx) => {
     const costo_unitario_total_bs = raw.precio_fob_usd
-    const precio_venta_sugerido   = Math.ceil(costo_unitario_total_bs * margen * 100) / 100
+    const precio_venta_sugerido   = Math.ceil(costo_unitario_total_bs * margen)
     const precio_venta_final      = precio_venta_sugerido
 
     const marcaExcel = raw.marca ? marcaIndex.get(raw.marca.trim().toLowerCase()) ?? null : null

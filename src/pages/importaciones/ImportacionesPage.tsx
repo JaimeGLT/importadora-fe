@@ -95,7 +95,8 @@ const colHelper = createColumnHelper<Importacion>()
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function ImportacionesPage() {
-  const { isTokenReady } = useAuth()
+  const { isTokenReady, user } = useAuth()
+  const puedeEditarImportacion = user?.rol === 'admin' || user?.rol === 'superadmin'
   const [tipoOpen, setTipoOpen] = useState(false)
   const [nuevaOpen, setNuevaOpen] = useState(false)
   const [localOpen, setLocalOpen] = useState(false)
@@ -109,7 +110,7 @@ export function ImportacionesPage() {
   const [margenGanancia, setMargenGanancia] = useState<number>(1)
   const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null)
 
-  const { importaciones, setImportaciones } = useImportacionesStore()
+  const { importaciones, setImportaciones, updateImportacion } = useImportacionesStore()
 
   // ── Progress driver ──────────────────────────────────────────────────────
   // El POST de importación AHORA es en lotes de 100 con progreso real: cada
@@ -709,6 +710,10 @@ export function ImportacionesPage() {
         onClose={() => setDetailImport(null)}
         importacion={detailImport}
         marcas={marcas}
+        readOnly={!puedeEditarImportacion}
+        onCantidadCambiada={(cantProductos) => {
+          if (detailImport) updateImportacion(detailImport.id, { cantProductos })
+        }}
       />
       {importProgress && (
         <ImportProgressOverlay

@@ -29,6 +29,38 @@ export const COMISIONES_QUERY = `
   }
 `
 
+export interface ComisionDetalleItemAPI {
+  codigo: string
+  producto: string
+  marca: string
+  precioUnitario: number
+  cantidad: number
+}
+
+export interface ComisionDetalleVentaAPI {
+  ordenId: number
+  fecha: string
+  total: number
+  items: ComisionDetalleItemAPI[]
+}
+
+export const DETALLE_COMISION_QUERY = `
+  query DetalleComisionUsuario($usuarioId: UUID!, $desde: DateTime!, $hasta: DateTime!) {
+    detalleComisionUsuario(usuarioId: $usuarioId, desde: $desde, hasta: $hasta) {
+      ordenId
+      fecha
+      total
+      items {
+        codigo
+        producto
+        marca
+        precioUnitario
+        cantidad
+      }
+    }
+  }
+`
+
 // ─── API types ───────────────────────────────────────────────────────────────
 
 export interface OrdenReporteItemAPI {

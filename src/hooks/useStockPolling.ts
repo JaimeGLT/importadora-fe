@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import { useNotificacionesStore } from '@/stores/notificacionesStore'
 import { PRODUCTOS_NOTIFICACIONES_QUERY } from '@/lib/queries/inventario.queries'
+import { isAdminRole } from '@/lib/roles'
 
 const POLL_INTERVAL = 15 * 60 * 1000
 
@@ -26,7 +27,7 @@ export function useStockPolling() {
   const { setProductosBajoStock, setCargando, setUltimaActualizacion } = useNotificacionesStore()
 
   useEffect(() => {
-    if (!isTokenReady || user?.rol !== 'admin') return
+    if (!isTokenReady || !isAdminRole(user?.rol)) return
 
     async function fetchStock() {
       setCargando(true)

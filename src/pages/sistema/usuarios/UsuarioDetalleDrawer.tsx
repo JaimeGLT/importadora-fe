@@ -70,6 +70,7 @@ function Drawer({
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const ROL_LABELS: Record<string, string> = {
+  SuperAdmin: 'Superadministrador',
   Admin: 'Administrador',
   Cajero: 'Cajero',
   Almacenero: 'Almacenero',
@@ -160,7 +161,7 @@ function InfoTab({ usuario }: { usuario: UsuarioDetalle }) {
           <span
             className={clsx(
               'inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold w-fit',
-              usuario.rol.toLowerCase() === 'admin'
+              (usuario.rol.toLowerCase() === 'admin' || usuario.rol.toLowerCase() === 'superadmin')
                 ? 'bg-[#F4ECDB] text-[#780e18] border border-[#E8D4B8]'
                 : 'bg-[#F0EFEC] text-[#4A4744] border border-[#E8E5E2]',
             )}
@@ -189,7 +190,7 @@ function InfoTab({ usuario }: { usuario: UsuarioDetalle }) {
         }
       />
 
-      {usuario.rol === 'Cajero' && (
+      {(usuario.rol === 'Cajero' || usuario.rol === 'Admin' || usuario.rol === 'SuperAdmin') && (
         <Field
           label="Comisión por ventas"
           value={
@@ -247,7 +248,7 @@ function ActividadTab({ usuario }: { usuario: UsuarioDetalle }) {
             : 'Sin horario configurado'
         }
       />
-      {usuario.rol === 'Cajero' && (
+      {(usuario.rol === 'Cajero' || usuario.rol === 'Admin' || usuario.rol === 'SuperAdmin') && (
         <Field label="Comisión" value={`${usuario.porcentajeComision}%`} />
       )}
     </div>

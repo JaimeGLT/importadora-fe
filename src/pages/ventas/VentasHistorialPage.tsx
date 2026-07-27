@@ -12,6 +12,7 @@ import {
 } from '@/lib/queries/ventas.queries'
 import type { OrdenVenta } from '@/types'
 import { clsx } from 'clsx'
+import { isAdminRole } from '@/lib/roles'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,9 @@ function TableSkeleton({ cols }: { cols: number }) {
 function OrdenDrawer({ orden, onClose }: { orden: OrdenVenta; onClose: () => void }) {
   const estado = ESTADO_LABEL[orden.estado] ?? { label: orden.estado, cls: 'bg-[#F0EFEC] text-[#4A4644]' }
   const total = orden.total
+  const montoDescuento = orden.monto_descuento ?? 0
+  const tieneDescuento = !!orden.descuento && montoDescuento > 0
+  const subtotal = total + montoDescuento
 
   return (
     <DrawerWrapper
@@ -103,6 +107,16 @@ function OrdenDrawer({ orden, onClose }: { orden: OrdenVenta; onClose: () => voi
               <p className="text-[13px] text-[#2D2B2A]">{orden.almacenero_nombre}</p>
             </div>
           )}
+          <div>
+            <p className="text-[10px] font-bold text-[#7A7571] uppercase tracking-[0.1em] mb-0.5">Descuento</p>
+            {orden.descuento && (orden.monto_descuento ?? 0) > 0 ? (
+              <p className="text-[13px] text-[#780e18] font-semibold">
+                {orden.descuento.nombre} ({orden.descuento.porcentaje}%) · −{fmtBs(orden.monto_descuento ?? 0)}
+              </p>
+            ) : (
+              <p className="text-[13px] text-[#B0ABA7]">Sin descuento</p>
+            )}
+          </div>
         </div>
 
         {/* Items table */}
@@ -235,7 +249,27 @@ function OrdenDrawer({ orden, onClose }: { orden: OrdenVenta; onClose: () => voi
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-[#E8E5E2] bg-[#FBFAF7]">
+              {tieneDescuento && (
+                <>
+                  <tr className="border-t-2 border-[#E8E5E2] bg-[#FBFAF7]">
+                    <td colSpan={4} className="px-3 py-1.5 text-right text-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.1em]">
+                      Subtotal
+                    </td>
+                    <td className="px-3 py-1.5 text-right text-[12px] font-semibold text-[#4A4644] whitespace-nowrap">
+                      {fmtBs(subtotal)}
+                    </td>
+                  </tr>
+                  <tr className="bg-[#FBFAF7]">
+                    <td colSpan={4} className="px-3 py-1.5 text-right text-[11px] font-semibold text-[#780e18] uppercase tracking-[0.1em]">
+                      Descuento · {orden.descuento!.nombre} ({orden.descuento!.porcentaje}%)
+                    </td>
+                    <td className="px-3 py-1.5 text-right text-[12px] font-semibold text-[#780e18] whitespace-nowrap">
+                      −{fmtBs(montoDescuento)}
+                    </td>
+                  </tr>
+                </>
+              )}
+              <tr className={clsx('bg-[#FBFAF7]', !tieneDescuento && 'border-t-2 border-[#E8E5E2]')}>
                 <td colSpan={4} className="px-3 py-3 text-right text-[11px] font-bold text-[#5C5654] uppercase tracking-[0.1em]">
                   Total
                 </td>
@@ -262,7 +296,7 @@ export function VentasHistorialPage() {
   const [search, setSearch]         = useState('')
   const [selected, setSelected]     = useState<OrdenVenta | null>(null)
 
-  const isAdmin = user?.rol === 'admin'
+  const isAdmin = isAdminRole(user?.rol)
   const cols    = isAdmin ? 7 : 6
 
   const today      = new Date().toISOString().slice(0, 10)

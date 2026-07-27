@@ -38,6 +38,8 @@ function mapToUser(data: ApiUserResponse): Usuario | null {
   const nombre = data.nombre ?? data.name ?? email.split('@')[0] ?? ''
   const rawRol = (data.rol ?? data.role ?? '').toLowerCase()
   const ROL_MAP: Record<string, Usuario['rol']> = {
+    superadmin: 'superadmin',
+    'super admin': 'superadmin',
     admin: 'admin',
     administrador: 'admin',
     vendedor: 'cajero',

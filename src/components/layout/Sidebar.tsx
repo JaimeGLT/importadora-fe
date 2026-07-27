@@ -2,6 +2,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/AuthContext'
 import { useState } from 'react'
+import { roleSatisfies, isAdminRole } from '@/lib/roles'
 
 interface NavItem {
   label: string
@@ -63,7 +64,14 @@ const groups: NavGroup[] = [
       { label: 'Ventas',      to: '/reportes/ventas',      roles: ['admin'] },
       { label: 'Inventario',  to: '/reportes/inventario',  roles: ['admin'] },
       { label: 'Órdenes',     to: '/reportes/ordenes',     roles: ['admin'] },
-      { label: 'Comisiones',  to: '/reportes/comisiones',  roles: ['admin'] },
+    ],
+  },
+  {
+    label: 'Comisiones',
+    icon: <i className="ti ti-percentage text-[16px] shrink-0" />,
+    roles: ['admin'],
+    items: [
+      { label: 'Comisiones', to: '/comisiones', roles: ['admin'] },
     ],
   },
   {
@@ -235,9 +243,9 @@ export function Sidebar({ open, onClose, collapsed = false }: SidebarProps) {
         {/* Nav — padding matches HTML: 0 14px */}
         <nav className="flex-1 flex flex-col gap-0.5 px-[14px] pb-4 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-thumb]:bg-[#F4ECDB]/[0.08]">
 
-          {user?.rol === 'admin' && <NavLabel first>Principal</NavLabel>}
+          {isAdminRole(user?.rol) && <NavLabel first>Principal</NavLabel>}
 
-          {user?.rol === 'admin' && (
+          {isAdminRole(user?.rol) && (
             <NavLink
               to="/dashboard"
               onClick={onClose}
@@ -256,7 +264,7 @@ export function Sidebar({ open, onClose, collapsed = false }: SidebarProps) {
           <NavLabel>Operaciones</NavLabel>
 
           {groups.slice(0, 4).map((group) => {
-            const visibleItems = group.items.filter(i => !i.roles || !user || i.roles.includes(user.rol))
+            const visibleItems = group.items.filter(i => !i.roles || !user || roleSatisfies(user.rol, i.roles))
             if (visibleItems.length === 0) return null
             const groupActive = visibleItems.some((i) => pathname === i.to || pathname.startsWith(i.to + '/'))
             const isExpanded = expandedGroups.has(group.label)
@@ -331,13 +339,36 @@ export function Sidebar({ open, onClose, collapsed = false }: SidebarProps) {
             )
           })}
 
-          {groups.slice(4).some(g => g.items.some(i => !i.roles || !user || i.roles.includes(user.rol))) && <NavLabel>General</NavLabel>}
+          {groups.slice(4).some(g => g.items.some(i => !i.roles || !user || roleSatisfies(user.rol, i.roles))) && <NavLabel>General</NavLabel>}
 
           {groups.slice(4).map((group) => {
-            const visibleItems = group.items.filter(i => !i.roles || !user || i.roles.includes(user.rol))
+            const visibleItems = group.items.filter(i => !i.roles || !user || roleSatisfies(user.rol, i.roles))
             if (visibleItems.length === 0) return null
             const groupActive = visibleItems.some((i) => pathname === i.to || pathname.startsWith(i.to + '/'))
             const isExpanded = expandedGroups.has(group.label)
+
+            if (visibleItems.length === 1) {
+              const item = visibleItems[0]
+              return (
+                <NavLink
+                  key={group.label}
+                  to={item.to}
+                  end
+                  onClick={onClose}
+                  className={({ isActive }) => clsx(navItemBase, isActive ? navItemActive : navItemInactive)}
+                >
+                  {({ isActive }) => (
+                    <>
+                      {isActive && <ActiveBar />}
+                      <span className={clsx('shrink-0', isActive ? 'text-[#D4A333]' : 'text-[#CFA9A6]')}>
+                        {group.icon}
+                      </span>
+                      <span>{group.label}</span>
+                    </>
+                  )}
+                </NavLink>
+              )
+            }
 
             return (
               <div key={group.label}>

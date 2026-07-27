@@ -9,6 +9,7 @@ import { clsx } from 'clsx'
 import { api } from '@/lib/api'
 import { gql } from '@/lib/graphql'
 import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
+import { isAdminRole } from '@/lib/roles'
 
 export function MarcasPage() {
   const { user } = useAuth()
@@ -87,7 +88,7 @@ export function MarcasPage() {
     }
   }
 
-  if (user?.rol !== 'admin') {
+  if (!isAdminRole(user?.rol)) {
     return (
       <MainLayout>
         <div className="bg-[#F7F7F7] min-h-screen flex items-center justify-center">

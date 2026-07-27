@@ -5,6 +5,7 @@ import { Sidebar } from './Sidebar'
 import { api } from '@/lib/api'
 import { useConfigStore } from '@/stores/configStore'
 import { TipoCambioModal } from '@/components/ui/TipoCambioModal'
+import { isAdminRole } from '@/lib/roles'
 
 interface MainLayoutProps {
   children: ReactNode
@@ -23,7 +24,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   useEffect(() => {
     if (!isTokenReady || !isAuthenticated) return
-    if (user?.rol === 'admin') {
+    if (isAdminRole(user?.rol)) {
       const today = new Date().toISOString().split('T')[0]
       if (tipoCambioFechaRecordatorio !== today) {
         fetch('https://bo.dolarapi.com/v1/dolares/binance')
