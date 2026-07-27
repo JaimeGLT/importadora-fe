@@ -23,7 +23,8 @@ export interface DtoImportacionDetalleRespuesta {
   message: string
   fusionado: boolean
   productoDestinoId?: number | null
-  productoOriginalDesactivadoId?: number | null
+  /** Producto que quedó sin stock tras la operación — no fue desactivado, hay que preguntarle al usuario. */
+  productoSinStockId?: number | null
   advertencia?: string | null
 }
 

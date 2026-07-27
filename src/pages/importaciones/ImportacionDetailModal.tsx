@@ -5,6 +5,7 @@ import { gql } from '@/lib/graphql'
 import { IMPORTACION_DETAIL_QUERY, type BackendDetalleFull } from '@/lib/queries/importaciones.queries'
 import { notify } from '@/lib/notify'
 import { editarDetalleImportacion, eliminarDetalleImportacion } from '@/lib/importaciones.api'
+import { api } from '@/lib/api'
 import { Modal, ConfirmModal, Input, Button, Select } from '@/components/ui'
 
 interface Props {
@@ -38,6 +39,10 @@ function fmtBs(n: number) {
   return `Bs ${n.toLocaleString('es-BO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 }
 
+function displayName(nombre: string, codigo: string) {
+  return nombre.trim() || codigo
+}
+
 function toEditForm(d: BackendDetalleFull): EditForm {
   const piezas = d.piezas && d.piezas > 0 ? d.piezas : 1
   return {
@@ -62,6 +67,9 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas, rea
 
   const [confirmDeleteItem, setConfirmDeleteItem] = useState<BackendDetalleFull | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  const [productoSinStock, setProductoSinStock] = useState<{ id: number; nombre: string; marca: string } | null>(null)
+  const [desactivando, setDesactivando] = useState(false)
 
   const reloadItems = useCallback(() => {
     if (!importacion) return
@@ -156,9 +164,6 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas, rea
         notify.success('Producto fusionado', {
           description: 'Se combinó con el producto ya existente para ese código y marca.',
         })
-        if (respuesta.productoOriginalDesactivadoId) {
-          notify.info('El producto duplicado quedó sin stock y fue desactivado.')
-        }
       } else {
         notify.success('Ítem actualizado')
       }
@@ -168,6 +173,13 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas, rea
 
       closeEdit()
       await reloadItems()
+      if (respuesta.productoSinStockId) {
+        setProductoSinStock({
+          id: respuesta.productoSinStockId,
+          nombre: displayName(nombre, codigo),
+          marca: getMarcaNombre(editForm.marcaId),
+        })
+      }
     } catch (e) {
       notify.error(e instanceof Error ? e.message : 'Error al editar el ítem')
     } finally {
@@ -179,20 +191,36 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas, rea
     if (!confirmDeleteItem) return
     setDeleting(true)
     try {
+      const nombreItem = displayName(confirmDeleteItem.nombre, confirmDeleteItem.codigo)
+      const marcaItem = getMarcaNombre(confirmDeleteItem.marcaId)
       const respuesta = await eliminarDetalleImportacion(importacion!.id, String(confirmDeleteItem.id))
       notify.success('Ítem eliminado')
       if (respuesta.advertencia) notify.warning(respuesta.advertencia)
-      if (respuesta.productoOriginalDesactivadoId) {
-        notify.info('El producto quedó sin stock y fue desactivado.')
-      }
       setConfirmDeleteItem(null)
       await reloadItems()
       const nuevoCant = Math.max(0, (importacion!.cantProductos ?? items.length) - 1)
       onCantidadCambiada?.(nuevoCant)
+      if (respuesta.productoSinStockId) {
+        setProductoSinStock({ id: respuesta.productoSinStockId, nombre: nombreItem, marca: marcaItem })
+      }
     } catch (e) {
       notify.error(e instanceof Error ? e.message : 'Error al eliminar el ítem')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  async function desactivarProductoSinStock() {
+    if (!productoSinStock) return
+    setDesactivando(true)
+    try {
+      await api.delete(`/Producto/${productoSinStock.id}`)
+      notify.success('Producto desactivado del inventario')
+      setProductoSinStock(null)
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al desactivar el producto')
+    } finally {
+      setDesactivando(false)
     }
   }
 
@@ -566,7 +594,20 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas, rea
                 onConfirm={() => void confirmDelete()}
                 loading={deleting}
                 title="Eliminar producto de la importación"
-                message={`¿Eliminar "${confirmDeleteItem?.nombre}"? Esto revertirá el stock que esta importación aportó al producto real.`}
+                message={confirmDeleteItem
+                  ? `¿Eliminar "${displayName(confirmDeleteItem.nombre, confirmDeleteItem.codigo)}"${getMarcaNombre(confirmDeleteItem.marcaId) ? ` (${getMarcaNombre(confirmDeleteItem.marcaId)})` : ''}? Esto revertirá el stock que esta importación aportó al producto real.`
+                  : ''}
+              />
+
+              <ConfirmModal
+                open={!!productoSinStock}
+                onClose={() => setProductoSinStock(null)}
+                onConfirm={() => void desactivarProductoSinStock()}
+                loading={desactivando}
+                title="Producto sin stock"
+                message={productoSinStock
+                  ? `"${productoSinStock.nombre}"${productoSinStock.marca ? ` (${productoSinStock.marca})` : ''} quedó sin stock. ¿Deseas desactivarlo del inventario?`
+                  : ''}
               />
 
             </DialogPanel>
