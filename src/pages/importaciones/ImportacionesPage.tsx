@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { PageTopBar } from '@/components/layout/PageTopBar'
 import { useImportacionesStore } from '@/stores/importacionesStore'
 import { MainLayout } from '@/components/layout/MainLayout'
@@ -112,6 +112,46 @@ export function ImportacionesPage() {
 
   const { importaciones, setImportaciones, updateImportacion } = useImportacionesStore()
 
+  // ── Reanudación de lotes tras un fallo ───────────────────────────────────
+  // Si un lote falla a mitad de camino (red, timeout), el importacionId
+  // quedaba solo en una variable local del handler y se perdía. Un reintento
+  // del usuario volvía a mandar TODO desde el lote 0 con importacionId=null,
+  // creando una Importacion nueva y duplicando el stock de los lotes que ya
+  // se habían commiteado. Este ref sobrevive entre invocaciones del handler
+  // (mismo montaje de página) y permite retomar desde el último lote
+  // confirmado en vez de reprocesar todo.
+  const resumenLoteRef = useRef<{ clave: string; importacionId: number; enviados: number } | null>(null)
+
+  const claveResumen = (proveedorId: number, productos: { codigo: string }[]) =>
+    `${proveedorId}|${productos.length}|${productos[0]?.codigo ?? ''}|${productos[productos.length - 1]?.codigo ?? ''}`
+
+  const enviarLotesImportacion = async (
+    proveedorId: number,
+    productos: DtoImportacion['productos'],
+    payloadBase: Omit<DtoImportacion, 'importacionId' | 'productos'>,
+    onProgreso: (enviados: number) => void,
+  ) => {
+    const BATCH = 100
+    const clave = claveResumen(proveedorId, productos)
+    const resumen = resumenLoteRef.current?.clave === clave ? resumenLoteRef.current : null
+    let importacionId: number | null = resumen?.importacionId ?? null
+    const inicio = resumen?.enviados ?? 0
+    if (inicio > 0) onProgreso(inicio)
+
+    for (let i = inicio; i < productos.length; i += BATCH) {
+      const lote = productos.slice(i, i + BATCH)
+      const payload: DtoImportacion = { ...payloadBase, importacionId, productos: lote }
+      const res = await api.post<DtoImportacionRespuesta>('/Producto/importacion', payload)
+      if (res.importacionId != null) importacionId = res.importacionId
+      const enviados = Math.min(i + BATCH, productos.length)
+      // Progreso parcial: si el próximo lote falla, un reintento retoma desde aquí.
+      resumenLoteRef.current = { clave, importacionId: importacionId!, enviados }
+      onProgreso(enviados)
+    }
+
+    resumenLoteRef.current = null // importación completa: nada que reanudar
+  }
+
   // ── Progress driver ──────────────────────────────────────────────────────
   // El POST de importación AHORA es en lotes de 100 con progreso real: cada
   // vez que un lote termina, avanzamos el contador y la UI lo refleja. No
@@ -129,7 +169,10 @@ export function ImportacionesPage() {
     gql<{ importacion: { nodes: Parameters<typeof backendToImportacion>[0][] } }>(IMPORTACIONES_QUERY)
       .then(res => {
         const mapped = res.importacion.nodes.map(backendToImportacion)
-        mapped.sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime())
+        // Orden por id (autoincremental real, orden estricto de inserción), NO por
+        // fecha_creacion: ese campo en realidad es la fecha de llegada estimada,
+        // editable a mano por el usuario, así que no refleja cuándo se registró.
+        mapped.sort((a, b) => Number(b.id) - Number(a.id))
         setImportaciones(mapped)
       })
       .catch(() => notify.error('Error cargando importaciones'))
@@ -152,7 +195,10 @@ export function ImportacionesPage() {
     }>(IMPORTACIONES_INIT_QUERY)
       .then(res => {
         const mapped = res.importacion.nodes.map(backendToImportacion)
-        mapped.sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime())
+        // Orden por id (autoincremental real, orden estricto de inserción), NO por
+        // fecha_creacion: ese campo en realidad es la fecha de llegada estimada,
+        // editable a mano por el usuario, así que no refleja cuándo se registró.
+        mapped.sort((a, b) => Number(b.id) - Number(a.id))
         setImportaciones(mapped)
         setProveedores(res.proveedor.nodes.map(backendToProveedor))
         setMarcas(res.marca.nodes.map(backendToMarca))
@@ -174,7 +220,7 @@ export function ImportacionesPage() {
   const handleSaveLocal = async (
     importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>,
     proveedorId: number,
-    { categoriaMapeada }: { categoriaMapeada: boolean },
+    { categoriaMapeada, sucursalId }: { categoriaMapeada: boolean; sucursalId: number | null },
   ) => {
     const total = importacion.items.length
     setLocalOpen(false)
@@ -208,17 +254,12 @@ export function ImportacionesPage() {
         precio: it.precio_venta_final,
       }))
 
-      // Batching 100x100: el PRIMER POST crea la Importacion (sin importacionId),
-      // los siguientes mandan el importacionId que devolvió el backend y solo
-      // anexan productos/detalles. Esto da progreso real (current / total) y
-      // evita un solo POST gigante con 1500 productos.
-      const BATCH = 100
-      let importacionId: number | null = null
-      let enviados = 0
-      for (let i = 0; i < productos.length; i += BATCH) {
-        const lote = productos.slice(i, i + BATCH)
-        const payload: DtoImportacion = {
-          importacionId,
+      // Batching 100x100 con reanudación: ver enviarLotesImportacion.
+      await enviarLotesImportacion(
+        proveedorId,
+        productos,
+        {
+          sucursalId,
           tipo: 'Local',
           id_Proveedor: proveedorId,
           fecha: new Date().toISOString(),
@@ -227,14 +268,9 @@ export function ImportacionesPage() {
           f_Internacional: 0,
           aduana_Arancel: 0,
           trasporte_Interno: 0,
-          productos: lote,
-        }
-        const res = await api.post<DtoImportacionRespuesta>('/Producto/importacion', payload)
-        // El primer lote devuelve el id recién creado; los siguientes lo repiten.
-        if (res.importacionId != null) importacionId = res.importacionId
-        enviados = Math.min(i + BATCH, productos.length)
-        setImportProgress({ current: enviados, total })
-      }
+        },
+        (enviados) => setImportProgress({ current: enviados, total }),
+      )
       await finishProgress(total)
       loadImportaciones()
       if (productos.length > 0) loadProductos()
@@ -249,7 +285,7 @@ export function ImportacionesPage() {
   const handleSave = async (
     importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>,
     proveedorId: number,
-    { categoriaMapeada }: { categoriaMapeada: boolean },
+    { categoriaMapeada, sucursalId }: { categoriaMapeada: boolean; sucursalId: number | null },
   ) => {
     const total = importacion.items.length
     setNuevaOpen(false)
@@ -284,17 +320,12 @@ export function ImportacionesPage() {
         precio: it.precio_venta_final,
       }))
 
-      // Batching 100x100: el PRIMER POST crea la Importacion (sin importacionId),
-      // los siguientes mandan el importacionId que devolvió el backend y solo
-      // anexan productos/detalles. Esto da progreso real (current / total) y
-      // evita un solo POST gigante con 1500 productos.
-      const BATCH = 100
-      let importacionId: number | null = null
-      let enviados = 0
-      for (let i = 0; i < productos.length; i += BATCH) {
-        const lote = productos.slice(i, i + BATCH)
-        const payload: DtoImportacion = {
-          importacionId,
+      // Batching 100x100 con reanudación: ver enviarLotesImportacion.
+      await enviarLotesImportacion(
+        proveedorId,
+        productos,
+        {
+          sucursalId,
           id_Proveedor: proveedorId,
           fecha: new Date(importacion.fecha_estimada_llegada).toISOString(),
           conversionABs: tc,
@@ -302,14 +333,9 @@ export function ImportacionesPage() {
           f_Internacional: importacion.flete_usd,
           aduana_Arancel: importacion.aduana_bs,
           trasporte_Interno: importacion.transporte_interno_bs,
-          productos: lote,
-        }
-        const res = await api.post<DtoImportacionRespuesta>('/Producto/importacion', payload)
-        // El primer lote devuelve el id recién creado; los siguientes lo repiten.
-        if (res.importacionId != null) importacionId = res.importacionId
-        enviados = Math.min(i + BATCH, productos.length)
-        setImportProgress({ current: enviados, total })
-      }
+        },
+        (enviados) => setImportProgress({ current: enviados, total }),
+      )
       await finishProgress(total)
       loadImportaciones()
       if (productos.length > 0) loadProductos()
@@ -714,6 +740,7 @@ export function ImportacionesPage() {
         onCantidadCambiada={(cantProductos) => {
           if (detailImport) updateImportacion(detailImport.id, { cantProductos })
         }}
+        onSucursalCambiada={() => loadProductos()}
       />
       {importProgress && (
         <ImportProgressOverlay

@@ -8,6 +8,9 @@ import { notify } from '@/lib/notify'
 import { api } from '@/lib/api'
 import { backendToMarca } from '@/lib/queries/marcas.queries'
 import { buildProductoIndex, buildProductoIdIndex, buildMarcaIndex, productoKey } from '@/lib/importIndex'
+import { listarSucursales } from '@/lib/sucursales.api'
+import { useAuth } from '@/contexts/AuthContext'
+import type { Sucursal } from '@/types'
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
@@ -58,6 +61,7 @@ interface DatosFormLocal {
   proveedor_id: string
   marca_id: number | null
   margen: number
+  sucursal_id: number | null
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -309,7 +313,7 @@ interface Props {
   onSave: (
     importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>,
     proveedorId: number,
-    options: { categoriaMapeada: boolean },
+    options: { categoriaMapeada: boolean; sucursalId: number | null },
   ) => void
   proveedores: Proveedor[]
   productos: Producto[]
@@ -321,6 +325,7 @@ interface Props {
 export function NuevaImportacionLocalModal({
   open, onClose, onSave, proveedores, productos, marcas, totalImportaciones, margenGanancia,
 }: Props) {
+  const { user } = useAuth()
   const [step, setStep] = useState<ImportStep>('upload')
   const [margenBd] = useState<number>(margenGanancia)
 
@@ -328,6 +333,13 @@ export function NuevaImportacionLocalModal({
   useEffect(() => {
     setDatos(d => ({ ...d, margen: margenGanancia }))
   }, [margenGanancia])
+
+  // Sucursales activas para el selector de destino del stock
+  const [sucursales, setSucursales] = useState<Sucursal[]>([])
+  useEffect(() => {
+    if (!open) return
+    listarSucursales().then(setSucursales).catch(() => setSucursales([]))
+  }, [open])
 
   // Excel
   const [columns, setColumns]   = useState<string[]>([])
@@ -343,6 +355,7 @@ export function NuevaImportacionLocalModal({
     proveedor_id: '',
     marca_id: null,
     margen: margenGanancia,
+    sucursal_id: user?.sucursalId ?? null,
   })
 
   const [items, setItems] = useState<DraftItem[]>([])
@@ -374,13 +387,13 @@ export function NuevaImportacionLocalModal({
     setStep('upload')
     setColumns([]); setRows([]); setMappings({}); setFileName('')
     setRawItems([])
-    setDatos({ proveedor_id: '', marca_id: null, margen: margenBd })
+    setDatos({ proveedor_id: '', marca_id: null, margen: margenBd, sucursal_id: user?.sucursalId ?? null })
     setItems([])
     setExtraProveedores([])
     setExtraMarcas([])
     setSaving(false)
     setCreatingMarcas(false)
-  }, [margenBd])
+  }, [margenBd, user])
 
   const handleClose = () => { reset(); onClose() }
 
@@ -663,7 +676,7 @@ export function NuevaImportacionLocalModal({
 
     try {
       const categoriaMapeada = (mappings['categoria']?.columns.length ?? 0) > 0
-      await onSave(importacion, Number(datos.proveedor_id), { categoriaMapeada })
+      await onSave(importacion, Number(datos.proveedor_id), { categoriaMapeada, sucursalId: datos.sucursal_id })
       setSuccessData({
         numero: nextNumero(totalImportaciones),
         totalProductos: items.length,
@@ -750,6 +763,7 @@ export function NuevaImportacionLocalModal({
             margenGlobal={margenBd}
             totalProductos={rawItems.length}
             onProveedorCreado={(p) => setExtraProveedores((prev) => [...prev, p])}
+            sucursales={sucursales}
           />
         )}
 
@@ -836,7 +850,7 @@ function StepUpload({
 }
 
 function StepDatosLocal({
-  datos, setDatos, proveedores, margenGlobal, totalProductos, onProveedorCreado,
+  datos, setDatos, proveedores, margenGlobal, totalProductos, onProveedorCreado, sucursales,
 }: {
   datos: DatosFormLocal
   setDatos: React.Dispatch<React.SetStateAction<DatosFormLocal>>
@@ -844,10 +858,12 @@ function StepDatosLocal({
   margenGlobal: number
   totalProductos: number
   onProveedorCreado: (p: Proveedor) => void
+  sucursales: Sucursal[]
 }) {
   const margenPct = ((datos.margen - 1) * 100).toFixed(0)
   const globalPct = ((margenGlobal - 1) * 100).toFixed(0)
   const isCustom   = datos.margen !== margenGlobal
+  const sucursalesActivas = sucursales.filter((s) => s.activo).sort((a, b) => a.nombre.localeCompare(b.nombre))
 
   return (
     <div className="space-y-5">
@@ -875,6 +891,23 @@ function StepDatosLocal({
         label="Marca (aplica a todos los productos)"
         placeholder="Selecciona o crea una marca…"
       />
+
+      {/* Sucursal destino del stock */}
+      <div>
+        <label className="block text-[12px] font-medium text-steel-700 mb-1.5">
+          Sucursal que recibe el stock
+        </label>
+        <select
+          value={datos.sucursal_id ?? ''}
+          onChange={(e) => setDatos((d) => ({ ...d, sucursal_id: e.target.value ? Number(e.target.value) : null }))}
+          className="w-full px-3 py-2 rounded-lg border border-steel-200 bg-white text-[13px] text-steel-900 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition-shadow"
+        >
+          <option value="">Predeterminada (casa matriz / mi sucursal)</option>
+          {sucursalesActivas.map((s) => (
+            <option key={s.id} value={s.id}>{s.nombre}</option>
+          ))}
+        </select>
+      </div>
 
       {/* Margen de ganancia */}
       <div>

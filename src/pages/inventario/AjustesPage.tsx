@@ -7,6 +7,9 @@ import { GalleryViewerModal } from './GalleryViewerModal'
 import { notify } from '@/lib/notify'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
+import { listarSucursales } from '@/lib/sucursales.api'
+import { displayUbicacionTexto } from '@/lib/ubicaciones.api'
 import {
   PRODUCTOS_CON_MARCAS_QUERY,
   PRODUCTO_BY_ID_QUERY,
@@ -21,7 +24,7 @@ import {
   type AjusteStockAPI,
   type AjusteStockRow,
 } from '@/lib/queries/ajustes.queries'
-import type { Producto, PiezaKit } from '@/types'
+import type { Producto, PiezaKit, Sucursal } from '@/types'
 import { clsx } from 'clsx'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -164,17 +167,25 @@ interface PiezaAjuste {
   deltaStr: string
 }
 
+const selectClass = 'w-full h-11 px-3 rounded-xl border border-[#E8E5E2] bg-white text-[#2D2B2A] text-sm focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 transition-all'
+const selectLabelClass = 'block text-xs font-semibold text-[#2D2B2A] mb-1.5'
+
 function AjusteModal({
   producto,
+  sucursales,
+  defaultSucursalId,
   onClose,
   onSuccess,
 }: {
   producto: Producto
+  sucursales: Sucursal[]
+  defaultSucursalId: number | null
   onClose: () => void
-  onSuccess: (id: string, nuevoStock: number) => void
+  onSuccess: () => void
 }) {
   const [tab, setTab] = useState<ModalTab>('kit')
   const [deltaStr, setDeltaStr] = useState('')
+  const [sucursalId, setSucursalId] = useState(defaultSucursalId != null ? String(defaultSucursalId) : '')
   const [motivo, setMotivo] = useState(MOTIVOS[0])
   const [motivoCustom, setMotivoCustom] = useState('')
   const [nota, setNota] = useState('')
@@ -204,10 +215,17 @@ function AjusteModal({
     }
   }, [tab, producto, piezasAjuste.length, loadingPiezas])
 
+  const sucursalesActivas = useMemo(
+    () => sucursales.filter(s => s.activo).sort((a, b) => a.nombre.localeCompare(b.nombre)),
+    [sucursales],
+  )
+  const stockActualBase = producto.stocks?.find(s => s.sucursalId === Number(sucursalId))?.cantidad ?? 0
+  const sucursalValida = !!sucursalId
+
   const delta = deltaStr === '' ? NaN : parseInt(deltaStr, 10)
   const deltaValido = !isNaN(delta) && delta !== 0
-  const nuevoStock = producto.stock + delta
-  const nuevoStockValido = deltaValido && nuevoStock >= 0
+  const nuevoStock = stockActualBase + delta
+  const nuevoStockValido = deltaValido && nuevoStock >= 0 && sucursalValida
   const motivoFinal = motivo === 'Otro' ? motivoCustom.trim() : motivo
   const motivoPiezasFinal = motivoPiezas === 'Otro' ? motivoPiezasCustom.trim() : motivoPiezas
 
@@ -221,15 +239,16 @@ function AjusteModal({
     if (!nuevoStockValido || !motivoFinal) return
     setSaving(true)
     try {
-      const res = await api.post<{ cantidadNueva: number }>(`/AjusteStock/${producto.id}`, {
+      await api.post<{ cantidadNueva: number }>(`/AjusteStock/${producto.id}`, {
         delta,
         motivo: motivoFinal,
         nota: nota.trim(),
+        sucursalId: Number(sucursalId),
       })
       notify.success('Stock ajustado', {
-        description: `${producto.nombre}: ${producto.stock} → ${res?.cantidadNueva ?? nuevoStock}`,
+        description: `${producto.nombre}: ${stockActualBase} → ${nuevoStock}`,
       })
-      onSuccess(producto.id, res?.cantidadNueva ?? nuevoStock)
+      onSuccess()
       onClose()
     } catch (e) {
       notify.error(e instanceof Error ? e.message : 'Error al ajustar stock')
@@ -240,7 +259,7 @@ function AjusteModal({
 
   const handleSubmitPiezas = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!motivoPiezasFinal || piezasConCambio.length === 0) return
+    if (!motivoPiezasFinal || piezasConCambio.length === 0 || !sucursalId) return
     setSaving(true)
     try {
       for (const pa of piezasConCambio) {
@@ -249,10 +268,11 @@ function AjusteModal({
           delta: d,
           motivo: motivoPiezasFinal,
           nota: notaPiezas.trim(),
+          sucursalId: Number(sucursalId),
         })
       }
       notify.success(`${piezasConCambio.length} pieza(s) ajustada(s)`)
-      onSuccess(producto.id, -1)
+      onSuccess()
       onClose()
     } catch (e) {
       notify.error(e instanceof Error ? e.message : 'Error al ajustar piezas')
@@ -324,10 +344,20 @@ function AjusteModal({
         {/* ── Tab: Kit completo ── */}
         {tab === 'kit' && (
           <form onSubmit={handleSubmitKit} className="px-6 py-5 space-y-4">
+            <div>
+              <label className={selectLabelClass}>Sucursal *</label>
+              <select value={sucursalId} onChange={e => setSucursalId(e.target.value)} className={selectClass}>
+                <option value="">Selecciona...</option>
+                {sucursalesActivas.map(s => (
+                  <option key={s.id} value={s.id}>{s.nombre}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex items-center gap-3">
               <div className="flex-1 bg-[#F7F7F7] rounded-xl px-4 py-3 text-center border border-[#E8E5E2]">
                 <p className="text-[10px] text-[#7A7571] uppercase tracking-wider mb-1 font-bold">Actual</p>
-                <p className="text-[28px] font-mono font-black text-[#2D2B2A] leading-none">{producto.stock}</p>
+                <p className="text-[28px] font-mono font-black text-[#2D2B2A] leading-none">{sucursalValida ? stockActualBase : '—'}</p>
                 {producto.es_kit && <p className="text-[10px] text-[#780e18] font-bold mt-1">kits</p>}
               </div>
               <div className="text-[#7A7571]">
@@ -367,7 +397,10 @@ function AjusteModal({
                 className="w-full h-12 px-4 rounded-xl border border-[#E8E5E2] bg-white text-[#2D2B2A] text-lg text-center font-bold focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 transition-all"
                 placeholder="0"
               />
-              {deltaValido && !nuevoStockValido && (
+              {deltaValido && !sucursalValida && (
+                <p className="text-xs text-[#B23A2A] mt-1 font-medium">Selecciona una sucursal.</p>
+              )}
+              {deltaValido && sucursalValida && !nuevoStockValido && (
                 <p className="text-xs text-[#B23A2A] mt-1 font-medium">El resultado sería negativo — ajuste no permitido.</p>
               )}
             </div>
@@ -391,6 +424,15 @@ function AjusteModal({
         {/* ── Tab: Por pieza ── */}
         {tab === 'piezas' && (
           <form onSubmit={handleSubmitPiezas} className="px-6 py-5 space-y-4">
+            <div>
+              <label className={selectLabelClass}>Sucursal *</label>
+              <select value={sucursalId} onChange={e => setSucursalId(e.target.value)} className={selectClass}>
+                <option value="">Selecciona...</option>
+                {sucursalesActivas.map(s => (
+                  <option key={s.id} value={s.id}>{s.nombre}</option>
+                ))}
+              </select>
+            </div>
             {loadingPiezas ? (
               <div className="flex items-center justify-center py-10">
                 <div className="h-7 w-7 rounded-full border-2 border-[#E8E5E2] border-t-[#780e18] animate-spin" />
@@ -457,7 +499,7 @@ function AjusteModal({
                     Cancelar
                   </button>
                   <button type="submit"
-                    disabled={saving || piezasConCambio.length === 0 || !motivoPiezasFinal}
+                    disabled={saving || piezasConCambio.length === 0 || !motivoPiezasFinal || !sucursalId}
                     className="flex-1 h-10 rounded-xl bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] text-sm font-bold active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm">
                     {saving ? 'Guardando…' : `Ajustar${piezasConCambio.length > 0 ? ` (${piezasConCambio.length})` : ''}`}
                   </button>
@@ -561,6 +603,14 @@ function AjusteDetalleModal({ row, onClose }: { row: AjusteStockRow; onClose: ()
             <div>
               <p className="text-[10px] font-semibold text-[#7A7571] uppercase tracking-wider mb-1.5">Nota</p>
               <p className="text-sm text-[#2D2B2A] whitespace-pre-wrap">{row.nota}</p>
+            </div>
+          )}
+
+          {/* Sucursal */}
+          {row.sucursalNombre !== '—' && (
+            <div>
+              <p className="text-[10px] font-semibold text-[#7A7571] uppercase tracking-wider mb-1.5">Sucursal</p>
+              <p className="text-sm text-[#2D2B2A]">{row.sucursalNombre}</p>
             </div>
           )}
 
@@ -683,6 +733,7 @@ function HistorialTab({ refreshKey }: { refreshKey: number }) {
               <tr>
                 <th className="px-6 py-3 text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] whitespace-nowrap">Fecha / Por</th>
                 <th className="px-4 py-3 text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em]">Producto</th>
+                <th className="px-4 py-3 text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] hidden md:table-cell">Sucursal</th>
                 <th className="px-4 py-3 text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-center">Delta</th>
                 <th className="px-4 py-3 text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-center">Ant. → Nuevo</th>
                 <th className="px-4 py-3 text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em]">Motivo</th>
@@ -715,6 +766,9 @@ function HistorialTab({ refreshKey }: { refreshKey: number }) {
                           {r.marca}
                         </span>
                       )}
+                    </td>
+                    <td className="px-4 py-3.5 hidden md:table-cell">
+                      <span className="text-xs text-[#7A7571] font-medium">{r.sucursalNombre}</span>
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       <span className={clsx(
@@ -766,6 +820,7 @@ function HistorialTab({ refreshKey }: { refreshKey: number }) {
 // ─── AjustesPage ─────────────────────────────────────────────────────────────
 
 export function AjustesPage() {
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState<'ajustes' | 'historial'>('ajustes')
   const [historialTouched, setHistorialTouched] = useState(false)
   const [historialRefreshKey, setHistorialRefreshKey] = useState(0)
@@ -781,6 +836,21 @@ export function AjustesPage() {
   const cursors = useRef<(string | null)[]>([null])
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [galleryProducto, setGalleryProducto] = useState<Producto | null>(null)
+  const [sucursales, setSucursales] = useState<Sucursal[]>([])
+  const [sucursalesLoading, setSucursalesLoading] = useState(true)
+  const [modalSucursalId, setModalSucursalId] = useState<number | null>(null)
+
+  useEffect(() => {
+    listarSucursales()
+      .then(setSucursales)
+      .catch(() => notify.error('No se pudieron cargar las sucursales.'))
+      .finally(() => setSucursalesLoading(false))
+  }, [])
+
+  const sucursalesActivas = useMemo(
+    () => sucursales.filter(s => s.activo).sort((a, b) => a.nombre.localeCompare(b.nombre)),
+    [sucursales],
+  )
 
   const loadProductos = useCallback((targetPage: number, size: number, q = '', currentFiltro: 'todos' | 'bajo' | 'kits' = 'todos') => {
     setLoading(true)
@@ -846,12 +916,9 @@ export function AjustesPage() {
     [productos, filtro],
   )
 
-  const handleSuccess = (id: string, nuevoStock: number) => {
-    if (nuevoStock >= 0) {
-      setProductos(prev => prev.map(p => p.id === id ? { ...p, stock: nuevoStock } : p))
-    } else {
-      loadProductos(page, pageSize, search, filtro)
-    }
+  const handleSuccess = () => {
+    // Recarga para refrescar tanto el agregado como el desglose por sucursal (`stocks[]`).
+    loadProductos(page, pageSize, search, filtro)
     setHistorialRefreshKey(k => k + 1)
   }
 
@@ -1008,7 +1075,7 @@ export function AjustesPage() {
                   </div>
                 </div>
 
-                {loading ? (
+                {loading || sucursalesLoading ? (
                   <>
                     <div className="hidden md:block"><TableSkeleton /></div>
                     <div className="md:hidden"><MobileSkeletonRows /></div>
@@ -1034,19 +1101,23 @@ export function AjustesPage() {
                             <th className="px-4 py-[11px] text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] border-b border-[#D0CBC4]">Marca</th>
                             <th className="px-4 py-[11px] text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] border-b border-[#D0CBC4] hidden lg:table-cell">Ubicación</th>
                             <th className="px-4 py-[11px] text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] border-b border-[#D0CBC4] min-w-[200px]">Categoría</th>
-                            <th className="px-4 py-[11px] text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] border-b border-[#D0CBC4] text-right">Stock</th>
+                            {sucursalesActivas.map(suc => (
+                              <th key={suc.id} className="px-4 py-[11px] text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] border-b border-[#D0CBC4] text-right whitespace-nowrap">
+                                {suc.nombre}
+                              </th>
+                            ))}
                             <th className="w-28 px-4 border-b border-[#D0CBC4]" />
                           </tr>
                         </thead>
                         <tbody>
                           {displayed.map((p) => {
-                            const bajo = p.stock <= p.stock_minimo
+                            const ubicacionMostrada = [p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / ') || '—'
                             const codigoDisplay = p.codigo_universal
                             return (
                               <tr
                                 key={p.id}
                                 className="border-t border-[#E8E5E2] even:bg-white odd:bg-[#FAF5EE] hover:bg-[#F5F0EB] transition-colors cursor-pointer"
-                                onClick={() => setSeleccionado(p)}
+                                onClick={() => { setModalSucursalId(null); setSeleccionado(p) }}
                               >
                                 <td className={clsx('px-6 py-3.5 border-r border-[#E8E5E2]', p.es_kit && 'border-l-[3px] border-l-[#D4A333]')}>
                                   <div className="flex items-center gap-3">
@@ -1086,7 +1157,7 @@ export function AjustesPage() {
                                 <td className="px-4 py-3.5 hidden lg:table-cell border-r border-[#E8E5E2]">
                                   <div className="text-[11px] text-[#7A7571] font-medium flex items-center gap-1">
                                     <i className="ti ti-map-pin text-[11px]" />
-                                    <span>{[p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / ') || '—'}</span>
+                                    <span>{ubicacionMostrada}</span>
                                   </div>
                                 </td>
                                 <td className="px-4 py-3.5 border-r border-[#E8E5E2] min-w-[200px] align-top">
@@ -1104,18 +1175,29 @@ export function AjustesPage() {
                                     )
                                   })()}
                                 </td>
-                                <td className="px-4 py-3.5 text-right border-r border-[#E8E5E2]">
-                                  <span className={clsx('font-mono font-black text-[22px] leading-none tabular-nums',
-                                    p.stock === 0 ? 'text-[#B23A2A]' : bajo ? 'text-[#B47A1F]' : 'text-[#2D2B2A]')}>
-                                    {p.stock}
-                                  </span>
-                                  {bajo && (
-                                    <p className="text-[10px] text-[#B47A1F] font-bold mt-0.5">bajo mínimo</p>
-                                  )}
-                                </td>
+                                {sucursalesActivas.map(suc => {
+                                  const s = p.stocks?.find(st => st.sucursalId === suc.id)
+                                  const cantidad = s?.cantidad ?? 0
+                                  const ubicacionSuc = displayUbicacionTexto(s?.ubicacionNombre)
+                                  return (
+                                    <td key={suc.id} className="px-4 py-3.5 text-right border-r border-[#E8E5E2]">
+                                      <button
+                                        type="button"
+                                        onClick={e => { e.stopPropagation(); setModalSucursalId(suc.id); setSeleccionado(p) }}
+                                        className="text-right hover:opacity-75 transition-opacity"
+                                        title={`Ajustar en ${suc.nombre}`}
+                                      >
+                                        <span className="font-mono font-semibold text-[15px] text-[#2D2B2A]">{cantidad}</span>
+                                        {ubicacionSuc && (
+                                          <div className="text-[10px] text-[#7A7571] mt-0.5 truncate max-w-[100px]">{ubicacionSuc}</div>
+                                        )}
+                                      </button>
+                                    </td>
+                                  )
+                                })}
                                 <td className="px-4 py-3.5 text-right">
                                   <button
-                                    onClick={e => { e.stopPropagation(); setSeleccionado(p) }}
+                                    onClick={e => { e.stopPropagation(); setModalSucursalId(null); setSeleccionado(p) }}
                                     className="px-3 py-1.5 rounded-lg text-xs font-bold border border-[#E8E5E2] text-[#4A4744] hover:bg-[#F4ECDB] hover:text-[#780e18] hover:border-[#780e18] transition-all"
                                   >
                                     Ajustar
@@ -1131,12 +1213,13 @@ export function AjustesPage() {
                     {/* ── Mobile list ── */}
                     <div className="md:hidden">
                       {displayed.map(p => {
-                        const bajo = p.stock <= p.stock_minimo
+                        const stockMostrado = p.stock
+                        const bajo = stockMostrado <= p.stock_minimo
                         const codigoDisplay = p.codigo_universal
                         return (
                           <div
                             key={p.id}
-                            onClick={() => setSeleccionado(p)}
+                            onClick={() => { setModalSucursalId(null); setSeleccionado(p) }}
                             className={clsx(
                               'flex items-center gap-3 px-4 py-3 border-b border-[#E8E5E2] last:border-0 active:bg-[#FBFAF7] transition-colors cursor-pointer',
                               p.es_kit && 'border-l-[3px] border-l-[#D4A333]',
@@ -1171,8 +1254,8 @@ export function AjustesPage() {
                             </div>
                             <div className="flex flex-col items-end gap-1 shrink-0">
                               <span className={clsx('font-mono font-black text-[20px] leading-none tabular-nums',
-                                p.stock === 0 ? 'text-[#B23A2A]' : bajo ? 'text-[#B47A1F]' : 'text-[#2D2B2A]')}>
-                                {p.stock}
+                                stockMostrado === 0 ? 'text-[#B23A2A]' : bajo ? 'text-[#B47A1F]' : 'text-[#2D2B2A]')}>
+                                {stockMostrado}
                               </span>
                               {bajo
                                 ? <span className="text-[10px] text-[#B47A1F] font-bold">bajo mín.</span>
@@ -1180,7 +1263,7 @@ export function AjustesPage() {
                               }
                             </div>
                             <button
-                              onClick={e => { e.stopPropagation(); setSeleccionado(p) }}
+                              onClick={e => { e.stopPropagation(); setModalSucursalId(null); setSeleccionado(p) }}
                               className="ml-1 shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold border border-[#E8E5E2] text-[#4A4744] hover:bg-[#F4ECDB] hover:text-[#780e18] hover:border-[#780e18] transition-all"
                             >
                               Ajustar
@@ -1192,7 +1275,7 @@ export function AjustesPage() {
                   </>
                 )}
 
-                {!loading && (
+                {!loading && !sucursalesLoading && (
                   <div className="px-[22px] py-[14px] bg-[#F5F0EB] border-t border-[#D0CBC4]">
                     <ServerPagination
                       totalCount={filtro === 'bajo' ? displayed.length : totalCount}
@@ -1215,6 +1298,8 @@ export function AjustesPage() {
       {seleccionado && (
         <AjusteModal
           producto={seleccionado}
+          sucursales={sucursalesActivas}
+          defaultSucursalId={modalSucursalId ?? user?.sucursalId ?? null}
           onClose={() => setSeleccionado(null)}
           onSuccess={handleSuccess}
         />

@@ -1,10 +1,11 @@
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react'
-import type { Importacion, Marca } from '@/types'
+import type { Importacion, Marca, Sucursal } from '@/types'
 import { gql } from '@/lib/graphql'
 import { IMPORTACION_DETAIL_QUERY, type BackendDetalleFull } from '@/lib/queries/importaciones.queries'
 import { notify } from '@/lib/notify'
-import { editarDetalleImportacion, eliminarDetalleImportacion } from '@/lib/importaciones.api'
+import { editarDetalleImportacion, eliminarDetalleImportacion, cambiarSucursalImportacion } from '@/lib/importaciones.api'
+import { listarSucursales } from '@/lib/sucursales.api'
 import { api } from '@/lib/api'
 import { Modal, ConfirmModal, Input, Button, Select } from '@/components/ui'
 
@@ -15,6 +16,7 @@ interface Props {
   marcas: Marca[]
   readOnly?: boolean
   onCantidadCambiada?: (cantProductos: number) => void
+  onSucursalCambiada?: () => void
 }
 
 interface EditForm {
@@ -56,10 +58,15 @@ function toEditForm(d: BackendDetalleFull): EditForm {
   }
 }
 
-export function ImportacionDetailModal({ open, onClose, importacion, marcas, readOnly, onCantidadCambiada }: Props) {
+export function ImportacionDetailModal({ open, onClose, importacion, marcas, readOnly, onCantidadCambiada, onSucursalCambiada }: Props) {
   const [items, setItems] = useState<BackendDetalleFull[]>([])
   const [loadingItems, setLoadingItems] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+
+  const [sucursales, setSucursales] = useState<Sucursal[]>([])
+  const [cambiarSucursalOpen, setCambiarSucursalOpen] = useState(false)
+  const [nuevaSucursalId, setNuevaSucursalId] = useState<number | null>(null)
+  const [cambiandoSucursal, setCambiandoSucursal] = useState(false)
 
   const [editItem, setEditItem] = useState<BackendDetalleFull | null>(null)
   const [editForm, setEditForm] = useState<EditForm | null>(null)
@@ -95,7 +102,37 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas, rea
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, importacion?.id])
 
+  useEffect(() => {
+    if (!open) return
+    listarSucursales().then(setSucursales).catch(() => setSucursales([]))
+  }, [open])
+
   if (!importacion) return null
+
+  const sucursalActual = items[0]?.sucursal ?? null
+  const sucursalesActivas = sucursales.filter((s) => s.activo).sort((a, b) => a.nombre.localeCompare(b.nombre))
+
+  function openCambiarSucursal() {
+    setNuevaSucursalId(sucursalActual?.id ?? null)
+    setCambiarSucursalOpen(true)
+  }
+
+  async function confirmCambiarSucursal() {
+    if (!importacion || !nuevaSucursalId) return
+    setCambiandoSucursal(true)
+    try {
+      const respuesta = await cambiarSucursalImportacion(importacion.id, nuevaSucursalId)
+      notify.success(respuesta.message || 'Sucursal actualizada')
+      for (const adv of respuesta.advertencias) notify.warning(adv)
+      setCambiarSucursalOpen(false)
+      await reloadItems()
+      onSucursalCambiada?.()
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al cambiar la sucursal')
+    } finally {
+      setCambiandoSucursal(false)
+    }
+  }
 
   const getMarcaNombre = (marcaId?: number | null) =>
     marcaId ? (marcas.find(m => m.id === marcaId)?.nombre ?? '') : ''
@@ -265,14 +302,34 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas, rea
                       {importacion.numero}
                     </DialogTitle>
                   </div>
-                  <p className="text-sm text-[#7A7571] ml-11">{importacion.proveedor} · {importacion.origen}</p>
+                  <p className="text-sm text-[#7A7571] ml-11">
+                    {importacion.proveedor} · {importacion.origen}
+                    {sucursalActual && (
+                      <>
+                        {' · '}
+                        <i className="ti ti-building-warehouse text-[12px]" /> {sucursalActual.nombre}
+                      </>
+                    )}
+                  </p>
                 </div>
-                <button
-                  onClick={onClose}
-                  className="p-1.5 rounded-lg text-[#7A7571] hover:text-[#2D2B2A] hover:bg-[#E8E5E2] transition-colors"
-                >
-                  <i className="ti ti-x text-xl" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {!readOnly && (
+                    <button
+                      onClick={openCambiarSucursal}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-[#7A7571] hover:text-[#2D2B2A] hover:bg-[#E8E5E2] transition-colors border border-[#D0CBC4]"
+                      title="Cambiar sucursal"
+                    >
+                      <i className="ti ti-arrows-exchange text-base" />
+                      Cambiar sucursal
+                    </button>
+                  )}
+                  <button
+                    onClick={onClose}
+                    className="p-1.5 rounded-lg text-[#7A7571] hover:text-[#2D2B2A] hover:bg-[#E8E5E2] transition-colors"
+                  >
+                    <i className="ti ti-x text-xl" />
+                  </button>
+                </div>
               </div>
 
               {/* KPIs */}
@@ -586,6 +643,45 @@ export function ImportacionDetailModal({ open, onClose, importacion, marcas, rea
                     </div>
                   </div>
                 )}
+              </Modal>
+
+              <Modal
+                open={cambiarSucursalOpen}
+                onClose={() => setCambiarSucursalOpen(false)}
+                title="Cambiar sucursal de la importación"
+                size="md"
+                footer={
+                  <>
+                    <Button variant="secondary" onClick={() => setCambiarSucursalOpen(false)} disabled={cambiandoSucursal}>Cancelar</Button>
+                    <Button
+                      variant="primary"
+                      onClick={() => void confirmCambiarSucursal()}
+                      loading={cambiandoSucursal}
+                      disabled={!nuevaSucursalId || nuevaSucursalId === sucursalActual?.id}
+                    >
+                      Mover stock
+                    </Button>
+                  </>
+                }
+              >
+                <div className="flex flex-col gap-3">
+                  <p className="text-sm text-[#5C5654]">
+                    Se moverá el stock que esta importación aportó de <strong>{sucursalActual?.nombre ?? 'la sucursal actual'}</strong> a la sucursal que elijas. El resto del stock del producto en cada sucursal no se ve afectado.
+                  </p>
+                  <label className="block text-[12px] font-medium text-[#2D2B2A] mb-1">
+                    Nueva sucursal
+                  </label>
+                  <select
+                    value={nuevaSucursalId ?? ''}
+                    onChange={(e) => setNuevaSucursalId(e.target.value ? Number(e.target.value) : null)}
+                    className="w-full px-3 py-2 rounded-lg border border-[#D0CBC4] bg-white text-[13px] text-[#2D2B2A] focus:outline-none focus:ring-2 focus:ring-[#780e18]/30 focus:border-[#780e18] transition-shadow"
+                  >
+                    <option value="">Selecciona...</option>
+                    {sucursalesActivas.map((s) => (
+                      <option key={s.id} value={s.id}>{s.nombre}</option>
+                    ))}
+                  </select>
+                </div>
               </Modal>
 
               <ConfirmModal

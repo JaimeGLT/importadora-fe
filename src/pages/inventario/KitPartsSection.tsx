@@ -1,9 +1,13 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import type { Producto, PiezaKit } from '@/types'
+import type { Producto, PiezaKit, ProductoStockSucursal, Sucursal } from '@/types'
 import type { DtoPiezaKit, PieceOp } from '@/lib/queries/inventario.queries'
 import { PRODUCTOS_QUERY, backendToProductoSimple } from '@/lib/queries/inventario.queries'
 import { gql } from '@/lib/graphql'
 import { clsx } from 'clsx'
+import { listarSucursales } from '@/lib/sucursales.api'
+import { useAuth } from '@/contexts/AuthContext'
+import { notify } from '@/lib/notify'
+import { PiezaTraspasoModal } from './PiezaTraspasoModal'
 
 interface KitPartsSectionProps {
   productoId?: string
@@ -17,6 +21,8 @@ interface KitPartsSectionProps {
   kitCodigo?: string
   /** Callback al pulsar el botón imprimir de una pieza. Si no se provee, no se muestra el botón. */
   onImprimirPieza?: (part: DisplayPart) => void
+  /** Se llama después de un traspaso de pieza exitoso, para que el padre refresque el producto. */
+  onPiezaTraspasada?: () => void
 }
 
 type DisplayPart = {
@@ -24,6 +30,7 @@ type DisplayPart = {
   nombre: string
   cantidad: number
   stock?: number
+  stocks?: ProductoStockSucursal[]
   piezaId?: number
   addOpIdx?: number
   localIdx?: number
@@ -42,6 +49,7 @@ export function KitPartsSection({
   onPieceOpsChange,
   kitCodigo,
   onImprimirPieza,
+  onPiezaTraspasada,
 }: KitPartsSectionProps) {
   const [mode, setMode] = useState<'idle' | 'search' | 'create'>('idle')
   const [q, setQ] = useState('')
@@ -53,6 +61,29 @@ export function KitPartsSection({
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const { user } = useAuth()
+  const [sucursales, setSucursales] = useState<Sucursal[]>([])
+  const [sucursalId, setSucursalId] = useState(user?.sucursalId ? String(user.sucursalId) : '')
+  const [traspasoPieza, setTraspasoPieza] = useState<{ id: number; nombre: string; stocks: ProductoStockSucursal[] } | null>(null)
+
+  useEffect(() => {
+    listarSucursales()
+      .then((lista) => {
+        setSucursales(lista)
+        if (!sucursalId) {
+          const activa = lista.find((s) => s.activo)
+          if (activa) setSucursalId(String(activa.id))
+        }
+      })
+      .catch(() => notify.error('No se pudieron cargar las sucursales.'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const sucursalesActivas = useMemo(
+    () => sucursales.filter((s) => s.activo).sort((a, b) => a.nombre.localeCompare(b.nombre)),
+    [sucursales],
+  )
 
   useEffect(() => {
     if (!q.trim()) { setSearchResults([]); setSearchError(null); return }
@@ -92,7 +123,10 @@ export function KitPartsSection({
           key: `b-${p.id}`,
           nombre: p.nombre,
           cantidad: updatedMap.get(p.id)?.cantidadPorKit ?? p.cantidad_por_kit,
-          stock: p.stock_actual,
+          stock: sucursalId
+            ? (p.stocks?.find((s) => String(s.sucursalId) === sucursalId)?.cantidad ?? 0)
+            : p.stock_actual,
+          stocks: p.stocks,
           piezaId: p.id,
           codigoPieza: p.codigo_pieza,
         }))
@@ -193,6 +227,20 @@ export function KitPartsSection({
 
   return (
     <div className="space-y-3">
+      {wasKit && sucursalesActivas.length > 0 && (
+        <div className="flex items-center gap-2">
+          <label className="text-[10.5px] uppercase tracking-[0.1em] font-bold text-muted-2 shrink-0">Stock en</label>
+          <select
+            value={sucursalId}
+            onChange={(e) => setSucursalId(e.target.value)}
+            className="h-8 px-2.5 rounded-[8px] border border-hair bg-white text-[12px] text-ink focus:outline-none focus:border-terra"
+          >
+            {sucursalesActivas.map((s) => (
+              <option key={s.id} value={s.id}>{s.nombre}</option>
+            ))}
+          </select>
+        </div>
+      )}
       {/* Parts list */}
       {displayParts.length > 0 ? (
         <div className="rounded-[12px] border border-hair overflow-hidden divide-y divide-hair">
@@ -229,6 +277,16 @@ export function KitPartsSection({
                     )}>
                       {part.stock}u
                     </div>
+                  )}
+                  {part.piezaId !== undefined && (
+                    <button
+                      type="button"
+                      onClick={() => setTraspasoPieza({ id: part.piezaId!, nombre: part.nombre, stocks: part.stocks ?? [] })}
+                      title="Traspasar esta pieza entre sucursales"
+                      className="p-1.5 rounded-[6px] text-navy hover:bg-navy/5 transition-colors shrink-0"
+                    >
+                      <i className="ti ti-arrows-exchange text-[15px]" />
+                    </button>
                   )}
                   <button type="button" onClick={() => handleRemove(part)}
                     className="p-1.5 rounded-[6px] text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors shrink-0">
@@ -403,6 +461,20 @@ export function KitPartsSection({
           {pieceOps.filter(op => op.type === 'update').length > 0 && `${pieceOps.filter(op => op.type === 'update').length} cantidad(es) modificada(s) · `}
           Se aplicarán al guardar · códigos autogenerados por el servidor.
         </p>
+      )}
+
+      {traspasoPieza && (
+        <PiezaTraspasoModal
+          piezaId={traspasoPieza.id}
+          piezaNombre={traspasoPieza.nombre}
+          stocks={traspasoPieza.stocks}
+          initialOrigenId={sucursalId ? Number(sucursalId) : undefined}
+          onClose={() => setTraspasoPieza(null)}
+          onSuccess={() => {
+            setTraspasoPieza(null)
+            onPiezaTraspasada?.()
+          }}
+        />
       )}
     </div>
   )

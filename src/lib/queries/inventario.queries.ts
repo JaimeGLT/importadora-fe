@@ -46,6 +46,14 @@ export const PRODUCTOS_QUERY = `
         fechaCreacion
         fechaActualizacion
         imagenPrincipal { id url }
+        stocks {
+          id
+          sucursalId
+          cantidad
+          reservado
+          ubicacionTexto
+          sucursal { nombre codigo }
+        }
       }
     }
   }
@@ -80,6 +88,14 @@ export const PRODUCTOS_CON_MARCAS_QUERY = `
         fechaCreacion
         fechaActualizacion
         imagenPrincipal { id url }
+        stocks {
+          id
+          sucursalId
+          cantidad
+          reservado
+          ubicacionTexto
+          sucursal { nombre codigo }
+        }
       }
     }
     marca(order: { nombre: ASC }, first: 5000) {
@@ -200,6 +216,14 @@ export const PRODUCTO_BY_ID_QUERY = `
         categoria
         precio
         esKit
+        stocks {
+          id
+          sucursalId
+          cantidad
+          reservado
+          ubicacionTexto
+          sucursal { nombre codigo }
+        }
         historialPrecios {
           id
           id_producto
@@ -218,6 +242,12 @@ export const PRODUCTO_BY_ID_QUERY = `
           stockReservado
           orden
           codigoPieza
+          stocks {
+            sucursalId
+            cantidad
+            reservado
+            sucursal { nombre codigo }
+          }
         }
         codigoAux
         codigoAux2
@@ -247,6 +277,13 @@ export const PRODUCTO_BY_ID_QUERY = `
   }
 `
 
+interface PiezaKitStockAPI {
+  sucursalId: number
+  cantidad: number
+  reservado: number
+  sucursal?: { nombre: string; codigo: string } | null
+}
+
 interface PiezaKitAPI {
   id: number
   id_Producto: number
@@ -259,6 +296,8 @@ interface PiezaKitAPI {
   codigoPieza: string
   /** Posición secuencial (1, 2, 3...) dentro del kit. Autogenerado. */
   orden: number
+  /** Desglose de stock por sucursal (fuente de verdad; stockActual/stockReservado son cache global). */
+  stocks?: PiezaKitStockAPI[]
 }
 
 interface HistorialPrecioAPI {
@@ -286,6 +325,15 @@ export interface ProductoImagenAPI {
   esPrincipal: boolean
   estado: 'Pendiente' | 'Activa' | 'Eliminada'
   fechaSubida: string
+}
+
+export interface ProductoStockAPI {
+  id?: number
+  sucursalId: number
+  cantidad: number
+  reservado: number
+  ubicacionTexto?: string | null
+  sucursal?: { nombre: string; codigo?: string } | null
 }
 
 export interface ProductoAPISimple {
@@ -334,6 +382,7 @@ export interface ProductoAPISimple {
   historialPrecios?: HistorialPrecioAPI[]
   fechaCreacion?: string | null
   fechaActualizacion?: string | null
+  stocks?: ProductoStockAPI[]
 }
 
 export interface ProductoAPI extends ProductoAPISimple {
@@ -355,6 +404,26 @@ function mapPiezasKit(raw: PiezaKitAPI[] | undefined): PiezaKit[] {
     codigo_universal: p.codigo,
     codigo_pieza: p.codigoPieza ?? '',
     orden: p.orden ?? 0,
+    stocks: (p.stocks ?? []).map((s) => ({
+      sucursalId: s.sucursalId,
+      cantidad: s.cantidad,
+      reservado: s.reservado,
+      sucursalNombre: s.sucursal?.nombre,
+      sucursalCodigo: s.sucursal?.codigo,
+    })),
+  }))
+}
+
+function mapStocks(raw: ProductoStockAPI[] | undefined): Producto['stocks'] {
+  if (!raw) return []
+  return raw.map((s) => ({
+    id: s.id,
+    sucursalId: s.sucursalId,
+    sucursalNombre: s.sucursal?.nombre,
+    sucursalCodigo: s.sucursal?.codigo,
+    ubicacionNombre: s.ubicacionTexto ?? null,
+    cantidad: s.cantidad,
+    reservado: s.reservado,
   }))
 }
 
@@ -432,6 +501,7 @@ function mapProductoBase(p: ProductoAPISimple): Producto {
       nota: h.nota ?? undefined,
     })),
     ...parseUbicacion(p.ubicacion ?? ''),
+    stocks: mapStocks(p.stocks),
     estado: 'activo',
     proveedor_id: '',
     creado_en: p.fechaCreacion ?? '',

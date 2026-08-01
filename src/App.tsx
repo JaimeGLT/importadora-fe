@@ -24,6 +24,7 @@ const OrdenesReportePage     = lazy(() => import('@/pages/reportes/OrdenesReport
 const ComisionesPage         = lazy(() => import('@/pages/comisiones/ComisionesPage').then(m => ({ default: m.ComisionesPage })))
 const ConfiguracionPage      = lazy(() => import('@/pages/config/ConfiguracionPage').then(m => ({ default: m.ConfiguracionPage })))
 const UsuariosPage           = lazy(() => import('@/pages/sistema/usuarios/UsuariosPage').then(m => ({ default: m.UsuariosPage })))
+const SucursalesPage         = lazy(() => import('@/pages/sistema/sucursales/SucursalesPage').then(m => ({ default: m.SucursalesPage })))
 const ClientesPage           = lazy(() => import('@/pages/ventas/clientes/ClientesPage').then(m => ({ default: m.ClientesPage })))
 const EscaneoPage            = lazy(() => import('@/pages/ventas/escaneo/EscaneoPage').then(m => ({ default: m.EscaneoPage })))
 const VentasHistorialPage    = lazy(() => import('@/pages/ventas/VentasHistorialPage').then(m => ({ default: m.VentasHistorialPage })))
@@ -77,6 +78,7 @@ export default function App() {
               <Route path="/importaciones/extractor" element={<FacturaExtractorPage />} />
               <Route path="/configuracion" element={<ConfiguracionPage />} />
               <Route path="/sistema/usuarios" element={<UsuariosPage />} />
+              <Route path="/sistema/sucursales" element={<SucursalesPage />} />
             </Route>
 
             <Route element={<RoleGuard allowedRoles={['admin', 'almacenero']} />}>

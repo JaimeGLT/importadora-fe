@@ -25,6 +25,8 @@ export interface DtoImportacion {
    * devuelve su id en la respuesta para los siguientes lotes.
    */
   importacionId?: number | null
+  /** Sucursal que recibe el stock. Null = backend resuelve por JWT/casa matriz. */
+  sucursalId?: number | null
   tipo?: string
   id_Proveedor: number
   fecha: string
@@ -61,6 +63,8 @@ interface BackendDetalle {
   conversionABs: number
   tipo: string
   piezas?: number
+  sucursalId: number
+  sucursal?: { id: number; nombre: string } | null
 }
 
 interface BackendProveedor {
@@ -246,11 +250,16 @@ const DETALLE_NODES = `
   conversionABs
   tipo
   piezas
+  sucursalId
+  sucursal {
+    id
+    nombre
+  }
 `
 
 export const IMPORTACIONES_QUERY = `
   query Importaciones {
-    importacion {
+    importacion(first: 5000) {
       nodes {
         ${IMP_SUMMARY_NODES}
       }
@@ -273,7 +282,7 @@ export const IMPORTACION_DETAIL_QUERY = `
 
 export const IMPORTACIONES_INIT_QUERY = `
   query ImportacionesInit {
-    importacion {
+    importacion(first: 5000) {
       nodes {
         ${IMP_SUMMARY_NODES}
       }

@@ -22,6 +22,8 @@ interface ApiUserResponse {
   correo?: string
   rol?: string
   role?: string
+  sucursalId?: number | null
+  sucursalNombre?: string | null
 }
 
 interface MiPerfilResponse {
@@ -52,7 +54,18 @@ function mapToUser(data: ApiUserResponse): Usuario | null {
   }
   const rol: Usuario['rol'] = ROL_MAP[rawRol] ?? 'cajero'
   if (!id || !email) return null
-  return { id, nombre, email, rol, apellido: '', activo: true, creado_en: '', actualizado_en: '' }
+  return {
+    id,
+    nombre,
+    email,
+    rol,
+    apellido: '',
+    activo: true,
+    sucursalId: data.sucursalId ?? null,
+    sucursalNombre: data.sucursalNombre ?? null,
+    creado_en: '',
+    actualizado_en: '',
+  }
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)

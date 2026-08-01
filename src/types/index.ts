@@ -12,6 +12,9 @@ export interface Usuario {
   bloqueadoHasta?: string | null
   horario?: { horaInicio: string; horaFin: string; activo: boolean } | null
   porcentajeComision?: number
+  /** Sucursal fija del usuario. Null para admin/superadmin (operan todas). */
+  sucursalId?: number | null
+  sucursalNombre?: string | null
   creado_en: string
   actualizado_en: string
 }
@@ -82,6 +85,8 @@ export interface Producto {
   columna: string
   imagen?: string                 // URL de la imagen principal (thumb). Compatibilidad con call-sites existentes.
   imagenes?: ProductoImagen[]     // Galería completa (solo en modo edición / detalle).
+  /** Desglose de stock por sucursal. `stock` sigue siendo el total agregado. */
+  stocks?: ProductoStockSucursal[]
   estado: EstadoProducto
   proveedor_id: string
   es_kit?: boolean
@@ -90,6 +95,56 @@ export interface Producto {
   piezas_kit?: PiezaKit[]
   creado_en: string
   actualizado_en: string
+}
+
+// ─── Sucursales ───────────────────────────────────────────────────────────────
+
+export interface Sucursal {
+  id: number
+  nombre: string
+  codigo: string
+  direccion?: string | null
+  esCasaMatriz: boolean
+  activo: boolean
+}
+
+export interface Ubicacion {
+  id: number
+  sucursalId: number
+  nombre: string
+  estante?: string | null
+  fila?: string | null
+  columna?: string | null
+  activo: boolean
+}
+
+export interface ProductoStockSucursal {
+  id?: number
+  sucursalId: number
+  sucursalNombre?: string
+  sucursalCodigo?: string
+  ubicacionNombre?: string | null
+  cantidad: number
+  reservado: number
+}
+
+export interface TraspasoStock {
+  id: number
+  idProducto: number
+  productoNombre?: string
+  sucursalOrigenId: number
+  sucursalOrigenNombre?: string
+  sucursalDestinoId: number
+  sucursalDestinoNombre?: string
+  cantidad: number
+  cantidadAnteriorOrigen: number
+  cantidadNuevaOrigen: number
+  cantidadAnteriorDestino: number
+  cantidadNuevaDestino: number
+  motivo: string
+  nota?: string
+  fecha: string
+  usuarioId?: string | null
 }
 
 export interface KitRelacion {
@@ -114,6 +169,8 @@ export interface PiezaKit {
   codigo_pieza: string
   /** Posición secuencial de la pieza dentro del kit (1, 2, 3...). Autogenerado. */
   orden: number
+  /** Desglose de stock por sucursal. stock_actual/stock_reservado son cache cruzado de todas las sucursales. */
+  stocks?: ProductoStockSucursal[]
 }
 
 export type MonedaProveedor = 'USD' | 'EUR' | 'CNY' | 'GBP' | 'JPY' | 'KRW' | 'BRL' | 'ARS' | 'CLP' | 'PEN'

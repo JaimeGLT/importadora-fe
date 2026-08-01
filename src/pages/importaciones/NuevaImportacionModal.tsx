@@ -8,6 +8,9 @@ import { notify } from '@/lib/notify'
 import { api } from '@/lib/api'
 import { backendToMarca } from '@/lib/queries/marcas.queries'
 import { buildProductoIndex, buildProductoIdIndex, buildMarcaIndex, productoKey } from '@/lib/importIndex'
+import { listarSucursales } from '@/lib/sucursales.api'
+import { useAuth } from '@/contexts/AuthContext'
+import type { Sucursal } from '@/types'
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
@@ -65,6 +68,7 @@ interface DatosForm {
   transporte_interno_bs: string
   transporte_modo: 'monto' | 'porcentaje'
   marca_id: number | null
+  sucursal_id: number | null
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -355,7 +359,7 @@ interface Props {
   onSave: (
     importacion: Omit<Importacion, 'id' | 'creado_en' | 'actualizado_en'>,
     proveedorId: number,
-    options: { categoriaMapeada: boolean },
+    options: { categoriaMapeada: boolean; sucursalId: number | null },
   ) => void
   proveedores: Proveedor[]
   productos: Producto[]
@@ -368,9 +372,17 @@ export function NuevaImportacionModal({
   open, onClose, onSave, proveedores, productos, marcas, totalImportaciones, margenGanancia,
 }: Props) {
   // ── Estado ────────────────────────────────────────────────────────────────
+  const { user } = useAuth()
   const [step, setStep] = useState<ImportStep>('upload')
   const [margenBd, setMargenBd] = useState<number>(margenGanancia)
   const [margenGlobal] = useState<number>(margenGanancia)
+
+  // Sucursales activas para el selector de destino del stock
+  const [sucursales, setSucursales] = useState<Sucursal[]>([])
+  useEffect(() => {
+    if (!open) return
+    listarSucursales().then(setSucursales).catch(() => setSucursales([]))
+  }, [open])
 
   // Sincronizar con el margen configurado en cuanto llegue del backend
   useEffect(() => {
@@ -400,6 +412,7 @@ export function NuevaImportacionModal({
     transporte_interno_bs: '',
     transporte_modo: 'monto',
     marca_id: null,
+    sucursal_id: user?.sucursalId ?? null,
   })
 
   // Items calculados
@@ -436,14 +449,14 @@ export function NuevaImportacionModal({
     setStep('upload')
     setColumns([]); setRows([]); setMappings({}); setFileName('')
     setRawItems([])
-    setDatos({ proveedor_id: '', fecha_estimada_llegada: '', tipo_cambio: '6.96', flete_usd: '', flete_modo: 'monto', aduana_bs: '', aduana_modo: 'monto', transporte_interno_bs: '', transporte_modo: 'monto', marca_id: null })
+    setDatos({ proveedor_id: '', fecha_estimada_llegada: '', tipo_cambio: '6.96', flete_usd: '', flete_modo: 'monto', aduana_bs: '', aduana_modo: 'monto', transporte_interno_bs: '', transporte_modo: 'monto', marca_id: null, sucursal_id: user?.sucursalId ?? null })
     setMargenBd(margenGlobal)
     setItems([])
     setExtraProveedores([])
     setExtraMarcas([])
     setSaving(false)
     setCreatingMarcas(false)
-  }, [margenGlobal])
+  }, [margenGlobal, user])
 
   const handleClose = () => { reset(); onClose() }
 
@@ -739,7 +752,7 @@ export function NuevaImportacionModal({
 
     try {
       const categoriaMapeada = (mappings['categoria']?.columns.length ?? 0) > 0
-      await onSave(importacion, Number(datos.proveedor_id), { categoriaMapeada })
+      await onSave(importacion, Number(datos.proveedor_id), { categoriaMapeada, sucursalId: datos.sucursal_id })
       setSuccessData({
         numero: nextNumero(totalImportaciones),
         totalProductos: items.length,
@@ -840,6 +853,7 @@ export function NuevaImportacionModal({
           margen={margenBd}
           margenGlobal={margenGlobal}
           onMargenChange={setMargenBd}
+          sucursales={sucursales}
         />
       )}
 
@@ -1107,7 +1121,7 @@ function CostoField({
 
 function StepDatos({
   datos, setDatos, proveedores, fobPreliminar, totalProductos, onProveedorChange, onProveedorCreado,
-  margen, margenGlobal, onMargenChange,
+  margen, margenGlobal, onMargenChange, sucursales,
 }: {
   datos: DatosForm
   setDatos: React.Dispatch<React.SetStateAction<DatosForm>>
@@ -1119,7 +1133,9 @@ function StepDatos({
   margen: number
   margenGlobal: number
   onMargenChange: (v: number) => void
+  sucursales: Sucursal[]
 }) {
+  const sucursalesActivas = sucursales.filter((s) => s.activo).sort((a, b) => a.nombre.localeCompare(b.nombre))
   const set = (k: keyof DatosForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDatos((d) => ({ ...d, [k]: e.target.value }))
 
@@ -1192,6 +1208,23 @@ function StepDatos({
         label="Marca (aplica a todos los productos)"
         placeholder="Selecciona o crea una marca…"
       />
+
+      {/* Sucursal destino del stock */}
+      <div>
+        <label className="block text-[12px] font-medium text-steel-700 mb-1.5">
+          Sucursal que recibe el stock
+        </label>
+        <select
+          value={datos.sucursal_id ?? ''}
+          onChange={(e) => setDatos((d) => ({ ...d, sucursal_id: e.target.value ? Number(e.target.value) : null }))}
+          className="w-full px-3 py-2 rounded-lg border border-steel-200 bg-white text-[13px] text-steel-900 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition-shadow"
+        >
+          <option value="">Predeterminada (casa matriz / mi sucursal)</option>
+          {sucursalesActivas.map((s) => (
+            <option key={s.id} value={s.id}>{s.nombre}</option>
+          ))}
+        </select>
+      </div>
 
       {/* Costos adicionales */}
       <div>

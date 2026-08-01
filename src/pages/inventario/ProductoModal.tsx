@@ -6,6 +6,7 @@ import { BrandSelect } from '@/components/ui/BrandSelect'
 import type { Producto, ProductoImagen, HistorialPrecio } from '@/types'
 import type { DtoPiezaKit, KitOps, PieceOp } from '@/lib/queries/inventario.queries'
 import { KitPartsSection } from './KitPartsSection'
+import { UbicacionesPorSucursal } from './UbicacionesPorSucursal'
 import type { DisplayPart } from './KitPartsSection'
 import { EtiquetaModal } from './EtiquetaModal'
 import type { LabelData } from '@/lib/printLabel'
@@ -94,6 +95,7 @@ export function ProductoModal({
   const [errors, setErrors]   = useState<Partial<Record<keyof FormData | 'tipo_cambio' | 'kit_piezas', string>>>({})
   const [saving, setSaving]   = useState(false)
   const [historialOpen, setHistorialOpen] = useState(false)
+  const [ubicacionesOpen, setUbicacionesOpen] = useState(false)
   const [actualizarPrecio, setActualizarPrecio] = useState(false)
   const [nuevoCosto, setNuevoCosto] = useState('')
   const [nuevoVenta, setNuevoVenta] = useState('')
@@ -483,15 +485,8 @@ export function ProductoModal({
           </FormSection>
 
           {/* Stock y almacén */}
-          <FormSection icon={<IconBox />} title="Stock y almacén" description="Cantidades, unidad de medida y ubicación física" iconClass="bg-[#4A4744] text-white shadow-sm">
-            <WarmInput
-              label="Ubicación"
-              value={form.almacen}
-              onChange={(e) => set('almacen', e.target.value)}
-              placeholder="Almacén Central"
-              hint="Nombre del almacén o ubicación física del producto"
-            />
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+          <FormSection icon={<IconBox />} title="Stock y almacén" description="Cantidades y unidad de medida. La ubicación por sucursal se define más abajo." iconClass="bg-[#4A4744] text-white shadow-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <WarmInput
                 label="Stock actual *"
                 type="number"
@@ -516,6 +511,20 @@ export function ProductoModal({
               />
             </div>
           </FormSection>
+
+          {producto && !readOnly && (
+            <FormSection
+              icon={<i className="ti ti-map-pin text-[16px]" />}
+              title="Definir ubicaciones"
+              description="Estante, fila y columna de este producto en cada sucursal"
+              iconClass="bg-[#3F7A52] text-white shadow-sm"
+              collapsible
+              open={ubicacionesOpen}
+              onToggle={() => setUbicacionesOpen((v) => !v)}
+            >
+              <UbicacionesPorSucursal productoId={producto.id} stocks={producto.stocks ?? []} />
+            </FormSection>
+          )}
 
           {/* Kit */}
           <FormSection

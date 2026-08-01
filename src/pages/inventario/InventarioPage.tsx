@@ -12,12 +12,15 @@ import {
 import { MainLayout } from '@/components/layout/MainLayout'
 import { ConfirmModal, ServerPagination } from '@/components/ui'
 import { ProductThumb } from '@/components/ui/ProductThumb'
-import type { Producto } from '@/types'
+import type { Producto, Sucursal } from '@/types'
+import { listarSucursales } from '@/lib/sucursales.api'
+import { displayUbicacionTexto } from '@/lib/ubicaciones.api'
 import { notify } from '@/lib/notify'
 import { ProductoModal, type PriceUpdate } from './ProductoModal'
 import { ImportarExcelModal, type ImportResult } from './ImportarExcelModal'
 import { EtiquetaModal } from './EtiquetaModal'
 import { GalleryViewerModal } from './GalleryViewerModal'
+import { StockSucursalModal } from './StockSucursalModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import {
@@ -44,6 +47,7 @@ declare module '@tanstack/react-table' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface ColumnMeta<TData, TValue> {
     align?: 'left' | 'center' | 'right'
+    wrapHeader?: boolean
   }
 }
 
@@ -270,7 +274,17 @@ export function InventarioPage() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [exportando, setExportando] = useState(false)
   const [galleryProducto, setGalleryProducto] = useState<Producto | null>(null)
+  const [stockSucursalProducto, setStockSucursalProducto] = useState<Producto | null>(null)
+  const [stockTraspasoOrigenId, setStockTraspasoOrigenId] = useState<number | undefined>(undefined)
+  const [sucursales, setSucursales] = useState<Sucursal[]>([])
+  const [sucursalesLoading, setSucursalesLoading] = useState(true)
 
+  useEffect(() => {
+    listarSucursales()
+      .then(setSucursales)
+      .catch(() => notify.error('No se pudieron cargar las sucursales.'))
+      .finally(() => setSucursalesLoading(false))
+  }, [])
 
   // ── Load products ──────────────────────────────────────────────────────────
   const loadProducts = (targetPage: number, size: number, q: string = '', marcaId: number | null = null) => {
@@ -558,6 +572,25 @@ export function InventarioPage() {
     }
   }
 
+  const sucursalesActivas = useMemo(
+    () => sucursales.filter((s) => s.activo).sort((a, b) => a.nombre.localeCompare(b.nombre)),
+    [sucursales],
+  )
+
+  const CODIGO_COL_MIN = 130
+  const CODIGO_COL_MAX = 220
+  const codigoColWidth = useMemo(() => {
+    let maxPx = CODIGO_COL_MIN
+    for (const p of displayProducts) {
+      const codigoPx = (p.codigo_universal?.length ?? 0) * 7.4
+      const altPx = Math.max(0, ...p.codigos_alternativos.filter(Boolean).map((c) => c.length * 7.2))
+      const nombrePx = (p.nombre?.trim().length ?? 0) * 6
+      const rowPx = Math.max(codigoPx, altPx, nombrePx) + 28
+      if (rowPx > maxPx) maxPx = rowPx
+    }
+    return Math.min(CODIGO_COL_MAX, Math.round(maxPx))
+  }, [displayProducts])
+
   // ── KPIs ───────────────────────────────────────────────────────────────────
   const kpi = useMemo(() => ({
     total:         totalCount || products.length,
@@ -591,7 +624,7 @@ export function InventarioPage() {
     }),
     colHelper.accessor('nombre', {
       header: 'Código / Producto',
-      size: 220,
+      size: codigoColWidth,
       meta: { align: 'left' },
       cell: (info) => {
         const p = info.row.original
@@ -618,55 +651,54 @@ export function InventarioPage() {
     }),
     colHelper.display({
       id: 'marca',
-      header: 'Marca / Ubic.',
+      header: 'Marca',
       size: 160,
       meta: { align: 'left' },
       cell: (info) => {
         const p = info.row.original
         const nombre = getMarcaNombre(p.marcaId, marcas)
         return (
-          <div>
-            <div className="inline-flex items-center gap-1.5 bg-[#E8D4B8] text-[#780e18] text-xs font-semibold px-2.5 py-0.5 rounded-full mb-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#780e18] shrink-0" />
-              {nombre || '—'}
-            </div>
-            <div className="text-[10px] text-[#7A7571] font-normal flex items-center gap-1">
-              <i className="ti ti-map-pin text-[10px]" />
-              <span>{p.almacen} {p.estante} {p.fila} {p.columna}</span>
-            </div>
+          <div className="inline-flex items-center gap-1.5 bg-[#E8D4B8] text-[#780e18] text-xs font-semibold px-2.5 py-0.5 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#780e18] shrink-0" />
+            {nombre || '—'}
           </div>
         )
       },
     }),
-    colHelper.accessor('stock', {
-      header: 'Stock',
-      size: 90,
-      meta: { align: 'left' },
-      cell: (info) => {
-        const p = info.row.original
-        const pct = Math.min(100, p.stock_minimo > 0
-          ? (p.stock / (p.stock_minimo * 4)) * 100
-          : p.stock > 0 ? 50 : 0)
-        const isOk   = p.stock > p.stock_minimo * 2
-        const isWarn = p.stock > p.stock_minimo && p.stock <= p.stock_minimo * 2
-        return (
-          <div>
-            <div className="font-mono font-semibold text-[14px] text-[#2D2B2A] leading-none">{p.stock.toLocaleString('es-BO')}</div>
-            <div className="w-[60px] h-[5px] bg-[#DDD8D3] rounded-full overflow-hidden mt-1.5">
-              <div
-                className={clsx(
-                  'h-full rounded-full',
-                  isOk ? 'bg-gradient-to-r from-[#3F7A52] to-[#6BAF80]'
-                  : isWarn ? 'bg-gradient-to-r from-[#B47A1F] to-[#D4A333]'
-                  : 'bg-gradient-to-r from-[#B23A2A] to-[#D45040]'
-                )}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </div>
-        )
-      },
-    }),
+    ...sucursalesActivas.map((suc) =>
+      colHelper.display({
+        id: `stock_suc_${suc.id}`,
+        header: () => <span>{suc.nombre}</span>,
+        size: 100,
+        meta: { align: 'left', wrapHeader: true },
+        enableSorting: false,
+        cell: (info) => {
+          const p = info.row.original
+          const s = p.stocks?.find((s) => s.sucursalId === suc.id)
+          const cantidad = (s?.cantidad ?? 0).toLocaleString('es-BO')
+
+          const ubicacionTexto = displayUbicacionTexto(s?.ubicacionNombre)
+          const ubicacion = ubicacionTexto && (
+            <div className="text-[10px] text-[#7A7571] mt-0.5 truncate max-w-[85px]">{ubicacionTexto}</div>
+          )
+
+          return (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setStockSucursalProducto(p); setStockTraspasoOrigenId(suc.id) }}
+              className="text-left hover:opacity-75 transition-opacity"
+              title={`Traspasar desde ${suc.nombre}`}
+            >
+              <div className="flex items-center gap-1">
+                <span className="font-mono font-semibold text-[13px] text-[#2D2B2A]">{cantidad}</span>
+                <i className="ti ti-arrows-exchange text-[12px] text-[#780e18]" />
+              </div>
+              {ubicacion}
+            </button>
+          )
+        },
+      }),
+    ),
     colHelper.display({
       id: 'categoria',
       header: 'Categoría',
@@ -705,16 +737,6 @@ export function InventarioPage() {
         </div>
       ),
     }),
-    ...(isCajero ? [] : [colHelper.accessor('precio_costo', {
-      header: () => (
-        <span className="inline-flex items-baseline gap-1">
-          <span className="text-[9px] font-normal opacity-60 normal-case">Bs.</span>
-          P. Costo
-        </span>
-      ),
-      size: 120,
-      meta: { align: 'left' },
-    })]),
     colHelper.display({
       id: 'acciones',
       header: '',
@@ -765,7 +787,7 @@ export function InventarioPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ]
     return cols
-  }, [marcas, isCajero])
+  }, [marcas, isCajero, sucursalesActivas, codigoColWidth])
 
   // ── TanStack Table ─────────────────────────────────────────────────────────
   const table = useReactTable({
@@ -974,7 +996,7 @@ export function InventarioPage() {
             </div>
 
             {/* Table / skeleton / empty */}
-            {(loading || searching) ? (
+            {(loading || searching || sucursalesLoading) ? (
               <>
                 <div className="hidden md:block"><TableSkeleton /></div>
                 <div className="md:hidden"><MobileSkeletonRows /></div>
@@ -984,25 +1006,28 @@ export function InventarioPage() {
             ) : (
               <>
                 {/* ── Desktop table ── */}
-                <div className="hidden md:block overflow-x-auto">
+                <div className="hidden md:block overflow-auto max-h-[65vh]">
                   <table className="w-full text-left border-collapse table-fixed">
                     <colgroup>
                       {table.getFlatHeaders().map((h) => (
                         <col key={h.id} style={{ width: h.column.getSize() }} />
                       ))}
                     </colgroup>
-                    <thead className="bg-[#F5F0EB]">
+                    <thead className="bg-[#F5F0EB] sticky top-0 z-20 shadow-[0_1px_0_0_#D0CBC4]">
                       {table.getHeaderGroups().map((hg) => (
                         <tr key={hg.id}>
                           {hg.headers.map((header) => {
                             const canSort = header.column.getCanSort()
                             const sorted  = header.column.getIsSorted()
-                            const align   = (header.column.columnDef.meta as ColumnMeta<Producto, unknown> | undefined)?.align ?? 'left'
+                            const meta    = header.column.columnDef.meta as ColumnMeta<Producto, unknown> | undefined
+                            const align   = meta?.align ?? 'left'
+                            const wrapHeader = meta?.wrapHeader ?? false
                             return (
                               <th
                                 key={header.id}
                                 className={clsx(
-                                  'px-4 py-[11px] text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.12em] select-none whitespace-nowrap border-b border-[#D0CBC4]',
+                                  'px-4 py-[11px] text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.12em] select-none border-b border-[#D0CBC4] bg-[#F5F0EB] align-middle',
+                                  wrapHeader ? 'whitespace-normal break-words leading-tight' : 'whitespace-nowrap',
                                   align === 'center' && 'text-center',
                                   align === 'right'  && 'text-right',
                                   canSort && 'cursor-pointer hover:text-[#4A4744] transition-colors',
@@ -1082,7 +1107,7 @@ export function InventarioPage() {
             )}
 
             {/* Footer */}
-            {!loading && (
+            {!loading && !sucursalesLoading && (
               <div className="px-[22px] py-[14px] bg-[#F5F0EB] border-t border-[#D0CBC4]">
                 <ServerPagination
                   totalCount={totalCount}
@@ -1137,6 +1162,47 @@ export function InventarioPage() {
         producto={galleryProducto}
         onClose={() => setGalleryProducto(null)}
       />
+      {stockSucursalProducto && (
+        <StockSucursalModal
+          producto={stockSucursalProducto}
+          initialOrigenId={stockTraspasoOrigenId}
+          onClose={() => { setStockSucursalProducto(null); setStockTraspasoOrigenId(undefined) }}
+          onTraspasoSuccess={(productoId, sucursalOrigenId, sucursalDestinoId, cantidad) => {
+            const patch = (list: Producto[]) => list.map((p) => {
+              if (p.id !== productoId) return p
+              const stocksBase = p.stocks ?? []
+              let stocks = stocksBase.map((s) => {
+                if (s.sucursalId === sucursalOrigenId) return { ...s, cantidad: s.cantidad - cantidad }
+                if (s.sucursalId === sucursalDestinoId) return { ...s, cantidad: s.cantidad + cantidad }
+                return s
+              })
+              if (!stocksBase.some((s) => s.sucursalId === sucursalOrigenId)) {
+                stocks = [...stocks, { sucursalId: sucursalOrigenId, cantidad: -cantidad, reservado: 0 }]
+              }
+              if (!stocksBase.some((s) => s.sucursalId === sucursalDestinoId)) {
+                stocks = [...stocks, { sucursalId: sucursalDestinoId, cantidad, reservado: 0 }]
+              }
+              const actualizado = { ...p, stocks }
+              setStockSucursalProducto(actualizado)
+              return actualizado
+            })
+            setProducts((prev) => patch(prev))
+            setAllProductos((prev) => patch(prev))
+          }}
+          onProductoActualizado={(actualizado) => {
+            // Solo pisamos los campos de stock (recalculados a partir de las
+            // piezas tras el traspaso) — el resto de PRODUCTO_BY_ID_QUERY no trae
+            // todo lo que muestra la tabla (ej. nombre de marca), así que no
+            // conviene reemplazar el producto completo.
+            const patch = (list: Producto[]) => list.map((p) => (p.id === actualizado.id
+              ? { ...p, stock: actualizado.stock, stocks: actualizado.stocks }
+              : p))
+            setProducts((prev) => patch(prev))
+            setAllProductos((prev) => patch(prev))
+            setStockSucursalProducto((prev) => (prev && prev.id === actualizado.id ? { ...prev, stocks: actualizado.stocks } : prev))
+          }}
+        />
+      )}
       <ConfirmModal
         open={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}

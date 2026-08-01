@@ -10,6 +10,8 @@ export const AJUSTES_HISTORIAL_QUERY = `
         motivo
         nota
         fecha
+        sucursalId
+        sucursal { nombre codigo }
         usuario { nombre }
         producto { nombre codigo codigoAux codigoAux2 marcaId marca { nombre } }
       }
@@ -27,6 +29,8 @@ export interface AjusteStockAPI {
   motivo: string
   nota: string
   fecha: string
+  sucursalId?: number | null
+  sucursal?: { nombre: string; codigo?: string } | null
   usuario?: { nombre: string }
   producto?: { nombre: string; codigo: string; codigoAux?: string; codigoAux2?: string; marcaId?: number; marca?: { nombre: string } | null }
 }
@@ -45,6 +49,7 @@ export interface AjusteStockRow {
   nota: string
   fecha: Date
   usuarioNombre: string
+  sucursalNombre: string
 }
 
 export function backendToAjusteRow(a: AjusteStockAPI): AjusteStockRow {
@@ -63,5 +68,6 @@ export function backendToAjusteRow(a: AjusteStockAPI): AjusteStockRow {
     nota: a.nota ?? '',
     fecha: new Date(a.fecha),
     usuarioNombre: a.usuario?.nombre ?? '—',
+    sucursalNombre: a.sucursal?.nombre ?? '—',
   }
 }

@@ -27,6 +27,8 @@ interface UsuarioAPI {
   bloqueadoHasta: string | null
   horario: HorarioAPI | null
   porcentajeComision: number
+  sucursalId?: number | null
+  sucursalNombre?: string | null
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -290,6 +292,79 @@ function ComisionModal({ usuario, onClose, onSuccess }: {
   )
 }
 
+// ─── SucursalModal ────────────────────────────────────────────────────────────
+
+function SucursalModal({ usuario, onClose, onSuccess }: {
+  usuario: UsuarioAPI; onClose: () => void; onSuccess: (u: UsuarioAPI) => void
+}) {
+  const [sucursales, setSucursales] = useState<{ id: number; nombre: string }[]>([])
+  const [sucursalId, setSucursalId] = useState(usuario.sucursalId != null ? String(usuario.sucursalId) : '')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    api.get<{ id: number; nombre: string }[]>('/Sucursal')
+      .then(setSucursales)
+      .catch(() => notify.error('No se pudieron cargar las sucursales'))
+  }, [])
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const id = sucursalId ? Number(sucursalId) : null
+      await api.patch(`/Usuario/${usuario.id}/sucursal`, { sucursalId: id })
+      const nombre = sucursales.find(s => s.id === id)?.nombre ?? null
+      notify.success('Sucursal actualizada', {
+        description: id ? `${usuario.nombre} asignado a ${nombre}` : `${usuario.nombre} sin sucursal fija`,
+      })
+      onSuccess({ ...usuario, sucursalId: id, sucursalNombre: nombre })
+      onClose()
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al asignar sucursal')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Drawer onClose={onClose} width="sm:w-[380px]">
+      <DrawerHeader icon="ti ti-building-warehouse" title="Sucursal fija" subtitle={`${usuario.nombre} ${usuario.apellido}`} onClose={onClose} iconBg="#F4ECDB" iconColor="#D4A333" />
+      <form onSubmit={handleSave} className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          <p className="text-[12px] text-[#7A7571]">
+            Determina el stock que este usuario ve/vende. Déjalo vacío para admins que operan en todas las sucursales.
+          </p>
+          <div>
+            <label className="block text-xs font-semibold text-[#4A4744] mb-1.5">Sucursal</label>
+            <select
+              value={sucursalId}
+              onChange={e => setSucursalId(e.target.value)}
+              className="w-full h-11 px-3 rounded-xl border border-[#E8E5E2] bg-white text-[#2D2B2A] text-sm focus:outline-none focus:border-[#D4A333] focus:ring-2 focus:ring-[#D4A333]/20 transition-all"
+            >
+              <option value="">Sin sucursal fija</option>
+              {sucursales.map(s => (
+                <option key={s.id} value={s.id}>{s.nombre}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="px-6 pb-6 pt-4 border-t border-[#E8E5E2] shrink-0">
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose} disabled={saving}
+              className="flex-1 h-11 rounded-xl border border-[#E8E5E2] text-sm font-medium text-[#4A4744] hover:bg-[#F0EFEC] transition-colors disabled:opacity-50">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex-1 h-11 rounded-xl bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] text-sm font-semibold active:scale-[0.98] transition-all disabled:opacity-50">
+              {saving ? 'Guardando…' : 'Guardar'}
+            </button>
+          </div>
+        </div>
+      </form>
+    </Drawer>
+  )
+}
+
 // ─── HorarioGlobalModal ───────────────────────────────────────────────────────
 
 function HorarioGlobalModal({ horarioActual, onClose, onSuccess }: {
@@ -493,10 +568,17 @@ const ROL_SUPERADMIN = { value: 'SuperAdmin', label: 'Superadministrador' }
 
 function CrearUsuarioModal({ onClose, onSuccess, puedeCrearSuperAdmin }: { onClose: () => void; onSuccess: () => void; puedeCrearSuperAdmin: boolean }) {
   const rolesDisponibles = puedeCrearSuperAdmin ? [ROL_SUPERADMIN, ...ROLES_DISPONIBLES] : ROLES_DISPONIBLES
-  const [form, setForm] = useState({ nombre: '', apellido: '', email: '', password: '', rol: 'Cajero' })
+  const [form, setForm] = useState({ nombre: '', apellido: '', email: '', password: '', rol: 'Cajero', sucursalId: '' })
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Partial<typeof form>>({})
   const [showPwd, setShowPwd] = useState(false)
+  const [sucursales, setSucursales] = useState<{ id: number; nombre: string }[]>([])
+
+  useEffect(() => {
+    api.get<{ id: number; nombre: string }[]>('/Sucursal')
+      .then(setSucursales)
+      .catch(() => notify.error('No se pudieron cargar las sucursales'))
+  }, [])
 
   const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }))
 
@@ -515,7 +597,7 @@ function CrearUsuarioModal({ onClose, onSuccess, puedeCrearSuperAdmin }: { onClo
     if (!validate()) return
     setSaving(true)
     try {
-      await api.post('/Usuario', form)
+      await api.post('/Usuario', { ...form, sucursalId: form.sucursalId ? Number(form.sucursalId) : null })
       notify.success('Usuario creado', { description: `${form.nombre} ${form.apellido} — ${ROL_LABELS[form.rol] ?? form.rol}` })
       onSuccess()
       onClose()
@@ -599,6 +681,20 @@ function CrearUsuarioModal({ onClose, onSuccess, puedeCrearSuperAdmin }: { onClo
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-[#4A4744] mb-1.5">Sucursal fija</label>
+            <select
+              value={form.sucursalId}
+              onChange={e => set('sucursalId', e.target.value)}
+              className="w-full h-10 px-3.5 rounded-xl border border-[#E8E5E2] bg-white text-[#2D2B2A] text-sm focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 transition-all"
+            >
+              <option value="">Sin sucursal fija (admin/superadmin)</option>
+              {sucursales.map(s => (
+                <option key={s.id} value={s.id}>{s.nombre}</option>
+              ))}
+            </select>
           </div>
 
         </div>
@@ -742,6 +838,7 @@ export function UsuariosPage() {
   const [horarioUsuario, setHorarioUsuario] = useState<UsuarioAPI | null>(null)
   const [bloquearHastaUsuario, setBloquearHastaUsuario] = useState<UsuarioAPI | null>(null)
   const [comisionUsuario, setComisionUsuario] = useState<UsuarioAPI | null>(null)
+  const [sucursalUsuario, setSucursalUsuario] = useState<UsuarioAPI | null>(null)
   const [detalleUsuario, setDetalleUsuario] = useState<UsuarioAPI | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<UsuarioAPI | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -807,6 +904,10 @@ export function UsuariosPage() {
   }
 
   const handleComisionSuccess = (updated: UsuarioAPI) => {
+    setUsuarios(prev => prev.map(u => u.id === updated.id ? updated : u))
+  }
+
+  const handleSucursalSuccess = (updated: UsuarioAPI) => {
     setUsuarios(prev => prev.map(u => u.id === updated.id ? updated : u))
   }
 
@@ -1091,6 +1192,7 @@ export function UsuariosPage() {
                           onHorario={() => setHorarioUsuario(u)}
                           onBloquearHasta={() => setBloquearHastaUsuario(u)}
                           onComision={() => setComisionUsuario(u)}
+                          onSucursal={() => setSucursalUsuario(u)}
                           onOpenDetalle={() => setDetalleUsuario(u)}
                           onDelete={() => setConfirmDelete(u)}
                         />
@@ -1112,6 +1214,7 @@ export function UsuariosPage() {
                       onHorario={() => setHorarioUsuario(u)}
                       onBloquearHasta={() => setBloquearHastaUsuario(u)}
                       onComision={() => setComisionUsuario(u)}
+                      onSucursal={() => setSucursalUsuario(u)}
                       onOpenDetalle={() => setDetalleUsuario(u)}
                       onDelete={() => setConfirmDelete(u)}
                     />
@@ -1152,6 +1255,14 @@ export function UsuariosPage() {
           usuario={comisionUsuario}
           onClose={() => setComisionUsuario(null)}
           onSuccess={handleComisionSuccess}
+        />
+      )}
+
+      {sucursalUsuario && (
+        <SucursalModal
+          usuario={sucursalUsuario}
+          onClose={() => setSucursalUsuario(null)}
+          onSuccess={handleSucursalSuccess}
         />
       )}
 
@@ -1203,6 +1314,7 @@ interface RowProps {
   onHorario: () => void
   onBloquearHasta: () => void
   onComision: () => void
+  onSucursal: () => void
   onOpenDetalle: () => void
   onDelete: () => void
 }
@@ -1321,9 +1433,10 @@ function buildAccionesGroups(opts: {
   onHorario: () => void
   onBloquearHasta: () => void
   onComision: () => void
+  onSucursal: () => void
   onDelete: () => void
 }): { title: string; items: AccionItem[] }[] {
-  const { u, isSelf, canDelete, esCajero, onHorario, onBloquearHasta, onComision, onDelete } = opts
+  const { u, isSelf, canDelete, esCajero, onHorario, onBloquearHasta, onComision, onSucursal, onDelete } = opts
   const disabledTitleSelf = 'No puedes hacer esto sobre tu propio usuario'
 
   return [
@@ -1345,6 +1458,12 @@ function buildAccionesGroups(opts: {
           onClick: onHorario,
           disabled: isSelf,
           disabledTitle: disabledTitleSelf,
+        },
+        {
+          key: 'sucursal',
+          label: u.sucursalNombre ? `Sucursal: ${u.sucursalNombre}` : 'Asignar sucursal',
+          icon: 'ti ti-building-warehouse',
+          onClick: onSucursal,
         },
       ],
     },
@@ -1376,10 +1495,10 @@ function buildAccionesGroups(opts: {
   ]
 }
 
-function UsuarioRow({ usuario: u, isSelf, toggling, canDelete, onToggle, onHorario, onBloquearHasta, onComision, onOpenDetalle, onDelete }: RowProps) {
+function UsuarioRow({ usuario: u, isSelf, toggling, canDelete, onToggle, onHorario, onBloquearHasta, onComision, onSucursal, onOpenDetalle, onDelete }: RowProps) {
   const hasta = fmtBloqueo(u.bloqueadoHasta)
   const esCajero = u.rol === 'Cajero' || u.rol === 'Admin' || u.rol === 'SuperAdmin'
-  const accionesGroups = buildAccionesGroups({ u, isSelf, canDelete, esCajero, onHorario, onBloquearHasta, onComision, onDelete })
+  const accionesGroups = buildAccionesGroups({ u, isSelf, canDelete, esCajero, onHorario, onBloquearHasta, onComision, onSucursal, onDelete })
   return (
     <tr
       onClick={onOpenDetalle}
@@ -1399,6 +1518,10 @@ function UsuarioRow({ usuario: u, isSelf, toggling, canDelete, onToggle, onHorar
       </td>
       <td className="px-5 py-3.5">
         <p className="text-[12px] text-[#7A7571] truncate max-w-[200px]">{u.email}</p>
+        <p className="text-[10.5px] text-[#B4881C] truncate max-w-[200px] flex items-center gap-1 mt-0.5">
+          <i className="ti ti-building-warehouse text-[10px]" />
+          {u.sucursalNombre ?? 'Sin sucursal fija'}
+        </p>
       </td>
       <td className="px-5 py-3.5">
         <div className="flex items-center gap-2">
@@ -1433,10 +1556,10 @@ function UsuarioRow({ usuario: u, isSelf, toggling, canDelete, onToggle, onHorar
   )
 }
 
-function UsuarioCard({ usuario: u, isSelf, toggling, canDelete, onToggle, onHorario, onBloquearHasta, onComision, onOpenDetalle, onDelete }: RowProps) {
+function UsuarioCard({ usuario: u, isSelf, toggling, canDelete, onToggle, onHorario, onBloquearHasta, onComision, onSucursal, onOpenDetalle, onDelete }: RowProps) {
   const hasta = fmtBloqueo(u.bloqueadoHasta)
   const esCajero = u.rol === 'Cajero' || u.rol === 'Admin' || u.rol === 'SuperAdmin'
-  const accionesGroups = buildAccionesGroups({ u, isSelf, canDelete, esCajero, onHorario, onBloquearHasta, onComision, onDelete })
+  const accionesGroups = buildAccionesGroups({ u, isSelf, canDelete, esCajero, onHorario, onBloquearHasta, onComision, onSucursal, onDelete })
   return (
     <div
       onClick={onOpenDetalle}

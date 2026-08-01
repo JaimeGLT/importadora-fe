@@ -42,3 +42,18 @@ export const eliminarDetalleImportacion = (importacionId: string, detalleId: str
   api.delete<DtoImportacionDetalleRespuesta>(
     `/Importacion/${importacionId}/Detalles/${detalleId}`,
   )
+
+export interface DtoImportacionCambiarSucursalRespuesta {
+  message: string
+  advertencias: string[]
+}
+
+export const cambiarSucursalImportacion = (
+  importacionId: string,
+  sucursalId: number,
+  nota?: string,
+) =>
+  api.put<DtoImportacionCambiarSucursalRespuesta>(
+    `/Importacion/${importacionId}/Sucursal`,
+    { sucursalId, nota },
+  )
