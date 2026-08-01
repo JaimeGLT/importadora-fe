@@ -16,6 +16,16 @@ import {
   type TraspasoStockRow,
 } from '@/lib/queries/traspasos.queries'
 
+function generarCodigo(nombre: string) {
+  const base = nombre
+    .normalize('NFD')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase()
+    .slice(0, 12)
+  const sufijo = Date.now().toString(36).toUpperCase().slice(-4)
+  return `${base || 'SUC'}-${sufijo}`
+}
+
 function fmtFecha(d: Date) {
   return d.toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
     ' ' + d.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })
@@ -178,7 +188,6 @@ export function SucursalesPage() {
   const [saving, setSaving] = useState(false)
 
   const [nombre, setNombre] = useState('')
-  const [codigo, setCodigo] = useState('')
   const [direccion, setDireccion] = useState('')
 
   const load = () => {
@@ -194,13 +203,12 @@ export function SucursalesPage() {
   const filtered = useMemo(() => {
     if (!search.trim()) return sucursales
     const q = search.toLowerCase()
-    return sucursales.filter((s) => s.nombre.toLowerCase().includes(q) || s.codigo.toLowerCase().includes(q))
+    return sucursales.filter((s) => s.nombre.toLowerCase().includes(q))
   }, [sucursales, search])
 
   const handleOpenNew = () => {
     setEditing(null)
     setNombre('')
-    setCodigo('')
     setDireccion('')
     setFormOpen(true)
   }
@@ -208,17 +216,15 @@ export function SucursalesPage() {
   const handleOpenEdit = (s: Sucursal) => {
     setEditing(s)
     setNombre(s.nombre)
-    setCodigo(s.codigo)
     setDireccion(s.direccion ?? '')
     setFormOpen(true)
   }
 
   const handleSave = async () => {
     if (!nombre.trim()) return notify.error('Ingresa un nombre')
-    if (!codigo.trim()) return notify.error('Ingresa un código')
     setSaving(true)
     try {
-      const datos = { nombre: nombre.trim(), codigo: codigo.trim().toUpperCase(), direccion: direccion.trim() || undefined, activo: editing?.activo ?? true }
+      const datos = { nombre: nombre.trim(), codigo: editing?.codigo ?? generarCodigo(nombre), direccion: direccion.trim() || undefined, activo: editing?.activo ?? true }
       if (editing) {
         await api.put(`/Sucursal/${editing.id}`, datos)
         setSucursales((prev) => prev.map((s) => (s.id === editing.id ? { ...s, ...datos } : s)))
@@ -329,7 +335,7 @@ export function SucursalesPage() {
                 <i className="ti ti-search text-[#7A7571] text-base shrink-0" />
                 <input
                   className="flex-1 py-2 bg-transparent text-sm text-[#2D2B2A] placeholder:text-[#7A7571] outline-none border-none"
-                  placeholder="Buscar por nombre o código…"
+                  placeholder="Buscar por nombre…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -355,7 +361,6 @@ export function SucursalesPage() {
                 <thead>
                   <tr className="bg-[#F5F0EB] border-b border-[#D0CBC4]">
                     <th className="px-5 py-[11px] text-left text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.12em]">Nombre</th>
-                    <th className="px-5 py-[11px] text-left text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.12em]">Código</th>
                     <th className="px-5 py-[11px] text-left text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.12em]">Dirección</th>
                     <th className="px-5 py-[11px] text-left text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.12em]">Estado</th>
                     <th className="px-5 py-[11px] text-right text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.12em]">Acciones</th>
@@ -375,7 +380,6 @@ export function SucursalesPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-5 py-[14px] font-mono text-[12.5px] text-[#4A4744]">{s.codigo}</td>
                       <td className="px-5 py-[14px] text-[12.5px] text-[#7A7571]">{s.direccion || '—'}</td>
                       <td className="px-5 py-[14px]">
                         <span className={clsx(
@@ -449,18 +453,6 @@ export function SucursalesPage() {
                   value={nombre}
                   onChange={(e) => setNombre(e.target.value)}
                   autoFocus
-                />
-              </div>
-              <div>
-                <label className="text-[10.5px] font-semibold text-[#5C5654] uppercase tracking-[0.1em] block mb-1.5">
-                  Código <span className="text-[#B23A2A]">*</span>
-                </label>
-                <input
-                  className="w-full bg-white border border-[#D0CBC4] rounded-lg px-3 py-2 text-[13px] text-[#2D2B2A] placeholder:text-[#7A7571] focus:outline-none focus:ring-2 focus:ring-[#780e18]/20 focus:border-[#780e18] transition-colors font-mono uppercase"
-                  placeholder="Ej: SN"
-                  value={codigo}
-                  onChange={(e) => setCodigo(e.target.value)}
-                  maxLength={20}
                 />
               </div>
               <div>
