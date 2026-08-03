@@ -1099,7 +1099,6 @@ export function AjustesPage() {
                           <tr>
                             <th className="px-6 py-[11px] text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] border-b border-[#D0CBC4]">Producto</th>
                             <th className="px-4 py-[11px] text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] border-b border-[#D0CBC4]">Marca</th>
-                            <th className="px-4 py-[11px] text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] border-b border-[#D0CBC4] hidden lg:table-cell">Ubicación</th>
                             <th className="px-4 py-[11px] text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] border-b border-[#D0CBC4] min-w-[200px]">Categoría</th>
                             {sucursalesActivas.map(suc => (
                               <th key={suc.id} className="px-4 py-[11px] text-[10.5px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] border-b border-[#D0CBC4] text-right whitespace-nowrap">
@@ -1111,7 +1110,6 @@ export function AjustesPage() {
                         </thead>
                         <tbody>
                           {displayed.map((p) => {
-                            const ubicacionMostrada = [p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' / ') || '—'
                             const codigoDisplay = p.codigo_universal
                             return (
                               <tr
@@ -1153,12 +1151,6 @@ export function AjustesPage() {
                                   ) : (
                                     <span className="text-[12px] text-[#7A7571]">—</span>
                                   )}
-                                </td>
-                                <td className="px-4 py-3.5 hidden lg:table-cell border-r border-[#E8E5E2]">
-                                  <div className="text-[11px] text-[#7A7571] font-medium flex items-center gap-1">
-                                    <i className="ti ti-map-pin text-[11px]" />
-                                    <span>{ubicacionMostrada}</span>
-                                  </div>
                                 </td>
                                 <td className="px-4 py-3.5 border-r border-[#E8E5E2] min-w-[200px] align-top">
                                   {(() => {
