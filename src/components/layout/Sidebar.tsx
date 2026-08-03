@@ -63,7 +63,6 @@ const groups: NavGroup[] = [
     items: [
       { label: 'Ventas',      to: '/reportes/ventas',      roles: ['admin'] },
       { label: 'Inventario',  to: '/reportes/inventario',  roles: ['admin'] },
-      { label: 'Órdenes',     to: '/reportes/ordenes',     roles: ['admin'] },
     ],
   },
   {

@@ -21,6 +21,8 @@ import type { Producto } from '@/types'
 
 // ────── Helpers ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
+const STOCK_BAJO_MAX = 12
+
 const fmtBs = (n: number) =>
   `Bs ${n.toLocaleString('es-BO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 
@@ -36,16 +38,6 @@ const ESTADO_DONUT_COLOR: Record<string, string> = {
   listo_para_escaneo:   '#3B82F6', // azul
   con_faltantes:        '#F97316', // naranja
   esperando_pago:       '#8B5CF6', // púrpura
-}
-
-function relativeTime(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'ahora'
-  if (mins < 60) return `hace ${mins}m`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `hace ${hrs}h`
-  return `hace ${Math.floor(hrs / 24)}d`
 }
 
 // ────── Skeleton ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -149,25 +141,6 @@ function DashboardSkeleton() {
           </div>
         </div>
       </div>
-
-      {/* Pedidos recientes */}
-      <SkCard className="p-5 mb-5">
-        <div className="h-3 w-32 rounded bg-[#E8E5E2] mb-5" />
-        <div className="space-y-1">
-          {[0, 1, 2, 3, 4, 5].map(i => (
-            <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border-l-4 border-l-[#D0CBC4]">
-              <div className="flex-1 space-y-1.5">
-                <div className="h-3 w-24 rounded bg-[#F0EFEC]" />
-                <div className="h-2 w-20 rounded bg-[#E8E5E2]" />
-              </div>
-              <div className="flex flex-col items-end gap-1.5">
-                <div className="h-3 w-20 rounded bg-[#F0EFEC]" />
-                <div className="h-5 w-16 rounded-full bg-[#E8E5E2]" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </SkCard>
 
       {/* Sin movimiento */}
       <SkCard className="p-5">
@@ -285,11 +258,10 @@ export function DashboardPage() {
   const {
     ventasHoy, ventasMes, ventasHoyPrev, ventasMesPrev,
     ordenesActivas,
-    stockCritico, valorInventario, valorInventarioUSD,
+    stockBajo, valorInventario, valorInventarioUSD,
     top5productos, sparkline14d, chartDates,
     sinMovimiento,
     donutEstados,
-    pctStockCritico,
     pctSinMovimiento,
   } = useMemo(() => {
     const todayDate  = new Date()
@@ -318,7 +290,7 @@ export function DashboardPage() {
     const ordenesActivas = ordenes.filter(o => o.estado !== 'completada' && o.estado !== 'cancelada').length
 
     const productosActivos = productos.filter(p => p.estado === 'activo')
-    const stockCritico       = productosActivos.filter(p => p.stock <= p.stock_minimo)
+    const stockBajo          = productosActivos.filter(p => p.stock <= STOCK_BAJO_MAX).sort((a, b) => a.stock - b.stock)
     const valorInventario    = productos.reduce((s, p) => s + p.stock * p.precio_costo, 0)
     const valorInventarioUSD = productos.reduce((s, p) => s + p.stock * (p.precio_costo / tipoCambio), 0)
 
@@ -371,20 +343,17 @@ export function DashboardPage() {
       }))
       .sort((a, b) => b.value - a.value)
 
-    // Gauges
-    const pctStockCritico  = productosActivos.length > 0
-      ? (stockCritico.length / productosActivos.length) * 100 : 0
+    // Gauge
     const pctSinMovimiento = productosActivos.length > 0
       ? (sinMovimiento.length / productosActivos.length) * 100 : 0
 
     return {
       ventasHoy, ventasMes, ventasHoyPrev, ventasMesPrev,
       ordenesActivas,
-      stockCritico, valorInventario, valorInventarioUSD,
+      stockBajo, valorInventario, valorInventarioUSD,
       top5productos, sparkline14d, chartDates,
       sinMovimiento,
       donutEstados,
-      pctStockCritico,
       pctSinMovimiento,
     }
   }, [productos, ordenes, tipoCambio])
@@ -400,36 +369,8 @@ export function DashboardPage() {
 
   const saludo = "Reportes de Acceso Rápido"
 
-  // Pedidos recientes filtrados por el estado seleccionado en el donut (filtro cruzado)
-  const pedidosVis = useMemo(() => {
-    const ord = [...ordenes].reverse()
-    if (!filtroEstado) return ord
-    return ord.filter(o => o.estado === filtroEstado)
-  }, [ordenes, filtroEstado])
-
   // Para el gauge: el "valor central" muestra el conteo real, no sólo el %
-  const stockCriticoCount = stockCritico.length
   const productosActivosCount = productos.filter(p => p.estado === 'activo').length
-
-  const estadoBadge: Record<string, { label: string; variant: BadgeVariant }> = {
-    pendiente_almacenero: { label: 'Pendiente',  variant: 'amber'  },
-    en_preparacion:       { label: 'Preparando', variant: 'blue'   },
-    listo_para_escaneo:   { label: 'Listo',      variant: 'green'  },
-    con_faltantes:        { label: 'Faltantes',  variant: 'red'    },
-    esperando_pago:       { label: 'Por cobrar', variant: 'yellow' },
-    completada:           { label: 'Completada', variant: 'gray'   },
-    cancelada:            { label: 'Cancelado',  variant: 'red'    },
-  }
-
-  const statusBorderColor: Record<string, string> = {
-    pendiente_almacenero: 'border-l-[#D4A333]',
-    en_preparacion:       'border-l-[#7A7571]',
-    listo_para_escaneo:   'border-l-[#3F7A52]',
-    con_faltantes:        'border-l-[#780e18]',
-    esperando_pago:       'border-l-[#D4A333]',
-    completada:           'border-l-[#D0CBC4]',
-    cancelada:            'border-l-[#780e18]',
-  }
 
   if (isLoading) {
     return (
@@ -469,14 +410,14 @@ export function DashboardPage() {
               </svg>
               Exportar PDF
             </button>
-            {stockCritico.length > 0 && (
+            {stockBajo.length > 0 && (
               <Link to="/reportes/inventario"
                 className="flex items-center gap-2 px-4 py-2 bg-[#780e18] hover:bg-[#5a0a12] text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                {stockCritico.length} alertas de stock
+                {stockBajo.length} alertas de stock
               </Link>
             )}
           </div>
@@ -543,24 +484,100 @@ export function DashboardPage() {
 
           {/* Stock crítico */}
           <Link to="/reportes/inventario">
-            <Card className={`p-5 h-full hover:-translate-y-0.5 hover:shadow-md transition-all ${stockCritico.length > 0 ? 'border-[#F5C9C0]' : ''}`}>
+            <Card className={`p-5 h-full hover:-translate-y-0.5 hover:shadow-md transition-all ${stockBajo.length > 0 ? 'border-[#F5C9C0]' : ''}`}>
               <div className="flex items-start justify-between mb-3">
-                <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${stockCritico.length > 0 ? 'bg-[#F5C9C0]' : 'bg-[#F0EFEC]'}`}>
-                  <svg className={`h-4 w-4 ${stockCritico.length > 0 ? 'text-[#8A1E12]' : 'text-[#7A7571]'}`}
+                <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${stockBajo.length > 0 ? 'bg-[#F5C9C0]' : 'bg-[#F0EFEC]'}`}>
+                  <svg className={`h-4 w-4 ${stockBajo.length > 0 ? 'text-[#8A1E12]' : 'text-[#7A7571]'}`}
                     fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                       d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                {stockCritico.length > 0 && <Badge label="Revisar" variant="red" />}
+                {stockBajo.length > 0 && <Badge label="Revisar" variant="red" />}
               </div>
-              <p className={`text-2xl font-black tabular-nums leading-tight ${stockCritico.length > 0 ? 'text-[#8A1E12]' : 'text-[#2D2B2A]'}`}>
-                {stockCritico.length}
+              <p className={`text-2xl font-black tabular-nums leading-tight ${stockBajo.length > 0 ? 'text-[#8A1E12]' : 'text-[#2D2B2A]'}`}>
+                {stockBajo.length}
               </p>
-              <p className="text-xs text-[#7A7571] font-semibold mt-0.5">Stock crítico</p>
-              <p className="text-[10px] text-[#7A7571] mt-2">Productos bajo mínimo</p>
+              <p className="text-xs text-[#7A7571] font-semibold mt-0.5">Stock bajo</p>
+              <p className="text-[10px] text-[#7A7571] mt-2">Productos con ≤ {STOCK_BAJO_MAX} unidades</p>
             </Card>
           </Link>
+        </div>
+
+        {/* ──── Stock bajo (≤12) + Valor inventario ──────────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
+
+          <Card className="lg:col-span-2 p-5">
+            <SectionTitle to="/reportes/inventario">{`Stock bajo — ≤ ${STOCK_BAJO_MAX} unidades`}</SectionTitle>
+            {stockBajo.length === 0 ? (
+              <div className="flex items-center gap-3 py-10 justify-center">
+                <div className="h-10 w-10 rounded-full bg-[#B8DCCA] flex items-center justify-center">
+                  <svg className="h-5 w-5 text-[#1E5C38]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <span className="text-sm font-semibold text-[#7A7571]">Ningún producto con stock ≤ {STOCK_BAJO_MAX}</span>
+              </div>
+            ) : (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-[#F5F0EB] border-b border-[#D0CBC4]">
+                    <th className="text-left px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px]">Producto</th>
+                    <th className="text-center px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px]">Stock</th>
+                    <th className="text-left px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px]">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stockBajo.slice(0, 8).map(p => (
+                    <tr key={p.id} className="border-b border-[#E8E5E2] hover:bg-[#FAF5EE] transition-colors group">
+                      <td className="py-3 pr-3 px-3">
+                        <p className="font-semibold text-[#2D2B2A] truncate max-w-[220px] group-hover:text-[#780e18] transition-colors">{p.nombre}</p>
+                        <p className="text-[#7A7571] text-[10px] mt-0.5 tabular-nums">{p.codigo_universal}</p>
+                      </td>
+                      <td className="py-3 text-center">
+                        <span className={`text-base font-black tabular-nums ${p.stock === 0 ? 'text-[#8A1E12]' : 'text-[#7A5200]'}`}>
+                          {p.stock}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        <Badge label={p.stock === 0 ? 'Sin stock' : 'Stock bajo'} variant={p.stock === 0 ? 'red' : 'amber'} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {stockBajo.length > 8 && (
+              <Link to="/reportes/inventario" className="block mt-3 text-center text-xs text-[#780e18] hover:text-[#5a0a12] font-bold">
+                +{stockBajo.length - 8} productos más →
+              </Link>
+            )}
+          </Card>
+
+          {/* Valor inventario */}
+          <div className="relative overflow-hidden rounded-xl bg-[#2D2B2A] p-6 text-white shadow-md border border-[#4a4744]">
+            <div className="absolute -right-8 -top-8 h-36 w-36 rounded-full bg-[#4a4744]" />
+            <div className="absolute right-2 -bottom-12 h-32 w-32 rounded-full bg-[#780e18] opacity-40" />
+            <div className="relative">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#7A7571] mb-5">
+                Valor inventario
+              </p>
+              <p className="text-4xl font-black tracking-tight leading-none tabular-nums">{fmtUSD(valorInventarioUSD)}</p>
+              <p className="text-sm text-[#7A7571] mt-1.5 tabular-nums">{fmtBs(valorInventario)}</p>
+              <div className="mt-6 pt-5 border-t border-[#4a4744] grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-2xl font-black tabular-nums">{productos.length}</p>
+                  <p className="text-[10px] text-[#7A7571] font-semibold uppercase tracking-wide mt-0.5">Productos</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-black tabular-nums">
+                    {productos.reduce((s, p) => s + p.stock, 0).toLocaleString()}
+                  </p>
+                  <p className="text-[10px] text-[#7A7571] font-semibold uppercase tracking-wide mt-0.5">Unidades</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* ──── Gráfico ventas + Top productos ────────────────────────────────────────────────────────── */}
@@ -613,11 +630,11 @@ export function DashboardPage() {
           </Card>
         </div>
 
-        {/* ──── Distribución + Gauges ──────────────────────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
+        {/* ──── Distribución + Gauge ──────────────────────────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
 
           {/* Donut: distribución de ventas por estado de orden */}
-          <div className="lg:col-span-1">
+          <div>
             <ChartContainer
               title="Ventas por estado"
               subtitle={
@@ -633,7 +650,7 @@ export function DashboardPage() {
               enableExport
               exportFilename="dashboard-ventas-estado"
               headerAction={
-                <Link to="/reportes/ordenes"
+                <Link to="/reportes/ventas"
                   className="text-[10px] text-[#780e18] hover:text-[#5a0a12] font-bold">
                   Ver reporte →
                 </Link>
@@ -661,29 +678,8 @@ export function DashboardPage() {
             </ChartContainer>
           </div>
 
-          {/* Gauge: % stock crítico */}
-          <div className="lg:col-span-1">
-            <ChartContainer
-              title="Stock crítico"
-              subtitle="Productos bajo el mínimo"
-              minHeight={220}
-              headerAction={
-                <Link to="/reportes/inventario"
-                  className="text-[10px] text-[#780e18] hover:text-[#5a0a12] font-bold">
-                  Ver →
-                </Link>
-              }
-            >
-              <GaugeChart
-                value={pctStockCritico}
-                label="Stock crítico"
-                sublabel={`${stockCriticoCount} de ${productosActivosCount}`}
-              />
-            </ChartContainer>
-          </div>
-
           {/* Gauge: % sin movimiento */}
-          <div className="lg:col-span-1">
+          <div>
             <ChartContainer
               title="Sin movimiento"
               subtitle="Sin ventas en 30 días"
@@ -703,129 +699,6 @@ export function DashboardPage() {
               />
             </ChartContainer>
           </div>
-        </div>
-
-        {/* ──── Stock crítico + Valor inventario ──────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
-
-          <Card className="lg:col-span-2 p-5">
-            <SectionTitle to="/reportes/inventario">Stock crítico</SectionTitle>
-            {stockCritico.length === 0 ? (
-              <div className="flex items-center gap-3 py-10 justify-center">
-                <div className="h-10 w-10 rounded-full bg-[#B8DCCA] flex items-center justify-center">
-                  <svg className="h-5 w-5 text-[#1E5C38]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <span className="text-sm font-semibold text-[#7A7571]">Todos los productos sobre el mínimo</span>
-              </div>
-            ) : (
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-[#F5F0EB] border-b border-[#D0CBC4]">
-                    <th className="text-left px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px]">Producto</th>
-                    <th className="text-center px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px]">Stock</th>
-                    <th className="text-center px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px]">Mín.</th>
-                    <th className="text-left px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px]">Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stockCritico.slice(0, 6).map(p => (
-                    <tr key={p.id} className="border-b border-[#E8E5E2] hover:bg-[#FAF5EE] transition-colors group">
-                      <td className="py-3 pr-3 px-3">
-                        <p className="font-semibold text-[#2D2B2A] truncate max-w-[180px] group-hover:text-[#780e18] transition-colors">{p.nombre}</p>
-                        <p className="text-[#7A7571] text-[10px] mt-0.5 tabular-nums">{p.codigo_universal}</p>
-                      </td>
-                      <td className="py-3 text-center">
-                        <span className={`text-base font-black tabular-nums ${p.stock === 0 ? 'text-[#8A1E12]' : 'text-[#7A5200]'}`}>
-                          {p.stock}
-                        </span>
-                      </td>
-                      <td className="py-3 text-center text-[#7A7571] font-semibold tabular-nums">{p.stock_minimo}</td>
-                      <td className="py-3">
-                        <Badge label={p.stock === 0 ? 'Sin stock' : 'Bajo mínimo'} variant={p.stock === 0 ? 'red' : 'amber'} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            {stockCritico.length > 6 && (
-              <Link to="/reportes/inventario" className="block mt-3 text-center text-xs text-[#780e18] hover:text-[#5a0a12] font-bold">
-                +{stockCritico.length - 6} productos más →
-              </Link>
-            )}
-          </Card>
-
-          {/* Valor inventario */}
-          <div className="relative overflow-hidden rounded-xl bg-[#2D2B2A] p-6 text-white shadow-md border border-[#4a4744]">
-            <div className="absolute -right-8 -top-8 h-36 w-36 rounded-full bg-[#4a4744]" />
-            <div className="absolute right-2 -bottom-12 h-32 w-32 rounded-full bg-[#780e18] opacity-40" />
-            <div className="relative">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#7A7571] mb-5">
-                Valor inventario
-              </p>
-              <p className="text-4xl font-black tracking-tight leading-none tabular-nums">{fmtUSD(valorInventarioUSD)}</p>
-              <p className="text-sm text-[#7A7571] mt-1.5 tabular-nums">{fmtBs(valorInventario)}</p>
-              <div className="mt-6 pt-5 border-t border-[#4a4744] grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-2xl font-black tabular-nums">{productos.length}</p>
-                  <p className="text-[10px] text-[#7A7571] font-semibold uppercase tracking-wide mt-0.5">Productos</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-black tabular-nums">
-                    {productos.reduce((s, p) => s + p.stock, 0).toLocaleString()}
-                  </p>
-                  <p className="text-[10px] text-[#7A7571] font-semibold uppercase tracking-wide mt-0.5">Unidades</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ──── Pedidos recientes ────────────────────────────────────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 gap-5 mb-5">
-
-          <Card className="p-5">
-            <SectionTitle to="/ventas/caja">
-              <span className="flex items-center gap-2">
-                Pedidos recientes
-                {filtroEstado && (
-                  <span className="text-[#780e18] font-bold normal-case tracking-normal">
-                    · {pedidosVis.length}
-                  </span>
-                )}
-              </span>
-            </SectionTitle>
-            <div className="space-y-1">
-              {pedidosVis.length === 0 ? (
-                <p className="text-sm text-[#7A7571] text-center py-10">
-                  {filtroEstado ? 'Sin pedidos para este estado' : 'Sin órdenes'}
-                </p>
-              ) : (
-                pedidosVis.slice(0, 10).map(o => {
-                  const bs = estadoBadge[o.estado] ?? { label: o.estado, variant: 'gray' as BadgeVariant }
-                  const borderColor = statusBorderColor[o.estado] ?? 'border-l-[#D0CBC4]'
-                  return (
-                    <div key={o.id}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border-l-4 hover:bg-[#FAF5EE] transition-colors ${borderColor}`}>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs font-bold text-[#2D2B2A]">{o.numero}</p>
-                          <p className="text-[10px] text-[#7A7571]">{relativeTime(o.fecha)}</p>
-                        </div>
-                        <p className="text-[10px] text-[#7A7571] mt-0.5">{o.cajeroNombre}</p>
-                      </div>
-                      <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
-                        <p className="text-xs font-black text-[#2D2B2A] tabular-nums">{fmtBs(o.total)}</p>
-                        <Badge label={bs.label} variant={bs.variant} />
-                      </div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
-          </Card>
         </div>
 
         {/* ──── Sin movimiento ──────────────────────────────────────────────────────────────────────────────────────────── */}

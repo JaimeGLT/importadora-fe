@@ -108,6 +108,142 @@ export const PRODUCTOS_CON_MARCAS_QUERY = `
 `
 
 
+/**
+ * Query liviana para KPIs de la página de inventario: trae SOLO los campos
+ * numéricos necesarios (stock, costo, stock mínimo) de TODOS los productos,
+ * sin paginar. Se usa para que "Valor almacén", "Unidades en stock" y "Stock
+ * crítico" reflejen el sistema completo y no solo la página actual de la tabla.
+ */
+export const PRODUCTOS_KPI_QUERY = `
+  query ProductosKpi {
+    productos(first: 9999) {
+      nodes {
+        id
+        stock_Actual
+        stock_Minimo
+        costo
+        esKit
+        calcularStockKit
+        calcularStockKitDisponible
+      }
+    }
+  }
+`
+
+export interface ProductoKpiAPI {
+  id: number
+  stock_Actual: number
+  stock_Minimo: number
+  costo: number
+  esKit?: boolean | null
+  calcularStockKit?: number | null
+  calcularStockKitDisponible?: number | null
+}
+
+/**
+ * Query liviana para el reporte de Inventario (KPIs, donut por marca, gauges
+ * y tabla "sin movimiento"): trae TODO el catálogo pero solo los campos que
+ * el reporte necesita — sin `stocks` por sucursal, `imagenPrincipal` ni
+ * `ubicacion`, que son pesados y no se muestran ahí. La tabla "Stock crítico"
+ * NO sale de acá — usa `PRODUCTOS_STOCK_CRITICO_QUERY` (paginada server-side).
+ */
+export const PRODUCTOS_REPORTE_KPI_QUERY = `
+  query ProductosReporteKpi {
+    productos(first: 9999) {
+      nodes {
+        id
+        codigo
+        nombre
+        marca { nombre }
+        stock_Actual
+        stock_Minimo
+        costo
+        esKit
+        calcularStockKit
+        calcularStockKitDisponible
+      }
+    }
+  }
+`
+
+export interface ProductoReporteKpiAPI extends ProductoKpiAPI {
+  codigo: string
+  nombre?: string | null
+  marca?: { nombre: string } | null
+}
+
+/**
+ * Paginado real server-side para la tabla "Stock crítico" del reporte de
+ * Inventario. Solo productos NO-kit: el stock de kits (`calcularStockKit*`)
+ * es un resolver calculado en memoria en el backend, no una columna SQL, así
+ * que no se puede filtrar/ordenar server-side — los kits se traen aparte con
+ * `PRODUCTOS_KITS_QUERY`.
+ */
+export const PRODUCTOS_STOCK_CRITICO_QUERY = `
+  query ProductosStockCritico($first: Int, $after: String, $maxStock: Int!) {
+    productos(
+      first: $first
+      after: $after
+      where: { esKit: { eq: false }, stock_Actual: { lte: $maxStock } }
+      order: { stock_Actual: ASC }
+    ) {
+      totalCount
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        id
+        codigo
+        nombre
+        marca { nombre }
+        stock_Actual
+        stock_Minimo
+      }
+    }
+  }
+`
+
+export interface ProductoStockCriticoAPI {
+  id: number
+  codigo: string
+  nombre?: string | null
+  marca?: { nombre: string } | null
+  stock_Actual: number
+  stock_Minimo: number
+}
+
+/**
+ * Trae todos los kits (normalmente pocos) para calcular su stock en memoria
+ * y filtrar los que están en stock crítico — no se puede hacer server-side
+ * porque `calcularStockKit*` no es una columna filtrable/ordenable en SQL.
+ */
+export const PRODUCTOS_KITS_QUERY = `
+  query ProductosKits($first: Int) {
+    productos(first: $first, where: { esKit: { eq: true } }) {
+      nodes {
+        id
+        codigo
+        nombre
+        marca { nombre }
+        calcularStockKit
+        calcularStockKitDisponible
+        stock_Minimo
+      }
+    }
+  }
+`
+
+export interface ProductoKitAPI {
+  id: number
+  codigo: string
+  nombre?: string | null
+  marca?: { nombre: string } | null
+  calcularStockKit?: number | null
+  calcularStockKitDisponible?: number | null
+  stock_Minimo: number
+}
+
 export const PRODUCTOS_NOTIFICACIONES_QUERY = `
   query ProductosNotificaciones {
     productos {

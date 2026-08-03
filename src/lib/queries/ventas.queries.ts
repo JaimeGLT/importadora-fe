@@ -623,8 +623,8 @@ export interface DashboardOrden {
 }
 
 export const DASHBOARD_ORDENES_QUERY = `
-  query TodasOrdenes {
-    todasOrdenes {
+  query TodasOrdenes($desde: DateTime, $first: Int) {
+    todasOrdenes(desde: $desde, first: $first) {
       nodes {
         id
         estado

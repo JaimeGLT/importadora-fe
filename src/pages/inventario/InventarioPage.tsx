@@ -26,6 +26,7 @@ import { gql } from '@/lib/graphql'
 import {
   PRODUCTOS_QUERY,
   PRODUCTOS_ALL_QUERY,
+  PRODUCTOS_KPI_QUERY,
   PRODUCTO_BY_ID_QUERY,
   backendToProducto,
   backendToProductoSimple,
@@ -34,6 +35,7 @@ import {
   productoToBackendBulk,
   type ProductoAPI,
   type ProductoAPISimple,
+  type ProductoKpiAPI,
   type KitOps,
 } from '@/lib/queries/inventario.queries'
 import { MARCAS_QUERY, backendToMarca } from '@/lib/queries/marcas.queries'
@@ -278,6 +280,13 @@ export function InventarioPage() {
   const [stockTraspasoOrigenId, setStockTraspasoOrigenId] = useState<number | undefined>(undefined)
   const [sucursales, setSucursales] = useState<Sucursal[]>([])
   const [sucursalesLoading, setSucursalesLoading] = useState(true)
+  const [kpiProductos, setKpiProductos] = useState<ProductoKpiAPI[]>([])
+
+  const loadKpiStats = () => {
+    gql<{ productos: { nodes: ProductoKpiAPI[] } }>(PRODUCTOS_KPI_QUERY)
+      .then(res => setKpiProductos(res.productos.nodes))
+      .catch(() => {})
+  }
 
   useEffect(() => {
     listarSucursales()
@@ -357,6 +366,7 @@ export function InventarioPage() {
   useEffect(() => {
     if (!isTokenReady) return
     loadProducts(0, pageSize, '', null)
+    loadKpiStats()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTokenReady])
 
@@ -469,6 +479,7 @@ export function InventarioPage() {
         }
 
         loadProducts(page, pageSize, searchTerm, selectedMarcaId)
+        loadKpiStats()
         notify.success('Producto actualizado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre?.trim() || '(sin nombre)'}` })
       } else {
         const createPayload = productoToBackend(data)
@@ -495,6 +506,7 @@ export function InventarioPage() {
         }
         cursors.current = [null]
         loadProducts(0, pageSize, searchTerm, selectedMarcaId)
+        loadKpiStats()
         notify.success('Producto creado', { description: `${data.codigo_universal || '(sin código)'} - ${data.nombre?.trim() || '(sin nombre)'}` })
       }
       setModalOpen(false)
@@ -549,6 +561,7 @@ export function InventarioPage() {
     }
     cursors.current = [null]
     loadProducts(0, pageSize, searchTerm, selectedMarcaId)
+    loadKpiStats()
     const creados      = results.filter((r) => r.action === 'create').length
     const actualizados = results.filter((r) => r.action === 'update').length
     const msg = creados > 0 && actualizados > 0
@@ -563,6 +576,7 @@ export function InventarioPage() {
     try {
       await api.delete(`/Producto/${confirmDelete.id}`)
       setProducts((prev) => prev.filter((p) => p.id !== confirmDelete.id))
+      loadKpiStats()
       notify.success('Producto eliminado', { description: confirmDelete.nombre })
     } catch {
       notify.error('Error al eliminar producto')
@@ -592,12 +606,18 @@ export function InventarioPage() {
   }, [displayProducts])
 
   // ── KPIs ───────────────────────────────────────────────────────────────────
-  const kpi = useMemo(() => ({
-    total:         totalCount || products.length,
-    totalUnidades: products.reduce((s, p) => s + p.stock, 0),
-    totalValor:    products.reduce((s, p) => s + p.precio_costo * p.stock, 0),
-    stockBajo:     products.filter((p) => p.stock <= p.stock_minimo).length,
-  }), [products, totalCount])
+  // Calculados sobre `kpiProductos` (todo el sistema, vía PRODUCTOS_KPI_QUERY)
+  // en vez de `products` (solo la página actual de la tabla).
+  const kpi = useMemo(() => {
+    const stockDe = (p: ProductoKpiAPI) =>
+      p.esKit ? (p.calcularStockKitDisponible ?? p.calcularStockKit ?? 0) : (p.stock_Actual ?? 0)
+    return {
+      total:         totalCount || products.length,
+      totalUnidades: kpiProductos.reduce((s, p) => s + stockDe(p), 0),
+      totalValor:    kpiProductos.reduce((s, p) => s + (p.costo ?? 0) * stockDe(p), 0),
+      stockBajo:     kpiProductos.filter((p) => stockDe(p) <= (p.stock_Minimo ?? 0)).length,
+    }
+  }, [kpiProductos, products.length, totalCount])
 
   // ── Columns ────────────────────────────────────────────────────────────────
   const columns = useMemo(() => {
