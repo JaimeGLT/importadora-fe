@@ -194,9 +194,13 @@ export function ProductoModal({
     const isConvertingToKit = form.es_kit && !(producto?.es_kit ?? false)
     if (isConvertingToKit && kitPieces.length === 0) {
       e.kit_piezas = 'Debes agregar al menos una pieza al kit'
-      notify.error('Debes agregar al menos una pieza al kit')
     }
     setErrors(e)
+    if (Object.keys(e).length > 0) {
+      const firstKey = Object.keys(e)[0] as keyof typeof e
+      notify.error(e[firstKey] ?? 'Revisa los campos marcados en rojo')
+      document.getElementById(`field-${firstKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
     return Object.keys(e).length === 0
   }
 
@@ -365,6 +369,7 @@ export function ProductoModal({
           <FormSection icon={<IconBarcode />} title="Identificación" description="Códigos únicos que identifican el producto" iconClass="bg-[#780e18] text-white shadow-sm">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <WarmInput
+                id="field-codigo_universal"
                 label="Código universal *"
                 value={form.codigo_universal}
                 onChange={(e) => set('codigo_universal', e.target.value)}
@@ -623,7 +628,7 @@ export function ProductoModal({
 
               {/* Kit parts management */}
               {form.es_kit && (
-                <>
+                <div id="field-kit_piezas">
                   <KitPartsSection
                     productoId={producto?.id}
                     wasKit={producto?.es_kit ?? false}
@@ -636,7 +641,7 @@ export function ProductoModal({
                     kitCodigo={kitCodigoActual}
                     onImprimirPieza={handleImprimirPieza}
                   />
-                </>
+                </div>
               )}
 
               {!form.es_kit && !producto?.es_kit && producto?.kit_id && (
@@ -657,6 +662,7 @@ export function ProductoModal({
             <div className={clsx('grid grid-cols-1 gap-3', readOnly ? 'sm:grid-cols-1' : 'sm:grid-cols-3')}>
               {!readOnly && (
                 <WarmInput
+                  id="field-precio_costo"
                   label="Precio costo (Bs) *"
                   type="number"
                   step="0.01"
