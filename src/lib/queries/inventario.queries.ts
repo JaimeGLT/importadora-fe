@@ -214,6 +214,42 @@ export interface ProductoStockCriticoAPI {
 }
 
 /**
+ * Paginado real server-side para la tabla "Sin movimiento" del reporte de
+ * Inventario. Solo productos NO-kit activos sin ventas confirmadas desde
+ * `desde`. El backend hace el join contra `OrdenVentaItem`/`OrdenVenta`
+ * (estado Completada) — no se puede resolver en memoria sin traer todo
+ * el catálogo.
+ */
+export const PRODUCTOS_SIN_MOVIMIENTO_QUERY = `
+  query ProductosSinMovimiento($first: Int, $after: String, $desde: DateTime!) {
+    productosSinMovimiento(first: $first, after: $after, desde: $desde) {
+      totalCount
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        id
+        codigo
+        nombre
+        marca { nombre }
+        stock_Actual
+        costo
+      }
+    }
+  }
+`
+
+export interface ProductoSinMovimientoAPI {
+  id: number
+  codigo: string
+  nombre?: string | null
+  marca?: { nombre: string } | null
+  stock_Actual: number
+  costo: number
+}
+
+/**
  * Trae todos los kits (normalmente pocos) para calcular su stock en memoria
  * y filtrar los que están en stock crítico — no se puede hacer server-side
  * porque `calcularStockKit*` no es una columna filtrable/ordenable en SQL.

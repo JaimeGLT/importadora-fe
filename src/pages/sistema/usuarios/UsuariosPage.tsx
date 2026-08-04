@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { PageTopBar } from '@/components/layout/PageTopBar'
@@ -1355,19 +1356,42 @@ interface AccionItem {
 
 function AccionesMenu({ groups }: { groups: { title: string; items: AccionItem[] }[] }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    if (!open || !btnRef.current) return
+    const rect = btnRef.current.getBoundingClientRect()
+    const espacioAbajo = window.innerHeight - rect.bottom
+    const espacioArriba = rect.top
+    const abreArriba = espacioAbajo < 260 && espacioArriba > espacioAbajo
+    setPos(
+      abreArriba
+        ? { bottom: window.innerHeight - rect.top + 4, left: rect.right - 224 }
+        : { top: rect.bottom + 4, left: rect.right - 224 }
+    )
+  }, [open])
 
   useEffect(() => {
     if (!open) return
     const onClickOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (
+        btnRef.current && !btnRef.current.contains(e.target as Node) &&
+        menuRef.current && !menuRef.current.contains(e.target as Node)
+      ) setOpen(false)
     }
     const onEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    const onScrollOrResize = () => setOpen(false)
     document.addEventListener('mousedown', onClickOutside)
     document.addEventListener('keydown', onEscape)
+    window.addEventListener('scroll', onScrollOrResize, true)
+    window.addEventListener('resize', onScrollOrResize)
     return () => {
       document.removeEventListener('mousedown', onClickOutside)
       document.removeEventListener('keydown', onEscape)
+      window.removeEventListener('scroll', onScrollOrResize, true)
+      window.removeEventListener('resize', onScrollOrResize)
     }
   }, [open])
 
@@ -1375,8 +1399,9 @@ function AccionesMenu({ groups }: { groups: { title: string; items: AccionItem[]
   if (visibleGroups.length === 0) return null
 
   return (
-    <div ref={ref} className="relative inline-block">
+    <div className="relative inline-block">
       <button
+        ref={btnRef}
         onClick={(e) => { e.stopPropagation(); setOpen(o => !o) }}
         title="Más acciones"
         className={clsx(
@@ -1388,10 +1413,12 @@ function AccionesMenu({ groups }: { groups: { title: string; items: AccionItem[]
       >
         <i className="ti ti-dots-vertical text-[16px]" />
       </button>
-      {open && (
+      {open && pos && createPortal(
         <div
+          ref={menuRef}
           onClick={(e) => e.stopPropagation()}
-          className="absolute right-0 top-full mt-1 z-20 w-56 rounded-xl bg-white border border-[#E8E5E2] shadow-lg overflow-hidden py-1"
+          style={{ position: 'fixed', top: pos.top, bottom: pos.bottom, left: pos.left, zIndex: 50000 }}
+          className="w-56 rounded-xl bg-white border border-[#E8E5E2] shadow-lg overflow-hidden py-1"
         >
           {visibleGroups.map((group, gi) => (
             <div key={group.title} className={clsx(gi > 0 && 'border-t border-[#E8E5E2]', 'py-1')}>
@@ -1419,7 +1446,8 @@ function AccionesMenu({ groups }: { groups: { title: string; items: AccionItem[]
               ))}
             </div>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

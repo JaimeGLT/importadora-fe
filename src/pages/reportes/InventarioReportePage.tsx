@@ -8,11 +8,12 @@ import {
   PRODUCTOS_REPORTE_KPI_QUERY,
   PRODUCTOS_STOCK_CRITICO_QUERY,
   PRODUCTOS_KITS_QUERY,
+  PRODUCTOS_SIN_MOVIMIENTO_QUERY,
   type ProductoReporteKpiAPI,
   type ProductoStockCriticoAPI,
   type ProductoKitAPI,
+  type ProductoSinMovimientoAPI,
 } from '@/lib/queries/inventario.queries'
-import { DASHBOARD_ORDENES_QUERY, backendOrdenToDashboard, type DashboardOrdenAPI, type DashboardOrden } from '@/lib/queries/ventas.queries'
 import { TIPO_CAMBIO_QUERY, type TipoCambioAPI } from '@/lib/queries/config.queries'
 import {
   ChartContainer,
@@ -179,7 +180,6 @@ export function InventarioReportePage() {
   const { isTokenReady } = useAuth()
   const [isLoading,  setIsLoading]  = useState(true)
   const [productos,  setProductos]  = useState<ProductoAgg[]>([])
-  const [ordenes,    setOrdenes]    = useState<DashboardOrden[]>([])
   const [tipoCambio, setTipoCambio] = useState<number>(6.96)
   const [kits,       setKits]       = useState<ProductoKitAPI[]>([])
 
@@ -191,6 +191,15 @@ export function InventarioReportePage() {
   const [stockCriticoPageSize, setStockCriticoPageSize] = useState(STOCK_CRITICO_PAGE_SIZE)
   const [stockCriticoLoading,  setStockCriticoLoading]  = useState(true)
   const stockCriticoCursors = useRef<(string | null)[]>([null])
+
+  // ── Tabla "Sin movimiento" (no-kit, 30 días) — paginada server-side ──
+  const [sinMovRows,     setSinMovRows]     = useState<ProductoSinMovimientoAPI[]>([])
+  const [sinMovTotal,    setSinMovTotal]    = useState(0)
+  const [sinMovHasNext,  setSinMovHasNext]  = useState(false)
+  const [sinMovPage,     setSinMovPage]     = useState(0)
+  const [sinMovPageSize, setSinMovPageSize] = useState(STOCK_CRITICO_PAGE_SIZE)
+  const [sinMovLoading,  setSinMovLoading]  = useState(true)
+  const sinMovCursors = useRef<(string | null)[]>([null])
 
   const reportRef = useRef<HTMLDivElement | null>(null)
   const { exportPDF } = useChartExport()
@@ -222,15 +231,40 @@ export function InventarioReportePage() {
     loadStockCritico(0, size)
   }
 
+  const loadSinMovimiento = (targetPage: number, size: number) => {
+    setSinMovLoading(true)
+    const hace30ISO = new Date(Date.now() - 30 * 86400000).toISOString()
+    gql<{
+      productosSinMovimiento: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: ProductoSinMovimientoAPI[] }
+    }>(
+      PRODUCTOS_SIN_MOVIMIENTO_QUERY,
+      { first: size, after: sinMovCursors.current[targetPage] ?? null, desde: hace30ISO }
+    )
+      .then(res => {
+        const { totalCount, pageInfo, nodes } = res.productosSinMovimiento
+        setSinMovRows(nodes)
+        setSinMovTotal(totalCount)
+        setSinMovHasNext(pageInfo.hasNextPage)
+        sinMovCursors.current[targetPage + 1] = pageInfo.endCursor
+        setSinMovPage(targetPage)
+      })
+      .catch(() => {})
+      .finally(() => setSinMovLoading(false))
+  }
+
+  const handleSinMovPage = (p: number) => loadSinMovimiento(p, sinMovPageSize)
+  const handleSinMovPageSize = (size: number) => {
+    sinMovCursors.current = [null]
+    setSinMovPageSize(size)
+    loadSinMovimiento(0, size)
+  }
+
   useEffect(() => {
     if (!isTokenReady) return
     setIsLoading(true)
-    const hace30ISO = new Date(Date.now() - 30 * 86400000).toISOString()
     Promise.all([
       gql<{ productos: { nodes: ProductoReporteKpiAPI[] } }>(PRODUCTOS_REPORTE_KPI_QUERY)
         .then(res => setProductos(res.productos.nodes.map(mapAgg))),
-      gql<{ todasOrdenes: { nodes: DashboardOrdenAPI[] } }>(DASHBOARD_ORDENES_QUERY, { desde: hace30ISO, first: 2000 })
-        .then(res => setOrdenes(res.todasOrdenes.nodes.map(backendOrdenToDashboard))),
       gql<{ tipoCambio: TipoCambioAPI }>(TIPO_CAMBIO_QUERY)
         .then(res => setTipoCambio(res.tipoCambio.precioDolar)),
       gql<{ productos: { nodes: ProductoKitAPI[] } }>(PRODUCTOS_KITS_QUERY, { first: 2000 })
@@ -239,6 +273,7 @@ export function InventarioReportePage() {
       .catch(() => {})
       .finally(() => setIsLoading(false))
     loadStockCritico(0, STOCK_CRITICO_PAGE_SIZE)
+    loadSinMovimiento(0, STOCK_CRITICO_PAGE_SIZE)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTokenReady])
 
@@ -256,20 +291,12 @@ export function InventarioReportePage() {
   const stockCriticoTotalCount = stockCriticoTotal + kitsStockCritico.length
 
   const {
-    totalUnidades, valorUSD, valorBs, sinMovimiento,
+    totalUnidades, valorUSD, valorBs,
     donutMarcas, pctStockCritico, pctSinMovimiento,
   } = useMemo(() => {
     const totalUnidades = productos.reduce((s, p) => s + p.stock, 0)
     const valorBs        = productos.reduce((s, p) => s + p.stock * p.precio_costo, 0)
     const valorUSD        = valorBs / tipoCambio
-
-    const hace30 = new Date(Date.now() - 30 * 86400000)
-    const vendidos30d = new Set(
-      ordenes
-        .filter(o => o.estado === 'completada' && o.fechaCompletada && new Date(o.fechaCompletada) >= hace30)
-        .flatMap(o => o.items.map(i => i.productoId))
-    )
-    const sinMovimiento = productos.filter(p => !vendidos30d.has(p.id))
 
     // Donut: valor del inventario agrupado por marca (Top 6 + "Otras")
     const porMarca = new Map<string, number>()
@@ -291,13 +318,13 @@ export function InventarioReportePage() {
     const pctStockCritico  = productos.length > 0
       ? (stockCriticoTotalCount / productos.length) * 100 : 0
     const pctSinMovimiento = productos.length > 0
-      ? (sinMovimiento.length / productos.length) * 100 : 0
+      ? (sinMovTotal / productos.length) * 100 : 0
 
     return {
-      totalUnidades, valorUSD, valorBs, sinMovimiento,
+      totalUnidades, valorUSD, valorBs,
       donutMarcas, pctStockCritico, pctSinMovimiento,
     }
-  }, [productos, ordenes, tipoCambio, stockCriticoTotalCount])
+  }, [productos, tipoCambio, stockCriticoTotalCount, sinMovTotal])
 
   if (isLoading) {
     return (
@@ -385,7 +412,7 @@ export function InventarioReportePage() {
               <GaugeChart
                 value={pctSinMovimiento}
                 label="Sin movimiento"
-                sublabel={`${sinMovimiento.length} de ${productos.length}`}
+                sublabel={`${sinMovTotal} de ${productos.length}`}
                 thresholds={{ ok: 25, warn: 50 }}
               />
             </ChartContainer>
@@ -440,33 +467,46 @@ export function InventarioReportePage() {
 
         {/* Sin movimiento */}
         <Card className="p-5">
-          <SectionTitle>Sin movimiento — últimos 30 días ({sinMovimiento.length})</SectionTitle>
-          {sinMovimiento.length === 0 ? (
+          <SectionTitle>Sin movimiento — últimos 30 días ({sinMovTotal})</SectionTitle>
+          {sinMovTotal === 0 && !sinMovLoading ? (
             <p className="text-sm text-steel-400 text-center py-10">Todos los productos tuvieron ventas en los últimos 30 días</p>
           ) : (
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-steel-100">
-                  <th className="text-left pb-3 font-bold text-steel-400 uppercase tracking-widest text-[10px]">Producto</th>
-                  <th className="text-left pb-3 font-bold text-steel-400 uppercase tracking-widest text-[10px]">Marca</th>
-                  <th className="text-center pb-3 font-bold text-steel-400 uppercase tracking-widest text-[10px]">Stock</th>
-                  <th className="text-right pb-3 font-bold text-steel-400 uppercase tracking-widest text-[10px]">Valor parado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sinMovimiento.map(p => (
-                  <tr key={p.id} className="border-b border-steel-50 hover:bg-[#FAFAF9] transition-colors">
-                    <td className="py-3 pr-4">
-                      <p className="font-semibold text-steel-800 truncate max-w-[300px]">{p.nombre}</p>
-                      <p className="text-[10px] text-steel-400 mt-0.5 tabular-nums">{p.codigo}</p>
-                    </td>
-                    <td className="py-3 pr-4 text-steel-500 font-semibold">{p.marca || '—'}</td>
-                    <td className="py-3 text-center font-bold text-steel-700 tabular-nums">{p.stock}</td>
-                    <td className="py-3 text-right text-steel-500 tabular-nums">{fmtBs(p.stock * p.precio_costo)}</td>
+            <>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-steel-100">
+                    <th className="text-left pb-3 font-bold text-steel-400 uppercase tracking-widest text-[10px]">Producto</th>
+                    <th className="text-left pb-3 font-bold text-steel-400 uppercase tracking-widest text-[10px]">Marca</th>
+                    <th className="text-center pb-3 font-bold text-steel-400 uppercase tracking-widest text-[10px]">Stock</th>
+                    <th className="text-right pb-3 font-bold text-steel-400 uppercase tracking-widest text-[10px]">Valor parado</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {sinMovRows.map(p => (
+                    <tr key={p.id} className="border-b border-steel-50 hover:bg-[#FAFAF9] transition-colors">
+                      <td className="py-3 pr-4">
+                        <p className="font-semibold text-steel-800 truncate max-w-[300px]">{p.nombre}</p>
+                        <p className="text-[10px] text-steel-400 mt-0.5 tabular-nums">{p.codigo}</p>
+                      </td>
+                      <td className="py-3 pr-4 text-steel-500 font-semibold">{p.marca?.nombre || '—'}</td>
+                      <td className="py-3 text-center font-bold text-steel-700 tabular-nums">{p.stock_Actual}</td>
+                      <td className="py-3 text-right text-steel-500 tabular-nums">{fmtBs(p.stock_Actual * p.costo)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="mt-4 pt-4 border-t border-steel-100">
+                <ServerPagination
+                  totalCount={sinMovTotal}
+                  page={sinMovPage}
+                  pageSize={sinMovPageSize}
+                  hasNextPage={sinMovHasNext}
+                  loading={sinMovLoading}
+                  onPage={handleSinMovPage}
+                  onPageSize={handleSinMovPageSize}
+                />
+              </div>
+            </>
           )}
         </Card>
         </div>
