@@ -1,6 +1,8 @@
 import type { ProductoAPISimple } from './inventario.queries'
 import type { DashboardOrdenAPI } from './ventas.queries'
 import type { TipoCambioAPI } from './config.queries'
+import type { MovimientoCajaAPI } from './caja.queries'
+import type { EstadoCredito } from '@/types'
 
 export const DASHBOARD_QUERY = `
   query Dashboard($first: Int, $after: String) {
@@ -46,6 +48,25 @@ export const DASHBOARD_QUERY = `
       precioDolar
       fecha
     }
+    todosMovimientos(first: 5000) {
+      nodes {
+        id
+        tipo
+        categoria
+        tipoPago
+        monto
+        motivo
+        fecha
+      }
+    }
+    creditos(first: 2000) {
+      nodes {
+        id
+        estado
+        total
+        fechaCreacion
+      }
+    }
   }
 `
 
@@ -53,4 +74,6 @@ export interface DashboardQueryResult {
   productos: { nodes: ProductoAPISimple[] }
   todasOrdenes: { nodes: DashboardOrdenAPI[] }
   tipoCambio: TipoCambioAPI
+  todosMovimientos: { nodes: MovimientoCajaAPI[] }
+  creditos: { nodes: Array<{ id: number; estado: EstadoCredito; total: number; fechaCreacion: string }> }
 }

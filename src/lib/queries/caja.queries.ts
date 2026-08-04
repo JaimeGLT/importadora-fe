@@ -58,6 +58,34 @@ export const MIS_CAJAS_QUERY = `
   }
 `
 
+// ─── Movimientos (admin, todos los cajeros) ────────────────────────────────
+
+export const TODOS_MOVIMIENTOS_QUERY = `
+  query TodosMovimientos($desde: DateTime, $hasta: DateTime) {
+    todosMovimientos(desde: $desde, hasta: $hasta, first: 5000) {
+      nodes {
+        id
+        tipo
+        categoria
+        tipoPago
+        monto
+        motivo
+        fecha
+      }
+    }
+  }
+`
+
+export interface MovimientoCajaAPI {
+  id: number
+  tipo: string
+  categoria: string
+  tipoPago: string
+  monto: number
+  motivo: string
+  fecha: string
+}
+
 export interface CajaAPI {
   id: string
   usuarioId: string

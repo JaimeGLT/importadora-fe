@@ -1,43 +1,44 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
+import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
 import { PageTopBar } from '@/components/layout/PageTopBar'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import { DASHBOARD_ORDENES_QUERY, backendOrdenToDashboard, type DashboardOrdenAPI, type DashboardOrden } from '@/lib/queries/ventas.queries'
+import { TODOS_MOVIMIENTOS_QUERY, type MovimientoCajaAPI } from '@/lib/queries/caja.queries'
+import { CREDITOS_QUERY, backendToCredito, type CreditoAPI } from '@/lib/queries/creditos.queries'
+import { calcularVentasPorMetodo } from '@/utils/ventasPorMetodo'
 import { SalesChart } from '@/components/ui/SalesChart'
 import {
   ChartContainer,
   BarChart,
   HorizontalBarChart,
   AreaChart,
+  PaymentMethodBreakdown,
   useChartExport,
 } from '@/components/charts'
+import {
+  KpiCard, ReportHeader, ExportButton, DateRangeFilter,
+  rangoEsteMes, type RangoFechas,
+} from '@/components/reportes/ReportUI'
+import type { Credito } from '@/types'
 
 const fmtBs = (n: number) =>
   `Bs ${n.toLocaleString('es-BO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 
-function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`bg-white rounded-2xl shadow-sm border border-steel-100 ${className}`}>
-      {children}
-    </div>
-  )
-}
-
-function KpiCard({ label, value, sub, accent = false }: { label: string; value: string; sub?: string; accent?: boolean }) {
-  return (
-    <Card className="p-5">
-      <p className="text-[11px] font-bold text-steel-400 uppercase tracking-widest mb-2">{label}</p>
-      <p className={`text-2xl font-black tabular-nums leading-tight ${accent ? 'text-brand-600' : 'text-steel-900'}`}>{value}</p>
-      {sub && <p className="text-[10px] text-steel-400 mt-1.5">{sub}</p>}
-    </Card>
-  )
+const toDateStr = (d: Date) => d.toISOString().slice(0, 10)
+const parseLocalDate = (s: string) => new Date(`${s}T00:00:00`)
+const enRango = (fechaISO: string, desde: string, hasta: string) => {
+  const d = fechaISO.slice(0, 10)
+  return d >= desde && d <= hasta
 }
 
 export function VentasReportePage() {
   const { isTokenReady } = useAuth()
   const [ordenes, setOrdenes] = useState<DashboardOrden[]>([])
+  const [movimientos, setMovimientos] = useState<MovimientoCajaAPI[]>([])
+  const [creditos, setCreditos] = useState<Credito[]>([])
   const [, setChartHover] = useState<number | null>(null)
+  const [rango, setRango] = useState<RangoFechas>(rangoEsteMes())
 
   const reportRef = useRef<HTMLDivElement | null>(null)
   const { exportPDF } = useChartExport()
@@ -47,52 +48,58 @@ export function VentasReportePage() {
     gql<{ todasOrdenes: { nodes: DashboardOrdenAPI[] } }>(DASHBOARD_ORDENES_QUERY)
       .then(res => setOrdenes(res.todasOrdenes.nodes.map(backendOrdenToDashboard)))
       .catch(() => {})
+    gql<{ todosMovimientos: { nodes: MovimientoCajaAPI[] } }>(TODOS_MOVIMIENTOS_QUERY)
+      .then(res => setMovimientos(res.todosMovimientos.nodes))
+      .catch(() => {})
+    gql<{ creditos: { nodes: CreditoAPI[] } }>(CREDITOS_QUERY, { first: 2000 })
+      .then(res => setCreditos(res.creditos.nodes.map(backendToCredito)))
+      .catch(() => {})
   }, [isTokenReady])
 
   const {
-    ventasHoy, ventasMes, ventasMesPrev, ordenesCompletadasMes, ticketPromedio,
-    sparkline30d, chartDates30, top10,
+    ventasPeriodo, ventasPeriodoPrev, ordenesCompletadasPeriodo, ticketPromedio,
+    sparklinePeriodo, chartDatesPeriodo, top10,
     ventasPorDiaSemana,
     acumuladoActual, acumuladoAnterior, labelsAcumulado,
+    ventasPorMetodoPeriodo,
   } = useMemo(() => {
-    const today      = new Date()
-    const toDateStr  = (d: Date) => d.toISOString().slice(0, 10)
-    const hoy        = toDateStr(today)
-    const mesActual  = hoy.slice(0, 7)
-    const mesAnterior = toDateStr(new Date(today.getFullYear(), today.getMonth() - 1, 1)).slice(0, 7)
+    const { desde, hasta } = rango
+    const dIni = parseLocalDate(desde)
+    const dFin = parseLocalDate(hasta)
+    const numDias = Math.max(1, Math.round((dFin.getTime() - dIni.getTime()) / 86400000) + 1)
+
+    const dPrevFin = new Date(dIni.getTime() - 86400000)
+    const dPrevIni = new Date(dPrevFin.getTime() - (numDias - 1) * 86400000)
+    const prevDesde = toDateStr(dPrevIni)
+    const prevHasta = toDateStr(dPrevFin)
+
+    const ventasPorMetodoPeriodo = calcularVentasPorMetodo(movimientos, creditos, desde, hasta)
 
     const completadas = ordenes.filter(o => o.estado === 'completada' && o.fechaCompletada)
+    const completadasPeriodo = completadas.filter(o => enRango(o.fechaCompletada!, desde, hasta))
+    const completadasPeriodoPrev = completadas.filter(o => enRango(o.fechaCompletada!, prevDesde, prevHasta))
 
-    const ventasHoy = completadas
-      .filter(o => o.fechaCompletada!.slice(0, 10) === hoy)
-      .reduce((s, o) => s + o.total, 0)
+    const ventasPeriodo = completadasPeriodo.reduce((s, o) => s + o.total, 0)
+    const ventasPeriodoPrev = completadasPeriodoPrev.reduce((s, o) => s + o.total, 0)
+    const ordenesCompletadasPeriodo = completadasPeriodo.length
+    const ticketPromedio = ordenesCompletadasPeriodo > 0 ? ventasPeriodo / ordenesCompletadasPeriodo : 0
 
-    const completadasMes = completadas.filter(o => o.fechaCompletada!.slice(0, 7) === mesActual)
-    const ventasMes      = completadasMes.reduce((s, o) => s + o.total, 0)
-    const ventasMesPrev  = completadas
-      .filter(o => o.fechaCompletada!.slice(0, 7) === mesAnterior)
-      .reduce((s, o) => s + o.total, 0)
-    const ordenesCompletadasMes = completadasMes.length
-    const ticketPromedio = ordenesCompletadasMes > 0 ? ventasMes / ordenesCompletadasMes : 0
-
-    const sparkline30d: number[] = []
-    const chartDates30: string[] = []
-    for (let i = 29; i >= 0; i--) {
-      const d   = new Date(today.getTime() - i * 86400000)
+    // ─── Sparkline: ventas por día dentro del rango seleccionado ───
+    const sparklinePeriodo: number[] = []
+    const chartDatesPeriodo: string[] = []
+    for (let i = 0; i < numDias; i++) {
+      const d = new Date(dIni.getTime() + i * 86400000)
       const str = toDateStr(d)
-      sparkline30d.push(
-        completadas.filter(o => o.fechaCompletada!.slice(0, 10) === str).reduce((s, o) => s + o.total, 0)
+      sparklinePeriodo.push(
+        completadasPeriodo.filter(o => o.fechaCompletada!.slice(0, 10) === str).reduce((s, o) => s + o.total, 0)
       )
-      chartDates30.push(d.toLocaleDateString('es-BO', { day: 'numeric', month: 'short' }))
+      chartDatesPeriodo.push(d.toLocaleDateString('es-BO', { day: 'numeric', month: 'short' }))
     }
-
-    const hace7  = new Date(today.getTime() - 7 * 86400000)
-    const ordenes7d = completadas.filter(o => new Date(o.fechaCompletada!) >= hace7)
 
     // El descuento es a nivel orden; se distribuye proporcionalmente al subtotal de cada item
     // para que el ingreso por producto refleje el neto que aportó.
     const porProducto = new Map<string, { nombre: string; codigo: string; marcaId: number | null; unidades: number; ingreso: number }>()
-    for (const orden of ordenes7d) {
+    for (const orden of completadasPeriodo) {
       const subtotalOrden = orden.items.reduce((s, i) => s + i.precioUnitario * i.cantidad, 0)
       const factor = subtotalOrden > 0 ? 1 - (orden.montoDescuento ?? 0) / subtotalOrden : 1
       for (const item of orden.items) {
@@ -116,97 +123,115 @@ export function VentasReportePage() {
       .sort((a, b) => b.unidades - a.unidades)
       .slice(0, 10)
 
-    // ─── Ventas por día de la semana (últimos 30 días) — grouped por estado ───
+    // ─── Ventas por día de la semana (dentro del rango) — grouped por estado ───
     const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
-    const hace30 = new Date(today.getTime() - 30 * 86400000)
-    const ordenes30d = ordenes.filter(o => new Date(o.fecha) >= hace30)
-    const completada30d = new Array(7).fill(0)
-    const cancelada30d  = new Array(7).fill(0)
-    for (const o of ordenes30d) {
+    const ordenesEnRango = ordenes.filter(o => enRango(o.fecha, desde, hasta))
+    const completadaPorDia = new Array(7).fill(0)
+    const canceladaPorDia  = new Array(7).fill(0)
+    for (const o of ordenesEnRango) {
       const d = new Date(o.fecha).getDay()
-      if (o.estado === 'completada') completada30d[d] = (completada30d[d] ?? 0) + o.total
-      else if (o.estado === 'cancelada') cancelada30d[d] = (cancelada30d[d] ?? 0) + o.total
+      if (o.estado === 'completada') completadaPorDia[d] = (completadaPorDia[d] ?? 0) + o.total
+      else if (o.estado === 'cancelada') canceladaPorDia[d] = (canceladaPorDia[d] ?? 0) + o.total
     }
     const ventasPorDiaSemana = {
       labels: DIAS,
-      completada: completada30d,
-      cancelada: cancelada30d,
+      completada: completadaPorDia,
+      cancelada: canceladaPorDia,
     }
 
-    // ─── Acumulado: día a día del mes actual vs mes anterior ───
-    const dayOfMonth = today.getDate()
+    // ─── Acumulado: período actual vs período anterior de igual longitud, día a día ───
     const labelsAcumulado: string[] = []
     const acumActual: number[] = []
     const acumAnterior: number[] = []
     let sActual = 0, sAnterior = 0
-    for (let i = 1; i <= dayOfMonth; i++) {
-      const dActual = new Date(today.getFullYear(), today.getMonth(), i)
-      const dAnterior = new Date(today.getFullYear(), today.getMonth() - 1, i)
-      const strActual = toDateStr(dActual)
-      const strAnterior = toDateStr(dAnterior)
-      sActual  += completadas.filter(o => o.fechaCompletada?.slice(0, 10) === strActual).reduce((s, o) => s + o.total, 0)
-      sAnterior += completadas.filter(o => o.fechaCompletada?.slice(0, 10) === strAnterior).reduce((s, o) => s + o.total, 0)
-      labelsAcumulado.push(String(i))
+    for (let i = 0; i < numDias; i++) {
+      const dCur = new Date(dIni.getTime() + i * 86400000)
+      const dPrev = new Date(dPrevIni.getTime() + i * 86400000)
+      const strCur = toDateStr(dCur)
+      const strPrev = toDateStr(dPrev)
+      sActual  += completadas.filter(o => o.fechaCompletada?.slice(0, 10) === strCur).reduce((s, o) => s + o.total, 0)
+      sAnterior += completadas.filter(o => o.fechaCompletada?.slice(0, 10) === strPrev).reduce((s, o) => s + o.total, 0)
+      labelsAcumulado.push(dCur.toLocaleDateString('es-BO', { day: 'numeric', month: 'short' }))
       acumActual.push(sActual)
       acumAnterior.push(sAnterior)
     }
 
     return {
-      ventasHoy, ventasMes, ventasMesPrev, ordenesCompletadasMes, ticketPromedio,
-      sparkline30d, chartDates30, top10,
+      ventasPeriodo, ventasPeriodoPrev, ordenesCompletadasPeriodo, ticketPromedio,
+      sparklinePeriodo, chartDatesPeriodo, top10,
       ventasPorDiaSemana,
       acumuladoActual: acumActual, acumuladoAnterior: acumAnterior, labelsAcumulado,
+      ventasPorMetodoPeriodo,
     }
-  }, [ordenes])
+  }, [ordenes, movimientos, creditos, rango])
 
-  const deltaPct = ventasMesPrev > 0
-    ? `${ventasMes >= ventasMesPrev ? '+' : ''}${(((ventasMes - ventasMesPrev) / ventasMesPrev) * 100).toFixed(0)}% vs mes ant.`
-    : undefined
+  const deltaPct = ventasPeriodoPrev > 0
+    ? Math.round(((ventasPeriodo - ventasPeriodoPrev) / ventasPeriodoPrev) * 100)
+    : null
 
   return (
     <MainLayout>
       <PageTopBar section="Reportes" title="Ventas" />
       <PageContainer>
         <div ref={reportRef}>
-        <PageHeader
+        <ReportHeader
           title="Ventas"
-          description="Análisis de ventas del período actual"
+          description="Análisis de ventas del período seleccionado"
           actions={
-            <button
+            <ExportButton
               onClick={() => exportPDF(reportRef, 'reporte-ventas', `Reporte de Ventas — ${new Date().toLocaleDateString('es-BO')}`)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-white border border-steel-200 hover:border-brand-600 hover:text-brand-600 text-steel-600 text-xs font-bold rounded-xl transition-colors shadow-sm"
-            >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
-              </svg>
-              Exportar PDF
-            </button>
+            />
           }
         />
 
+        <DateRangeFilter value={rango} onChange={setRango} />
+
+        <ChartContainer
+          title="Ventas por método de pago"
+          subtitle="Contado por caja, crédito por fecha de otorgamiento — período seleccionado"
+          minHeight={200}
+          enableExport
+          exportFilename="ventas-metodo-pago"
+          className="mb-6"
+        >
+          <PaymentMethodBreakdown data={ventasPorMetodoPeriodo} size={170} thickness={28} />
+        </ChartContainer>
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <KpiCard label="Ventas hoy"            value={fmtBs(ventasHoy)} accent />
-          <KpiCard label="Ventas del mes"         value={fmtBs(ventasMes)}           sub={deltaPct} />
-          <KpiCard label="Órdenes completadas"    value={String(ordenesCompletadasMes)} sub="Este mes" />
-          <KpiCard label="Ticket promedio"        value={fmtBs(ticketPromedio)}       sub="Este mes" />
+          <KpiCard
+            label="Ventas del período" value={fmtBs(ventasPeriodo)} icon="ti-report-money" tone="brand"
+            sub={deltaPct !== null ? `${deltaPct >= 0 ? '+' : ''}${deltaPct}% vs período anterior` : undefined}
+          />
+          <KpiCard
+            label="Período anterior" value={fmtBs(ventasPeriodoPrev)} icon="ti-history" tone="neutral"
+            sub="Misma duración, previo al rango"
+          />
+          <KpiCard
+            label="Órdenes completadas" value={String(ordenesCompletadasPeriodo)} icon="ti-shopping-cart" tone="gold"
+            sub="En el período"
+          />
+          <KpiCard
+            label="Ticket promedio" value={fmtBs(ticketPromedio)} icon="ti-receipt-2" tone="green"
+            sub="En el período"
+          />
         </div>
 
         <ChartContainer
-          title="Ventas — últimos 30 días"
-          subtitle="Tendencia diaria de ventas completadas"
+          title="Ventas por día"
+          subtitle="Tendencia diaria — período seleccionado"
           minHeight={220}
           enableExport
-          exportFilename="ventas-30d"
+          exportFilename="ventas-periodo"
         >
           <div style={{ height: 200 }}>
-            <SalesChart data={sparkline30d} dates={chartDates30} onHover={setChartHover} />
+            <SalesChart data={sparklinePeriodo} dates={chartDatesPeriodo} onHover={setChartHover} />
           </div>
         </ChartContainer>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 my-5">
           <ChartContainer
             title="Ventas por día de semana"
-            subtitle="Últimos 30 días — separadas por estado"
+            subtitle="Período seleccionado — separadas por estado"
             minHeight={260}
             enableExport
             exportFilename="ventas-dia-semana"
@@ -226,8 +251,8 @@ export function VentasReportePage() {
           </ChartContainer>
 
           <ChartContainer
-            title="Acumulado del mes"
-            subtitle="Este mes vs. mes anterior, día a día"
+            title="Comparación con período anterior"
+            subtitle="Acumulado día a día"
             minHeight={260}
             enableExport
             exportFilename="ventas-acumulado"
@@ -236,8 +261,8 @@ export function VentasReportePage() {
               <AreaChart
                 labels={labelsAcumulado}
                 series={[
-                  { name: 'Mes actual',    color: '#C8102E', data: acumuladoActual    },
-                  { name: 'Mes anterior',  color: '#3B82F6', data: acumuladoAnterior  },
+                  { name: 'Período actual',    color: '#C8102E', data: acumuladoActual    },
+                  { name: 'Período anterior',  color: '#3B82F6', data: acumuladoAnterior  },
                 ]}
                 height={240}
                 formatValue={fmtBs}
@@ -248,13 +273,13 @@ export function VentasReportePage() {
 
         <ChartContainer
           title="Top 10 productos"
-          subtitle="Últimos 7 días — ordenados por unidades"
+          subtitle="Período seleccionado — ordenados por unidades"
           minHeight={380}
           enableExport
           exportFilename="top-10-productos"
         >
           {top10.length === 0 ? (
-            <p className="text-sm text-steel-400 text-center py-10">Sin ventas en los últimos 7 días</p>
+            <p className="text-sm text-steel-400 text-center py-10">Sin ventas en el período seleccionado</p>
           ) : (
             <HorizontalBarChart
               items={top10.map((p, i) => ({

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout } from '@/components/layout/MainLayout'
-import { Button, Input, Modal, ConfirmModal } from '@/components/ui'
+import { Button, ConfirmModal } from '@/components/ui'
 import { notify } from '@/lib/notify'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
 import { CLIENTES_QUERY, backendToCliente, type ClienteAPI } from '@/lib/queries/clientes.queries'
+import { ClienteFormModal } from './ClienteFormModal'
 import type { Cliente } from '@/types'
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -439,108 +440,5 @@ export function ClientesPage() {
         loading={deleting}
       />
     </MainLayout>
-  )
-}
-
-// ─── Cliente form modal ────────────────────────────────────────────────────────
-
-interface ClienteFormModalProps {
-  open: boolean
-  onClose: () => void
-  onSave: (data: Omit<Cliente, 'id'>) => void
-  cliente: Cliente | null
-}
-
-export function ClienteFormModal({ open, onClose, onSave, cliente }: ClienteFormModalProps) {
-  const [nombre, setNombre] = useState(cliente?.nombre ?? '')
-  const [apellido, setApellido] = useState(cliente?.apellido ?? '')
-  const [telefono, setTelefono] = useState(cliente?.telefono ?? '')
-  const [direccion, setDireccion] = useState(cliente?.direccion ?? '')
-  const [correoElectronico, setCorreoElectronico] = useState(cliente?.correoElectronico ?? '')
-
-  useEffect(() => {
-    if (open) {
-      setNombre(cliente?.nombre ?? '')
-      setApellido(cliente?.apellido ?? '')
-      setTelefono(cliente?.telefono ?? '')
-      setDireccion(cliente?.direccion ?? '')
-      setCorreoElectronico(cliente?.correoElectronico ?? '')
-    }
-  }, [open, cliente])
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!nombre.trim()) { notify.error('Ingresa el nombre'); return }
-    if (!apellido.trim()) { notify.error('Ingresa el apellido'); return }
-    if (!telefono.trim()) { notify.error('Ingresa el teléfono'); return }
-    onSave({
-      nombre: nombre.trim(),
-      apellido: apellido.trim(),
-      telefono: telefono.trim(),
-      direccion: direccion.trim() || undefined,
-      correoElectronico: correoElectronico.trim() || undefined,
-    })
-  }
-
-  return (
-    <Modal open={open} onClose={onClose} title={cliente ? 'Editar cliente' : 'Nuevo cliente'}>
-      <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-        <div>
-          <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Nombre *</label>
-          <Input
-            type="text"
-            placeholder="Nombre del cliente"
-            value={nombre}
-            onChange={e => setNombre(e.target.value)}
-            maxLength={100}
-            autoFocus
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Apellido *</label>
-          <Input
-            type="text"
-            placeholder="Apellido del cliente"
-            value={apellido}
-            onChange={e => setApellido(e.target.value)}
-            maxLength={100}
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Teléfono *</label>
-          <Input
-            type="text"
-            placeholder="Número de teléfono"
-            value={telefono}
-            onChange={e => setTelefono(e.target.value)}
-            maxLength={20}
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Dirección <span className="font-normal text-[#7A7571]">(opcional)</span></label>
-          <Input
-            type="text"
-            placeholder="Dirección del cliente"
-            value={direccion}
-            onChange={e => setDireccion(e.target.value)}
-            maxLength={200}
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-[#2D2B2A] mb-1.5">Correo electrónico <span className="font-normal text-[#7A7571]">(opcional)</span></label>
-          <Input
-            type="email"
-            placeholder="correo@ejemplo.com"
-            value={correoElectronico}
-            onChange={e => setCorreoElectronico(e.target.value)}
-            maxLength={150}
-          />
-        </div>
-        <div className="flex gap-2 pt-1">
-          <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" className="flex-1">{cliente ? 'Actualizar' : 'Registrar'}</Button>
-        </div>
-      </form>
-    </Modal>
   )
 }

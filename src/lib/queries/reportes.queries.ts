@@ -44,6 +44,19 @@ export interface ComisionDetalleVentaAPI {
   items: ComisionDetalleItemAPI[]
 }
 
+export const MI_RESUMEN_COMISION_QUERY = `
+  query MiResumenComision($desde: DateTime!, $hasta: DateTime!) {
+    miResumenComision(desde: $desde, hasta: $hasta) {
+      cajeroId
+      nombre
+      apellido
+      totalVentas
+      porcentajeComision
+      montoComision
+    }
+  }
+`
+
 export const DETALLE_COMISION_QUERY = `
   query DetalleComisionUsuario($usuarioId: UUID!, $desde: DateTime!, $hasta: DateTime!) {
     detalleComisionUsuario(usuarioId: $usuarioId, desde: $desde, hasta: $hasta) {

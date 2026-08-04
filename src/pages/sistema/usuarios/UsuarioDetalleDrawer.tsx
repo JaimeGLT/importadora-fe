@@ -307,7 +307,7 @@ export function UsuarioDetalleDrawer({ usuario, onClose }: UsuarioDetalleDrawerP
             <div className="flex-1 min-w-0">
               <p className="text-[12px] font-semibold text-[#7A5200]">Esta es tu cuenta</p>
               <p className="text-[11px] text-[#7A5200]/80 mt-0.5">
-                Para editar tu información personal, hacé click acá o usá el menú lateral → Mi cuenta.
+                Para editar tu información personal, haz click aquí o usa el menú lateral → Mi cuenta.
               </p>
             </div>
             <i className="ti ti-arrow-right text-[#B4881C] text-[14px] shrink-0 mt-1" />

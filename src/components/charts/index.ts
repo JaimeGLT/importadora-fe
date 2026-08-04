@@ -8,6 +8,7 @@ export { BarChart, type BarSeries, type BarMode } from './BarChart'
 export { HorizontalBarChart, type HorizontalBarItem } from './HorizontalBarChart'
 export { AreaChart, type AreaSeries } from './AreaChart'
 export { GaugeChart } from './GaugeChart'
+export { PaymentMethodBreakdown } from './PaymentMethodBreakdown'
 
 // ─── Hooks ──────────────────────────────────────────────────────────────────
 export { useChartExport, type ChartExportApi } from './useChartExport'

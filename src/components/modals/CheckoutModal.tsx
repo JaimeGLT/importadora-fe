@@ -3,7 +3,9 @@ import { clsx } from 'clsx'
 import { Button, Input, Modal } from '@/components/ui'
 import type { DescuentoConfig } from '@/stores/configStore'
 import { notify } from '@/lib/notify'
+import { api } from '@/lib/api'
 import { getDescuentoColor } from '@/utils/descuentoColors'
+import { ClienteFormModal } from '@/pages/ventas/clientes/ClienteFormModal'
 import type { OrdenVenta, MetodoPago, Cliente, PagoOrden } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -46,6 +48,8 @@ export interface CheckoutModalProps {
   clientes: Cliente[]
   descuentos: DescuentoConfig[]
   onConfirm: (data: CheckoutConfirm) => void
+  /** Recarga la lista de clientes y la retorna, usado tras crear uno nuevo. */
+  onClienteCreado: () => Promise<Cliente[]>
   onClose: () => void
 }
 
@@ -55,6 +59,7 @@ export function CheckoutModal({
   clientes,
   descuentos,
   onConfirm,
+  onClienteCreado,
   onClose,
 }: CheckoutModalProps) {
 
@@ -103,9 +108,25 @@ export function CheckoutModal({
     orden.cliente_id ? clientes.find(c => c.id === Number(orden.cliente_id)) ?? null : null
   )
   const [showClienteDropdown, setShowClienteDropdown] = useState(false)
+  const [nuevoClienteOpen, setNuevoClienteOpen] = useState(false)
 
   const monto = parseFloat(montoStr.replace(',', '.'))
   const cambio = metodo === 'efectivo' && !isNaN(monto) ? monto - total : null
+  const efectivoInsuficiente = !pagoMixto && metodo === 'efectivo' && cambio !== null && cambio < 0
+
+  const mixtoInvalido = !esCredito && pagoMixto && (monto2 <= 0 || monto2 >= total || metodo === metodo2)
+  const mixtoError = !esCredito && pagoMixto
+    ? monto2 <= 0
+      ? 'Ingresa un monto mayor a 0.'
+      : monto2 >= total
+        ? 'El segundo monto debe ser menor al total.'
+        : metodo === metodo2
+          ? 'Elige dos métodos de pago distintos.'
+          : null
+    : null
+
+  const clienteInvalido = esCredito && !clienteSelected
+  const confirmDisabled = clienteInvalido || mixtoInvalido || efectivoInsuficiente
 
   const filteredClientes = useMemo(() => {
     if (!clienteSearch.trim()) return []
@@ -123,16 +144,35 @@ export function CheckoutModal({
     setShowClienteDropdown(false)
   }
 
+  const handleCrearCliente = async (data: Omit<Cliente, 'id'>) => {
+    try {
+      await api.post('/Cliente', data)
+      notify.success('Cliente registrado')
+      setNuevoClienteOpen(false)
+      const lista = await onClienteCreado()
+      const nuevo = [...lista].reverse().find(c =>
+        c.telefono === data.telefono && c.apellido === data.apellido
+      )
+      if (nuevo) handleSelectCliente(nuevo)
+    } catch (err) {
+      notify.error((err as Error).message || 'Error al crear cliente')
+    }
+  }
+
   const handleConfirm = () => {
-    if (esCredito && !clienteSelected) {
+    if (clienteInvalido) {
       notify.error('Para venta a crédito es obligatorio seleccionar un cliente.')
       return
     }
-    const m = parseFloat(montoStr.replace(',', '.'))
-    if (!esCredito && pagoMixto) {
-      if (monto2 <= 0 || monto2 >= total) { return }
-      if (metodo === metodo2) { return }
+    if (mixtoInvalido) {
+      notify.error(mixtoError ?? 'Revisa los montos del pago mixto.')
+      return
     }
+    if (efectivoInsuficiente) {
+      notify.error('El monto recibido es menor al total a cobrar.')
+      return
+    }
+    const m = parseFloat(montoStr.replace(',', '.'))
     const pagos: PagoOrden[] = esCredito
       ? []
       : pagoMixto
@@ -158,38 +198,38 @@ export function CheckoutModal({
 
   return (
     <Modal open={open} onClose={onClose} title={`Cobrar ${orden.numero}`} size="lg">
-      <div className="space-y-4 pt-1">
+      <div className="space-y-5 pt-1">
         {/* ── Modo de pago: Contado / Crédito ─────────────────────────── */}
-        <div className="grid grid-cols-2 gap-2 rounded-xl bg-[#F5F0EB] p-1">
+        <div className="grid grid-cols-2 gap-2 rounded-xl bg-[#F5F0EB] p-1.5">
           <button
             type="button"
             onClick={() => setModoPago('contado')}
             className={clsx(
-              'flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all',
+              'flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all',
               !esCredito
-                ? 'bg-white text-[#1E5C38] shadow-sm'
+                ? 'bg-white text-[#1E5C38] shadow-sm ring-1 ring-[#B8DCCA]'
                 : 'text-[#7A7571] hover:text-[#4A4744]',
             )}
           >
-            <i className="ti ti-cash text-[15px]" />
+            <i className="ti ti-cash text-[16px]" />
             Contado
           </button>
           <button
             type="button"
             onClick={() => setModoPago('credito')}
             className={clsx(
-              'flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all',
+              'flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all',
               esCredito
-                ? 'bg-white text-[#780e18] shadow-sm'
+                ? 'bg-white text-[#780e18] shadow-sm ring-1 ring-[#E8D4B8]'
                 : 'text-[#7A7571] hover:text-[#4A4744]',
             )}
           >
-            <i className="ti ti-hand-coins text-[15px]" />
+            <i className="ti ti-hand-coins text-[16px]" />
             Crédito
           </button>
         </div>
         {/* ── Resumen de la orden ───────────────────────────────────────── */}
-        <div className="rounded-xl bg-[#FBFBFA] border border-[#E8E5E2] px-3 py-2.5 space-y-1.5">
+        <div className="rounded-xl bg-[#FBFBFA] border border-[#E8E5E2] px-3.5 py-3 space-y-1.5 shadow-sm">
           <p className="text-[10px] font-black text-[#7A7571] uppercase tracking-widest flex items-center gap-1.5">
             <i className="ti ti-receipt text-[12px]" />
             Resumen de la orden
@@ -261,8 +301,8 @@ export function CheckoutModal({
         </div>
 
         {/* ── Descuento (cards grid) ──────────────────────────────────────── */}
-        <div>
-          <p className="text-xs font-bold text-[#7A7571] uppercase tracking-widest mb-2 flex items-center gap-1.5">
+        <div className="rounded-xl bg-[#FBFBFA] border border-[#E8E5E2] px-3.5 py-3">
+          <p className="text-xs font-bold text-[#7A7571] uppercase tracking-widest mb-2.5 flex items-center gap-1.5">
             <i className="ti ti-discount-2 text-[13px]" />
             Descuento
           </p>
@@ -309,15 +349,31 @@ export function CheckoutModal({
         </div>
 
         {/* ── Cliente (opcional / obligatorio en crédito) ───────────── */}
-        <div>
-          <p className="text-xs font-bold text-[#7A7571] uppercase tracking-widest mb-2 flex items-center gap-1">
-            Cliente
-            {esCredito ? (
-              <span className="text-[#B23A2A]">*</span>
-            ) : (
-              <span className="text-[10px] font-normal text-[#7A7571] normal-case tracking-normal">(opcional)</span>
+        <div className={clsx(
+          'rounded-xl border px-3.5 py-3 transition-colors',
+          clienteInvalido ? 'bg-[#FBEEEC] border-[#E8B7AC]' : 'bg-[#FBFBFA] border-[#E8E5E2]'
+        )}>
+          <div className="flex items-center justify-between mb-2.5">
+            <p className="text-xs font-bold text-[#7A7571] uppercase tracking-widest flex items-center gap-1.5">
+              <i className="ti ti-user text-[13px]" />
+              Cliente
+              {esCredito ? (
+                <span className="text-[#B23A2A]">*</span>
+              ) : (
+                <span className="text-[10px] font-normal text-[#7A7571] normal-case tracking-normal">(opcional)</span>
+              )}
+            </p>
+            {!clienteSelected && (
+              <button
+                type="button"
+                onClick={() => setNuevoClienteOpen(true)}
+                className="text-[11px] font-bold text-[#780e18] hover:text-[#5C0B12] flex items-center gap-1"
+              >
+                <i className="ti ti-plus text-[12px]" />
+                Nuevo cliente
+              </button>
             )}
-          </p>
+          </div>
           {clienteSelected ? (
             <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-[#B8DCCA]/30 border border-[#B8DCCA]">
               <div className="min-w-0">
@@ -346,7 +402,15 @@ export function CheckoutModal({
               {showClienteDropdown && clienteSearch.trim() && (
                 <div className="absolute z-20 w-full mt-1 bg-white rounded-xl border border-[#E8E5E2] shadow-lg max-h-40 overflow-y-auto">
                   {filteredClientes.length === 0 ? (
-                    <div className="px-3 py-2.5 text-xs text-[#7A7571] text-center">Sin resultados</div>
+                    <button
+                      type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => setNuevoClienteOpen(true)}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#FAF5EE] transition-colors text-left text-[#780e18]"
+                    >
+                      <i className="ti ti-user-plus text-[14px]" />
+                      <span className="text-xs font-semibold">Crear cliente "{clienteSearch}"</span>
+                    </button>
                   ) : filteredClientes.map(c => (
                     <button
                       key={c.id}
@@ -368,14 +432,23 @@ export function CheckoutModal({
               )}
             </div>
           )}
+          {clienteInvalido && (
+            <p className="mt-2 text-[11px] font-semibold text-[#B23A2A] flex items-center gap-1">
+              <i className="ti ti-alert-circle text-[12px]" />
+              Selecciona o crea un cliente para vender a crédito.
+            </p>
+          )}
         </div>
 
         {/* ── Método de pago (oculto en crédito) ──────────────────────── */}
         {!esCredito && (
         <>
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-bold text-[#7A7571] uppercase tracking-widest">Método de pago</p>
+        <div className="rounded-xl bg-[#FBFBFA] border border-[#E8E5E2] px-3.5 py-3">
+          <div className="flex items-center justify-between mb-2.5">
+            <p className="text-xs font-bold text-[#7A7571] uppercase tracking-widest flex items-center gap-1.5">
+              <i className="ti ti-credit-card text-[13px]" />
+              Método de pago
+            </p>
             <button
               onClick={() => setPagoMixto(v => !v)}
               className={clsx('text-[11px] font-bold px-2 py-1 rounded-lg border transition-all', pagoMixto ? 'bg-[#F4ECDB] border-[#D4A333]/50 text-[#780e18]' : 'bg-[#F7F7F7] border-[#E8E5E2] text-[#7A7571] hover:border-[#D0CBC4]')}
@@ -421,28 +494,51 @@ export function CheckoutModal({
                   <Input type="number" step="0.50" min="0.01" max={total - 0.01} value={monto2Str} onChange={e => setMonto2Str(e.target.value)} placeholder="0.00" />
                 </div>
               </div>
+              {mixtoError && (
+                <p className="text-[11px] font-semibold text-[#B23A2A] flex items-center gap-1">
+                  <i className="ti ti-alert-circle text-[12px]" />
+                  {mixtoError}
+                </p>
+              )}
             </div>
           )}
         </div>
 
         {/* ── Monto recibido / Cambio (solo efectivo, pago simple) ─────── */}
         {!pagoMixto && metodo === 'efectivo' && (
-          <div>
+          <div className="rounded-xl bg-[#FBFBFA] border border-[#E8E5E2] px-3.5 py-3">
             <label className="block text-xs font-bold text-[#7A7571] uppercase tracking-widest mb-1.5">Monto recibido (Bs)</label>
-            <Input type="number" min={total} step="0.50" value={montoStr} onChange={e => setMontoStr(e.target.value)} />
-            {cambio !== null && cambio >= 0 && <p className="text-sm font-bold text-[#3F7A52] mt-2">Cambio: {fmtBs(cambio)}</p>}
+            <Input type="number" min={total} step="0.50" value={montoStr} onChange={e => setMontoStr(e.target.value)} error={efectivoInsuficiente ? ' ' : undefined} />
+            {efectivoInsuficiente ? (
+              <p className="text-sm font-bold text-[#B23A2A] mt-2 flex items-center gap-1.5">
+                <i className="ti ti-alert-circle text-[13px]" />
+                Falta {fmtBs(-(cambio as number))} para cubrir el total
+              </p>
+            ) : cambio !== null && cambio > 0 ? (
+              <p className="text-sm font-bold text-[#3F7A52] mt-2 flex items-center gap-1.5">
+                <i className="ti ti-cash-banknote text-[13px]" />
+                Cambio: {fmtBs(cambio)}
+              </p>
+            ) : null}
           </div>
         )}
         </>
         )}
 
-        <div className="flex gap-2 pt-1">
-          <Button variant="secondary" className="flex-1" onClick={onClose}>Cancelar</Button>
-          <Button className="flex-1" onClick={handleConfirm}>
-            {esCredito ? 'Confirmar crédito' : 'Confirmar pago'}
-          </Button>
+        <div className="pt-1 border-t border-[#E8E5E2]">
+          <div className="flex gap-2 pt-4">
+            <Button variant="secondary" className="flex-1" onClick={onClose}>Cancelar</Button>
+            <Button className="flex-1" onClick={handleConfirm} disabled={confirmDisabled}>
+              {esCredito ? 'Confirmar crédito' : 'Confirmar pago'}
+            </Button>
+          </div>
         </div>
       </div>
+      <ClienteFormModal
+        open={nuevoClienteOpen}
+        onClose={() => setNuevoClienteOpen(false)}
+        onSave={handleCrearCliente}
+      />
     </Modal>
   )
 }

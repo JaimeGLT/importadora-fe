@@ -21,6 +21,7 @@ const AlmacenPage            = lazy(() => import('@/pages/ventas/AlmacenPage').t
 const VentasReportePage      = lazy(() => import('@/pages/reportes/VentasReportePage').then(m => ({ default: m.VentasReportePage })))
 const InventarioReportePage  = lazy(() => import('@/pages/reportes/InventarioReportePage').then(m => ({ default: m.InventarioReportePage })))
 const ComisionesPage         = lazy(() => import('@/pages/comisiones/ComisionesPage').then(m => ({ default: m.ComisionesPage })))
+const MisComisionesPage      = lazy(() => import('@/pages/comisiones/MisComisionesPage').then(m => ({ default: m.MisComisionesPage })))
 const ConfiguracionPage      = lazy(() => import('@/pages/config/ConfiguracionPage').then(m => ({ default: m.ConfiguracionPage })))
 const UsuariosPage           = lazy(() => import('@/pages/sistema/usuarios/UsuariosPage').then(m => ({ default: m.UsuariosPage })))
 const SucursalesPage         = lazy(() => import('@/pages/sistema/sucursales/SucursalesPage').then(m => ({ default: m.SucursalesPage })))
@@ -101,6 +102,10 @@ export default function App() {
 
             <Route element={<RoleGuard allowedRoles={['admin', 'cajero', 'operador']} />}>
               <Route path="/ventas/escaneo" element={<EscaneoPage />} />
+            </Route>
+
+            <Route element={<RoleGuard allowedRoles={['cajero']} />}>
+              <Route path="/mis-comisiones" element={<MisComisionesPage />} />
             </Route>
 
             {/* /mi-cuenta: accesible a TODOS los roles autenticados (sin RoleGuard) */}

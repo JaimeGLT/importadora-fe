@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
+import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
 import { PageTopBar } from '@/components/layout/PageTopBar'
 import { ServerPagination } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
@@ -22,6 +22,7 @@ import {
   formatBsShort,
   useChartExport,
 } from '@/components/charts'
+import { Card, KpiCard, SectionTitle, ReportHeader, ExportButton } from '@/components/reportes/ReportUI'
 
 const STOCK_BAJO_MAX = 12
 const STOCK_CRITICO_PAGE_SIZE = 25
@@ -31,48 +32,21 @@ const fmtBs  = (n: number) =>
 const fmtUSD = (n: number) =>
   `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 
-function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`bg-white rounded-2xl shadow-sm border border-steel-100 ${className}`}>
-      {children}
-    </div>
-  )
-}
-
-function KpiCard({ label, value, sub, accent = false }: { label: string; value: string; sub?: string; accent?: boolean }) {
-  return (
-    <Card className="p-5">
-      <p className="text-[11px] font-bold text-steel-400 uppercase tracking-widest mb-2">{label}</p>
-      <p className={`text-2xl font-black tabular-nums leading-tight ${accent ? 'text-brand-600' : 'text-steel-900'}`}>{value}</p>
-      {sub && <p className="text-[10px] text-steel-400 mt-1.5">{sub}</p>}
-    </Card>
-  )
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-2 mb-4">
-      <div className="w-1 h-4 rounded-full bg-brand-600" />
-      <h2 className="text-[11px] font-bold text-steel-500 uppercase tracking-widest">{children}</h2>
-    </div>
-  )
-}
-
 // ────── Skeleton ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 function InventarioReporteSkeleton() {
   return (
     <div className="animate-pulse">
       <div className="mb-6">
-        <div className="h-3 w-40 rounded bg-steel-100 mb-2" />
-        <div className="h-7 w-56 rounded bg-steel-100" />
+        <div className="h-3 w-40 rounded bg-[#F0EFEC] mb-2" />
+        <div className="h-7 w-56 rounded bg-[#F0EFEC]" />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[0, 1, 2, 3].map(i => (
           <Card key={i} className="p-5 h-[100px]">
-            <div className="h-3 w-24 rounded bg-steel-100 mb-3" />
-            <div className="h-6 w-16 rounded bg-steel-100" />
+            <div className="h-3 w-24 rounded bg-[#F0EFEC] mb-3" />
+            <div className="h-6 w-16 rounded bg-[#F0EFEC]" />
           </Card>
         ))}
       </div>
@@ -80,17 +54,17 @@ function InventarioReporteSkeleton() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
         {[0, 1, 2].map(i => (
           <Card key={i} className="p-5 h-[280px]">
-            <div className="h-3 w-32 rounded bg-steel-100 mb-5" />
-            <div className="h-[190px] rounded-lg bg-steel-50" />
+            <div className="h-3 w-32 rounded bg-[#F0EFEC] mb-5" />
+            <div className="h-[190px] rounded-lg bg-[#F5F0EB]" />
           </Card>
         ))}
       </div>
 
       <Card className="p-5 mb-5">
-        <div className="h-3 w-48 rounded bg-steel-100 mb-5" />
+        <div className="h-3 w-48 rounded bg-[#F0EFEC] mb-5" />
         <div className="space-y-3">
           {[0, 1, 2, 3, 4, 5].map(i => (
-            <div key={i} className="h-8 rounded bg-steel-50" />
+            <div key={i} className="h-8 rounded bg-[#F5F0EB]" />
           ))}
         </div>
       </Card>
@@ -112,29 +86,29 @@ function StockCriticoTable({ rows }: { rows: StockCriticoRowData[] }) {
   return (
     <table className="w-full text-xs">
       <thead>
-        <tr className="border-b border-steel-100">
-          <th className="pb-3 font-bold text-steel-400 uppercase tracking-widest text-[10px] text-left">Producto</th>
-          <th className="pb-3 font-bold text-steel-400 uppercase tracking-widest text-[10px] text-center">Marca</th>
-          <th className="pb-3 font-bold text-steel-400 uppercase tracking-widest text-[10px] text-center">Stock</th>
-          <th className="pb-3 font-bold text-steel-400 uppercase tracking-widest text-[10px] text-center">Estado</th>
+        <tr className="bg-[#F5F0EB] border-b border-[#D0CBC4]">
+          <th className="px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px] text-left">Producto</th>
+          <th className="px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px] text-center">Marca</th>
+          <th className="px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px] text-center">Stock</th>
+          <th className="px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px] text-center">Estado</th>
         </tr>
       </thead>
       <tbody>
         {rows.map(p => (
-          <tr key={p.id} className="border-b border-steel-50 hover:bg-[#FAFAF9] transition-colors">
-            <td className="py-3 pr-4">
-              <p className="font-semibold text-steel-800 truncate max-w-[220px]">{p.nombre || '—'}</p>
-              <p className="text-[10px] text-steel-400 mt-0.5 tabular-nums">{p.codigo}</p>
+          <tr key={p.id} className="border-b border-[#E8E5E2] hover:bg-[#FAF5EE] transition-colors group">
+            <td className="py-3 pr-4 px-3">
+              <p className="font-semibold text-[#2D2B2A] truncate max-w-[220px] group-hover:text-[#780e18] transition-colors">{p.nombre || '—'}</p>
+              <p className="text-[10px] text-[#7A7571] mt-0.5 tabular-nums">{p.codigo}</p>
             </td>
-            <td className="py-3 pr-4 text-center text-steel-500 font-semibold">{p.marca || '—'}</td>
+            <td className="py-3 pr-4 text-center text-[#4A4744] font-semibold">{p.marca || '—'}</td>
             <td className="py-3 text-center">
-              <span className={`text-base font-black tabular-nums ${p.stock === 0 ? 'text-brand-600' : 'text-amber-600'}`}>
+              <span className={`text-base font-black tabular-nums ${p.stock === 0 ? 'text-[#8A1E12]' : 'text-[#7A5200]'}`}>
                 {p.stock}
               </span>
             </td>
             <td className="py-3 text-center">
               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                p.stock === 0 ? 'bg-brand-600 text-white' : 'bg-amber-500 text-white'
+                p.stock === 0 ? 'bg-[#F5C9C0] text-[#8A1E12]' : 'bg-[#F5E0A8] text-[#7A5200]'
               }`}>
                 {p.stock === 0 ? 'Sin stock' : 'Stock bajo'}
               </span>
@@ -342,27 +316,24 @@ export function InventarioReportePage() {
       <PageTopBar section="Reportes" title="Inventario" />
       <PageContainer>
         <div ref={reportRef}>
-        <PageHeader
+        <ReportHeader
           title="Inventario"
           description="Estado actual del stock y valor del inventario"
           actions={
-            <button
+            <ExportButton
               onClick={() => exportPDF(reportRef, 'reporte-inventario', `Reporte de Inventario — ${new Date().toLocaleDateString('es-BO')}`)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-white border border-steel-200 hover:border-brand-600 hover:text-brand-600 text-steel-600 text-xs font-bold rounded-xl transition-colors shadow-sm"
-            >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
-              </svg>
-              Exportar PDF
-            </button>
+            />
           }
         />
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <KpiCard label="Productos activos" value={String(productos.length)} />
-          <KpiCard label="Total unidades"    value={totalUnidades.toLocaleString()} />
-          <KpiCard label="Valor inventario"  value={fmtUSD(valorUSD)} sub={fmtBs(valorBs)} />
-          <KpiCard label="Stock crítico"     value={String(stockCriticoTotalCount)} sub={`Stock ≤ ${STOCK_BAJO_MAX} unidades`} accent={stockCriticoTotalCount > 0} />
+          <KpiCard label="Productos activos" value={String(productos.length)} icon="ti-package" tone="neutral" />
+          <KpiCard label="Total unidades"    value={totalUnidades.toLocaleString()} icon="ti-cube" tone="gold" />
+          <KpiCard label="Valor inventario"  value={fmtUSD(valorUSD)} sub={fmtBs(valorBs)} icon="ti-currency-dollar" tone="green" />
+          <KpiCard
+            label="Stock crítico" value={String(stockCriticoTotalCount)} sub={`Stock ≤ ${STOCK_BAJO_MAX} unidades`}
+            icon="ti-alert-triangle" tone={stockCriticoTotalCount > 0 ? 'red' : 'neutral'}
+          />
         </div>
 
         {/* ─── Charts ─── */}
@@ -424,18 +395,18 @@ export function InventarioReportePage() {
           <SectionTitle>{`Stock crítico — stock ≤ ${STOCK_BAJO_MAX} unidades (${stockCriticoTotalCount})`}</SectionTitle>
           {stockCriticoTotalCount === 0 ? (
             <div className="flex items-center gap-3 py-10 justify-center">
-              <div className="h-10 w-10 rounded-full bg-emerald-50 flex items-center justify-center">
-                <svg className="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="h-10 w-10 rounded-full bg-[#B8DCCA] flex items-center justify-center">
+                <svg className="h-5 w-5 text-[#1E5C38]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <span className="text-sm font-semibold text-steel-400">Ningún producto con stock ≤ {STOCK_BAJO_MAX}</span>
+              <span className="text-sm font-semibold text-[#7A7571]">Ningún producto con stock ≤ {STOCK_BAJO_MAX}</span>
             </div>
           ) : (
             <>
               {kitsStockCritico.length > 0 && (
                 <div className="mb-6">
-                  <p className="text-[10px] font-bold text-steel-400 uppercase tracking-widest mb-2">
+                  <p className="text-[10px] font-bold text-[#7A7571] uppercase tracking-widest mb-2">
                     Kits ({kitsStockCritico.length})
                   </p>
                   <StockCriticoTable rows={kitsStockCritico} />
@@ -445,10 +416,10 @@ export function InventarioReportePage() {
               {(stockCriticoRowsData.length > 0 || stockCriticoLoading) && (
                 <div>
                   {kitsStockCritico.length > 0 && (
-                    <p className="text-[10px] font-bold text-steel-400 uppercase tracking-widest mb-2">Productos</p>
+                    <p className="text-[10px] font-bold text-[#7A7571] uppercase tracking-widest mb-2">Productos</p>
                   )}
                   <StockCriticoTable rows={stockCriticoRowsData} />
-                  <div className="mt-4 pt-4 border-t border-steel-100">
+                  <div className="mt-4 pt-4 border-t border-[#E8E5E2]">
                     <ServerPagination
                       totalCount={stockCriticoTotal}
                       page={stockCriticoPage}
@@ -469,33 +440,33 @@ export function InventarioReportePage() {
         <Card className="p-5">
           <SectionTitle>Sin movimiento — últimos 30 días ({sinMovTotal})</SectionTitle>
           {sinMovTotal === 0 && !sinMovLoading ? (
-            <p className="text-sm text-steel-400 text-center py-10">Todos los productos tuvieron ventas en los últimos 30 días</p>
+            <p className="text-sm text-[#7A7571] text-center py-10">Todos los productos tuvieron ventas en los últimos 30 días</p>
           ) : (
             <>
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-steel-100">
-                    <th className="text-left pb-3 font-bold text-steel-400 uppercase tracking-widest text-[10px]">Producto</th>
-                    <th className="text-left pb-3 font-bold text-steel-400 uppercase tracking-widest text-[10px]">Marca</th>
-                    <th className="text-center pb-3 font-bold text-steel-400 uppercase tracking-widest text-[10px]">Stock</th>
-                    <th className="text-right pb-3 font-bold text-steel-400 uppercase tracking-widest text-[10px]">Valor parado</th>
+                  <tr className="bg-[#F5F0EB] border-b border-[#D0CBC4]">
+                    <th className="text-left px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px]">Producto</th>
+                    <th className="text-left px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px]">Marca</th>
+                    <th className="text-center px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px]">Stock</th>
+                    <th className="text-right px-3 py-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.12em] text-[10.5px]">Valor parado</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sinMovRows.map(p => (
-                    <tr key={p.id} className="border-b border-steel-50 hover:bg-[#FAFAF9] transition-colors">
-                      <td className="py-3 pr-4">
-                        <p className="font-semibold text-steel-800 truncate max-w-[300px]">{p.nombre}</p>
-                        <p className="text-[10px] text-steel-400 mt-0.5 tabular-nums">{p.codigo}</p>
+                    <tr key={p.id} className="border-b border-[#E8E5E2] hover:bg-[#FAF5EE] transition-colors group">
+                      <td className="py-3 pr-4 px-3">
+                        <p className="font-semibold text-[#2D2B2A] truncate max-w-[300px] group-hover:text-[#780e18] transition-colors">{p.nombre}</p>
+                        <p className="text-[10px] text-[#7A7571] mt-0.5 tabular-nums">{p.codigo}</p>
                       </td>
-                      <td className="py-3 pr-4 text-steel-500 font-semibold">{p.marca?.nombre || '—'}</td>
-                      <td className="py-3 text-center font-bold text-steel-700 tabular-nums">{p.stock_Actual}</td>
-                      <td className="py-3 text-right text-steel-500 tabular-nums">{fmtBs(p.stock_Actual * p.costo)}</td>
+                      <td className="py-3 pr-4 text-[#4A4744] font-semibold">{p.marca?.nombre || '—'}</td>
+                      <td className="py-3 text-center font-bold text-[#2D2B2A] tabular-nums">{p.stock_Actual}</td>
+                      <td className="py-3 text-right text-[#4A4744] tabular-nums">{fmtBs(p.stock_Actual * p.costo)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <div className="mt-4 pt-4 border-t border-steel-100">
+              <div className="mt-4 pt-4 border-t border-[#E8E5E2]">
                 <ServerPagination
                   totalCount={sinMovTotal}
                   page={sinMovPage}

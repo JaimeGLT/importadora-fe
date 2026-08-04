@@ -1049,16 +1049,22 @@ export function CajaPage() {
   const alertedFaltantes = useRef<Set<string>>(new Set())
   const alertedListo = useRef<Set<string>>(new Set())
 
+  const loadClientes = useCallback(async () => {
+    const r = await gql<{ clientes: { nodes: ClienteAPI[] } }>(CLIENTES_QUERY, { first: 200 })
+    const list = (r.clientes?.nodes ?? []).map(backendToCliente)
+    setClientes(list)
+    return list
+  }, [])
+
   useEffect(() => {
     if (!isTokenReady) return
     Promise.all([
       gql<{ descuento: { nodes: DescuentoAPI[] } }>(DESCUENTOS_QUERY).then(r => r.descuento.nodes),
-      gql<{ clientes: { nodes: ClienteAPI[] } }>(CLIENTES_QUERY, { first: 200 }).then(r => r.clientes?.nodes ?? []),
-    ]).then(([desc, clientesNodes]) => {
+      loadClientes(),
+    ]).then(([desc]) => {
       setDescuentos(desc.map(backendToDescuento))
-      setClientes(clientesNodes.map(backendToCliente))
     }).catch(() => {})
-  }, [isTokenReady])
+  }, [isTokenReady, loadClientes])
 
   const joinGrupoRef = useRef<(g: string) => Promise<void>>(() => Promise.resolve())
 
@@ -1682,6 +1688,7 @@ export function CajaPage() {
           clientes={clientes}
           descuentos={descuentos}
           onConfirm={handleConfirmarPago}
+          onClienteCreado={loadClientes}
           onClose={() => setCobroOrden(null)}
         />
       )}

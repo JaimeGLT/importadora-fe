@@ -7,12 +7,14 @@ import { gql } from '@/lib/graphql'
 import { backendToProductoSimple } from '@/lib/queries/inventario.queries'
 import { backendOrdenToDashboard, type DashboardOrden } from '@/lib/queries/ventas.queries'
 import { DASHBOARD_QUERY, type DashboardQueryResult } from '@/lib/queries/dashboard.queries'
+import { calcularVentasPorMetodo } from '@/utils/ventasPorMetodo'
 import { SalesChart } from '@/components/ui/SalesChart'
 import {
   ChartContainer,
   DonutChart,
   GaugeChart,
   HorizontalBarChart,
+  PaymentMethodBreakdown,
   formatBsShort,
   paletteAt,
   useChartExport,
@@ -230,6 +232,8 @@ export function DashboardPage() {
   const [productos,  setProductos]  = useState<Producto[]>([])
   const [ordenes,    setOrdenes]    = useState<DashboardOrden[]>([])
   const [tipoCambio, setTipoCambio] = useState<number>(6.96)
+  const [movimientos, setMovimientos] = useState<DashboardQueryResult['todosMovimientos']['nodes']>([])
+  const [creditos,    setCreditos]    = useState<DashboardQueryResult['creditos']['nodes']>([])
 
   // Filtro cruzado: cuando se clickea un segmento del donut de estados
   const [filtroEstado, setFiltroEstado] = useState<string | null>(null)
@@ -250,6 +254,8 @@ export function DashboardPage() {
         setProductos(res.productos.nodes.map(backendToProductoSimple))
         setOrdenes(res.todasOrdenes.nodes.map(backendOrdenToDashboard))
         setTipoCambio(res.tipoCambio.precioDolar)
+        setMovimientos(res.todosMovimientos?.nodes ?? [])
+        setCreditos(res.creditos?.nodes ?? [])
       })
       .catch(() => {})
       .finally(() => setIsLoading(false))
@@ -263,6 +269,7 @@ export function DashboardPage() {
     sinMovimiento,
     donutEstados,
     pctSinMovimiento,
+    ventasPorMetodoMes,
   } = useMemo(() => {
     const todayDate  = new Date()
     const toDateStr  = (d: Date) => d.toISOString().slice(0, 10)
@@ -270,6 +277,8 @@ export function DashboardPage() {
     const ayer       = toDateStr(new Date(todayDate.getTime() - 86400000))
     const mesActual  = hoy.slice(0, 7)
     const mesAnterior = toDateStr(new Date(todayDate.getFullYear(), todayDate.getMonth() - 1, 1)).slice(0, 7)
+
+    const ventasPorMetodoMes = calcularVentasPorMetodo(movimientos, creditos, `${mesActual}-01`, hoy)
 
     const completadas = ordenes.filter(o => o.estado === 'completada' && o.fechaCompletada)
 
@@ -355,8 +364,9 @@ export function DashboardPage() {
       sinMovimiento,
       donutEstados,
       pctSinMovimiento,
+      ventasPorMetodoMes,
     }
-  }, [productos, ordenes, tipoCambio])
+  }, [productos, ordenes, tipoCambio, movimientos, creditos])
 
   const deltaDia: { val: string; up: boolean } | null = ventasHoyPrev > 0
     ? { val: `${Math.abs(((ventasHoy - ventasHoyPrev) / ventasHoyPrev) * 100).toFixed(0)}%`, up: ventasHoy >= ventasHoyPrev }
@@ -422,6 +432,20 @@ export function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* ──── Ventas por método de pago ─────────────────────────────────────────────────────────────────────────────────── */}
+        <Card className="p-5 mb-6">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h2 className="text-sm font-bold text-[#2D2B2A]">Ventas por método de pago</h2>
+              <p className="text-xs text-[#7A7571] mt-0.5">Mes actual</p>
+            </div>
+            <Link to="/reportes/ventas" className="text-xs text-[#780e18] hover:text-[#5a0a12] font-bold shrink-0">
+              Ver reporte →
+            </Link>
+          </div>
+          <PaymentMethodBreakdown data={ventasPorMetodoMes} size={140} thickness={22} />
+        </Card>
 
         {/* ──── KPIs ────────────────────────────────────────────────────────────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

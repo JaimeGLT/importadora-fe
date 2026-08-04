@@ -68,9 +68,10 @@ const groups: NavGroup[] = [
   {
     label: 'Comisiones',
     icon: <i className="ti ti-percentage text-[16px] shrink-0" />,
-    roles: ['admin'],
+    roles: ['admin', 'cajero'],
     items: [
-      { label: 'Comisiones', to: '/comisiones', roles: ['admin'] },
+      { label: 'Comisiones',     to: '/comisiones',      roles: ['admin'] },
+      { label: 'Mis comisiones', to: '/mis-comisiones',  roles: ['cajero'] },
     ],
   },
   {
