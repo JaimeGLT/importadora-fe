@@ -512,19 +512,12 @@ export interface PiezaBusquedaEscaneo {
   orden: number
 }
 
-export type TipoDocumento = 'nota_venta' | 'factura'
-
 export interface OrdenVenta {
   id: string
   numero: string
   tipo: TipoOrden
-  tipoDocumento?: TipoDocumento   // nota_venta o factura
-  facturaNro?: string            // número de factura simulada (ej: 001-001-0001234)
   cliente_id?: string
   cliente_nombre?: string
-  cliente_tipo_id?: 'ci' | 'nit' | 'sin_nit'  // tipo de identificación para facturación
-  cliente_numero_id?: string      // CI con/sin complemento, o NIT, o 99001
-  cliente_nit?: string           // NIT específico para la factura (puede diferir del cliente guardado)
   cajero_id: string
   cajero_nombre: string
   almacenero_id?: string

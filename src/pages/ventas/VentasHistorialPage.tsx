@@ -86,29 +86,39 @@ function OrdenDrawer({ orden, onClose }: { orden: OrdenVenta; onClose: () => voi
       <div className="space-y-4">
 
         {/* Info grid */}
-        <div className="bg-white rounded-xl border border-[#E8E5E2] p-4 grid grid-cols-2 gap-x-6 gap-y-3">
+        <div className="bg-white rounded-xl border border-[#E8E5E2] border-l-4 border-l-[#780e18] p-4 grid grid-cols-2 gap-x-6 gap-y-3">
           <div>
-            <p className="text-[10px] font-bold text-[#7A7571] uppercase tracking-[0.1em] mb-0.5">Fecha</p>
+            <p className="flex items-center gap-1 text-[10px] font-bold text-[#7A7571] uppercase tracking-[0.1em] mb-0.5">
+              <i className="ti ti-calendar-event text-[11px] text-[#D4A333]" /> Fecha
+            </p>
             <p className="text-[13px] text-[#2D2B2A]">{fmtFecha(orden.creado_en)}</p>
           </div>
           <div>
-            <p className="text-[10px] font-bold text-[#7A7571] uppercase tracking-[0.1em] mb-0.5">Estado</p>
+            <p className="flex items-center gap-1 text-[10px] font-bold text-[#7A7571] uppercase tracking-[0.1em] mb-0.5">
+              <i className="ti ti-status-change text-[11px] text-[#D4A333]" /> Estado
+            </p>
             <span className={clsx('inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full', estado.cls)}>
               {estado.label}
             </span>
           </div>
           <div>
-            <p className="text-[10px] font-bold text-[#7A7571] uppercase tracking-[0.1em] mb-0.5">Cliente</p>
+            <p className="flex items-center gap-1 text-[10px] font-bold text-[#7A7571] uppercase tracking-[0.1em] mb-0.5">
+              <i className="ti ti-user text-[11px] text-[#D4A333]" /> Cliente
+            </p>
             <p className="text-[13px] text-[#2D2B2A]">{orden.cliente_nombre ?? <span className="text-[#B0ABA7]">Sin cliente</span>}</p>
           </div>
           {orden.almacenero_nombre && (
             <div>
-              <p className="text-[10px] font-bold text-[#7A7571] uppercase tracking-[0.1em] mb-0.5">Almacenero</p>
+              <p className="flex items-center gap-1 text-[10px] font-bold text-[#7A7571] uppercase tracking-[0.1em] mb-0.5">
+                <i className="ti ti-forklift text-[11px] text-[#D4A333]" /> Almacenero
+              </p>
               <p className="text-[13px] text-[#2D2B2A]">{orden.almacenero_nombre}</p>
             </div>
           )}
           <div>
-            <p className="text-[10px] font-bold text-[#7A7571] uppercase tracking-[0.1em] mb-0.5">Descuento</p>
+            <p className="flex items-center gap-1 text-[10px] font-bold text-[#7A7571] uppercase tracking-[0.1em] mb-0.5">
+              <i className="ti ti-discount-2 text-[11px] text-[#D4A333]" /> Descuento
+            </p>
             {orden.descuento && (orden.monto_descuento ?? 0) > 0 ? (
               <p className="text-[13px] text-[#780e18] font-semibold">
                 {orden.descuento.nombre} ({orden.descuento.porcentaje}%) · −{fmtBs(orden.monto_descuento ?? 0)}
@@ -119,97 +129,88 @@ function OrdenDrawer({ orden, onClose }: { orden: OrdenVenta; onClose: () => voi
           </div>
         </div>
 
-        {/* Items table */}
+        {/* Items list */}
         <div className="bg-white rounded-xl border border-[#E8E5E2] overflow-hidden">
-          <div className="px-4 py-3 border-b border-[#E8E5E2] flex items-center justify-between">
-            <p className="text-[13px] font-semibold text-[#2D2B2A]">Productos</p>
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#F4ECDB] text-[#780e18]">
+          <div className="px-4 py-3 border-b border-[#E8E5E2] bg-gradient-to-r from-[#780e18] to-[#8f1220] flex items-center justify-between">
+            <p className="flex items-center gap-1.5 text-[13px] font-bold text-white">
+              <i className="ti ti-shopping-bag text-[14px] text-[#F0C060]" /> Productos
+            </p>
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white/15 text-[#F4ECDB]">
               {orden.items.length} ítem{orden.items.length !== 1 ? 's' : ''}
             </span>
           </div>
-          <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-[#F5F0EB]">
-              <tr>
-                <th className="px-3 py-2 text-left text-[10px] font-semibold text-[#5C5654] uppercase tracking-[0.1em]">Código</th>
-                <th className="px-3 py-2 text-left text-[10px] font-semibold text-[#5C5654] uppercase tracking-[0.1em]">Producto</th>
-                <th className="px-3 py-2 text-right text-[10px] font-semibold text-[#5C5654] uppercase tracking-[0.1em]">Cant.</th>
-                <th className="px-3 py-2 text-right text-[10px] font-semibold text-[#5C5654] uppercase tracking-[0.1em]">P. Unit.</th>
-                <th className="px-3 py-2 text-right text-[10px] font-semibold text-[#5C5654] uppercase tracking-[0.1em]">Subtotal</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#F0EFEC]">
-              {orden.items.flatMap(item => {
-                // Caso A: item parcial con piezas → header del kit + sub-filas por pieza
-                if (item.es_parcial && item.piezas_orden && item.piezas_orden.length > 0) {
-                  return [
-                    <tr key={`${item.id}-header`} className="bg-[#F4ECDB]/40">
-                      <td colSpan={5} className="px-3 py-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[11px] font-mono font-bold text-[#780e18]">
-                            {item.producto_codigo}
-                          </span>
-                          <span className="text-[12px] font-semibold text-[#2D2B2A]">
-                            {item.producto_nombre}
-                          </span>
-                          <span className="inline-flex items-center text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider">
-                            KIT
-                          </span>
-                          <span className="inline-flex items-center text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#DBEAFE] text-[#1D4ED8] tracking-wider">
-                            Venta parcial · {item.piezas_orden.length} {item.piezas_orden.length === 1 ? 'pieza' : 'piezas'}
-                          </span>
-                          {(item.producto_categoria || item.producto_procedencia) && (
-                            <span className="inline-flex items-center gap-1.5 text-[10px] text-[#7A7571]">
-                              {item.producto_categoria && (
-                                <span className="inline-flex items-center gap-0.5">
-                                  <i className="ti ti-tag text-[9px]" />
-                                  {item.producto_categoria}
-                                </span>
-                              )}
-                              {item.producto_categoria && item.producto_procedencia && <span className="text-[#D0CBC4]">·</span>}
-                              {item.producto_procedencia && (
-                                <span className="inline-flex items-center gap-0.5">
-                                  <i className="ti ti-flag text-[9px]" />
-                                  Origen: {item.producto_procedencia}
-                                </span>
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>,
-                    ...item.piezas_orden.map(p => (
-                      <tr key={`${item.id}-${p.id}`} className="hover:bg-[#FAF9F7]">
-                        <td className="pl-7 pr-3 py-2 font-mono text-[11px] text-[#780e18] font-semibold whitespace-nowrap">
-                          {p.codigo_pieza}
-                        </td>
-                        <td className="px-3 py-2 text-[12px] text-[#2D2B2A]">
-                          <span>{p.nombre}</span>
-                          <span className="ml-1.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#F5E0A8] text-[#7A5200] tracking-wider">
-                            PIEZA
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-right text-[12px] text-[#4A4644]">×{p.cantidad}</td>
-                        <td className="px-3 py-2 text-right text-[12px] text-[#4A4644] whitespace-nowrap">
-                          {fmtBs(p.precio_unitario ?? 0)}
-                        </td>
-                        <td className="px-3 py-2 text-right text-[12px] font-semibold text-[#2D2B2A] whitespace-nowrap">
-                          {fmtBs((p.precio_unitario ?? 0) * p.cantidad)}
-                        </td>
-                      </tr>
-                    )),
-                  ]
-                }
 
-                // Caso B: item normal (producto simple o kit completo) → fila simple
-                return [
-                  <tr key={item.id} className="hover:bg-[#FAF9F7]">
-                    <td className="px-3 py-2.5 font-mono text-xs text-[#780e18] font-semibold whitespace-nowrap">
-                      {item.producto_codigo}
-                    </td>
-                    <td className="px-3 py-2.5 text-[12px] text-[#2D2B2A]">
+          <div className="divide-y divide-[#F0EFEC]">
+            {orden.items.map(item => {
+              // Caso A: item parcial con piezas → header del kit + sub-filas por pieza
+              if (item.es_parcial && item.piezas_orden && item.piezas_orden.length > 0) {
+                return (
+                  <div key={item.id} className="px-4 py-3 bg-[#F4ECDB]/40 border-l-[3px] border-l-[#D4A333]">
+                    <div className="flex items-start gap-2 flex-wrap mb-1">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10.5px] font-mono font-bold bg-[#780e18] text-white">
+                        {item.producto_codigo}
+                      </span>
+                      <span className="text-[12.5px] font-semibold text-[#2D2B2A] leading-snug">
+                        {item.producto_nombre}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                      <span className="inline-flex items-center text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider">
+                        KIT
+                      </span>
+                      <span className="inline-flex items-center text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#DBEAFE] text-[#1D4ED8] tracking-wider">
+                        Venta parcial · {item.piezas_orden.length} {item.piezas_orden.length === 1 ? 'pieza' : 'piezas'}
+                      </span>
+                      {item.producto_categoria && (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] text-[#7A7571]">
+                          <i className="ti ti-tag text-[9px]" />
+                          {item.producto_categoria}
+                        </span>
+                      )}
+                      {item.producto_procedencia && (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] text-[#7A7571]">
+                          <i className="ti ti-flag text-[9px]" />
+                          Origen: {item.producto_procedencia}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 pl-3 border-l-2 border-[#E8D4B8]">
+                      {item.piezas_orden.map(p => (
+                        <div key={p.id} className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-mono text-[10.5px] text-[#780e18] font-bold">
+                                {p.codigo_pieza}
+                              </span>
+                              <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#F5E0A8] text-[#7A5200] tracking-wider">
+                                PIEZA
+                              </span>
+                            </div>
+                            <p className="text-[12px] text-[#2D2B2A] leading-snug">{p.nombre}</p>
+                            <p className="text-[11px] text-[#7A7571] font-mono mt-0.5">
+                              ×{p.cantidad} · {fmtBs(p.precio_unitario ?? 0)} / u
+                            </p>
+                          </div>
+                          <span className="text-[12.5px] font-bold text-[#780e18] whitespace-nowrap shrink-0">
+                            {fmtBs((p.precio_unitario ?? 0) * p.cantidad)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              }
+
+              // Caso B: item normal (producto simple o kit completo) → fila simple
+              return (
+                <div key={item.id} className="px-4 py-3 border-l-[3px] border-l-transparent hover:border-l-[#D4A333] hover:bg-[#FBFAF7] transition-colors">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span>{item.producto_nombre}</span>
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10.5px] font-mono font-bold bg-[#780e18] text-white">
+                          {item.producto_codigo}
+                        </span>
                         {item.marca_nombre && (
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#F4ECDB] text-[#780e18]">
                             {item.marca_nombre}
@@ -221,15 +222,15 @@ function OrdenDrawer({ orden, onClose }: { orden: OrdenVenta; onClose: () => voi
                           </span>
                         )}
                       </div>
+                      <p className="text-[12.5px] text-[#2D2B2A] leading-snug mt-0.5">{item.producto_nombre}</p>
                       {(item.producto_categoria || item.producto_procedencia) && (
-                        <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#7A7571] leading-tight">
+                        <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#7A7571] leading-tight flex-wrap">
                           {item.producto_categoria && (
                             <span className="inline-flex items-center gap-0.5">
                               <i className="ti ti-tag text-[9px]" />
                               {item.producto_categoria}
                             </span>
                           )}
-                          {item.producto_categoria && item.producto_procedencia && <span className="text-[#D0CBC4]">·</span>}
                           {item.producto_procedencia && (
                             <span className="inline-flex items-center gap-0.5">
                               <i className="ti ti-flag text-[9px]" />
@@ -238,47 +239,41 @@ function OrdenDrawer({ orden, onClose }: { orden: OrdenVenta; onClose: () => voi
                           )}
                         </div>
                       )}
-                    </td>
-                    <td className="px-3 py-2.5 text-right text-[12px] text-[#4A4644]">{item.cantidad_pedida}</td>
-                    <td className="px-3 py-2.5 text-right text-[12px] text-[#4A4644] whitespace-nowrap">{fmtBs(item.precio_unitario)}</td>
-                    <td className="px-3 py-2.5 text-right text-[12px] font-semibold text-[#2D2B2A] whitespace-nowrap">
+                      <p className="text-[11px] text-[#7A7571] font-mono mt-1">
+                        ×{item.cantidad_pedida} · {fmtBs(item.precio_unitario)} / u
+                      </p>
+                    </div>
+                    <span className="text-[13px] font-bold text-[#780e18] whitespace-nowrap shrink-0">
                       {fmtBs(item.precio_unitario * item.cantidad_pedida)}
-                    </td>
-                  </tr>,
-                ]
-              })}
-            </tbody>
-            <tfoot>
-              {tieneDescuento && (
-                <>
-                  <tr className="border-t-2 border-[#E8E5E2] bg-[#FBFAF7]">
-                    <td colSpan={4} className="px-3 py-1.5 text-right text-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.1em]">
-                      Subtotal
-                    </td>
-                    <td className="px-3 py-1.5 text-right text-[12px] font-semibold text-[#4A4644] whitespace-nowrap">
-                      {fmtBs(subtotal)}
-                    </td>
-                  </tr>
-                  <tr className="bg-[#FBFAF7]">
-                    <td colSpan={4} className="px-3 py-1.5 text-right text-[11px] font-semibold text-[#780e18] uppercase tracking-[0.1em]">
-                      Descuento · {orden.descuento!.nombre} ({orden.descuento!.porcentaje}%)
-                    </td>
-                    <td className="px-3 py-1.5 text-right text-[12px] font-semibold text-[#780e18] whitespace-nowrap">
-                      −{fmtBs(montoDescuento)}
-                    </td>
-                  </tr>
-                </>
-              )}
-              <tr className={clsx('bg-[#FBFAF7]', !tieneDescuento && 'border-t-2 border-[#E8E5E2]')}>
-                <td colSpan={4} className="px-3 py-3 text-right text-[11px] font-bold text-[#5C5654] uppercase tracking-[0.1em]">
-                  Total
-                </td>
-                <td className="px-3 py-3 text-right text-[14px] font-black text-[#2D2B2A] whitespace-nowrap">
-                  {fmtBs(total)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Totales */}
+          <div className="border-t border-[#E8E5E2] bg-gradient-to-b from-[#FBFAF7] to-[#F4ECDB]/50 px-4 py-3 space-y-1.5">
+            {tieneDescuento && (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-[#7A7571] uppercase tracking-[0.1em]">Subtotal</span>
+                  <span className="text-[12px] font-semibold text-[#4A4644]">{fmtBs(subtotal)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-[#780e18] uppercase tracking-[0.1em]">
+                    Descuento · {orden.descuento!.nombre} ({orden.descuento!.porcentaje}%)
+                  </span>
+                  <span className="text-[12px] font-semibold text-[#780e18]">−{fmtBs(montoDescuento)}</span>
+                </div>
+              </>
+            )}
+            <div className={clsx('flex items-center justify-between', tieneDescuento ? 'pt-1.5 border-t border-[#D4A333]/30' : '')}>
+              <span className="flex items-center gap-1 text-[11px] font-bold text-[#780e18] uppercase tracking-[0.1em]">
+                <i className="ti ti-receipt-2 text-[12px] text-[#D4A333]" /> Total
+              </span>
+              <span className="text-[16px] font-black text-[#780e18]">{fmtBs(total)}</span>
+            </div>
           </div>
         </div>
 

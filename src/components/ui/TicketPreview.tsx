@@ -56,7 +56,7 @@ export function TicketPreview({ orden, open, onClose }: TicketPreviewProps) {
           className="bg-white border border-steel-200 rounded-lg p-4 font-mono text-xs text-steel-800"
         >
           <div className="text-center border-b border-dashed border-steel-300 pb-3 mb-3">
-            <h2 className="text-base font-bold">ORDEN #{orden.numero.replace('ORD-', '')}</h2>
+            <h2 className="text-base font-bold">ORDEN #{orden.numero.replace(/^(ORD-|#)/, '')}</h2>
             <p className="text-steel-500 mt-0.5">Cajero: {orden.cajero_nombre}</p>
             <p className="text-steel-400 text-[10px] mt-0.5">
               {new Date().toLocaleString('es-BO')}

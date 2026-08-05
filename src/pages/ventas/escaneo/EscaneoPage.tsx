@@ -1217,6 +1217,8 @@ export function EscaneoPage() {
   const [confirmLoading, setConfirmLoading] = useState(false)
   const [agregarLoading, setAgregarLoading] = useState(false)
   const [completarLoading, setCompletarLoading] = useState(false)
+  const [cancelandoOrden, setCancelandoOrden] = useState(false)
+  const [confirmCancelarOrden, setConfirmCancelarOrden] = useState(false)
   const [showAgregarModal, setShowAgregarModal] = useState(false)
   const [itemLoading, setItemLoading] = useState<Record<string, boolean>>({})
   const [confirmEliminar, setConfirmEliminar] = useState<string | null>(null)
@@ -2131,6 +2133,22 @@ export function EscaneoPage() {
     }
   }
 
+  const handleCancelarOrdenSinItems = async () => {
+    if (!selectedOrden) return
+    setCancelandoOrden(true)
+    try {
+      await api.post(`/OrdenVenta/${selectedOrden.id}/Cancelar`, null)
+      updateOrden(selectedOrden.id, { estado: 'cancelada' })
+      notify.success(`${selectedOrden.numero} cancelada`)
+      setSelectedOrdenId(null)
+      setConfirmCancelarOrden(false)
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Error al cancelar la orden')
+    } finally {
+      setCancelandoOrden(false)
+    }
+  }
+
   const ordenesDisponibles = ordenes.filter((o) => o.estado === 'listo_para_escaneo' || o.estado === 'con_faltantes')
 
   return (
@@ -2223,6 +2241,7 @@ export function EscaneoPage() {
                       setPendingNotInOrderMarcaId(null)
                       setScanCounts({})
                       setPiezaScanCounts({})
+                      setConfirmCancelarOrden(false)
                     }}
                     className={clsx(
                       'w-full text-left p-4 rounded-xl border transition-all',
@@ -2242,7 +2261,20 @@ export function EscaneoPage() {
                     </div>
                     <p className="text-sm font-semibold text-[#2D2B2A]">{orden.cliente_nombre ?? 'Sin cliente'}</p>
                     <p className="text-xs text-[#7A7571] mt-1">
-                      {orden.items.filter((i) => i.estado !== 'faltante').length} ítems · Bs {orden.total.toFixed(2)}
+                      {(() => {
+                        const count = orden.items.filter((i) => i.estado !== 'faltante').length
+                        const totalSinFaltantes = orden.items.reduce((s, i) => {
+                          if (i.es_parcial && i.piezas_orden?.length) {
+                            return s + i.piezas_orden.reduce((ps, p) => {
+                              const qty = p.nota_incompleto ? (p.cantidad_recogida ?? 0) : p.cantidad
+                              return ps + (p.precio_unitario ?? 0) * qty
+                            }, 0)
+                          }
+                          const qty = i.estado === 'faltante' ? (i.cantidad_recogida ?? 0) : i.cantidad_pedida
+                          return s + i.precio_unitario * qty
+                        }, 0)
+                        return `${count} ${count === 1 ? 'ítem' : 'ítems'} · Bs ${totalSinFaltantes.toFixed(2)}`
+                      })()}
                     </p>
                   </button>
                 ))
@@ -2717,18 +2749,50 @@ export function EscaneoPage() {
                         Agregar producto
                       </button>
                     </div>
-                    <button
-                      className="w-full py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-xl text-sm font-bold active:scale-[0.99] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-                      onClick={handleMarcarEsperandoPago}
-                      disabled={!allConfirmed || completarLoading}
-                    >
-                      {completarLoading
-                        ? <><i className="ti ti-loader-2 animate-spin text-base mr-1.5" />Enviando…</>
-                        : selectedOrden.estado === 'con_faltantes'
-                          ? <><i className="ti ti-clock text-base mr-1.5" />Esperando almacenero…</>
-                          : <><i className="ti ti-cash-register text-base mr-1.5" />Enviar a caja</>
-                      }
-                    </button>
+                    {itemsParaEscanear.length === 0 && faltantesCount > 0 ? (
+                      confirmCancelarOrden ? (
+                        <div className="flex gap-2">
+                          <button
+                            className="flex-1 py-2.5 rounded-xl text-sm font-bold border border-[#D0CBC4] bg-white text-[#4A4744] hover:bg-[#F0EFEC] transition-all"
+                            onClick={() => setConfirmCancelarOrden(false)}
+                            disabled={cancelandoOrden}
+                          >
+                            Volver
+                          </button>
+                          <button
+                            className="flex-1 py-2.5 bg-[#B23A2A] hover:bg-[#8A1E12] text-white rounded-xl text-sm font-bold active:scale-[0.99] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                            onClick={handleCancelarOrdenSinItems}
+                            disabled={cancelandoOrden}
+                          >
+                            {cancelandoOrden
+                              ? <><i className="ti ti-loader-2 animate-spin text-base mr-1.5" />Cancelando…</>
+                              : <><i className="ti ti-x text-base mr-1.5" />Sí, cancelar orden</>
+                            }
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          className="w-full py-2.5 bg-[#F5C9C0] hover:bg-[#F0B3A6] text-[#8A1E12] rounded-xl text-sm font-bold active:scale-[0.99] transition-all shadow-sm"
+                          onClick={() => setConfirmCancelarOrden(true)}
+                        >
+                          <i className="ti ti-ban text-base mr-1.5" />
+                          Todo faltante — Cancelar orden
+                        </button>
+                      )
+                    ) : (
+                      <button
+                        className="w-full py-2.5 bg-[#D4A333] hover:bg-[#B4881C] text-[#2D2010] rounded-xl text-sm font-bold active:scale-[0.99] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                        onClick={handleMarcarEsperandoPago}
+                        disabled={!allConfirmed || completarLoading}
+                      >
+                        {completarLoading
+                          ? <><i className="ti ti-loader-2 animate-spin text-base mr-1.5" />Enviando…</>
+                          : selectedOrden.estado === 'con_faltantes'
+                            ? <><i className="ti ti-clock text-base mr-1.5" />Esperando almacenero…</>
+                            : <><i className="ti ti-cash-register text-base mr-1.5" />Enviar a caja</>
+                        }
+                      </button>
+                    )}
                   </div>
                 </>
               )}

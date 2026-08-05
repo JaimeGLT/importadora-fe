@@ -673,7 +673,7 @@ function OrdersModal({
                   {listos.map(o => (
                     <div key={o.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-[#B8DCCA]/30 border-2 border-[#B8DCCA]">
                       <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-lg bg-[#3F7A52] flex items-center justify-center text-white font-bold text-sm">{o.numero.replace('ORD-', '')}</div>
+                        <div className="h-9 w-9 rounded-lg bg-[#3F7A52] flex items-center justify-center text-white font-bold text-sm">{o.numero.replace(/^(ORD-|#)/, '')}</div>
                         <div>
                           <p className="text-sm font-bold text-[#1E5C38]">{o.numero}</p>
                           <p className="text-xs text-[#3F7A52]">{o.items.length} prod. · {fmtBs(o.total)}</p>
@@ -858,7 +858,7 @@ function CancelarOrdenModal({
         <div className="rounded-xl border border-[#E8E5E2] overflow-hidden">
           <div className="px-4 py-2 bg-[#F5F0EB] border-b border-[#E8E5E2] flex items-center justify-between">
             <span className="text-xs font-bold text-[#7A7571]">PRODUCTOS</span>
-            <span className="text-xs text-[#7A7571]">{orden.items.length} items · {fmtBs(orden.total)}</span>
+            <span className="text-xs text-[#7A7571]">{orden.items.length} {orden.items.length === 1 ? 'ítem' : 'ítems'} · {fmtBs(orden.total)}</span>
           </div>
           <div className="divide-y divide-[#E8E5E2] max-h-48 overflow-y-auto">
             {orden.items.map(item => (
@@ -896,7 +896,6 @@ function CancelarOrdenModal({
 // ─── Cobro Modal ───────────────────────────────────────────────────────────────
 
 function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => void }) {
-  const isFactura = orden.tipoDocumento === 'factura'
   const itemsDespachados = orden.items.filter(i =>
     i.estado === 'completo' || i.estado === 'parcial' ||
     (i.estado === 'faltante' && (i.cantidad_recogida ?? 0) > 0)
@@ -910,8 +909,6 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
   const totalReal = Math.max(0, subtotal - montoDesc)
   const cambio = orden.monto_recibido != null ? orden.monto_recibido - totalReal : null
 
-  const docLabel = isFactura ? 'FACTURA' : 'NOTA DE VENTA'
-
   return (
     <Modal open onClose={onClose} title="Comprobante de venta" size="sm">
       <div className="flex justify-center bg-[#F0EFEC] -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 py-4 print:py-0 print:bg-transparent">
@@ -921,10 +918,7 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
         >
           {/* Header */}
           <div className="text-center">
-            <p className="font-black text-[13px] uppercase tracking-wide">{docLabel}</p>
-            {isFactura && orden.facturaNro && (
-              <p className="font-bold">N° {orden.facturaNro}</p>
-            )}
+            <p className="font-black text-[13px] uppercase tracking-wide">NOTA DE VENTA</p>
             <p>Orden {orden.numero}</p>
             <p>{new Date(orden.pagado_en ?? orden.actualizado_en).toLocaleString('es-BO')}</p>
             <p>Cajero: {orden.cajero_nombre}</p>
@@ -936,16 +930,6 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
           {orden.cliente_nombre && (
             <>
               <p>Cliente: {orden.cliente_nombre}</p>
-              {orden.cliente_tipo_id && orden.cliente_numero_id && (
-                <p>
-                  {orden.cliente_tipo_id === 'nit' ? 'NIT' :
-                   orden.cliente_tipo_id === 'ci' ? 'CI' :
-                   'Doc'}: {orden.cliente_numero_id}
-                </p>
-              )}
-              {orden.cliente_nit && orden.cliente_tipo_id !== 'nit' && (
-                <p>NIT: {orden.cliente_nit}</p>
-              )}
               <div className="border-t border-dashed border-black/40 my-1.5" />
             </>
           )}
@@ -1013,30 +997,12 @@ function FacturaModal({ orden, onClose }: { orden: OrdenVenta; onClose: () => vo
             </div>
           )}
 
-          {isFactura && (
-            <>
-              <div className="border-t border-dashed border-black/40 my-1.5" />
-              <div className="flex items-center gap-2">
-                <div className="h-16 w-16 border border-dashed border-black/40 flex items-center justify-center shrink-0">
-                  <span className="text-[8px] font-bold text-center leading-tight">QR{'\n'}SIAT</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-[10px]">Verifique su factura</p>
-                  <p className="text-[9px]">en el portal del SIN</p>
-                  {orden.facturaNro && <p className="text-[9px]">{orden.facturaNro}</p>}
-                </div>
-              </div>
-            </>
-          )}
-
           <div className="border-t border-dashed border-black/40 my-1.5" />
 
           {/* Footer */}
           <div className="text-center space-y-0.5">
             <p className="font-bold">¡Gracias por su compra!</p>
-            {!isFactura && (
-              <p className="text-[9px]">Esta nota no es válida como factura</p>
-            )}
+            <p className="text-[9px]">Esta nota no es válida como factura</p>
           </div>
         </div>
       </div>

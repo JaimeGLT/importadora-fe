@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { clsx } from 'clsx'
 import { Button, Input, Modal } from '@/components/ui'
 import type { DescuentoConfig } from '@/stores/configStore'
@@ -96,6 +96,13 @@ export function CheckoutModal({
   // ─── Pago ──────────────────────────────────────────────────────────────────
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
   const [montoStr, setMontoStr] = useState(total.toFixed(2))
+  // El monto recibido se auto-sincroniza con el total mientras el cajero no lo
+  // haya tocado a mano (ej. al aplicar/quitar un descuento después de abrir el
+  // modal). Antes quedaba pegado al total original y el vuelto salía mal.
+  const montoTocadoRef = useRef(false)
+  useEffect(() => {
+    if (!montoTocadoRef.current) setMontoStr(total.toFixed(2))
+  }, [total])
   const [pagoMixto, setPagoMixto] = useState(false)
   const [metodo2, setMetodo2] = useState<MetodoPago>('tarjeta')
   const [monto2Str, setMonto2Str] = useState('')
@@ -508,7 +515,7 @@ export function CheckoutModal({
         {!pagoMixto && metodo === 'efectivo' && (
           <div className="rounded-xl bg-[#FBFBFA] border border-[#E8E5E2] px-3.5 py-3">
             <label className="block text-xs font-bold text-[#7A7571] uppercase tracking-widest mb-1.5">Monto recibido (Bs)</label>
-            <Input type="number" min={total} step="0.50" value={montoStr} onChange={e => setMontoStr(e.target.value)} error={efectivoInsuficiente ? ' ' : undefined} />
+            <Input type="number" min={total} step="0.50" value={montoStr} onChange={e => { montoTocadoRef.current = true; setMontoStr(e.target.value) }} error={efectivoInsuficiente ? ' ' : undefined} />
             {efectivoInsuficiente ? (
               <p className="text-sm font-bold text-[#B23A2A] mt-2 flex items-center gap-1.5">
                 <i className="ti ti-alert-circle text-[13px]" />

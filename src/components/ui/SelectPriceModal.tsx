@@ -117,25 +117,27 @@ export function SelectPriceModal({
             {isEdit ? 'Confirma el nuevo precio' : 'Confirma el precio'}
           </p>
 
-          <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-l-4 border-[#D0CBC4] bg-white border-l-[#780e18]">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#780e18]/10 shrink-0">
-              <i className="ti ti-currency-dollar text-[14px] text-[#780e18]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-[#2D2B2A] leading-tight">
-                {isEdit ? 'Nuevo precio' : 'Precio de venta'}
-              </p>
-              <p className="text-[11px] text-[#7A7571] font-medium mt-0.5">
-                Precio base: {fmtBs(precioBase)}
-              </p>
-              {precioModificado && (
-                <p className="text-[11px] font-bold text-[#780e18] mt-0.5">
-                  Precio actual: {fmtBs(precioActual!)}
+          <div className="flex flex-col gap-2.5 px-4 py-3 rounded-xl border border-l-4 border-[#D0CBC4] bg-white border-l-[#780e18]">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#780e18]/10 shrink-0">
+                <i className="ti ti-currency-dollar text-[14px] text-[#780e18]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-[#2D2B2A] leading-tight">
+                  {isEdit ? 'Nuevo precio' : 'Precio de venta'}
                 </p>
-              )}
+                <p className="text-[11px] text-[#7A7571] font-medium mt-0.5">
+                  Precio base: {fmtBs(precioBase)}
+                </p>
+                {precioModificado && (
+                  <p className="text-[11px] font-bold text-[#780e18] mt-0.5">
+                    Precio actual: {fmtBs(precioActual!)}
+                  </p>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <span className="text-[13px] font-bold text-[#7A7571]">Bs</span>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] font-bold text-[#7A7571]">Bs</span>
               <input
                 type="number"
                 min={0}
@@ -146,7 +148,7 @@ export function SelectPriceModal({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSelect()
                 }}
-                className="w-24 h-9 px-2 text-right font-mono font-black text-[17px] border border-[#780e18] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#780e18]/20"
+                className="w-full h-11 pl-9 pr-3 text-right font-mono font-black text-[19px] border border-[#780e18] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#780e18]/20"
               />
             </div>
           </div>
