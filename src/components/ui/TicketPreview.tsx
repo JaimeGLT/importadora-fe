@@ -75,7 +75,7 @@ export function TicketPreview({ orden, open, onClose }: TicketPreviewProps) {
                 <div className="pl-3 mt-1 space-y-0.5">
                   <p>Código:      <span className="font-mono">{item.producto_codigo}</span></p>
                   <p>Cantidad:   <span className="font-bold">{item.cantidad_recogida ?? item.cantidad_pedida} unidades</span></p>
-                  {item.producto_almacen && (
+                  {(item.producto_almacen || item.producto_estante || item.producto_fila || item.producto_columna) && (
                     <p>Ubicación:  <span>{item.producto_almacen}{item.producto_estante ? ` / ${item.producto_estante}` : ''}{item.producto_fila ? ` / ${item.producto_fila}` : ''}{item.producto_columna ? ` / ${item.producto_columna}` : ''}</span></p>
                   )}
                 </div>

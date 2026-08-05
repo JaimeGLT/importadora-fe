@@ -181,7 +181,14 @@ function ScanConfirmModal({
 
         <div className="px-6 py-5 space-y-3">
           <div>
-            <p className="text-base font-bold text-[#2D2B2A]">{item.producto_nombre}</p>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <p className="text-base font-bold text-[#2D2B2A]">{item.producto_nombre}</p>
+              {item.marca_nombre && (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] shrink-0">
+                  {item.marca_nombre}
+                </span>
+              )}
+            </div>
             {ubicacion && (
               <p className="text-xs text-[#7A7571] mt-0.5 flex items-center gap-1">
                 <i className="ti ti-map-pin text-[11px]" />
@@ -649,6 +656,11 @@ function PiezaScanPriceModal({
                 KIT
               </span>
               <span className="font-medium text-[#4A4744] truncate">{item.producto_nombre}</span>
+              {item.marca_nombre && (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] shrink-0">
+                  {item.marca_nombre}
+                </span>
+              )}
             </div>
           </div>
 
@@ -2371,6 +2383,11 @@ export function EscaneoPage() {
                                           <p className="text-[10px] font-semibold text-[#4A4744] truncate leading-none">
                                             {item.producto_nombre}
                                           </p>
+                                          {item.marca_nombre && (
+                                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">
+                                              {item.marca_nombre}
+                                            </span>
+                                          )}
                                         </div>
                                         <p className="text-sm font-semibold text-[#2D2B2A] leading-snug truncate flex items-center gap-1.5">
                                           {pieza.codigo_pieza && (
@@ -2499,6 +2516,11 @@ export function EscaneoPage() {
                                   {isKit && !isPendiente && (
                                     <span className={clsx('text-[9px] font-black px-1.5 py-0.5 rounded-full tracking-wider shrink-0', isParcialKit ? 'bg-[#F5E0A8] text-[#7A5200]' : 'bg-[#E8D4B8] text-[#780e18]')}>
                                       {isParcialKit ? 'PARCIAL' : 'KIT'}
+                                    </span>
+                                  )}
+                                  {item.marca_nombre && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">
+                                      {item.marca_nombre}
                                     </span>
                                   )}
                                 </div>

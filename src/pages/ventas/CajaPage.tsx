@@ -14,7 +14,8 @@ import { type DescuentoConfig } from '@/stores/configStore'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
 import { PRODUCTO_BY_ID_QUERY, backendToProductoSimple, backendToProducto, type ProductoAPI, type ProductoAPISimple } from '@/lib/queries/inventario.queries'
-import { MIS_ORDENES_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
+import { MIS_ORDENES_QUERY, ORDENES_POR_COBRAR_QUERY, backendToOrdenVenta, type OrdenVentaAPI } from '@/lib/queries/ventas.queries'
+import { isAdminRole } from '@/lib/roles'
 import { CLIENTES_QUERY, backendToCliente, type ClienteAPI } from '@/lib/queries/clientes.queries'
 import {
   DESCUENTOS_QUERY,
@@ -275,6 +276,11 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto, onViewGall
                           KIT
                         </span>
                       )}
+                      {p.marca && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18]">
+                          {p.marca}
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm font-medium text-[#4A4744] whitespace-normal break-words">{p.nombre}</p>
                     {p.descripcion && (
@@ -306,10 +312,10 @@ function ProductSearch({ onSelectProducto, cart, onDecrementProducto, onViewGall
                     <div className="flex items-center gap-3 mt-1 flex-wrap">
                       <span className={`text-[11px] font-semibold ${stockCls}`}>{disp} disponibles</span>
                       <span className="text-[11px] font-mono font-bold text-[#2D2B2A]">Bs {p.precio_venta.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      {p.almacen && (
+                      {(p.almacen || p.estante || p.fila || p.columna) && (
                         <span className="text-[11px] text-[#7A7571] flex items-center gap-0.5">
                           <i className="ti ti-map-pin text-[10px]" />
-                          {p.almacen} {p.estante} {p.fila} {p.columna}
+                          {[p.almacen, p.estante, p.fila, p.columna].filter(Boolean).join(' ')}
                         </span>
                       )}
                     </div>
@@ -411,6 +417,11 @@ function CartItem({
               {item.es_kit && (
                 <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] tracking-wider shrink-0">
                   KIT
+                </span>
+              )}
+              {item.marca_nombre && (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] shrink-0">
+                  {item.marca_nombre}
                 </span>
               )}
             </div>
@@ -634,6 +645,7 @@ function CartPanel({ cart, productosCache, onQtyChange, onRemoveItem, onNotaChan
 function OrdersModal({
   ordenes,
   canceladas,
+  otrosCajeros,
   onCobrar,
   onCancelar,
   open,
@@ -641,6 +653,7 @@ function OrdersModal({
 }: {
   ordenes: OrdenVenta[]
   canceladas?: OrdenVenta[]
+  otrosCajeros?: OrdenVenta[]
   onCobrar: (o: OrdenVenta) => void
   onCancelar: (o: OrdenVenta) => void
   open: boolean
@@ -704,6 +717,31 @@ function OrdersModal({
                               <i className="ti ti-x text-[15px]" />
                             </button>
                           </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+              {otrosCajeros && otrosCajeros.length > 0 && (
+                <div className="border-t border-[#E8E5E2] pt-3">
+                  <p className="text-xs font-bold text-[#7A7571] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                    <i className="ti ti-eye text-[13px]" />
+                    Otros cajeros — solo lectura ({otrosCajeros.length})
+                  </p>
+                  <div className="space-y-2">
+                    {otrosCajeros.map(o => {
+                      const cfg = ESTADO_ORDEN_CONFIG[o.estado] ?? { label: o.estado, cls: 'bg-[#F0EFEC] text-[#7A7571]', dot: 'bg-[#7A7571]' }
+                      return (
+                        <div key={o.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-[#F0EFEC]/60 border border-[#E8E5E2] opacity-90">
+                          <div className="flex items-center gap-3">
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${cfg.cls}`}>{cfg.label}</span>
+                            <div>
+                              <p className="text-sm font-semibold text-[#4A4744]">{o.numero}</p>
+                              <p className="text-xs text-[#7A7571]">{o.cajero_nombre} · {o.items.length} prod. · {fmtBs(o.total)}</p>
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-[#7A7571]">{fmtTimeSince(o.creado_en)}</span>
                         </div>
                       )
                     })}
@@ -1084,6 +1122,34 @@ export function CajaPage() {
 
   useEffect(() => { loadOrdenes() }, [loadOrdenes])
 
+  // Admin/SuperAdmin: órdenes de otros cajeros listas para cobrar (solo lectura,
+  // ya viene filtrado por sucursal desde el backend). Se refresca por polling
+  // porque el admin no está unido al grupo SignalR de órdenes ajenas.
+  const esAdmin = isAdminRole(user?.rol)
+  const [ordenesOtros, setOrdenesOtros] = useState<OrdenVenta[]>([])
+
+  const loadOrdenesOtros = useCallback(async () => {
+    if (!isTokenReady || !esAdmin) return
+    try {
+      const data = await gql<{ ordenesPorCobrar: { nodes: OrdenVentaAPI[] } }>(ORDENES_POR_COBRAR_QUERY)
+      setOrdenesOtros(data.ordenesPorCobrar.nodes.map(backendToOrdenVenta))
+    } catch {
+      // vista secundaria: un error acá no debe bloquear la caja del admin
+    }
+  }, [isTokenReady, esAdmin])
+
+  useEffect(() => { loadOrdenesOtros() }, [loadOrdenesOtros])
+
+  useEffect(() => {
+    if (!esAdmin) return
+    const interval = setInterval(loadOrdenesOtros, 20_000)
+    return () => clearInterval(interval)
+  }, [esAdmin, loadOrdenesOtros])
+
+  useEffect(() => {
+    if (ordersModalOpen) loadOrdenesOtros()
+  }, [ordersModalOpen, loadOrdenesOtros])
+
   const { isConnected, joinGrupo } = useVentasHub({
     onOrdenAceptada: ({ id }) => {
       updateOrden(String(id), { estado: 'en_preparacion' })
@@ -1169,6 +1235,7 @@ export function CajaPage() {
         producto_id: producto.id,
         producto_codigo: producto.codigo_universal,
         marcaId: producto.marcaId ?? null,
+        marca_nombre: producto.marca || undefined,
         producto_nombre: producto.nombre,
         producto_descripcion: producto.descripcion || undefined,
         producto_categoria: producto.categoria,
@@ -1672,6 +1739,7 @@ export function CajaPage() {
       <OrdersModal
         ordenes={misOrdenes}
         canceladas={canceladas}
+        otrosCajeros={esAdmin ? ordenesOtros : undefined}
         onCobrar={handleOpenCobro}
         onCancelar={handleCancelarOrden}
         open={ordersModalOpen}

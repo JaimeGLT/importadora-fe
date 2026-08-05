@@ -1,4 +1,5 @@
 import type { Producto, PiezaKit } from '@/types'
+import { parseUbicacionTexto } from '@/lib/ubicaciones.api'
 
 function parseUbicacion(ubicacion: string): { almacen: string; estante: string; fila: string; columna: string } {
   if (!ubicacion) return { almacen: 'Almacén Central', estante: '', fila: '', columna: '' }
@@ -528,6 +529,8 @@ export interface ProductoAPISimple {
   categoria?: string | null
   unidad_Medida: string
   ubicacion: string
+  /** Ubicación real de la sucursal del usuario actual (JWT). Solo presente en `buscar-lista`. */
+  ubicacionTexto?: string | null
   stock_Actual: number
   stockReservado?: number
   stock_Minimo: number
@@ -637,6 +640,20 @@ export interface ProductoAPIInput {
   conversionABs: number
 }
 
+// Ubicación real de la sucursal del usuario actual (JWT). REST `buscar-lista`
+// la manda como `p.ubicacionTexto` (singular, ya resuelta para esa sucursal);
+// GraphQL la manda dentro de `p.stocks` (el resolver `stocks` de `ProductoType`
+// ya filtra por el claim, 0 o 1 fila). Si ninguna trae dato, cae al campo
+// legado `producto.ubicacion` (genérico, pre-multisucursal).
+function ubicacionDelProducto(p: ProductoAPISimple) {
+  const ubicacionTexto = p.ubicacionTexto ?? p.stocks?.[0]?.ubicacionTexto
+  if (ubicacionTexto) {
+    const { estante, fila, columna } = parseUbicacionTexto(ubicacionTexto)
+    return { almacen: '', estante, fila, columna }
+  }
+  return parseUbicacion(p.ubicacion ?? '')
+}
+
 function mapProductoBase(p: ProductoAPISimple): Producto {
   return {
     id: String(p.id),
@@ -672,7 +689,7 @@ function mapProductoBase(p: ProductoAPISimple): Producto {
       tipo_cambio: h.conversionABs,
       nota: h.nota ?? undefined,
     })),
-    ...parseUbicacion(p.ubicacion ?? ''),
+    ...ubicacionDelProducto(p),
     stocks: mapStocks(p.stocks),
     estado: 'activo',
     proveedor_id: '',

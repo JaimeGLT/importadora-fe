@@ -1,4 +1,5 @@
 import type { OrdenVenta, ItemOrden, EstadoOrden, EstadoItemOrden } from '@/types'
+import { parseUbicacionTexto } from '@/lib/ubicaciones.api'
 
 // ─── Backend API types ────────────────────────────────────────────────────────
 
@@ -17,6 +18,8 @@ export interface OrdenItemProductoAPI {
   precio: number
   esKit: boolean
   stockReservado: number
+  // Filtrado server-side por la sucursal del usuario (claim del JWT) — 0 o 1 elemento.
+  stocks?: Array<{ ubicacionTexto: string | null }> | null
 }
 
 export interface OrdenItemPiezaAPI {
@@ -128,6 +131,7 @@ export const MIS_ORDENES_QUERY = `
             procedencia
             descripcion
             ubicacion
+            stocks { ubicacionTexto }
             stock_Actual
             stock_Minimo
             costo
@@ -215,6 +219,7 @@ export const ORDENES_PARA_ESCANEO_QUERY = `
             procedencia
             descripcion
             ubicacion
+            stocks { ubicacionTexto }
             stock_Actual
             stock_Minimo
             costo
@@ -303,6 +308,7 @@ export const ORDENES_PENDIENTES_QUERY = `
             procedencia
             descripcion
             ubicacion
+            stocks { ubicacionTexto }
             stock_Actual
             stock_Minimo
             precio
@@ -390,8 +396,98 @@ export const MIS_ORDENES_ALMACEN_QUERY = `
             procedencia
             descripcion
             ubicacion
+            stocks { ubicacionTexto }
             stock_Actual
             stock_Minimo
+            precio
+            esKit
+            stockReservado
+          }
+          esParcial
+          piezas {
+            id
+            id_Item
+            id_Pieza
+            cantidad
+            precioUnitario
+            confirmado
+            listoAlmacenero
+            notaIncompleto
+            pieza {
+              nombre
+              codigoPieza
+            }
+          }
+        }
+      }
+    }
+  }
+`
+
+export const ORDENES_POR_COBRAR_QUERY = `
+  query OrdenesPorCobrar {
+    ordenesPorCobrar {
+      nodes {
+        id
+        id_Cajero
+        id_Almacenero
+        id_Cliente
+        id_Caja
+        estado
+        fecha
+        fechaCompletada
+        nota
+        notaCancelacion
+        id_Descuento
+        montoDescuento
+        descuento {
+          id
+          nombre
+          cantDescuento
+          color
+          activo
+        }
+        cajero {
+          id
+          nombre
+          apellido
+        }
+        almacenero {
+          id
+          nombre
+          apellido
+        }
+        cliente {
+          id
+          nombre
+          apellido
+          telefono
+        }
+        items {
+          id
+          id_Orden
+          id_Producto
+          cantidad
+          esParcial
+          estado
+          notaIncompleto
+          precioUnitario
+          producto {
+            id
+            codigo
+            nombre
+            marca {
+              id
+              nombre
+            }
+            categoria
+            procedencia
+            descripcion
+            ubicacion
+            stocks { ubicacionTexto }
+            stock_Actual
+            stock_Minimo
+            costo
             precio
             esKit
             stockReservado
@@ -476,6 +572,7 @@ export const TODAS_ORDENES_QUERY = `
             procedencia
             descripcion
             ubicacion
+            stocks { ubicacionTexto }
             stock_Actual
             precio
             esKit
@@ -547,8 +644,20 @@ function parseNotaUsuario(nota: string | null | undefined): string | undefined {
   return nota
 }
 
+// Ubicación de la sucursal del usuario actual (server ya filtra `stocks` por el
+// claim del JWT). Si no hay fila de stock/ubicación ahí, cae al campo legado
+// `producto.ubicacion` (genérico, pre-multisucursal).
+function ubicacionDelItem(api: OrdenItemProductoAPI | undefined) {
+  const ubicacionTexto = api?.stocks?.[0]?.ubicacionTexto
+  if (ubicacionTexto) {
+    const { estante, fila, columna } = parseUbicacionTexto(ubicacionTexto)
+    return { almacen: '', estante, fila, columna }
+  }
+  return parseUbicacion(api?.ubicacion)
+}
+
 function backendToItemOrden(api: OrdenItemAPI): ItemOrden {
-  const loc = parseUbicacion(api.producto?.ubicacion)
+  const loc = ubicacionDelItem(api.producto)
   const estado = ESTADO_ITEM_MAP[api.estado?.toLowerCase()] ?? 'pendiente'
   return {
     id: String(api.id),

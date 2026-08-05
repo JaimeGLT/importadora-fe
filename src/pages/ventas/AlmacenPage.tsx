@@ -343,7 +343,14 @@ function FaltantesModal({
                     >
                       <CheckBox checked={checked} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-[#2D2B2A] truncate">{item.producto_nombre}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-sm font-semibold text-[#2D2B2A] truncate">{item.producto_nombre}</p>
+                          {item.marca_nombre && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] shrink-0">
+                              {item.marca_nombre}
+                            </span>
+                          )}
+                        </div>
                         {item.producto_descripcion && (
                           <p
                             className="text-[10px] text-[#7A7571] truncate leading-tight mt-0.5"
@@ -545,7 +552,14 @@ function ItemCard({
         {/* Info producto */}
         <div className="flex-1 min-w-0">
           <p className="font-mono text-xs text-[#7A7571] leading-none mb-0.5">{item.producto_codigo}</p>
-          <p className="text-sm font-bold text-[#2D2B2A] leading-snug">{item.producto_nombre}</p>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="text-sm font-bold text-[#2D2B2A] leading-snug">{item.producto_nombre}</p>
+            {item.marca_nombre && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] shrink-0">
+                {item.marca_nombre}
+              </span>
+            )}
+          </div>
           {(item.producto_categoria || item.producto_procedencia) && (
             <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#7A7571] leading-tight">
               {item.producto_categoria && (
@@ -747,7 +761,14 @@ function KitGroupCard({
               onClick={() => onViewGallery(kitCompleto.producto_id, kitCompleto.producto_codigo, kitCompleto.producto_nombre)}
             />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-[#2D2B2A] truncate">{kitCompleto.producto_nombre}</p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="text-sm font-bold text-[#2D2B2A] truncate">{kitCompleto.producto_nombre}</p>
+                {kitCompleto.marca_nombre && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18] shrink-0">
+                    {kitCompleto.marca_nombre}
+                  </span>
+                )}
+              </div>
               {(kitCompleto.producto_categoria || kitCompleto.producto_procedencia) && (
                 <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#7A7571] leading-tight">
                   {kitCompleto.producto_categoria && (
@@ -888,6 +909,11 @@ function KitGroupCard({
                         {pieza.cantidad} unidades pedidas · sale de kit{' '}
                         <span className="font-mono">{piezasSueltas.producto_codigo}</span>
                         <span className="text-[#4A4744] font-medium"> · {piezasSueltas.producto_nombre}</span>
+                        {piezasSueltas.marca_nombre && (
+                          <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#E8D4B8] text-[#780e18]">
+                            {piezasSueltas.marca_nombre}
+                          </span>
+                        )}
                       </p>
                       {(piezasSueltas.producto_almacen || piezasSueltas.producto_estante || piezasSueltas.producto_fila || piezasSueltas.producto_columna) && (
                         <p className="text-[11px] text-[#7A7571] mt-0.5 flex items-center gap-0.5">
