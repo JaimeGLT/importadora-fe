@@ -16,6 +16,7 @@ export interface CartItem {
   precio_unitario: number
   precio_base: number
   marcaId?: number | null
+  marca_nombre?: string
   producto_imagen?: string
   diferencia_kit?: number
   kit_id?: string

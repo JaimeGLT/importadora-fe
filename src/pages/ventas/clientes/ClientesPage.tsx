@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { MainLayout } from '@/components/layout/MainLayout'
-import { Button, ConfirmModal } from '@/components/ui'
+import { ConfirmModal } from '@/components/ui'
 import { notify } from '@/lib/notify'
 import { gql } from '@/lib/graphql'
 import { api } from '@/lib/api'
