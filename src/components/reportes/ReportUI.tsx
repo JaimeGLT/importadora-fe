@@ -1,15 +1,17 @@
-import type { ReactNode } from 'react'
+import { forwardRef, type ReactNode } from 'react'
 
 // ─── Card ───────────────────────────────────────────────────────────────────
 // Mismo lenguaje visual que el Dashboard: blanco, borde cálido, sombra suave.
 
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={`bg-white rounded-xl border border-[#D0CBC4] shadow-sm ${className}`}>
-      {children}
-    </div>
-  )
-}
+export const Card = forwardRef<HTMLDivElement, { children: ReactNode; className?: string }>(
+  function Card({ children, className = '' }, ref) {
+    return (
+      <div ref={ref} className={`bg-white rounded-xl border border-[#D0CBC4] shadow-sm ${className}`}>
+        {children}
+      </div>
+    )
+  }
+)
 
 // ─── KpiCard ────────────────────────────────────────────────────────────────
 
@@ -24,7 +26,7 @@ const TONE_STYLES: Record<KpiTone, { icon: string; iconBg: string; value: string
 }
 
 export function KpiCard({
-  label, value, sub, icon, tone = 'neutral', badge,
+  label, value, sub, icon, tone = 'neutral', badge, onClick,
 }: {
   label: string
   value: string
@@ -32,22 +34,46 @@ export function KpiCard({
   icon?: string
   tone?: KpiTone
   badge?: ReactNode
+  onClick?: () => void
 }) {
   const t = TONE_STYLES[tone]
   return (
-    <Card className="p-5 h-full">
+    <Card className={`p-5 h-full ${onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all' : ''}`}>
+      {onClick ? (
+        <button type="button" onClick={onClick} className="w-full text-left">
+          <KpiCardBody icon={icon} tone={t} badge={badge} value={value} label={label} sub={sub} />
+        </button>
+      ) : (
+        <KpiCardBody icon={icon} tone={t} badge={badge} value={value} label={label} sub={sub} />
+      )}
+    </Card>
+  )
+}
+
+function KpiCardBody({
+  icon, tone, badge, value, label, sub,
+}: {
+  icon?: string
+  tone: { icon: string; iconBg: string; value: string }
+  badge?: ReactNode
+  value: string
+  label: string
+  sub?: string
+}) {
+  return (
+    <>
       <div className="flex items-start justify-between mb-3">
         {icon && (
-          <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${t.iconBg}`}>
-            <i className={`ti ${icon} text-[16px] ${t.icon}`} />
+          <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${tone.iconBg}`}>
+            <i className={`ti ${icon} text-[16px] ${tone.icon}`} />
           </div>
         )}
         {badge}
       </div>
-      <p className={`text-2xl font-black tabular-nums leading-tight ${t.value}`}>{value}</p>
+      <p className={`text-2xl font-black tabular-nums leading-tight ${tone.value}`}>{value}</p>
       <p className="text-xs text-[#7A7571] font-semibold mt-0.5">{label}</p>
       {sub && <p className="text-[10px] text-[#7A7571] mt-1.5">{sub}</p>}
-    </Card>
+    </>
   )
 }
 

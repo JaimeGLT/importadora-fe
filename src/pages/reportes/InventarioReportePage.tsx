@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { MainLayout, PageContainer } from '@/components/layout/MainLayout'
 import { PageTopBar } from '@/components/layout/PageTopBar'
 import { ServerPagination } from '@/components/ui'
@@ -152,6 +153,7 @@ function mapAgg(p: ProductoReporteKpiAPI): ProductoAgg {
 
 export function InventarioReportePage() {
   const { isTokenReady } = useAuth()
+  const location = useLocation()
   const [isLoading,  setIsLoading]  = useState(true)
   const [productos,  setProductos]  = useState<ProductoAgg[]>([])
   const [tipoCambio, setTipoCambio] = useState<number>(6.96)
@@ -176,7 +178,12 @@ export function InventarioReportePage() {
   const sinMovCursors = useRef<(string | null)[]>([null])
 
   const reportRef = useRef<HTMLDivElement | null>(null)
+  const stockCriticoRef = useRef<HTMLDivElement | null>(null)
   const { exportPDF } = useChartExport()
+
+  const scrollToStockCritico = () => {
+    stockCriticoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const loadStockCritico = (targetPage: number, size: number) => {
     setStockCriticoLoading(true)
@@ -250,6 +257,15 @@ export function InventarioReportePage() {
     loadSinMovimiento(0, STOCK_CRITICO_PAGE_SIZE)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTokenReady])
+
+  useEffect(() => {
+    if (isLoading) return
+    const state = location.state as { scrollTo?: string } | null
+    if (state?.scrollTo === 'stock-critico') {
+      scrollToStockCritico()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading])
 
   const kitsStockCritico = useMemo<StockCriticoRowData[]>(() => (
     kits
@@ -333,6 +349,7 @@ export function InventarioReportePage() {
           <KpiCard
             label="Stock crítico" value={String(stockCriticoTotalCount)} sub={`Stock ≤ ${STOCK_BAJO_MAX} unidades`}
             icon="ti-alert-triangle" tone={stockCriticoTotalCount > 0 ? 'red' : 'neutral'}
+            onClick={scrollToStockCritico}
           />
         </div>
 
@@ -391,7 +408,7 @@ export function InventarioReportePage() {
         </div>
 
         {/* Stock crítico */}
-        <Card className="p-5 mb-5">
+        <Card className="p-5 mb-5" ref={stockCriticoRef}>
           <SectionTitle>{`Stock crítico — stock ≤ ${STOCK_BAJO_MAX} unidades (${stockCriticoTotalCount})`}</SectionTitle>
           {stockCriticoTotalCount === 0 ? (
             <div className="flex items-center gap-3 py-10 justify-center">
