@@ -14,10 +14,12 @@ import { displayUbicacionTexto } from '@/lib/ubicaciones.api'
 import {
   PRODUCTOS_CON_MARCAS_QUERY,
   PRODUCTO_BY_ID_QUERY,
+  PRODUCTOS_KPI_QUERY,
   backendToProductoSimple,
   backendToProducto,
   type ProductoAPI,
   type ProductoAPISimple,
+  type ProductoKpiAPI,
 } from '@/lib/queries/inventario.queries'
 import {
   AJUSTES_HISTORIAL_QUERY,
@@ -822,7 +824,6 @@ function HistorialTab({ refreshKey }: { refreshKey: number }) {
 
 export function AjustesPage() {
   const { user } = useAuth()
-  const isCajero = user?.rol === 'cajero'
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<'ajustes' | 'historial'>('ajustes')
   const [historialTouched, setHistorialTouched] = useState(false)
@@ -842,6 +843,17 @@ export function AjustesPage() {
   const [sucursales, setSucursales] = useState<Sucursal[]>([])
   const [sucursalesLoading, setSucursalesLoading] = useState(true)
   const [modalSucursalId, setModalSucursalId] = useState<number | null>(null)
+  const [kpiProductos, setKpiProductos] = useState<ProductoKpiAPI[]>([])
+
+  const loadKpiStats = () => {
+    gql<{ productos: { nodes: ProductoKpiAPI[] } }>(PRODUCTOS_KPI_QUERY)
+      .then(res => setKpiProductos(res.productos.nodes))
+      .catch(() => {})
+  }
+
+  useEffect(() => {
+    loadKpiStats()
+  }, [])
 
   useEffect(() => {
     listarSucursales()
@@ -922,14 +934,19 @@ export function AjustesPage() {
   const handleSuccess = () => {
     // Recarga para refrescar tanto el agregado como el desglose por sucursal (`stocks[]`).
     loadProductos(page, pageSize, search, filtro)
+    loadKpiStats()
     setHistorialRefreshKey(k => k + 1)
   }
 
-  const kpi = useMemo(() => ({
-    total: totalCount,
-    stockBajo: productos.filter(p => p.stock <= p.stock_minimo).length,
-    kits: productos.filter(p => p.es_kit).length,
-  }), [productos, totalCount])
+  const kpi = useMemo(() => {
+    const stockDe = (p: ProductoKpiAPI) =>
+      p.esKit ? (p.calcularStockKitDisponible ?? p.calcularStockKit ?? 0) : (p.stock_Actual ?? 0)
+    return {
+      total: totalCount,
+      stockBajo: kpiProductos.filter(p => stockDe(p) <= (p.stock_Minimo ?? 0)).length,
+      kits: productos.filter(p => p.es_kit).length,
+    }
+  }, [productos, totalCount, kpiProductos])
 
   return (
     <MainLayout>
@@ -995,36 +1012,34 @@ export function AjustesPage() {
                   <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Total productos</div>
                 </div>
 
-                {!isCajero && (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/reportes/inventario', { state: { scrollTo: 'stock-critico' } })}
-                    className={clsx(
-                      'text-left rounded-xl border border-l-4 p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 cursor-pointer',
-                      kpi.stockBajo > 0 ? 'bg-[#FDF1EE] border-[#D0CBC4] border-l-[#B23A2A]' : 'bg-white border-[#D0CBC4] border-l-[#3F7A52]'
-                    )}
-                  >
-                    <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-[#B23A2A] opacity-[0.08]" />
-                    <div className="flex items-start justify-between mb-[14px]">
-                      <div className={clsx(
-                        'w-9 h-9 rounded-lg flex items-center justify-center shrink-0',
-                        kpi.stockBajo > 0 ? 'bg-gradient-to-br from-[#B23A2A] to-[#E07060]' : 'bg-gradient-to-br from-[#3F7A52] to-[#6BAF80]'
-                      )}>
-                        <i className={clsx('text-white text-[16px]', kpi.stockBajo > 0 ? 'ti ti-alert-triangle' : 'ti ti-circle-check')} />
-                      </div>
-                      <span className={clsx(
-                        'inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full',
-                        kpi.stockBajo > 0 ? 'bg-[#F5C9C0] text-[#8A1E12]' : 'bg-[#B8DCCA] text-[#1E5C38]'
-                      )}>
-                        {kpi.stockBajo > 0 ? 'Requiere acción' : 'Todo bien'}
-                      </span>
+                <button
+                  type="button"
+                  onClick={() => navigate('/reportes/inventario', { state: { scrollTo: 'stock-critico' } })}
+                  className={clsx(
+                    'text-left rounded-xl border border-l-4 p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 cursor-pointer',
+                    kpi.stockBajo > 0 ? 'bg-[#FDF1EE] border-[#D0CBC4] border-l-[#B23A2A]' : 'bg-white border-[#D0CBC4] border-l-[#3F7A52]'
+                  )}
+                >
+                  <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-[#B23A2A] opacity-[0.08]" />
+                  <div className="flex items-start justify-between mb-[14px]">
+                    <div className={clsx(
+                      'w-9 h-9 rounded-lg flex items-center justify-center shrink-0',
+                      kpi.stockBajo > 0 ? 'bg-gradient-to-br from-[#B23A2A] to-[#E07060]' : 'bg-gradient-to-br from-[#3F7A52] to-[#6BAF80]'
+                    )}>
+                      <i className={clsx('text-white text-[16px]', kpi.stockBajo > 0 ? 'ti ti-alert-triangle' : 'ti ti-circle-check')} />
                     </div>
-                    <div className={clsx('font-semibold text-[32px] leading-none tracking-[-0.025em]', kpi.stockBajo > 0 ? 'text-[#B23A2A]' : 'text-[#2D2B2A]')} style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                      {kpi.stockBajo}
-                    </div>
-                    <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Stock crítico</div>
-                  </button>
-                )}
+                    <span className={clsx(
+                      'inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full',
+                      kpi.stockBajo > 0 ? 'bg-[#F5C9C0] text-[#8A1E12]' : 'bg-[#B8DCCA] text-[#1E5C38]'
+                    )}>
+                      {kpi.stockBajo > 0 ? 'Requiere acción' : 'Todo bien'}
+                    </span>
+                  </div>
+                  <div className={clsx('font-semibold text-[32px] leading-none tracking-[-0.025em]', kpi.stockBajo > 0 ? 'text-[#B23A2A]' : 'text-[#2D2B2A]')} style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    {kpi.stockBajo}
+                  </div>
+                  <div className="text-[10.5px] font-medium text-[#7A7571] uppercase tracking-[0.1em] mt-2">Stock crítico</div>
+                </button>
 
                 <div className="bg-white rounded-xl border border-[#D0CBC4] border-l-4 border-l-[#3F7A52] p-[18px] relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
                   <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-[#3F7A52] opacity-[0.08]" />

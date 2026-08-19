@@ -69,9 +69,15 @@ export default function App() {
             <Route element={<RoleGuard allowedRoles={['admin']} />}>
               <Route path="/reportes" element={<Navigate to="/reportes/ventas" replace />} />
               <Route path="/reportes/ventas" element={<VentasReportePage />} />
-              <Route path="/reportes/inventario" element={<InventarioReportePage />} />
               <Route path="/comisiones" element={<ComisionesPage />} />
               <Route path="/inventario/marcas" element={<MarcasPage />} />
+            </Route>
+
+            <Route element={<RoleGuard allowedRoles={['admin', 'almacenero', 'cajero']} />}>
+              <Route path="/reportes/inventario" element={<InventarioReportePage />} />
+            </Route>
+
+            <Route element={<RoleGuard allowedRoles={['admin']} />}>
               <Route path="/importaciones" element={<ImportacionesPage />} />
               <Route path="/importaciones/proveedores" element={<ProveedoresPage />} />
               <Route path="/importaciones/extractor" element={<FacturaExtractorPage />} />
