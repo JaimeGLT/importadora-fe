@@ -47,7 +47,7 @@ export const PRODUCTOS_QUERY = `
         fechaCreacion
         fechaActualizacion
         imagenPrincipal { id url }
-        stocks {
+        stocks(todasSucursales: true) {
           id
           sucursalId
           cantidad
@@ -89,7 +89,7 @@ export const PRODUCTOS_CON_MARCAS_QUERY = `
         fechaCreacion
         fechaActualizacion
         imagenPrincipal { id url }
-        stocks {
+        stocks(todasSucursales: true) {
           id
           sucursalId
           cantidad
@@ -389,7 +389,7 @@ export const PRODUCTO_BY_ID_QUERY = `
         categoria
         precio
         esKit
-        stocks {
+        stocks(todasSucursales: true) {
           id
           sucursalId
           cantidad

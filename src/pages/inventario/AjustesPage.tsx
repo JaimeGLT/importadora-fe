@@ -173,7 +173,7 @@ interface PiezaAjuste {
 const selectClass = 'w-full h-11 px-3 rounded-xl border border-[#E8E5E2] bg-white text-[#2D2B2A] text-sm focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 transition-all'
 const selectLabelClass = 'block text-xs font-semibold text-[#2D2B2A] mb-1.5'
 
-function AjusteModal({
+export function AjusteModal({
   producto,
   sucursales,
   defaultSucursalId,

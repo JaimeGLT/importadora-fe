@@ -14,10 +14,9 @@ interface ComisionVentasDetalleProps {
   ventas: ComisionDetalleVentaAPI[]
   loading: boolean
   porcentajeComision: number
-  montoComision: number
 }
 
-export function ComisionVentasDetalle({ ventas, loading, porcentajeComision, montoComision }: ComisionVentasDetalleProps) {
+export function ComisionVentasDetalle({ ventas, loading, porcentajeComision }: ComisionVentasDetalleProps) {
   const [expandidas, setExpandidas] = useState<Set<number>>(new Set())
 
   const toggle = (ordenId: number) => {
@@ -32,6 +31,7 @@ export function ComisionVentasDetalle({ ventas, loading, porcentajeComision, mon
   const totalVendido = ventas.reduce((s, v) => s + v.total, 0)
   const totalUnidades = ventas.reduce((s, v) => s + v.items.reduce((si, i) => si + i.cantidad, 0), 0)
   const totalProductos = ventas.reduce((s, v) => s + v.items.length, 0)
+  const montoComision = Math.round(totalVendido * porcentajeComision) / 100
 
   if (loading) {
     return (
@@ -122,8 +122,16 @@ export function ComisionVentasDetalle({ ventas, loading, porcentajeComision, mon
                     <div key={i} className="px-4 py-2.5 pl-10 flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="text-[12px] font-semibold text-[#2D2B2A] leading-snug">{it.producto}</div>
+                        {it.esParcial && it.kitNombre && (
+                          <div className="text-[10.5px] text-[#7A7571] mt-0.5">Pieza de: {it.kitNombre}</div>
+                        )}
                         <div className="flex flex-wrap items-center gap-1.5 mt-1">
                           <span className="font-mono text-[10px] text-[#7A7571] bg-[#F0EFEC] rounded px-1.5 py-0.5">{it.codigo}</span>
+                          {it.esParcial ? (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#F0F9F4] text-[#3F7A52] border border-[#C8E6D4]">PIEZA</span>
+                          ) : it.esKit ? (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#F4ECDB] text-[#780e18] border border-[#D4A333]/30">KIT</span>
+                          ) : null}
                           {it.marca && (
                             <span className="text-[10px] text-[#780e18] bg-[#F4ECDB] rounded px-1.5 py-0.5 font-semibold">{it.marca}</span>
                           )}

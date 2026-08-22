@@ -135,7 +135,6 @@ export function MisComisionesPage() {
           ventas={ventas}
           loading={loading}
           porcentajeComision={resumen?.porcentajeComision ?? 0}
-          montoComision={resumen?.montoComision ?? 0}
         />
       </PageContainer>
     </MainLayout>

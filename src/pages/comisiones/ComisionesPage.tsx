@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MainLayout, PageContainer, PageHeader } from '@/components/layout/MainLayout'
 import { PageTopBar } from '@/components/layout/PageTopBar'
+import { ComisionModal } from '@/components/modals/ComisionModal'
+import { VentaManualModal } from '@/components/modals/VentaManualModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { gql } from '@/lib/graphql'
 import { COMISIONES_QUERY, type ResumenComisionAPI } from '@/lib/queries/reportes.queries'
@@ -24,6 +26,8 @@ export function ComisionesPage() {
   const [data, setData] = useState<ResumenComisionAPI[]>([])
   const [loading, setLoading] = useState(false)
   const [usuarioDetalle, setUsuarioDetalle] = useState<{ id: string; nombre: string; apellido: string; porcentajeComision: number; montoComision: number } | null>(null)
+  const [ventaManualVendedor, setVentaManualVendedor] = useState<{ id: string; nombre: string; apellido: string } | null>(null)
+  const [comisionVendedor, setComisionVendedor] = useState<{ id: string; nombre: string; apellido: string; porcentajeComision: number } | null>(null)
   const [rangoActivo, setRangoActivo] = useState<'hoy' | 'semana' | 'mes' | null>('hoy')
   const [busqueda, setBusqueda] = useState('')
 
@@ -69,7 +73,7 @@ export function ComisionesPage() {
         : 'border-[#E8E5E2] text-[#4A4744] hover:bg-[#F5F0EB] hover:border-[#D0CBC4]'
     }`
 
-  useEffect(() => {
+  const cargarComisiones = useCallback(() => {
     if (!isTokenReady) return
     setLoading(true)
     gql<{ resumenComisionesCajeros: ResumenComisionAPI[] }>(COMISIONES_QUERY, {
@@ -80,6 +84,10 @@ export function ComisionesPage() {
       .catch(() => setData([]))
       .finally(() => setLoading(false))
   }, [isTokenReady, desde, hasta])
+
+  useEffect(() => {
+    cargarComisiones()
+  }, [cargarComisiones])
 
   const filas = useMemo(() => {
     const q = busqueda.trim().toLowerCase()
@@ -236,13 +244,29 @@ export function ComisionesPage() {
                           <span className="font-bold text-[14px] text-[#3F7A52] tabular-nums">{fmtBs(r.montoComision)}</span>
                         </td>
                         <td className="px-5 py-3.5 text-right">
-                          <button
-                            type="button"
-                            onClick={() => setUsuarioDetalle({ id: r.cajeroId, nombre: r.nombre, apellido: r.apellido, porcentajeComision: r.porcentajeComision, montoComision: r.montoComision })}
-                            className="h-8 px-3 rounded-lg border border-[#E8E5E2] text-[11.5px] font-semibold text-[#4A4744] hover:bg-[#F5F0EB] hover:border-[#D0CBC4] transition-colors whitespace-nowrap"
-                          >
-                            Ver detalle
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setComisionVendedor({ id: r.cajeroId, nombre: r.nombre, apellido: r.apellido, porcentajeComision: r.porcentajeComision })}
+                              className="h-8 px-3 rounded-lg border border-[#E8E5E2] text-[11.5px] font-semibold text-[#4A4744] hover:bg-[#F5F0EB] hover:border-[#D0CBC4] transition-colors whitespace-nowrap"
+                            >
+                              % Comisión
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setVentaManualVendedor({ id: r.cajeroId, nombre: r.nombre, apellido: r.apellido })}
+                              className="h-8 px-3 rounded-lg border border-[#E8E5E2] text-[11.5px] font-semibold text-[#4A4744] hover:bg-[#F5F0EB] hover:border-[#D0CBC4] transition-colors whitespace-nowrap"
+                            >
+                              Registrar venta
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setUsuarioDetalle({ id: r.cajeroId, nombre: r.nombre, apellido: r.apellido, porcentajeComision: r.porcentajeComision, montoComision: r.montoComision })}
+                              className="h-8 px-3 rounded-lg border border-[#E8E5E2] text-[11.5px] font-semibold text-[#4A4744] hover:bg-[#F5F0EB] hover:border-[#D0CBC4] transition-colors whitespace-nowrap"
+                            >
+                              Ver detalle
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -277,13 +301,29 @@ export function ComisionesPage() {
                       <span className="text-[#7A7571]">Ventas: <span className="text-[#2D2B2A] font-semibold">{fmtBs(r.totalVentas)}</span></span>
                       <span className="font-bold text-[#3F7A52]">{fmtBs(r.montoComision)}</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setUsuarioDetalle({ id: r.cajeroId, nombre: r.nombre, apellido: r.apellido, porcentajeComision: r.porcentajeComision, montoComision: r.montoComision })}
-                      className="w-full h-8 rounded-lg border border-[#E8E5E2] text-[11.5px] font-semibold text-[#4A4744] hover:bg-[#F5F0EB] transition-colors"
-                    >
-                      Ver detalle
-                    </button>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setComisionVendedor({ id: r.cajeroId, nombre: r.nombre, apellido: r.apellido, porcentajeComision: r.porcentajeComision })}
+                        className="h-8 rounded-lg border border-[#E8E5E2] text-[11px] font-semibold text-[#4A4744] hover:bg-[#F5F0EB] transition-colors"
+                      >
+                        % Comisión
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setVentaManualVendedor({ id: r.cajeroId, nombre: r.nombre, apellido: r.apellido })}
+                        className="h-8 rounded-lg border border-[#E8E5E2] text-[11px] font-semibold text-[#4A4744] hover:bg-[#F5F0EB] transition-colors"
+                      >
+                        Venta
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUsuarioDetalle({ id: r.cajeroId, nombre: r.nombre, apellido: r.apellido, porcentajeComision: r.porcentajeComision, montoComision: r.montoComision })}
+                        className="h-8 rounded-lg border border-[#E8E5E2] text-[11px] font-semibold text-[#4A4744] hover:bg-[#F5F0EB] transition-colors"
+                      >
+                        Detalle
+                      </button>
+                    </div>
                   </div>
                 ))}
                 <div className="px-4 py-3 bg-[#F5F0EB] flex items-center justify-between">
@@ -301,6 +341,18 @@ export function ComisionesPage() {
         desde={desde}
         hasta={hasta}
         onClose={() => setUsuarioDetalle(null)}
+      />
+
+      <VentaManualModal
+        vendedor={ventaManualVendedor}
+        onClose={() => setVentaManualVendedor(null)}
+        onSuccess={cargarComisiones}
+      />
+
+      <ComisionModal
+        usuario={comisionVendedor}
+        onClose={() => setComisionVendedor(null)}
+        onSuccess={() => cargarComisiones()}
       />
     </MainLayout>
   )

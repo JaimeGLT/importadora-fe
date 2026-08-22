@@ -35,6 +35,10 @@ export interface ComisionDetalleItemAPI {
   marca: string
   precioUnitario: number
   cantidad: number
+  esParcial: boolean
+  esKit: boolean
+  kitNombre: string | null
+  kitCodigo: string | null
 }
 
 export interface ComisionDetalleVentaAPI {
@@ -69,6 +73,10 @@ export const DETALLE_COMISION_QUERY = `
         marca
         precioUnitario
         cantidad
+        esParcial
+        esKit
+        kitNombre
+        kitCodigo
       }
     }
   }
