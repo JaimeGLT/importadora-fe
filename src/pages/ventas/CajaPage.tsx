@@ -1515,7 +1515,7 @@ export function CajaPage() {
     setParcialOrden(null)
   }
 
-  const handleVentaRapidaCredito = async (data: { id_Cliente: number; items: VentaRapidaCreditoItem[]; descuento: { id?: string; monto: number } | null; nota: string | null }) => {
+  const handleVentaRapidaCredito = async (data: { id_Cliente: number; items: VentaRapidaCreditoItem[]; descuento: { id?: string; monto: number } | null; nota: string | null; fecha?: string }) => {
     // El subtotal sin descuento (el backend descuenta el monto que mandemos)
     const subtotal = data.items.reduce((s, i) => s + i.precioUnitario * i.cantidad, 0)
     const montoDescuento = data.descuento?.monto ?? 0
@@ -1529,6 +1529,7 @@ export function CajaPage() {
         Id_Descuento: data.descuento?.id ? Number(data.descuento.id) : null,
         MontoDescuento: montoDescuento,
         Nota: data.nota,
+        Fecha: data.fecha,
         Items: data.items,
       })
       clearCart()
@@ -1549,6 +1550,7 @@ export function CajaPage() {
         {
           id_Cliente: data.id_Cliente,
           nota: data.nota,
+          fecha: data.fecha,
           id_Descuento: data.descuento?.id,
           montoDescuento: data.descuento?.monto ?? 0,
           items: data.items,

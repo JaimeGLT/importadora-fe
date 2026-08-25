@@ -9,11 +9,16 @@ import {
   PRODUCTO_BY_ID_QUERY,
   backendToProducto,
   backendToProductoSimple,
+  productoToBackend,
   type ProductoAPI,
   type ProductoAPISimple,
+  type KitOps,
 } from '@/lib/queries/inventario.queries'
 import { AjusteModal } from '@/pages/inventario/AjustesPage'
 import { StockSucursalModal } from '@/pages/inventario/StockSucursalModal'
+import { ProductoModal, type PriceUpdate } from '@/pages/inventario/ProductoModal'
+import { subirLoteDiferido } from '@/lib/storage'
+import type { ImageUploaderState } from '@/components/ui/ImageUploader'
 import type { Producto, Sucursal } from '@/types'
 
 interface Vendedor {
@@ -40,6 +45,8 @@ interface VentaManualModalProps {
 const fmtBs = (n: number) =>
   `Bs ${n.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
+const hoyISO = () => new Date().toISOString().slice(0, 10)
+
 export function VentaManualModal({ vendedor, onClose, onSuccess }: VentaManualModalProps) {
   const { isTokenReady } = useAuth()
   const [query, setQuery] = useState('')
@@ -47,11 +54,14 @@ export function VentaManualModal({ vendedor, onClose, onSuccess }: VentaManualMo
   const [buscando, setBuscando] = useState(false)
   const [lineas, setLineas] = useState<LineaVenta[]>([])
   const [nota, setNota] = useState('')
+  const [fecha, setFecha] = useState(hoyISO())
   const [guardando, setGuardando] = useState(false)
   const [sucursales, setSucursales] = useState<Sucursal[]>([])
   const [sucursalResueltaId, setSucursalResueltaId] = useState<number | null>(null)
   const [traspasoLinea, setTraspasoLinea] = useState<LineaVenta | null>(null)
   const [ajusteLinea, setAjusteLinea] = useState<LineaVenta | null>(null)
+  const [nuevoProductoOpen, setNuevoProductoOpen] = useState(false)
+  const [creandoProducto, setCreandoProducto] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -84,6 +94,7 @@ export function VentaManualModal({ vendedor, onClose, onSuccess }: VentaManualMo
       setResultados([])
       setLineas([])
       setNota('')
+      setFecha(hoyISO())
     }
   }, [vendedor])
 
@@ -151,6 +162,40 @@ export function VentaManualModal({ vendedor, onClose, onSuccess }: VentaManualMo
     cargarProductoCompleto(key, producto.id)
   }
 
+  const handleCrearProducto = async (
+    data: Omit<Producto, 'id' | 'creado_en' | 'actualizado_en'>,
+    kitOps: KitOps,
+    _priceUpdate: PriceUpdate | undefined,
+    imageOps: ImageUploaderState,
+  ) => {
+    setCreandoProducto(true)
+    try {
+      const createPayload = productoToBackend(data)
+      const res = await api.post<{ id: number }>('/Producto', createPayload)
+      if (kitOps.mode === 'convertirKit' && kitOps.piezas?.length) {
+        await api.put(`/Producto/ConvertirKit/${res.id}`, { piezas: kitOps.piezas })
+      }
+      if (imageOps.pending.length > 0) {
+        const { fallidas } = await subirLoteDiferido(res.id, imageOps.pending.map(p => p.file))
+        if (fallidas.length > 0) {
+          notify.warning(`Producto creado, pero ${fallidas.length} imagen${fallidas.length === 1 ? '' : 'es'} no se pudo subir`)
+        }
+      }
+      setNuevoProductoOpen(false)
+      notify.success('Producto creado', { description: `${data.codigo_universal} agregado a la venta` })
+      agregarLinea({
+        ...data,
+        id: String(res.id),
+        creado_en: new Date().toISOString(),
+        actualizado_en: new Date().toISOString(),
+      })
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Error al crear producto')
+    } finally {
+      setCreandoProducto(false)
+    }
+  }
+
   const actualizarLinea = (key: string, cambios: Partial<LineaVenta>) => {
     setLineas(prev => prev.map(l => l.key === key ? { ...l, ...cambios } : l))
   }
@@ -209,6 +254,7 @@ export function VentaManualModal({ vendedor, onClose, onSuccess }: VentaManualMo
       await api.post('/OrdenVenta/Manual', {
         id_Vendedor: vendedor.id,
         nota: nota || null,
+        fecha,
         items,
       })
       notify.success('Venta manual registrada', {
@@ -269,7 +315,17 @@ export function VentaManualModal({ vendedor, onClose, onSuccess }: VentaManualMo
         )}
 
         <div>
-          <label className="block text-xs font-semibold text-[#4A4744] mb-1.5">Buscar producto</label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-semibold text-[#4A4744]">Buscar producto</label>
+            <button
+              type="button"
+              onClick={() => setNuevoProductoOpen(true)}
+              className="flex items-center gap-1 text-[11px] font-semibold text-[#780e18] hover:text-[#5c0b12] transition-colors"
+            >
+              <i className="ti ti-plus text-[12px]" />
+              Registrar producto nuevo
+            </button>
+          </div>
           <div className="relative">
             <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-[#7A7571] text-[14px]" />
             <input
@@ -286,7 +342,16 @@ export function VentaManualModal({ vendedor, onClose, onSuccess }: VentaManualMo
               {buscando ? (
                 <div className="px-3 py-3 text-xs text-[#7A7571]">Buscando…</div>
               ) : resultados.length === 0 ? (
-                <div className="px-3 py-3 text-xs text-[#7A7571]">Sin resultados</div>
+                <div className="px-3 py-4 flex flex-col items-center gap-1.5 text-center">
+                  <p className="text-xs text-[#7A7571]">Sin resultados para "{query.trim()}"</p>
+                  <button
+                    type="button"
+                    onClick={() => setNuevoProductoOpen(true)}
+                    className="text-[11px] font-semibold text-[#780e18] hover:text-[#5c0b12] transition-colors"
+                  >
+                    + Registrar "{query.trim()}" como producto nuevo
+                  </button>
+                </div>
               ) : (
                 resultados.map(p => (
                   <button
@@ -413,6 +478,17 @@ export function VentaManualModal({ vendedor, onClose, onSuccess }: VentaManualMo
         </div>
 
         <div>
+          <label className="block text-xs font-semibold text-[#4A4744] mb-1.5">Fecha de la venta</label>
+          <input
+            type="date"
+            value={fecha}
+            max={hoyISO()}
+            onChange={e => setFecha(e.target.value)}
+            className="w-full h-10 px-3 rounded-xl border border-[#E8E5E2] bg-white text-[#2D2B2A] text-sm focus:outline-none focus:border-[#780e18] focus:ring-2 focus:ring-[#780e18]/10 transition-all"
+          />
+        </div>
+
+        <div>
           <label className="block text-xs font-semibold text-[#4A4744] mb-1.5">Nota (opcional)</label>
           <input
             type="text"
@@ -444,6 +520,14 @@ export function VentaManualModal({ vendedor, onClose, onSuccess }: VentaManualMo
           onSuccess={() => cargarProductoCompleto(ajusteLinea.key, ajusteLinea.producto.id)}
         />
       )}
+
+      <ProductoModal
+        open={nuevoProductoOpen}
+        onClose={() => setNuevoProductoOpen(false)}
+        onSave={handleCrearProducto}
+        producto={null}
+        loading={creandoProducto}
+      />
     </DrawerWrapper>
   )
 }

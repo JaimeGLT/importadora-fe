@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
 import { clsx } from 'clsx'
 import { Button, Input, Modal } from '@/components/ui'
+import { useAuth } from '@/contexts/AuthContext'
+import { isAdminRole } from '@/lib/roles'
 import { notify } from '@/lib/notify'
 import { getDescuentoColor } from '@/utils/descuentoColors'
 import type { DescuentoConfig } from '@/stores/configStore'
@@ -9,6 +11,8 @@ import type { Cart } from '@/stores/cajaStore'
 
 const fmtBs = (n: number) =>
   `Bs ${n.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+const hoyISO = () => new Date().toISOString().slice(0, 10)
 
 const METODOS: { value: MetodoPago; label: string; icon: React.ReactNode }[] = [
   { value: 'efectivo', label: 'Efectivo', icon: (
@@ -41,6 +45,7 @@ export interface VentaRapidaContadoConfirm {
   pagos: { tipoPago: MetodoPago; monto: number }[]
   descuento: { id?: string; monto: number } | null
   nota: string | null
+  fecha?: string
 }
 
 export interface VentaRapidaContadoModalProps {
@@ -68,12 +73,16 @@ export function VentaRapidaContadoModal({
   onClose,
 }: VentaRapidaContadoModalProps) {
 
+  const { user } = useAuth()
+  const esAdmin = isAdminRole(user?.rol)
+
   // ─── Estado del formulario ─────────────────────────────────────────────────
   const [descuentoId, setDescuentoId] = useState<string>('')
   const [clienteSearch, setClienteSearch] = useState('')
   const [clienteSelected, setClienteSelected] = useState<Cliente | null>(null)
   const [showClienteDropdown, setShowClienteDropdown] = useState(false)
   const [nota, setNota] = useState('')
+  const [fecha, setFecha] = useState(hoyISO())
   const [submitting, setSubmitting] = useState(false)
 
   // ─── Pago ──────────────────────────────────────────────────────────────────
@@ -175,6 +184,7 @@ export function VentaRapidaContadoModal({
           ? { id: descuentoSel.id, monto: montoDescuento }
           : null,
         nota: nota.trim() || null,
+        fecha: esAdmin ? fecha : undefined,
       })
     } catch (err) {
       notify.error(err instanceof Error ? err.message : 'Error al registrar la venta rápida')
@@ -493,6 +503,21 @@ export function VentaRapidaContadoModal({
             {cambio !== null && cambio >= 0 && (
               <p className="text-sm font-bold text-[#3F7A52] mt-2">Cambio: {fmtBs(cambio)}</p>
             )}
+          </div>
+        )}
+
+        {/* Fecha de venta (solo admin, para backdatear) */}
+        {esAdmin && (
+          <div>
+            <label className="block text-xs font-bold text-[#7A7571] uppercase tracking-widest mb-1.5">
+              Fecha de la venta
+            </label>
+            <Input
+              type="date"
+              value={fecha}
+              max={hoyISO()}
+              onChange={(e) => setFecha(e.target.value)}
+            />
           </div>
         )}
 

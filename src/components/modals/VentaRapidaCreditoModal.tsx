@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { clsx } from 'clsx'
-import { Button, Modal } from '@/components/ui'
+import { Button, Input, Modal } from '@/components/ui'
+import { useAuth } from '@/contexts/AuthContext'
+import { isAdminRole } from '@/lib/roles'
 import { notify } from '@/lib/notify'
 import { getDescuentoColor } from '@/utils/descuentoColors'
 import type { DescuentoConfig } from '@/stores/configStore'
@@ -9,6 +11,8 @@ import type { Cart } from '@/stores/cajaStore'
 
 const fmtBs = (n: number) =>
   `Bs ${n.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+const hoyISO = () => new Date().toISOString().slice(0, 10)
 
 export interface VentaRapidaCreditoItem {
   id_Producto: number       // kit padre (si es pieza) o producto regular
@@ -22,6 +26,7 @@ export interface VentaRapidaCreditoConfirm {
   items: VentaRapidaCreditoItem[]
   descuento: { id?: string; monto: number } | null
   nota: string | null
+  fecha?: string
 }
 
 export interface VentaRapidaCreditoModalProps {
@@ -47,10 +52,14 @@ export function VentaRapidaCreditoModal({
   onConfirm,
   onClose,
 }: VentaRapidaCreditoModalProps) {
+  const { user } = useAuth()
+  const esAdmin = isAdminRole(user?.rol)
+
   const [clienteSearch, setClienteSearch] = useState('')
   const [clienteSelected, setClienteSelected] = useState<Cliente | null>(null)
   const [showClienteDropdown, setShowClienteDropdown] = useState(false)
   const [nota, setNota] = useState('')
+  const [fecha, setFecha] = useState(hoyISO())
   const [submitting, setSubmitting] = useState(false)
 
   // ─── Descuento ─────────────────────────────────────────────────────────────
@@ -120,6 +129,7 @@ export function VentaRapidaCreditoModal({
           ? { id: descuentoSel.id, monto: montoDescuento }
           : null,
         nota: nota.trim() || null,
+        fecha: esAdmin ? fecha : undefined,
       })
     } catch (err) {
       notify.error(err instanceof Error ? err.message : 'Error al crear el crédito')
@@ -328,6 +338,21 @@ export function VentaRapidaCreditoModal({
             </div>
           )}
         </div>
+
+        {/* Fecha de venta (solo admin, para backdatear) */}
+        {esAdmin && (
+          <div>
+            <label className="block text-xs font-bold text-[#7A7571] uppercase tracking-widest mb-1.5">
+              Fecha de la venta
+            </label>
+            <Input
+              type="date"
+              value={fecha}
+              max={hoyISO()}
+              onChange={(e) => setFecha(e.target.value)}
+            />
+          </div>
+        )}
 
         {/* Nota opcional */}
         <div>
