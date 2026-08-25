@@ -170,7 +170,7 @@ export function VentaManualModal({ vendedor, onClose, onSuccess }: VentaManualMo
   ) => {
     setCreandoProducto(true)
     try {
-      const createPayload = productoToBackend(data)
+      const createPayload = { ...productoToBackend(data), sucursalId: sucursalResueltaId }
       const res = await api.post<{ id: number }>('/Producto', createPayload)
       if (kitOps.mode === 'convertirKit' && kitOps.piezas?.length) {
         await api.put(`/Producto/ConvertirKit/${res.id}`, { piezas: kitOps.piezas })
