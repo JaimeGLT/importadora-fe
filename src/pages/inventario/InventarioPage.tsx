@@ -766,7 +766,8 @@ export function InventarioPage() {
       meta: { align: 'left', wrapHeader: true },
       enableSorting: false,
       cell: (info) => {
-        const fecha = info.row.original.ultima_entrada_en
+        const p = info.row.original
+        const fecha = p.ultima_entrada_en || p.creado_en
         if (!fecha) {
           return <span className="text-[12px] text-[#A09A95] italic">—</span>
         }

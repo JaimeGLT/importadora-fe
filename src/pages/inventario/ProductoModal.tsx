@@ -378,9 +378,9 @@ export function ProductoModal({
               <span>
                 Última entrada:{' '}
                 <span className="font-medium text-[#4A4744]">
-                  {producto.ultima_entrada_en
-                    ? new Date(producto.ultima_entrada_en).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })
-                    : 'sin entradas'}
+                  {producto.ultima_entrada_en || producto.creado_en
+                    ? new Date(producto.ultima_entrada_en || producto.creado_en).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : '—'}
                 </span>
               </span>
             </div>
