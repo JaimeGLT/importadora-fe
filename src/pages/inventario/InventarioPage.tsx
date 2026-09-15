@@ -760,6 +760,24 @@ export function InventarioPage() {
       ),
     }),
     colHelper.display({
+      id: 'ultima_entrada',
+      header: () => <span>Última<br />entrada</span>,
+      size: 90,
+      meta: { align: 'left', wrapHeader: true },
+      enableSorting: false,
+      cell: (info) => {
+        const fecha = info.row.original.ultima_entrada_en
+        if (!fecha) {
+          return <span className="text-[12px] text-[#A09A95] italic">—</span>
+        }
+        return (
+          <span className="font-mono text-[12px] text-[#2D2B2A] leading-tight">
+            {new Date(fecha).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })}
+          </span>
+        )
+      },
+    }),
+    colHelper.display({
       id: 'acciones',
       header: '',
       size: isCajero ? 90 : 120,

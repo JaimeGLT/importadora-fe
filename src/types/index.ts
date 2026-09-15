@@ -95,6 +95,8 @@ export interface Producto {
   piezas_kit?: PiezaKit[]
   creado_en: string
   actualizado_en: string
+  /** Fecha de la última importación que trajo este producto. Null si nunca tuvo entradas por importación. */
+  ultima_entrada_en?: string | null
 }
 
 // ─── Sucursales ───────────────────────────────────────────────────────────────

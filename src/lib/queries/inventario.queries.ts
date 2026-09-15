@@ -46,6 +46,7 @@ export const PRODUCTOS_QUERY = `
         conversionABs
         fechaCreacion
         fechaActualizacion
+        fechaUltimaEntrada
         imagenPrincipal { id url }
         stocks(todasSucursales: true) {
           id
@@ -88,6 +89,7 @@ export const PRODUCTOS_CON_MARCAS_QUERY = `
         conversionABs
         fechaCreacion
         fechaActualizacion
+        fechaUltimaEntrada
         imagenPrincipal { id url }
         stocks(todasSucursales: true) {
           id
@@ -429,6 +431,7 @@ export const PRODUCTO_BY_ID_QUERY = `
         procedencia
         fechaCreacion
         fechaActualizacion
+        fechaUltimaEntrada
         imagenPrincipal { id url }
         imagenes {
           id
@@ -557,6 +560,7 @@ export interface ProductoAPISimple {
   historialPrecios?: HistorialPrecioAPI[]
   fechaCreacion?: string | null
   fechaActualizacion?: string | null
+  fechaUltimaEntrada?: string | null
   stocks?: ProductoStockAPI[]
 }
 
@@ -695,6 +699,7 @@ function mapProductoBase(p: ProductoAPISimple): Producto {
     proveedor_id: '',
     creado_en: p.fechaCreacion ?? '',
     actualizado_en: p.fechaActualizacion ?? '',
+    ultima_entrada_en: p.fechaUltimaEntrada ?? null,
   }
 }
 

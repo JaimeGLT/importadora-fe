@@ -365,6 +365,27 @@ export function ProductoModal({
       ) : (
         <fieldset disabled={readOnly} className="space-y-4 border-0 p-0 m-0 min-w-0">
 
+          {producto && (
+            <div className="flex flex-wrap gap-x-6 gap-y-1 text-[11.5px] text-[#7A7571] px-0.5 -mt-1">
+              <span>
+                Creado:{' '}
+                <span className="font-medium text-[#4A4744]">
+                  {producto.creado_en
+                    ? new Date(producto.creado_en).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : '—'}
+                </span>
+              </span>
+              <span>
+                Última entrada:{' '}
+                <span className="font-medium text-[#4A4744]">
+                  {producto.ultima_entrada_en
+                    ? new Date(producto.ultima_entrada_en).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : 'sin entradas'}
+                </span>
+              </span>
+            </div>
+          )}
+
           {/* Identificación */}
           <FormSection icon={<IconBarcode />} title="Identificación" description="Códigos únicos que identifican el producto" iconClass="bg-[#780e18] text-white shadow-sm">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
